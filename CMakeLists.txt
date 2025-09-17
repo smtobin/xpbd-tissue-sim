@@ -165,6 +165,9 @@ target_link_libraries(InitialDeformationTest InitialDeformationSimulation)
 add_executable(VariadicVectorContainerTest src/exec/test/variadic_vector_container_test.cpp)
 target_link_libraries(VariadicVectorContainerTest Eigen3::Eigen)
 
+add_executable(TombstoneVectorTest src/exec/test/tombstone_vector_test.cpp)
+target_link_libraries(TombstoneVectorTest Eigen3::Eigen)
+
 add_executable(EmbreeTest src/exec/test/embree_test.cpp)
 target_link_libraries(EmbreeTest embree Geometry MeshUtils)
 
