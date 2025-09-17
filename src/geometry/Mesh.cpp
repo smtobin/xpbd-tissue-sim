@@ -11,18 +11,17 @@
 namespace Geometry
 {
 
-Mesh::Mesh(const VerticesMat& vertices, const FacesMat& faces)
+Mesh::Mesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces)
     : _vertices(vertices), _faces(faces)
 {
     // create surface vertex property
     addVertexProperty<bool>("surface");
     auto& surface_property = getVertexProperty<bool>("surface");
-    for (int i = 0; i < numFaces(); i++)
+    for (const auto& f : _faces)
     {
-        const Eigen::Vector3i& cur_face = face(i);
-        surface_property.set(cur_face[0], true);
-        surface_property.set(cur_face[1], true);
-        surface_property.set(cur_face[2], true);
+        surface_property.set(f[0], true);
+        surface_property.set(f[1], true);
+        surface_property.set(f[2], true);
     }
 
     setCurrentStateAsUndeformedState();
@@ -66,10 +65,8 @@ void Mesh::_computeAdjacentVertices()
     }
 
     // go through each of the faces and add adjacent vertices for each vertex in the face
-    for (int i = 0; i < numFaces(); i++)
+    for (const auto& cur_face : _faces)
     {
-        const Eigen::Vector3i& cur_face = face(i);
-
         std::vector<int>& adj_verts0 = _vertex_adjacent_vertices[cur_face[0]];
         std::vector<int>& adj_verts1 = _vertex_adjacent_vertices[cur_face[1]];
         std::vector<int>& adj_verts2 = _vertex_adjacent_vertices[cur_face[2]];
@@ -98,10 +95,11 @@ void Mesh::setCurrentStateAsUndeformedState()
 
 void Mesh::updateVertexNormals()
 {
-    _vertex_normals = VerticesMat::Zero(3, numVertices());
-    for (int i = 0; i < numFaces(); i++)
+    for (auto& vert_norm : _vertex_normals)
+        vert_norm = Vec3r::Zero();
+
+    for (const auto& f : _faces)
     {
-        const Vec3i& f = face(i);
         // edge 0->1
         const Vec3r e01 = vertex(f[1]) - vertex(f[0]);
         // edge 1->2
@@ -109,23 +107,32 @@ void Mesh::updateVertexNormals()
         // edge 2->0
         const Vec3r e20 = vertex(f[2]) - vertex(f[0]);
 
-        _vertex_normals.col(f[0]) += e20.cross(e01);
-        _vertex_normals.col(f[1]) += e01.cross(e12);
-        _vertex_normals.col(f[2]) += e12.cross(e20);
+        _vertex_normals[f[0]] += e20.cross(e01);
+        _vertex_normals[f[1]] += e01.cross(e12);
+        _vertex_normals[f[2]] += e12.cross(e20);
     }
 }
 
-Real* Mesh::vertexPointer(const int index) const
+Real* Mesh::vertexPointer(int index) const
 {
-    assert(index < numVertices());
-    Real* p = const_cast<Real*>(_vertices.col(index).data());
+    Real* p = const_cast<Real*>(_vertices.at(index).data());
     return p;
 }
 
 AABB Mesh::boundingBox() const
 {
-    Vec3r min = _vertices.rowwise().minCoeff();
-    Vec3r max = _vertices.rowwise().maxCoeff();
+    Vec3r min = Vec3r::Constant(std::numeric_limits<Real>::max());
+    Vec3r max = Vec3r::Constant(std::numeric_limits<Real>::lowest());
+    for (const auto& v : _vertices)
+    {
+        min[0] = std::min(v[0], min[0]);
+        min[1] = std::min(v[1], min[1]);
+        min[2] = std::min(v[2], min[2]);
+
+        max[0] = std::max(v[0], max[0]);
+        max[1] = std::max(v[1], max[1]);
+        max[2] = std::max(v[2], max[2]);
+    }
     return AABB(min, max);
 }
 
@@ -135,7 +142,7 @@ std::pair<int,Real> Mesh::averageFaceEdgeLength() const
     std::set<std::pair<int, int>> edges;
 
     // add all the unique edges to the set
-    for (const auto& face : _faces.colwise())
+    for (const auto& face : _faces)
     {
         // 3 edges per face
         // make sure to insert them into the set in ascending-index order
@@ -165,12 +172,12 @@ int Mesh::getClosestVertex(const Vec3r& p) const
     unsigned closest_index = 0;
     Real closest_dist = (p - vertex(0)).squaredNorm();
     // I'm sure there is a better way to do this with std
-    for (int i = 0; i < _vertices.cols(); i++)
+    for (const auto& index : _vertices.validIndices())
     {
-        Real dist = (p - vertex(i)).squaredNorm();
+        Real dist = (p - vertex(index)).squaredNorm();
         if (dist < closest_dist)
         {
-            closest_index = i;
+            closest_index = index;
             closest_dist = dist;
         }
     }
@@ -179,42 +186,42 @@ int Mesh::getClosestVertex(const Vec3r& p) const
 
 }
 
-std::vector<int> Mesh::getVerticesWithX(const Real x) const
+std::vector<int> Mesh::getVerticesWithX(Real x) const
 {
     std::vector<int> verts;
-    for (int i = 0; i < numVertices(); i++)
+    for (const auto& index : _vertices.validIndices())
     {
-        if (_vertices(0,i) == x)
+        if (vertex(index)[0] == x)
         {
-            verts.push_back(i);
+            verts.push_back(index);
         }
     }
 
     return verts;
 }
 
-std::vector<int> Mesh::getVerticesWithY(const Real y) const
+std::vector<int> Mesh::getVerticesWithY(Real y) const
 {
     std::vector<int> verts;
-    for (int i = 0; i < numVertices(); i++)
+    for (const auto& index : _vertices.validIndices())
     {
-        if (_vertices(1,i) == y)
+        if (vertex(index)[1] == y)
         {
-            verts.push_back(i);
+            verts.push_back(index);
         }
     }
 
     return verts;
 }
 
-std::vector<int> Mesh::getVerticesWithZ(const Real z) const
+std::vector<int> Mesh::getVerticesWithZ(Real z) const
 {
     std::vector<int> verts;
-    for (int i = 0; i < numVertices(); i++)
+    for (const auto& index : _vertices.validIndices())
     {
-        if (_vertices(2,i) == z)
+        if (vertex(index)[2] == z)
         {
-            verts.push_back(i);
+            verts.push_back(index);
         }
     }
 
@@ -229,8 +236,9 @@ void Mesh::resize(const Real size_of_max_dim)
     Real scaling_factor = size_of_max_dim / (aabb.max - aabb.min).maxCoeff();
 
     // move all vertices to be centered around (0,0,0), apply the scaling, and then move them back
-    // moveTogether(-aabb.center());
-    _vertices *= scaling_factor;
+    // moveTogether(-aabb.center());    /** TODO: why is this commented out? */
+    for (auto& v : _vertices)
+        v *= scaling_factor;
     // moveTogether(aabb.center());
 
     // scale the unrotated size
@@ -250,9 +258,12 @@ void Mesh::resize(const Vec3r& new_size)
 
     // move all vertices to be centered around (0,0,0), apply the scaling, then move them back
     // moveTogether(-aabb.center());
-    _vertices.row(0) *= scaling_factor_x;
-    _vertices.row(1) *= scaling_factor_y;
-    _vertices.row(2) *= scaling_factor_z;
+    for (auto& v : _vertices)
+    {
+        v[0] *= scaling_factor_x;
+        v[1] *= scaling_factor_y;
+        v[2] *= scaling_factor_z;
+    }
     // moveTogether(aabb.center());
 
     // scale the unrotated size
@@ -263,13 +274,14 @@ void Mesh::resize(const Vec3r& new_size)
 
 void Mesh::moveTogether(const Vec3r& delta)
 {
-    _vertices.colwise() += delta;
+    for (auto& v : _vertices)
+        v += delta;
 }
 
-void Mesh::moveSeparate(const VerticesMat& delta)
-{
-    _vertices.noalias() += delta;
-}
+// void Mesh::moveSeparate(const VerticesMat& delta)
+// {
+//     _vertices.noalias() += delta;
+// }
 
 void Mesh::moveTo(const Vec3r& position)
 {
@@ -307,7 +319,8 @@ void Mesh::rotateAbout(const Vec3r& p, const Vec3r& xyz_angles)
 void Mesh::rotateAbout(const Vec3r& p, const Mat3r& rot_mat)
 {
     moveTogether(-p);
-    _vertices = rot_mat * _vertices;
+    for (auto& v : _vertices)
+        v = rot_mat * v;
     moveTogether(p);
 }
 
@@ -323,14 +336,14 @@ std::tuple<Real, Vec3r, Mat3r> Mesh::massProperties(Real density) const
     C_canonical <<  1.0/60.0, 1.0/120.0, 1.0/120.0,
                     1.0/120.0, 1.0/60.0, 1.0/120.0,
                     1.0/120.0, 1.0/120.0, 1.0/60.0;
-    for (const auto& f : _faces.colwise())
+    for (const auto& f : _faces)
     {
         // each triangle in the mesh + origin forms a tetrahedron
         // v0=origin, v1=f[0], v2=f[1], v3=f[2]
         const Vec3r v0(0,0,0);
-        const Vec3r v1 = _vertices.col(f[0]);
-        const Vec3r v2 = _vertices.col(f[1]);
-        const Vec3r v3 = _vertices.col(f[2]);
+        const Vec3r v1 = vertex(f[0]);
+        const Vec3r v2 = vertex(f[1]);
+        const Vec3r v3 = vertex(f[2]);
 
         // tet basis matrix
         Mat3r A;
@@ -367,14 +380,14 @@ Vec3r Mesh::massCenter() const
 {
     Real total_volume = 0;
     Vec3r weighted_volume(0,0,0);
-    for (const auto& f : _faces.colwise())
+    for (const auto& f : _faces)
     {
         // each triangle in the mesh + origin forms a tetrahedron
         // v0=origin, v1=f[0], v2=f[1], v3=f[2]
         const Vec3r v0(0,0,0);
-        const Vec3r v1 = _vertices.col(f[0]);
-        const Vec3r v2 = _vertices.col(f[1]);
-        const Vec3r v3 = _vertices.col(f[2]);
+        const Vec3r v1 = vertex(f[0]);
+        const Vec3r v2 = vertex(f[1]);
+        const Vec3r v3 = vertex(f[2]);
 
         // tet basis matrix
         Mat3r A;
@@ -404,12 +417,12 @@ void Mesh::writeMeshToObjFile(const std::string& filename) const
     std::ofstream obj_file(filename);
     if (obj_file.is_open())
     {
-        for (const auto& v : _vertices.colwise())
+        for (const auto& v : _vertices)
         {
             obj_file << "v " << v[0] << " " << v[1] << " " << v[2] << std::endl;
         }
         
-        for (const auto& f : _faces.colwise())
+        for (const auto& f : _faces)
         {
             obj_file << "f " << f[0]+1 << " " << f[1]+1 << " " << f[2]+1 << std::endl;
         }

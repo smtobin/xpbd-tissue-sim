@@ -78,7 +78,7 @@ int DeformableMeshSDF::closestSurfaceFaceToPointInTet(const Vec3r& x, int tet_in
     if (std::abs(F.determinant()) < 1e-8)
         return -1;
 
-    const Vec3r X_m = F.inverse() * (x - v4) + _initial_vertices.col(elem[3]);
+    const Vec3r X_m = F.inverse() * (x - v4) + _initial_vertices[elem[3]];
     // std::cout << "X_m: " << X_m.transpose() << std::endl;
 
     EmbreeHit cp = _embree_scene->closestPointUndeformedTetMesh(X_m, _mesh_obj);

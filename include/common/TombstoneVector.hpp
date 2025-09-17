@@ -39,6 +39,17 @@ public:
         : _empty_indices(), _data(size, initial_value), _num_valid(size)
     {}
 
+    /** Initializes the underlying vector from another vector. */
+    TombstoneVector(const std::vector<T>& vec)
+        : _empty_indices(), _data(vec.size()), _num_valid(vec.size())
+    {
+        // copy over data
+        for (size_t i = 0; i < vec.size(); i++)
+        {
+            _data[i] = vec[i];
+        }
+    }
+
     /** Accessing elements */
     T& at(size_t index)
     {
@@ -208,6 +219,13 @@ public:
             return *this;
         }
 
+        iterator& operator++(int)
+        {
+            iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
         bool operator==(const iterator& other) const
         {
             return _it == other._it;
@@ -232,6 +250,7 @@ public:
     class const_iterator
     {
     public:
+
         const_iterator(typename std::vector<optional_type>::const_iterator it,
                  typename std::vector<optional_type>::const_iterator end)
             : _it(it), _end(end)
@@ -249,12 +268,19 @@ public:
             return *this;
         }
 
-        bool operator==(const iterator& other) const
+        const_iterator& operator++(int)
+        {
+            iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const const_iterator& other) const
         {
             return _it == other._it;
         }
 
-        bool operator!=(const iterator& other) const
+        bool operator!=(const const_iterator& other) const
         {
             return _it != other._it;
         }
@@ -280,6 +306,16 @@ public:
         return iterator(_data.end(), _data.end());
     }
 
+    const_iterator begin() const
+    {
+        return const_iterator(_data.begin(), _data.end());
+    }
+
+    const_iterator end() const
+    {
+        return const_iterator(_data.begin(), _data.end());
+    }
+
     const_iterator cbegin() const
     {
         return const_iterator(_data.cbegin(), _data.cend());
@@ -288,6 +324,70 @@ public:
     const_iterator cend() const
     {
         return const_iterator(_data.cend(), _data.cend());
+    }
+
+    class ValidIndicesRange
+    {
+    public:
+        ValidIndicesRange(const std::vector<optional_type>* data) : _data(data) {}
+
+        class iterator
+        {
+        public:
+
+            iterator(const std::vector<std::optional<T>>* data, size_t index)
+                : _data(data), _index(index)
+            {
+                _skipInvalid();
+            }
+
+            size_t operator*() const { return _index; }
+
+            iterator& operator++()
+            {
+                ++_index;
+                _skipInvalid();
+                return *this;
+            }
+
+            iterator operator++(int)
+            {
+                iterator temp = *this;
+                ++(*this);
+                return temp;
+            }
+
+            bool operator==(const iterator& other) const
+            {
+                return _index == other._index;
+            }
+
+            bool operator!=(const iterator& other) const
+            {
+                return _index != other._index;
+            }
+
+        private:
+            void _skipInvalid()
+            {
+                while (_index < _data->size() && !(*_data)[_index].has_value())
+                    ++_index;
+            }
+
+            const std::vector<std::optional<T>>* _data;
+            size_t _index;
+        };
+
+        iterator begin() const { return iterator(_data, 0); }
+        iterator end() const { return iterator(_data, _data->size()); }
+
+    private:
+        const std::vector<optional_type>* _data;
+    };
+
+    ValidIndicesRange validIndices() const
+    {
+        return ValidIndicesRange(&_data);
     }
 
 

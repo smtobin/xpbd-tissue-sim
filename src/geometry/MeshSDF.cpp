@@ -28,8 +28,18 @@ MeshSDF::MeshSDF(const Sim::RigidMeshObject* mesh_obj, const Config::RigidMeshOb
         // unrotate the copy of the mesh
         const Mat3r rot_mat = GeometryUtils::quatToMat(GeometryUtils::inverseQuat(mesh_obj->orientation()));
         mesh_copy.rotateAbout(Vec3r::Zero(), rot_mat);
+        
+        Eigen::Matrix<Real, 3, -1, Eigen::ColMajor> verts(3, mesh_copy.vertices().size());
+        Eigen::Matrix<int, 3, -1, Eigen::ColMajor> faces(3, mesh_copy.faces().size());
+        
+        int v_ind = 0;
+        for (const auto& v : mesh_copy.vertices())
+            verts.col(v_ind++) = v;
+        int f_ind = 0;
+        for (const auto& f : mesh_copy.faces())
+            faces.col(f_ind++) = f;
         // compute the SDF
-        _sdf = mesh2sdf::MeshSDF(mesh_copy.vertices(), mesh_copy.faces(), 128, 5, true);
+        _sdf = mesh2sdf::MeshSDF(verts, faces, 128, 5, true);
     }
 }
 

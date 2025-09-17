@@ -11,7 +11,7 @@
 namespace Geometry
 {
 
-TetMesh::TetMesh(const VerticesMat& vertices, const FacesMat& faces, const ElementsMat& elements)
+TetMesh::TetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces, const std::vector<Vec4i>& elements)
     : Mesh(vertices, faces), _elements(elements)
 {
     setCurrentStateAsUndeformedState();
@@ -120,6 +120,32 @@ void TetMesh::setCurrentStateAsUndeformedState()
         _element_rest_volumes[i] = elementVolume(i);
     }
 
+    // find elements that share faces
+    // for now, just do a dumb O(n^2) search
+    _face_adjacent_elements.resize(numElements());
+    for (int i = 0; i < numElements(); i++)
+    {
+        const Eigen::Vector4i& elem_i = element(i);
+        for (int j = i+1; j < numElements(); j++)
+        {
+            
+            const Eigen::Vector4i& elem_j = element(j);
+            int num_shared_vertices = 0;
+            for (int k = 0; k < 4; k++)
+            {
+                if (elem_j[k] == elem_i[0] || elem_j[k] == elem_i[1] || elem_j[k] == elem_i[2] || elem_j[k] == elem_i[3])
+                    num_shared_vertices++;
+            }
+
+            if (num_shared_vertices == 3)   // the two elements share a face
+            {
+                _face_adjacent_elements[i].push_back(j);
+                _face_adjacent_elements[j].push_back(i);
+            }
+                
+        }
+    }
+
     // find surface elements
     // for now, just do a dumb O(n^2) search
     _surface_elements.clear();
@@ -182,6 +208,18 @@ Mat3r TetMesh::elementDeformationGradient(int index) const
     return deformed_basis * _element_inv_undeformed_basis[index];
 }
 
+void TetMesh::removeElementWithFace(int face_index)
+{
+    // get the element corresponding to the surface face
+    int elem_index = elementWithFace(face_index);
+    // get adjacent elements
+    const std::vector<int>& adjacent_elements = _face_adjacent_elements[elem_index];
+
+    // get surface faces associated with the element we're removing
+    
+
+}
+
 std::pair<int, Real> TetMesh::averageTetEdgeLength() const
 {
     std::set<std::pair<int, int>> edges;
@@ -195,7 +233,7 @@ std::pair<int, Real> TetMesh::averageTetEdgeLength() const
     };
 
     Real total_length = 0;
-    for (const auto& elem : _elements.colwise())
+    for (const auto& elem : _elements)
     {
         const Vec3r& v1 = vertex(elem(0));
         const Vec3r& v2 = vertex(elem(1));

@@ -4,6 +4,7 @@
 #include "geometry/AABB.hpp"
 #include "common/types.hpp"
 #include "common/VariadicVectorContainer.hpp"
+#include "common/TombstoneVector.hpp"
 
 #include "geometry/MeshProperty.hpp"
 
@@ -26,15 +27,18 @@ class Mesh
 {
     // public typedefs
 public:
-    typedef Eigen::Matrix<Real, 3, -1, Eigen::ColMajor> VerticesMat; // vertex matrix type
-    typedef Eigen::Matrix<int, 3, -1, Eigen::ColMajor> FacesMat;     // faces matrix type
-    typedef Eigen::Matrix<int, 4, -1, Eigen::ColMajor> ElementsMat;  // elements matrix type (used by tetrahedral meshes)
+    // typedef Eigen::Matrix<Real, 3, -1, Eigen::ColMajor> VerticesMat; // vertex matrix type
+    // typedef Eigen::Matrix<int, 3, -1, Eigen::ColMajor> FacesMat;     // faces matrix type
+    // typedef Eigen::Matrix<int, 4, -1, Eigen::ColMajor> ElementsMat;  // elements matrix type (used by tetrahedral meshes)
+    using vertices_vec_type = TombstoneVector<Vec3r>;
+    using faces_vec_type = TombstoneVector<Vec3i>;
+    using elements_vec_type = TombstoneVector<Vec4i>;
 
 public:
     /** Constructs a mesh from a set of vertices and faces.
      * This is usually done using helper methods in the MeshUtils library.
      */
-    Mesh(const VerticesMat &vertices, const FacesMat &faces);
+    Mesh(const std::vector<Vec3r> &vertices, const std::vector<Vec3i> &faces);
 
     Mesh(const Mesh &other);
 
@@ -43,19 +47,19 @@ public:
     virtual ~Mesh() = default;
 
     /** Returns a const-reference to the vertices of the mesh. */
-    const VerticesMat &vertices() const { return _vertices; }
+    const vertices_vec_type &vertices() const { return _vertices; }
     /** Returns a const-reference to the faces of the mesh. */
-    const FacesMat &faces() const { return _faces; }
+    const faces_vec_type &faces() const { return _faces; }
 
     /** Returns a non-const-reference to the vertices of the mesh. */
-    VerticesMat &vertices() { return _vertices; }
+    vertices_vec_type &vertices() { return _vertices; }
     /** Returns a non-const-reference to the faces of the mesh. */
-    FacesMat &faces() { return _faces; }
+    faces_vec_type &faces() { return _faces; }
 
     /** Number of verticees in the mesh. */
-    int numVertices() const { return _vertices.cols(); }
+    int numVertices() const { return _vertices.size(); }
     /** Number of faces in the mesh. */
-    int numFaces() const { return _faces.cols(); }
+    int numFaces() const { return _faces.size(); }
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.
@@ -68,8 +72,10 @@ public:
     /** Returns the vertex normal at vertex i */
     Vec3r vertexNormal(int index);
 
-    /** Returns a single vertex as an Eigen 3-vector, given the vertex index. */
-    Vec3r vertex(const int index) const { return _vertices.col(index); }
+    /** Returns a single vertex as an Eigen 3-vector, given the vertex index.
+     * This assumes that the index used is a valid index (i.e. the vertex we are trying to access has not been removed).
+     */
+    Vec3r vertex(const int index) const { return _vertices[index]; }
 
     /** Returns whether or not the vertex is on the surface of the mesh. */
     bool vertexOnSurface(int index) const { const auto& prop = getVertexProperty<bool>("surface"); return prop.get(index); }
@@ -80,22 +86,16 @@ public:
     Real *vertexPointer(const int index) const;
 
     /** Sets the vertex at the specified to a new position. */
-    void setVertex(int index, const Vec3r &new_pos) { _vertices.col(index) = new_pos; }
+    void setVertex(int index, const Vec3r &new_pos) { _vertices.at(index) = new_pos; }
 
-    void displaceVertex(int index, const Vec3r &offset) { _vertices.col(index) += offset; }
+    void displaceVertex(int index, const Vec3r &offset) { _vertices.at(index) += offset; }
 
     const std::vector<int>& vertexAdjacentVertices(int index) { return _vertex_adjacent_vertices[index]; }
 
-    /** Displaces the vertex at the specified index by a certain amount. */
-    //  void displaceVertex(const int index, const Real dx, const Real dy, const Real dz)
-    //  {
-    //      _vertices(0, index) += dx;
-    //      _vertices(1, index) += dy;
-    //      _vertices(2, index) += dz;
-    //  }
-
-    /** Returns a single face as an Eigen 3-vector, given the vertex index. */
-    Eigen::Vector3i face(const int index) const { return _faces.col(index); }
+    /** Returns a single face as an Eigen 3-vector, given the vertex index.
+     * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).
+     */
+    Vec3i face(int index) const { return _faces.at(index); }
 
     /** Returns the axis-aligned bounding-box (AABB) for the mesh. */
     AABB boundingBox() const;
@@ -116,13 +116,13 @@ public:
     int getClosestVertex(const Vec3r &p) const;
 
     /** Returns a list of vertex indices for vertices with the specified x-coordinate. */
-    std::vector<int> getVerticesWithX(const Real x) const;
+    std::vector<int> getVerticesWithX(Real x) const;
 
     /** Returns a list of vertex indices for vertices with the specified y-coordinate. */
-    std::vector<int> getVerticesWithY(const Real y) const;
+    std::vector<int> getVerticesWithY(Real y) const;
 
     /** Returns a list of vertex indices for vertices with the specified z-coordinate. */
-    std::vector<int> getVerticesWithZ(const Real z) const;
+    std::vector<int> getVerticesWithZ(Real z) const;
 
     /** Resizes the mesh such that its maximum dimension is no larger than the specified size.
      * @param size_of_max_dim : the new size of the largest dimension of the mesh
@@ -140,7 +140,7 @@ public:
     /** Moves each vertex in the mesh by a per-vertex amount.
      * Up to the caller to ensure that the per-vertex displacement matrix is the same dimensions as the mesh's vertices matrix.
      */
-    void moveSeparate(const VerticesMat &delta);
+    // void moveSeparate(const VerticesMat &delta);
 
     /** Moves the center of the AABB of the mesh to a specified position.
      * @param position : the position to move the center of the AABB mesh to
@@ -323,9 +323,9 @@ protected:
     virtual void _computeAdjacentVertices();
 
 protected:
-    VerticesMat _vertices; // the vertices of the mesh
-    FacesMat _faces;       // the faces of the mesh
-    VerticesMat _vertex_normals; // vertex normals of the mesh
+    vertices_vec_type _vertices; // the vertices of the mesh
+    faces_vec_type _faces;       // the faces of the mesh
+    vertices_vec_type _vertex_normals; // vertex normals of the mesh
 
     std::vector<std::vector<int>> _vertex_adjacent_vertices;
 

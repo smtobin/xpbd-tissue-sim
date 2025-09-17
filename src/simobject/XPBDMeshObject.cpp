@@ -152,8 +152,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
     // initialize the previous vertices matrix once we've loaded the mesh
     _previous_vertices = _mesh->vertices();
-    _vertex_velocities = Geometry::Mesh::VerticesMat::Zero(3, _mesh->numVertices());
-    _vertex_velocities.colwise() = _initial_velocity;
+
+    _vertex_velocities = _mesh->vertices();
+    for (auto& vel : _vertex_velocities)
+        vel = _initial_velocity;
 
     _calculatePerVertexQuantities();
     _createElasticConstraints();     // create constraints and add ConstraintProjectors to the solver object
@@ -459,7 +461,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_m
     else
     {
         // move vertices according to their velocity
-        _mesh->moveSeparate(dt*_vertex_velocities);
+        for (const auto& index : _mesh->vertices().validIndices())
+        {
+            _mesh->displaceVertex(index, dt*_vertex_velocities[index]);
+        }
+        
         // external forces (right now just gravity, which acts in -z direction)
         for (int i = 0; i < _mesh->numVertices(); i++)
         {
@@ -494,11 +500,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_p
 
     // TODO: replace with constraints?
     // enforce fixed vertices (move them back to previous position)
-    for (int i = 0; i < _mesh->numVertices(); i++)
+    for (const auto& index : _mesh->vertices().validIndices())
     {
-        if (vertexFixed(i))
+        if (vertexFixed(index))
         {
-            _mesh->setVertex(i, _previous_vertices.col(i));
+            _mesh->setVertex(index, vertexPreviousPosition(index));
         }
     }
 
@@ -529,9 +535,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::ve
     //     }
     // }
 
-    const Geometry::Mesh::VerticesMat& cur_vertices = _mesh->vertices();
     // velocities are simply (cur_pos - last_pos) / deltaT
-    _vertex_velocities = (cur_vertices - _previous_vertices) / _sim->dt();
+
+    for (const auto& index : _mesh->vertices().validIndices())
+    {
+        _vertex_velocities[index] = (_mesh->vertex(index) - vertexPreviousPosition(index)) / _sim->dt();
+    }
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -646,50 +655,51 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
         constraint_index++;
     });
 
+    /** TODO: compute Hessian term properly with TombstoneVector... */
     // compute the Hessian term (through numerical differentiation)
-    Real* data_ptr = _mesh->vertices().data();
-    Real delta = 0.0001;
-    MatXr delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
-    MatXr grad_delC_i = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
     MatXr hessian_term = MatXr::Zero(3*_mesh->numVertices(), 3*_mesh->numVertices());
-    for (int dof = 0; dof < _mesh->vertices().size(); dof++)
-    {
-        delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
+    // Real* data_ptr = _mesh->vertices().data();
+    // Real delta = 0.0001;
+    // MatXr delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
+    // MatXr grad_delC_i = MatXr::Zero(num_constraints, 3*_mesh->numVertices())
+    // for (int dof = 0; dof < _mesh->vertices().size(); dof++)
+    // {
+    //     delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
 
-        // vary each DOF
-        data_ptr[dof] += delta;
+    //     // vary each DOF
+    //     data_ptr[dof] += delta;
 
-        // loop through constraints to calculate the change in delC
-        int constraint_index = 0;
-        _constraints.for_each_element([&delC, &constraint_index](const auto& constraint)
-        {
-            // get the gradient from the constraint
-            using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
-            Real grad[ConstraintType::NUM_COORDINATES];
-            constraint.gradient(grad);
+    //     // loop through constraints to calculate the change in delC
+    //     int constraint_index = 0;
+    //     _constraints.for_each_element([&delC, &constraint_index](const auto& constraint)
+    //     {
+    //         // get the gradient from the constraint
+    //         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
+    //         Real grad[ConstraintType::NUM_COORDINATES];
+    //         constraint.gradient(grad);
 
-            // get the positions that the constraint affects
-            const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
+    //         // get the positions that the constraint affects
+    //         const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
 
-            for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
-            {
-                int position_index = constraint_positions[i].index;
-                const Vec3r grad_i = Eigen::Map<Vec3r>(grad + 3*i);
+    //         for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
+    //         {
+    //             int position_index = constraint_positions[i].index;
+    //             const Vec3r grad_i = Eigen::Map<Vec3r>(grad + 3*i);
 
-                delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
-            }
+    //             delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
+    //         }
 
-            constraint_index++;
-        });
+    //         constraint_index++;
+    //     });
 
-        // compute gradient
-        grad_delC_i = (delC - orig_delC) / delta;
+    //     // compute gradient
+    //     grad_delC_i = (delC - orig_delC) / delta;
 
-        // compute associated column in the Hessian term
-        hessian_term.col(dof) = grad_delC_i.transpose() * alpha_inv.asDiagonal() * C_vec;
+    //     // compute associated column in the Hessian term
+    //     hessian_term.col(dof) = grad_delC_i.transpose() * alpha_inv.asDiagonal() * C_vec;
 
-        data_ptr[dof] -= delta;
-    }
+    //     data_ptr[dof] -= delta;
+    // }
 
     MatXr stiffness_matrix = hessian_term + orig_delC.transpose() * alpha_inv.asDiagonal() * orig_delC;
 

@@ -78,7 +78,7 @@ float EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(const float p[3], cons
 void EmbreeTetMeshGeometry::boundsFuncTetrahedra(const struct RTCBoundsFunctionArguments *args)
 {
     const EmbreeTetMeshGeometry *geom = static_cast<const EmbreeTetMeshGeometry *>(args->geometryUserPtr);
-    const int *indices = geom->elementIndices() + 4 * args->primID;
+    const int *indices = geom->tetMesh()->element(args->primID).data();
     const float *v1 = geom->vertices() + 3 * indices[0];
     const float *v2 = geom->vertices() + 3 * indices[1];
     const float *v3 = geom->vertices() + 3 * indices[2];
@@ -114,7 +114,7 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
         return false;
 
     
-    const int *indices = geom->elementIndices() + 4 * args->primID;
+    const int *indices = geom->tetMesh()->element(args->primID).data();
     const float *v1 = geom->vertices() + 3 * indices[0];
     const float *v2 = geom->vertices() + 3 * indices[1];
     const float *v3 = geom->vertices() + 3 * indices[2];

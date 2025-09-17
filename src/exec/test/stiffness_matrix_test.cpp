@@ -91,7 +91,8 @@ int main()
             std::stringstream vfilename_ss;
             vfilename_ss << std::setw(6) << std::setfill('0') << "vertices" << i/10 << ".txt";
             std::ofstream vertices_ss(vfilename_ss.str());
-            vertices_ss << xpbd_mesh_obj->mesh()->vertices().transpose();
+            for (const auto& v : xpbd_mesh_obj->mesh()->vertices())
+                vertices_ss << v.transpose()  << "\n";
             vertices_ss.close();
         }
     }
@@ -125,10 +126,12 @@ int main()
     
 
     std::ofstream elements_ss("elements.txt");
-    elements_ss << xpbd_mesh_obj->tetMesh()->elements().transpose();
+    for (const auto& e : xpbd_mesh_obj->tetMesh()->elements())
+        elements_ss << e.transpose()  << "\n";
     elements_ss.close();
     
     std::ofstream surface_faces_ss("surface_faces.txt");
-    surface_faces_ss << xpbd_mesh_obj->mesh()->faces().transpose();
+    for (const auto& f : xpbd_mesh_obj->mesh()->faces())
+        surface_faces_ss << f.transpose() << "\n";
     surface_faces_ss.close();
 }

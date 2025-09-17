@@ -65,7 +65,8 @@ class XPBDSolver
      */
     void solve()
     {
-        _inertial_positions = _obj->mesh()->vertices();
+        /** TODO: uncomment this when ready */
+        // _inertial_positions = _obj->mesh()->vertices();
 
         // initialize all the constraints
         _constraint_projectors.for_each_element([&](auto& proj)
@@ -395,7 +396,7 @@ class XPBDSolver
 
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* _obj;                                 // pointer to the XPBDMeshObject that owns this Solver and is updated by the solver loop
     int _num_iter;                                         // number of solver iterations per solve() call
-    Geometry::Mesh::VerticesMat _inertial_positions;                // stores the positions after the inertial update - useful for primary residual calculation
+    Geometry::Mesh::vertices_vec_type _inertial_positions;                // stores the positions after the inertial update - useful for primary residual calculation
 
     XPBDSolverResidualPolicyEnum _residual_policy;                        // determines how often to calculate the residuals - this varies depending on the information needs of the user
 

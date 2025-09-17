@@ -114,13 +114,13 @@ public:
      * @param index : the index of the vertex
      * @returns the velocity of the vertex at the specified index
      */
-    Vec3r vertexVelocity(int index) const { return _vertex_velocities.col(index); }
+    Vec3r vertexVelocity(int index) const { return _vertex_velocities.at(index); }
 
     /** The previous position of the vertex at the specified index.
      * @param index : the index of the vertex
      * @returns the previous position of the vertex at the specified index
      */
-    Vec3r vertexPreviousPosition(int index) const { return _previous_vertices.col(index); }
+    Vec3r vertexPreviousPosition(int index) const { return _previous_vertices.at(index); }
 
     /** Returns the "constraint inertia" associated with the vertex.
      * For normal 2nd-order XPBD, this is just the vertex mass.
@@ -223,10 +223,11 @@ public:
 
 
 protected:
+    /** TODO: does _previous_vertices and _vertex_velocities need to be vertices_vec_type? Or can they just be plain old std::vector? */
     /** Stores the vertices from the end of the previous time step */
-    Geometry::Mesh::VerticesMat _previous_vertices;
+    Geometry::Mesh::vertices_vec_type _previous_vertices;
     /** Stores the current velocities of each vertex */
-    Geometry::Mesh::VerticesMat _vertex_velocities;
+    Geometry::Mesh::vertices_vec_type _vertex_velocities;
 
     /** The initial bulk velocity of the mesh. Set by the config. TODO: is this needed? */
     Vec3r _initial_velocity;

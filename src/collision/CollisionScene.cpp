@@ -122,10 +122,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Vec3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);
@@ -174,10 +173,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const Geometry::SDF* sdf = rigid_obj->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Eigen::Vector3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);
@@ -219,10 +217,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const Geometry::SDF* sdf = obj2->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Eigen::Vector3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);

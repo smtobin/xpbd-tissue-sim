@@ -14,6 +14,7 @@ typedef Eigen::Vector<Real, 2> Vec2r;
 typedef Eigen::Vector<Real, 3> Vec3r;
 typedef Eigen::Vector<int, 3> Vec3i;
 typedef Eigen::Vector<Real, 4> Vec4r;
+typedef Eigen::Vector<int, 4> Vec4i;
 typedef Eigen::Vector<Real, 6> Vec6r;
 typedef Eigen::Vector<Real, -1> VecXr;
 

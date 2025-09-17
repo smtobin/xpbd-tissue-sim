@@ -17,7 +17,7 @@ class TetMesh : public Mesh
     /** Constructs a tetrahedral mesh from a set of vertices, faces, and elements.
      * This is usually done using the helper methods in the MeshUtils library.
      */
-    TetMesh(const VerticesMat& vertices, const FacesMat& faces, const ElementsMat& elements);
+    TetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces, const std::vector<Vec4i>& elements);
 
     TetMesh(const TetMesh& other);
 
@@ -31,16 +31,16 @@ class TetMesh : public Mesh
     virtual void setCurrentStateAsUndeformedState() override;
 
     /** Returns a const-reference to the elements of the mesh. */
-    const ElementsMat& elements() const { return _elements; }
+    const elements_vec_type& elements() const { return _elements; }
 
     /** Returns a non-const-reference to the elements of the mesh. */
-    ElementsMat& elements() { return _elements; }
+    elements_vec_type& elements() { return _elements; }
 
     /** Returns the number of elements in the mesh. */
-    int numElements() const { return _elements.cols(); }
+    int numElements() const { return _elements.size(); }
 
     /** Returns a single element as an Eigen 4-vector, given the element index. */
-    Eigen::Vector4i element(int index) const { return _elements.col(index); }
+    Vec4i element(int index) const { return _elements.at(index); }
 
     /** Returns the current volume of the specified element. */
     Real elementVolume(int index) const;
@@ -55,6 +55,13 @@ class TetMesh : public Mesh
 
     /** Returns the element index corresponding to a surface face. */
     int elementWithFace(int face_index) const { return _surface_elements[face_index]; }
+
+    /** Removes the element that corresponds to a surface face.
+     * All surface faces associated with the removed element are removed.
+     * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
+     * The element will not be removed, but rather just marked invalid.
+     */
+    void removeElementWithFace(int face_index);
 
     /** Returns the number of edges along with the average edge length in the tetrahedra of the mesh.
      * Note that this is different from averageFaceEdgeLength, which only returns the average edge length in the faces (i.e. the surface) of the mesh.
@@ -142,7 +149,7 @@ class TetMesh : public Mesh
 
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
-    ElementsMat _elements;
+    elements_vec_type _elements;
 
     /** Per-element properties */
     PropertyContainer<MeshPropertyTypeList> _element_properties;
@@ -159,8 +166,12 @@ class TetMesh : public Mesh
     /** lists the elements (by index) attached to a vertex */
     std::vector<std::vector<int>> _attached_elements_to_vertex; 
 
+    /** lists the elements (by index) that share a face with an element */
+    std::vector<std::vector<int>> _face_adjacent_elements;
+
     /** A list of elements that are on the surface, i.e. one of their faces is on the surface.
-     * Entry i is the index of the element that corresponds to surface face i
+     * Entry i is the index of the element that corresponds to surface face i.
+     * A single element may have multiple faces exposed to the surface, thus there may be duplicate indices in the vector
      */
     std::vector<int> _surface_elements;
 };

@@ -30,7 +30,7 @@ class EmbreeMeshGeometry
     void setUndeformedScene(RTCScene scene) { _undeformed_scene = scene; }
 
     /** Returns a pointer to face indices (3 consecutive indices make up a face). */
-    const int* faceIndices() const { return _mesh->faces().data(); }
+    // const int* faceIndices() const { return _mesh->faces().data(); }
 
     /** Returns a pointer to the vertices. */
     const float* vertices() const;
