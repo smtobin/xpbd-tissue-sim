@@ -69,7 +69,7 @@ objects:
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
     filename: "../resource/demos/palpation/2x1x1_block16.msh"
     # filename: "../resource/cube/cube8.msh"
-    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes.txt"
+    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes_spheres.txt"
 
     materials: ["Soft Tissue", "Stiffer Tissue"] # the elastic material(s) (must match with the name of a material defined above)
 
