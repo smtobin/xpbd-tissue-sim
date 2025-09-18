@@ -239,9 +239,9 @@ void VirtuosoSimulation::setArm2ToolState(int tool_state)
 void VirtuosoSimulation::_moveCursor(const Vec3r& dp)
 {
     Vec3r dp_clamped = dp;
-    if (dp.norm() > 2.5e-5)
+    if (dp.norm() > 5e-5)
     {
-        dp_clamped = dp * (2.5e-5 / dp.norm());
+        dp_clamped = dp * (5e-5 / dp.norm());
     }
     // move the tip cursor and the active arm tip position
     const Vec3r current_tip_position = _active_arm->commandedTipPosition();
