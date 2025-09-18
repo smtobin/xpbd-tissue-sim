@@ -313,7 +313,7 @@ public:
 
     const_iterator end() const
     {
-        return const_iterator(_data.begin(), _data.end());
+        return const_iterator(_data.end(), _data.end());
     }
 
     const_iterator cbegin() const

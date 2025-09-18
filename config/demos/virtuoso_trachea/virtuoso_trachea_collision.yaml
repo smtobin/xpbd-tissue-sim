@@ -74,7 +74,7 @@ objects:
     # solver-type: "Jacobi"
     # solver-type: "Parallel-Jacobi"
     constraint-type: "Stable-Neohookean-Combined"
-    damping-multiplier: 2e5
+    damping-multiplier: 4e5
     # damping-multiplier: 6000000000
     # damping-multiplier: 40000000000
     adjust-damping-to-material: True

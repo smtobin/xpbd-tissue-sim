@@ -32,7 +32,7 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
     : MeshGraphicsObject(name, mesh)
 {
     _vtk_poly_data = vtkSmartPointer<vtkPolyData>::New();
-
+    
     // create points
     vtkNew<vtkPoints> vtk_points;
     for (int vi = 0; vi < _mesh->numVertices(); vi++)
@@ -129,6 +129,7 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
 void VTKMeshGraphicsObject::update() 
 {
+    
     vtkPoints* points = _vtk_poly_data->GetPoints();
     for (int vi = 0; vi < _mesh->numVertices(); vi++)
     {
