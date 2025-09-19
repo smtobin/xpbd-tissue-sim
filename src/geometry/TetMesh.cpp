@@ -216,7 +216,69 @@ void TetMesh::removeElementWithFace(int face_index)
     const std::vector<int>& adjacent_elements = _face_adjacent_elements[elem_index];
 
     // get surface faces associated with the element we're removing
-    
+    // for now, just brute force search through the surface faces
+    std::vector<int> surface_faces_on_removed_element;
+    for (const auto& index : _faces.validIndices())
+    {
+        if (elementWithFace(index) == elem_index)
+        {
+            surface_faces_on_removed_element.push_back(index);
+        }
+    }
+
+    // remove surface faces
+    for (const auto& index : surface_faces_on_removed_element)
+    {
+        _faces.erase(index);
+    }
+
+    // add new surface faces
+    // these are the faces that are shared with the adjacent element(s)
+    const Vec4i& elem_to_remove = element(elem_index);
+    for (const auto& adj_elem_index : adjacent_elements)
+    {
+        const Vec4i& adj_elem = element(adj_elem_index);
+        int index_in_face = 0;
+        Vec3i new_face;
+        int elem_vertex_not_in_new_face = -1;
+        for (const auto& adj_vert_index : adj_elem)
+        {
+            bool found = false;
+            for (const auto& vert_index : elem_to_remove)
+            {
+                if (adj_vert_index == vert_index)
+                {
+                    new_face[index_in_face++] = vert_index;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) elem_vertex_not_in_new_face = adj_vert_index;
+        }
+        assert(index_in_face == 3);
+        // make sure normal is correct
+        // edge 0->1
+        const Vec3r e01 = vertex(new_face[1]) - vertex(new_face[0]);
+        // edge 0->2
+        const Vec3r e02 = vertex(new_face[2]) - vertex(new_face[0]);
+        const Vec3r n = e01.cross(e02);
+
+        // the dot product of the new face normal and the vertex of the element that is not in this new face should be positive
+        // (assuming the element is not inverted)
+        // if it's not, simply flip vertices 1 and 2 in the new face
+        if (n.dot(vertex(elem_vertex_not_in_new_face)) < 0)
+        {
+            int tmp = new_face[1];
+            new_face[1] = new_face[2];
+            new_face[2] = tmp;
+        }
+
+
+        _faces.push_back(std::move(new_face));
+    }
+
+    // remove element
+    _elements.erase(elem_index);
 
 }
 

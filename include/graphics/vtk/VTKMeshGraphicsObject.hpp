@@ -22,6 +22,9 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     vtkSmartPointer<vtkActor> actor() { return _vtk_actor; }
 
     private:
+    void _setVertices();
+    void _setFaces();
+
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
     vtkSmartPointer<vtkActor> _vtk_actor;
 };
