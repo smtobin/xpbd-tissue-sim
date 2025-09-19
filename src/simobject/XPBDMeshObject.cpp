@@ -544,6 +544,20 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::ve
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::removeElement(int elem_index)
+{
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    {
+        // mark the constraint projectors for the elastic constraints invalid
+        using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+        _solver.template setProjectorValidity<DevHydProjectorType>(elem_index, false);
+
+        // remove the element from the mesh
+        tetMesh()->removeElement(elem_index);
+    }
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Real XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::totalStrainEnergy() const
 {
     // iterate over all hydrostatic and deviatoric constraints

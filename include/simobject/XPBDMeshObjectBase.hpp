@@ -183,6 +183,14 @@ public:
      */
     virtual void selfCollisionCheck() = 0;
 
+    
+    /** === Editing mesh topology === */
+
+    /** Removes an element from the mesh object.
+     * This will update the mesh representation and disable any internal constraints associated with that element.
+     */
+    virtual void removeElement(int elem_index) = 0;
+
 
     /** === Querying the solver === */
 

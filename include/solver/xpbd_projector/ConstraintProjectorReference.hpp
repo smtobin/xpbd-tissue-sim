@@ -85,6 +85,7 @@ public:
 
     using variant_type = std::variant<ConstraintProjectorReference<projector_type_1st_order>, ConstraintProjectorReference<projector_type_2nd_order>>;
 
+    using lambda_type = typename std::conditional<projector_type_1st_order::NUM_CONSTRAINTS == 1, Real, Eigen::Vector<Real, projector_type_1st_order::NUM_CONSTRAINTS>>::type;
     // template<bool IsFirstOrder>
     // ConstraintProjectorReferenceWrapper(typename ConstraintProjectorReference<ConstraintProjectorTraits<IsFirstOrder, Constraints...>>::type&& proj_reference)
     //     : _variant(std::move(proj_reference))
@@ -141,6 +142,49 @@ public:
     bool isValid() const
     {
         return std::visit([](const auto& obj) { return obj->isValid(); }, _variant);
+    }
+
+    lambda_type lambda() const
+    {
+        return std::visit([](const auto& obj) { return obj->lambda(); }, _variant);
+    }
+
+    /** Constraint accessor for single projectors (NUM_CONSTRAINTS = 1) */
+    auto constraint() const
+    {
+        if constexpr (projector_type_1st_order::NUM_CONSTRAINTS == 1)
+        {
+            return std::visit([](const auto& obj) { return obj->constraint(); }, _variant);
+        }
+        else
+        {
+            static_assert(projector_type_1st_order::NUM_CONSTRAINTS == 1, "constraint() only available for single constraint projectors");
+        }
+    }
+
+    /** Constraint accessors for CombinedProjector (NUM_CONSTRAINTS = 2) */
+    auto constraint1() const
+    {
+        if constexpr (projector_type_1st_order::NUM_CONSTRAINTS == 2)
+        {
+            return std::visit([](const auto& obj) { return obj->constraint1(); }, _variant);
+        }
+        else
+        {
+            static_assert(projector_type_1st_order::NUM_CONSTRAINTS == 2, "constraint1() only available for combined constraint projectors");
+        }
+    }
+
+    auto constraint2() const
+    {
+        if constexpr (projector_type_1st_order::NUM_CONSTRAINTS == 2)
+        {
+            return std::visit([](const auto& obj) { return obj->constraint2(); }, _variant);
+        }
+        else
+        {
+            static_assert(projector_type_1st_order::NUM_CONSTRAINTS == 2, "constraint2() only available for combined constraint projectors");
+        }
     }
 
 private:

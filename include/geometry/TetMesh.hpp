@@ -59,9 +59,14 @@ class TetMesh : public Mesh
     /** Removes the element that corresponds to a surface face.
      * All surface faces associated with the removed element are removed.
      * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
-     * The element will not be removed, but rather just marked invalid.
      */
     void removeElementWithFace(int face_index);
+
+    /** Removes an element from the mesh.
+     * All surface faces associated with the removed element are removed.
+     * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
+     */
+    void removeElement(int elem_index);
 
     /** Returns the number of edges along with the average edge length in the tetrahedra of the mesh.
      * Note that this is different from averageFaceEdgeLength, which only returns the average edge length in the faces (i.e. the surface) of the mesh.

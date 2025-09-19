@@ -203,6 +203,13 @@ public:
         return std::visit([](auto& obj) { obj->clearAttachmentConstraints(); }, _variant);
     }
 
+    /** === Mesh topology === */
+
+    void removeElement(int elem_index)
+    {
+        return std::visit([&](auto& obj) { obj->removeElement(elem_index); }, _variant);
+    }
+
     /** === Miscellaneous === */
 
     Real totalStrainEnergy() const

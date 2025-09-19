@@ -132,8 +132,8 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "palpation"
-      tool-tube-length: 15e-3
+      tool-type: "cautery"
+      tool-tube-length: 1e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

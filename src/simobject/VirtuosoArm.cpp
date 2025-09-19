@@ -325,7 +325,24 @@ void VirtuosoArm::_grasperToolAction()
 
 void VirtuosoArm::_cauteryToolAction()
 {
-    // do nothing (for now)
+    if (_tool_state == 1)
+    {
+        std::set<int> elements_to_remove;
+        for (const auto& collision : _collision_constraints)
+        {
+            if (collision.proj_ref.lambda() > 0)
+            {
+                // get element 
+                int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(collision.proj_ref.constraint()->faceIndex());
+                elements_to_remove.insert(elem_index_to_remove);
+            }
+        }
+
+        for (const auto& elem_index : elements_to_remove)
+        {
+            _tool_manipulated_object.removeElement(elem_index);
+        }
+    }
 }
 
 void VirtuosoArm::_recomputeCoordinateFrames()

@@ -313,8 +313,11 @@ void VirtuosoSimulation::_timeStep()
         HHD handle = _haptic_device_manager->deviceHandles()[0];
         Vec3r cur_pos = _haptic_device_manager->position(handle);
 
+        bool button1_pressed = _haptic_device_manager->button1Pressed(handle);
         bool button2_pressed = _haptic_device_manager->button2Pressed(handle);
         
+        _active_arm->setToolState((int)button1_pressed);
+
         if (button2_pressed)
         {
             Vec3r dx = cur_pos - _last_haptic_pos;

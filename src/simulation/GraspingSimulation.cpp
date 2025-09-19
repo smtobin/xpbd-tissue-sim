@@ -37,9 +37,6 @@ void GraspingSimulation::setup()
             {
                 obj->fixVertex(v);
             }
-
-            obj->tetMesh()->removeElementWithFace(0);
-            obj->tetMesh()->removeElementWithFace(10);
         }
     }
     

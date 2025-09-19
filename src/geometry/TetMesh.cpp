@@ -212,6 +212,11 @@ void TetMesh::removeElementWithFace(int face_index)
 {
     // get the element corresponding to the surface face
     int elem_index = elementWithFace(face_index);
+    removeElement(elem_index);
+}
+
+void TetMesh::removeElement(int elem_index)
+{
     // get adjacent elements
     const std::vector<int>& adjacent_elements = _face_adjacent_elements[elem_index];
 
@@ -279,7 +284,6 @@ void TetMesh::removeElementWithFace(int face_index)
 
     // remove element
     _elements.erase(elem_index);
-
 }
 
 std::pair<int, Real> TetMesh::averageTetEdgeLength() const

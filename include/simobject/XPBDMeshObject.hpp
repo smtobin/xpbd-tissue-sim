@@ -144,6 +144,13 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Clears all attachment constraint that are on this object. */
     virtual void clearAttachmentConstraints() override;
 
+    /** === Editing mesh topology === */
+
+    /** Removes an element from the mesh object.
+     * This will update the mesh representation and disable any internal constraints associated with that element.
+     */
+    virtual void removeElement(int elem_index) override;
+
     /** === Querying the solver === */
 
     /** @returns the most recently calculated primary residual from the solver object */
