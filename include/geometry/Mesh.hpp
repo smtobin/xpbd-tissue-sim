@@ -77,6 +77,9 @@ public:
      */
     Vec3r vertex(const int index) const { return _vertices[index]; }
 
+    /** Returns whether not the index corresponds to a valid vertex. */
+    bool vertexValid(int index) const { return _vertices.indexValid(index); }
+
     /** Returns whether or not the vertex is on the surface of the mesh. */
     bool vertexOnSurface(int index) const { const auto& prop = getVertexProperty<bool>("surface"); return prop.get(index); }
 
@@ -96,6 +99,9 @@ public:
      * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).
      */
     Vec3i face(int index) const { return _faces.at(index); }
+
+    /** Returns whether or not the index corresponds to a valid face. */
+    bool faceValid(int index) const { return _faces.indexValid(index); }
 
     /** Returns the axis-aligned bounding-box (AABB) for the mesh. */
     AABB boundingBox() const;

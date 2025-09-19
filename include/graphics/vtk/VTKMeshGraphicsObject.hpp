@@ -6,6 +6,8 @@
 #include "config/render/ObjectRenderConfig.hpp"
 
 #include <vtkPolyData.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkPolyDataNormals.h>
 #include <vtkSmartPointer.h>
 #include <vtkActor.h>
 
@@ -29,6 +31,9 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
     vtkSmartPointer<vtkActor> _faces_vtk_actor;
     vtkSmartPointer<vtkActor> _edges_vtk_actor;
+
+    vtkSmartPointer<vtkPolyDataMapper> _face_mapper;
+    vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
 };
 
 } // namespace Graphics

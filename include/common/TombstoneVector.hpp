@@ -81,6 +81,11 @@ public:
         return *_data[index];
     }
 
+    bool indexValid(size_t index) const
+    {
+        return (index < _data.size() && _data[index].has_value());
+    }
+
     /** Adding elements */
     size_t push_back(const T& value)
     {

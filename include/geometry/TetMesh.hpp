@@ -42,6 +42,9 @@ class TetMesh : public Mesh
     /** Returns a single element as an Eigen 4-vector, given the element index. */
     Vec4i element(int index) const { return _elements.at(index); }
 
+    /** Returns whether or not the index corresponds to a valid element. */
+    bool elementValid(int index) const { return _elements.indexValid(index); }
+
     /** Returns the current volume of the specified element. */
     Real elementVolume(int index) const;
 
@@ -54,7 +57,7 @@ class TetMesh : public Mesh
     Mat3r elementDeformationGradient(int index) const;
 
     /** Returns the element index corresponding to a surface face. */
-    int elementWithFace(int face_index) const { return _surface_elements[face_index]; }
+    int elementWithFace(int face_index) const { return _surface_elements.at(face_index); }
 
     /** Removes the element that corresponds to a surface face.
      * All surface faces associated with the removed element are removed.

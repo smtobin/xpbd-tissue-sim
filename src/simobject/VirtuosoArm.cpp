@@ -188,8 +188,8 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0.02;
-    const Real unload_frac = 0.1;
+    const Real load_frac = 0.01;
+    const Real unload_frac = 0.01;
     for (int i = 0; i < NUM_OT_FRAMES; i++)
     {
         const Vec3r& cur_force = outerTubeNodalForce(i);
@@ -330,11 +330,15 @@ void VirtuosoArm::_cauteryToolAction()
         std::set<int> elements_to_remove;
         for (const auto& collision : _collision_constraints)
         {
-            if (collision.proj_ref.lambda() > 0)
+            if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
             {
                 // get element 
-                int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(collision.proj_ref.constraint()->faceIndex());
-                elements_to_remove.insert(elem_index_to_remove);
+                int face_index = collision.proj_ref.constraint()->faceIndex();
+                if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    continue;
+                
+                int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+                elements_to_remove.insert(elem_index_to_remove);                
             }
         }
 

@@ -4,7 +4,6 @@
 #include "common/colors.hpp"
 
 #include <vtkPolyDataMapper.h>
-#include <vtkPolyDataNormals.h>
 #include <vtkPointData.h>
 #include <vtkExtractEdges.h>
 
@@ -19,7 +18,6 @@
 #include <vtkTexture.h>
 #include <vtkTriangleFilter.h>
 #include <vtkPolyDataTangents.h>
-#include <vtkPolyDataMapper.h>
 #include <vtkPNGReader.h>
 #include <vtkCleanPolyData.h>
 #include <vtkImageData.h>
@@ -60,32 +58,32 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
     if (render_config.drawFaces())
     {
-        vtkNew<vtkPolyDataMapper> mapper;
+        _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
         if (render_config.smoothNormals())
         {
             // smooth normals
-            vtkNew<vtkPolyDataNormals> normal_generator;
-            normal_generator->SetInputData(_vtk_poly_data);
-            normal_generator->SetFeatureAngle(30.0);
-            normal_generator->SplittingOn();
+            _normals_generator = vtkSmartPointer<vtkPolyDataNormals>::New();
+            _normals_generator->SetInputData(_vtk_poly_data);
+            _normals_generator->SetFeatureAngle(30.0);
+            _normals_generator->SplittingOff();
             // normal_generator->ConsistencyOn();
-            normal_generator->ComputePointNormalsOn();
-            normal_generator->ComputeCellNormalsOn();
-            normal_generator->Update();
+            _normals_generator->ComputePointNormalsOn();
+            _normals_generator->ComputeCellNormalsOff();
+            _normals_generator->Update();
 
             // vtkNew<vtkPolyDataTangents> tangents;
             // tangents->SetInputConnection(normal_generator->GetOutputPort());
             // tangents->Update();
 
-            mapper->SetInputConnection(normal_generator->GetOutputPort());
+            _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
         }
         else
         {
-            mapper->SetInputData(_vtk_poly_data);
+            _face_mapper->SetInputData(_vtk_poly_data);
         }
         
         _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
-        _faces_vtk_actor->SetMapper(mapper);
+        _faces_vtk_actor->SetMapper(_face_mapper);
 
         VTKUtils::setupActorFromRenderConfig(_faces_vtk_actor.Get(), render_config);
 
@@ -138,6 +136,24 @@ void VTKMeshGraphicsObject::_setFaces()
     }
     
     _vtk_poly_data->SetPolys(new_faces);
+
+    if (_normals_generator)
+    {
+        _normals_generator->SetInputData(_vtk_poly_data);
+        _normals_generator->Update();
+        _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
+        // vtkPolyData* output = _normals_generator->GetOutput();
+    
+        // Copy only the normals back
+        // _vtk_poly_data->GetPointData()->SetNormals(
+        //     output->GetPointData()->GetNormals()
+        // );
+        // _vtk_poly_data->GetCellData()->SetNormals(
+        //     output->GetCellData()->GetNormals()
+        // );
+        // _vtk_poly_data->ShallowCopy(_normals_generator->GetOutput());
+    }
+    
 }
 
 void VTKMeshGraphicsObject::_setVertices()

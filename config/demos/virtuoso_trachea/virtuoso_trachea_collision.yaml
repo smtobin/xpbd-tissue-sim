@@ -2,7 +2,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_fixed_faces.txt"
 tumor-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_tumor_faces.txt"
 show-tip-cursor: true
@@ -87,8 +87,9 @@ objects:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
+    smooth-normals: false
     draw-points: false
-    draw-edges: true
+    draw-edges: false
     draw-faces: true
 
   -
@@ -108,7 +109,8 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "none"
+      tool-type: "cautery"
+      tool-tube-length: 1e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

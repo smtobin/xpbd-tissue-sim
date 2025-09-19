@@ -261,6 +261,8 @@ void TetMesh::removeElement(int elem_index)
             if (!found) elem_vertex_not_in_new_face = adj_vert_index;
         }
         assert(index_in_face == 3);
+
+
         // make sure normal is correct
         // edge 0->1
         const Vec3r e01 = vertex(new_face[1]) - vertex(new_face[0]);
@@ -279,7 +281,15 @@ void TetMesh::removeElement(int elem_index)
         }
 
 
-        _faces.push_back(std::move(new_face));
+        size_t new_face_index = _faces.push_back(std::move(new_face));
+
+        // update surface elements vector
+        _surface_elements.resize(_faces.totalSize());
+        _surface_elements[new_face_index] = adj_elem_index;
+
+        // remove the element from the adjacent element's adjacent element vector
+        std::vector<int>& adj_elems_for_adj_elem = _face_adjacent_elements[adj_elem_index];
+        adj_elems_for_adj_elem.erase(std::remove(adj_elems_for_adj_elem.begin(), adj_elems_for_adj_elem.end(), elem_index));
     }
 
     // remove element

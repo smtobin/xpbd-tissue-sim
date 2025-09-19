@@ -50,7 +50,7 @@ void PalpationSimulation::_timeStep()
 {
     VirtuosoSimulation::_timeStep();
 
-    std::cout << "Collision force: " << _virtuoso_robot->arm1()->netCollisionForce().transpose() << " N" << std::endl;
+    // std::cout << "Collision force: " << _virtuoso_robot->arm1()->netCollisionForce().transpose() << " N" << std::endl;
     if (_input_device == SimulationInput::Device::HAPTIC)
     {
         
