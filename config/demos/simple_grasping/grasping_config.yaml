@@ -92,14 +92,11 @@ objects:
     damping-multiplier: 10000   # 'b' from the 1st-Order XPBD paper
 
     # rendering settings
-    colors: [
-      [1.0, 0.3, 0.2],    # color of the bulk tissue
-      [1.0, 0.15, 0.05]   # color of the hard tissue
-    ]
+    color: [1.0, 0.7, 0.0]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
     draw-edges: true
     draw-faces: true

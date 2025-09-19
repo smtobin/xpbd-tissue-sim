@@ -19,14 +19,16 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
 
     virtual void update() override;
 
-    vtkSmartPointer<vtkActor> actor() { return _vtk_actor; }
+    vtkSmartPointer<vtkActor> facesActor() { return _faces_vtk_actor; }
+    vtkSmartPointer<vtkActor> edgesActor() { return _edges_vtk_actor; }
 
     private:
     void _setVertices();
     void _setFaces();
 
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
-    vtkSmartPointer<vtkActor> _vtk_actor;
+    vtkSmartPointer<vtkActor> _faces_vtk_actor;
+    vtkSmartPointer<vtkActor> _edges_vtk_actor;
 };
 
 } // namespace Graphics

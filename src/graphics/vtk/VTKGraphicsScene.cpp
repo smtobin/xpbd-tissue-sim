@@ -72,7 +72,10 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
 
         // create a new MeshGraphicsObject for visualizing this MeshObject
         auto ptr = std::make_unique<VTKMeshGraphicsObject>(obj->name(), mo->mesh(), render_config);
-        _vtk_viewer->renderer()->AddActor(ptr->actor());
+        if (ptr->facesActor())
+            _vtk_viewer->renderer()->AddActor(ptr->facesActor());
+        if (ptr->edgesActor())
+            _vtk_viewer->renderer()->AddActor(ptr->edgesActor());
         new_graphics_obj = std::move(ptr);
     }
 
