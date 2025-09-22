@@ -15,8 +15,9 @@ enable-mouse-interaction: true
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_tumor_faces.txt"
 
-# device-name1: "LeftOmni"
-# device-name2: "RightOmni"
+haptic-device-name1: "LeftOmni"
+haptic-device-name2: "RightOmni"
+# haptic-force-scaling: 1.0
 # device-name1: "Omni"
 
 g-accel: 0 # m/s2
@@ -83,13 +84,13 @@ objects:
     self-collisions: false
 
     # rendering settings
-    colors: [[1.0, 0.4, 0.3], [1.0, 0.3, 0.2]]
+    colors: [[1.0, 0.4, 1.0], [1.0, 0.3, 0.2]]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
     smooth-normals: false
     draw-points: false
-    draw-edges: false
+    draw-edges: true
     draw-faces: true
 
   -
@@ -120,17 +121,18 @@ objects:
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 15e-3
 
-    # -
-    #   name: "Arm2"
-    #   type: "VirtuosoArm"
-    #   outer-tube-diameter: 1.56e-3
-    #   outer-tube-radius-of-curvature: 1.5383e-2
-    #   outer-tube-distal-straight-length: 5e-3
-    #   outer-tube-translation: 7e-3
-    #   outer-tube-rotation: -45
-    #   inner-tube-rotation: 45
-    #   inner-tube-diameter: 1.04e-3
-    #   inner-tube-translation: 20e-3
+    -
+      name: "Arm2"
+      type: "VirtuosoArm"
+      tool-type: "none"
+      outer-tube-diameter: 1.56e-3
+      outer-tube-radius-of-curvature: 1.5383e-2
+      outer-tube-distal-straight-length: 5e-3
+      outer-tube-translation: 6e-3
+      outer-tube-rotation: 0
+      inner-tube-rotation: 0
+      inner-tube-diameter: 1.04e-3
+      inner-tube-translation: 10e-3
 
   
 

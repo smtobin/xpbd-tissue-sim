@@ -34,6 +34,7 @@ struct HapticDeviceInputData
 
 struct CopiedHapticDeviceOutputData
 {
+    Vec3r last_position;
     Vec3r position;
     Mat3r orientation;
     bool button1_pressed;
@@ -55,6 +56,7 @@ class HapticDeviceManager
 
     ~HapticDeviceManager();
 
+    Vec3r lastPosition(HHD handle);
     Vec3r position(HHD handle);
     Mat3r orientation(HHD handle);
     bool button1Pressed(HHD handle);
@@ -77,6 +79,7 @@ class HapticDeviceManager
     inline void setDeviceOutputData(HHD handle, const HDboolean& b1_state, const HDboolean& b2_state, const hduVector3Dd& position, const HDdouble* transform);
 
     void _initDeviceWithName(std::optional<std::string> device_name);
+    void _startUpdateCallback();
 
     std::vector<HHD> _device_handles;
     std::map<HHD, HapticDeviceOutputData> _device_data;

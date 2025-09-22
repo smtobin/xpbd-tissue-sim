@@ -17,11 +17,23 @@ VirtuosoSimulation::VirtuosoSimulation(const Config::VirtuosoSimulationConfig* c
     // initialize the haptic device if using haptic device input
     if (_input_device == SimulationInput::Device::HAPTIC)
     {
-        std::cout << BOLD << "Initializing haptic device..." << RST << std::endl;
-        _haptic_device_manager = std::make_unique<HapticDeviceManager>();
+        std::cout << BOLD << "Initializing haptic device(s)..." << RST << std::endl;
+        if (config->hapticDeviceName1().has_value() && config->hapticDeviceName2().has_value())
+        {
+            _haptic_device_manager = std::make_unique<HapticDeviceManager>(config->hapticDeviceName1().value(), config->hapticDeviceName2().value());
+        }
+        else if (config->hapticDeviceName1().has_value())
+        {
+            _haptic_device_manager = std::make_unique<HapticDeviceManager>(config->hapticDeviceName1().value());
+        }
+        else
+        {
+            _haptic_device_manager = std::make_unique<HapticDeviceManager>();
+        }
+
+        
         _haptic_device_manager->setForceScaling(config->hapticForceScaling());
         
-        _last_haptic_pos = _haptic_device_manager->position(_haptic_device_manager->deviceHandles()[0]);
     }
 
     // initialize the keys map with relevant keycodes for controlling the Virtuoso robot with the keyboard
@@ -66,12 +78,22 @@ void VirtuosoSimulation::setup()
     if (_show_tip_cursor)
     {
         Config::ObjectRenderConfig cursor_render_config(Config::ObjectRenderConfig::RenderType::PBR, std::nullopt, std::nullopt, std::nullopt,
-            0.0, 0.5, 0.3, Vec3r(1.0, 1.0, 0.0), true, true, false, false);
-        Config::RigidSphereConfig cursor_config("tip_cursor", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
-            1.0, 0.001, false, true, false, cursor_render_config);
-        _tip_cursor = _addObjectFromConfig(&cursor_config);
-        assert(_tip_cursor);
-        _tip_cursor->setPosition(_active_arm->actualTipPosition());
+                0.0, 0.5, 0.3, Vec3r(1.0, 1.0, 0.0), true, true, false, false);
+        
+        if (_virtuoso_robot->hasArm1())
+        {
+            Config::RigidSphereConfig cursor_config("tip_cursor1", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
+                1.0, 0.001, false, true, false, cursor_render_config);
+            _tip_cursor1 = _addObjectFromConfig(&cursor_config);
+            _tip_cursor1->setPosition(_virtuoso_robot->arm1()->actualTipPosition());
+        }
+        if (_virtuoso_robot->hasArm2() && _input_device == SimulationInput::Device::HAPTIC && _haptic_device_manager->deviceHandles().size() == 2)
+        {
+            Config::RigidSphereConfig cursor_config("tip_cursor2", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
+                1.0, 0.001, false, true, false, cursor_render_config);
+            _tip_cursor2 = _addObjectFromConfig(&cursor_config);
+            _tip_cursor2->setPosition(_virtuoso_robot->arm2()->actualTipPosition());
+        }
     }
     
 }
@@ -101,7 +123,7 @@ void VirtuosoSimulation::notifyMouseMoved(double x, double y)
             
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
             const Vec3r offset = right_vec*dx + up_vec*dy;
-            _moveCursor(offset*scaling);
+            _moveArm(_active_arm, _tip_cursor1, offset*scaling);
         }
     }
 
@@ -132,7 +154,7 @@ void VirtuosoSimulation::notifyKeyPressed(SimulationInput::Key key, SimulationIn
         }
 
         if (_show_tip_cursor)
-            _tip_cursor->setPosition(_active_arm->commandedTipPosition());
+            _tip_cursor1->setPosition(_active_arm->commandedTipPosition());
     }
     // when 'TAB' is pressed, switch the camera view to the endoscope view
     else if (key == SimulationInput::Key::TAB && action == SimulationInput::KeyAction::PRESS)
@@ -167,7 +189,7 @@ void VirtuosoSimulation::notifyMouseScrolled(double dx, double dy)
 
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
             const Vec3r offset = view_dir*dy;
-            _moveCursor(offset*scaling);
+            _moveArm(_active_arm, _tip_cursor1, offset*scaling);
         }
     }
 
@@ -236,20 +258,20 @@ void VirtuosoSimulation::setArm2ToolState(int tool_state)
     }
 }
 
-void VirtuosoSimulation::_moveCursor(const Vec3r& dp)
+void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, const Vec3r& dp)
 {
     Vec3r dp_clamped = dp;
-    if (dp.norm() > 2.5e-5)
+    if (dp.norm() > 5e-5)
     {
-        dp_clamped = dp * (2.5e-5 / dp.norm());
+        dp_clamped = dp * (5e-5 / dp.norm());
     }
     // move the tip cursor and the active arm tip position
-    const Vec3r current_tip_position = _active_arm->commandedTipPosition();
+    const Vec3r current_tip_position = arm->commandedTipPosition();
     const Vec3r new_commanded_position = current_tip_position + dp_clamped;
-    _active_arm->setCommandedTipPosition(new_commanded_position);
+    arm->setCommandedTipPosition(new_commanded_position);
 
     if (_show_tip_cursor)
-        _tip_cursor->setPosition(new_commanded_position);
+        cursor->setPosition(new_commanded_position);
 }
 
 void VirtuosoSimulation::_updateGraphics()
@@ -305,35 +327,77 @@ void VirtuosoSimulation::_timeStep()
         }
 
         if (_show_tip_cursor)
-            _tip_cursor->setPosition(_active_arm->commandedTipPosition());
+            _tip_cursor1->setPosition(_active_arm->commandedTipPosition());
     }
 
     if (_input_device == SimulationInput::Device::HAPTIC)
     {
-        HHD handle = _haptic_device_manager->deviceHandles()[0];
-        Vec3r cur_pos = _haptic_device_manager->position(handle);
+        const std::vector<HHD>& device_handles = _haptic_device_manager->deviceHandles();
+        // std::cout << "Num devicec handles: " << device_handles.size() << std::endl;
 
-        bool button1_pressed = _haptic_device_manager->button1Pressed(handle);
-        bool button2_pressed = _haptic_device_manager->button2Pressed(handle);
-        
-        _active_arm->setToolState((int)button1_pressed);
-
-        if (button2_pressed)
+        for (unsigned i = 0; i < device_handles.size(); i++)
         {
-            Vec3r dx = cur_pos - _last_haptic_pos;
+            Sim::VirtuosoArm* arm = nullptr;
+            Sim::RigidSphere* cursor = nullptr;
+            if (device_handles.size() == 1)
+            {
+                arm = _active_arm;
+                cursor = _tip_cursor1;
+            }
+            if (device_handles.size() == 2 && i == 0)
+            {
+                arm = _virtuoso_robot->arm1();
+                cursor = _tip_cursor1;
+            }
+            if (device_handles.size() == 2 && i == 1)
+            {
+                arm = _virtuoso_robot->arm2();
+                cursor = _tip_cursor2;
+            }
+            
+            if (!arm)
+            {
+                std::cout << "i = " << i << ": ARM NOT VALID!" << std::endl;
+                continue;
+            }
 
-            // transform dx from haptic input frame to camera frame
-            Vec3r dx_camera = GeometryUtils::Ry(M_PI) * dx;
-            Mat3r rot_mat;
-            rot_mat.col(1) = _graphics_scene->cameraUpDirection();
-            rot_mat.col(2) = _graphics_scene->cameraViewDirection();
-            rot_mat.col(0) = rot_mat.col(1).cross(rot_mat.col(2));
-            // transform from camera frame to global frame
-            Vec3r dx_sim = rot_mat * dx_camera;
-            _moveCursor(dx_sim*0.00005);
+            HHD handle = device_handles[i];
+            Vec3r last_pos = _haptic_device_manager->lastPosition(handle);
+            Vec3r cur_pos = _haptic_device_manager->position(handle);
+            const Vec3r cur_force = _haptic_device_manager->force(handle);
+
+            bool button1_pressed = _haptic_device_manager->button1Pressed(handle);
+            bool button2_pressed = _haptic_device_manager->button2Pressed(handle);
+            
+            arm->setToolState((int)button1_pressed);
+
+            if (button2_pressed)
+            {
+                Vec3r dx = cur_pos - last_pos;
+
+                // transform dx from haptic input frame to camera frame
+                Vec3r dx_camera = GeometryUtils::Ry(M_PI) * dx;
+                Mat3r rot_mat;
+                rot_mat.col(1) = _graphics_scene->cameraUpDirection();
+                rot_mat.col(2) = _graphics_scene->cameraViewDirection();
+                rot_mat.col(0) = rot_mat.col(1).cross(rot_mat.col(2));
+                // transform from camera frame to global frame
+                Vec3r dx_sim = rot_mat * dx_camera;
+                _moveArm(arm, cursor, dx_sim*0.00005);
+
+                // transform force from global frame to haptic frame
+                Vec3r cam_force = rot_mat.transpose() * arm->netCollisionForce();
+                Vec3r haptic_force = GeometryUtils::Ry(-M_PI) * cam_force;
+                
+                
+                Real frac = 0.3;
+                const Vec3r new_force = frac*haptic_force + (1-frac)*cur_force;
+                
+                std::cout << "i = " << i << ": Setting haptic force to " << new_force.transpose() << std::endl;
+                _haptic_device_manager->setForce(handle, new_force);
+            }
+            
         }
-
-        _last_haptic_pos = cur_pos;
         
     }
 

@@ -31,13 +31,30 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
     : MeshGraphicsObject(name, mesh)
 {
     _vtk_poly_data = vtkSmartPointer<vtkPolyData>::New();
+
+    // create points
     vtkNew<vtkPoints> vtk_points;
+    for (int vi = 0; vi < _mesh->numVertices(); vi++)
+    {
+        const Vec3r& v = _mesh->vertex(vi);
+        vtk_points->InsertNextPoint(v[0], v[1], v[2]);
+    }
+
+    // create faces
     vtkNew<vtkCellArray> vtk_faces;
+    for (int fi = 0; fi < _mesh->numFaces(); fi++)
+    {
+        const Vec3i& f = _mesh->face(fi);
+        vtkNew<vtkTriangle> tri;
+        tri->GetPointIds()->SetId(0, f[0]);
+        tri->GetPointIds()->SetId(1, f[1]);
+        tri->GetPointIds()->SetId(2, f[2]);
+
+        vtk_faces->InsertNextCell(tri);
+    }
+
     _vtk_poly_data->SetPoints(vtk_points);
     _vtk_poly_data->SetPolys(vtk_faces);
-
-    _setVertices();
-    _setFaces();
 
     
     if (render_config.drawEdges())
@@ -161,8 +178,8 @@ void VTKMeshGraphicsObject::_setVertices()
     // create points
     vtkPoints* points = _vtk_poly_data->GetPoints();
 
-    points->Resize(_mesh->numVertices());
-    points->SetNumberOfPoints(_mesh->numVertices());
+    // points->Resize(_mesh->numVertices());
+    // points->SetNumberOfPoints(_mesh->numVertices());
 
     int vtk_index = 0;
     for (const auto& vert : _mesh->vertices())
