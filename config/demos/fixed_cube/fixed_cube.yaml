@@ -15,11 +15,11 @@ sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-tim
 time-step: 1e-3   # simulation time step [s]
 collision-rate: 1000 # rate at which to run collision detection [Hz] 
 fps: 30 # frames per second of the visualization (i.e. how often to redraw graphics)
-end-time: 100 # end time of the simulation [s]
+end-time: 2 # end time of the simulation [s]
 
 ## Fixed cube simulation parameters
-cube-fixed-face: "bottom"   # which face of the cube is fixed. Options: ["left", "right", "top", "bottom"]
-text-file-save-interval: -1   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
+cube-fixed-face: "top"   # which face of the cube is fixed. Options: ["left", "right", "top", "bottom"]
+text-file-save-interval: 100   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
 point-cloud-sample-position: [0,0,0]  # the origin of the "view" frame of the partial view point cloud
 point-cloud-sample-orientation: [0,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
 
@@ -52,16 +52,8 @@ objects:
     # type: "XPBDMeshObject"          # use the standard, 2nd-order XPBD method
 
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
-    # filename: "../resource/general/stanford_bunny_lowpoly.msh"
-    # filename: "../resource/cube/cube8.msh"
-    # filename: "../resource/general/single.msh"
-    # filename: "../resource/cube/cube2.msh"
-    filename: "../resource/cube/cube8.msh"
-    # filename: "../resource/cube/cube16.msh"
-    # filename: "../resource/cube/cube32.msh"
-    # filename: "../resource/tissue/Prostate.msh"
-    # filename: "../resource/tissue/Trachea_processed.stl"
-    # filename: "../resource/tissue/tracheal_tumor.msh"
+    # filename: "../resource/cube/cube2.msh"    # cube mesh with 2 subdivisions
+    filename: "../resource/cube/cube4.msh"  # cube mesh with 4 subdivisions
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 

@@ -37,6 +37,7 @@ public:
     virtual void _timeStep() override;
 
 
+    int _num_saved_text_files = 0;
     int _text_file_save_interval;
     int _num_dt_since_last_save = 0;
 

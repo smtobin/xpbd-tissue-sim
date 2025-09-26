@@ -14,10 +14,10 @@ int main()
 {
     gmsh::initialize();
 
-    Real x_size = 2.0;
+    Real x_size = 1.0;
     Real y_size = 1.0;
     Real z_size = 1.0;
-    int num_subdivisions = 16;
+    int num_subdivisions = 4;
 
     const std::string filename = std::to_string(x_size) + "x" + std::to_string(y_size) + "x" + std::to_string(z_size) + std::to_string(2) + ".msh";
     MeshUtils::createBeamMsh(filename, y_size, x_size, z_size, num_subdivisions);
