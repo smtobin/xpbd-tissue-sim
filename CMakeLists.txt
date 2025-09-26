@@ -121,6 +121,7 @@ add_library(PalpationSimulation)
 # add_library(BeamStretchSimulation)
 # add_library(TissueGraspingSimulation)
 add_library(InitialDeformationSimulation)
+add_library(FixedCubeSimulation)
 add_subdirectory("src/simulation")
 
 target_link_libraries(Simulation Collision Graphics SimObject Geometry SimObject Solver yaml-cpp ${VTK_LIBRARIES})
@@ -130,6 +131,7 @@ target_link_libraries(VirtuosoSimulation Simulation Haptics)
 target_link_libraries(PalpationSimulation VirtuosoSimulation)
 # target_link_libraries(BeamStretchSimulation Simulation)
 target_link_libraries(InitialDeformationSimulation Config Simulation)
+target_link_libraries(FixedCubeSimulation Config Simulation)
 
 ### Create executables
 add_executable(Test src/exec/main.cpp)
@@ -149,6 +151,9 @@ target_link_libraries(VirtuosoTracheaDemo VirtuosoSimulation)
 
 add_executable(PalpationDemo src/exec/demos/palpation_demo.cpp)
 target_link_libraries(PalpationDemo PalpationSimulation)
+
+add_executable(FixedCubeSim src/exec/fixed_cube_main.cpp)
+target_link_libraries(FixedCubeSim FixedCubeSimulation)
 
 # add_executable(TissueGraspingTest src/exec/tissue_grasping_test_main.cpp)
 # target_link_libraries(TissueGraspingTest TissueGraspingSimulation)

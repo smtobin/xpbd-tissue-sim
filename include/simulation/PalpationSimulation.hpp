@@ -15,7 +15,7 @@ class PalpationSimulation : public VirtuosoSimulation
 
     PalpationSimulation(const Config::PalpationSimulationConfig* config);
 
-    virtual std::string type() const override { return "VirtuosoTissueGraspingSimulation"; }
+    virtual std::string type() const override { return "PalpationSimulation"; }
 
     virtual void setup() override;
 
