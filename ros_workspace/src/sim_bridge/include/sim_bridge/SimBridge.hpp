@@ -5,6 +5,7 @@
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/int32_multi_array.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
@@ -27,7 +28,7 @@ class SimBridge : public rclcpp::Node
         : rclcpp::Node("sim_bridge"), _sim(sim)
     {
         this->declare_parameter("publish_rate_hz", 30.0);
-        this->declare_parameter("publish_stiffness_matrix", false);
+        this->declare_parameter("publish_matrices", false);
 
         // assume that setup() has already been called on the Simulation object
         // then we can probe how many deformable objects are in the Sim
@@ -46,11 +47,20 @@ class SimBridge : public rclcpp::Node
         _mesh_pcl_publishers.resize(num_xpbd_objs);
 
         
-        if (this->get_parameter("publish_stiffness_matrix").as_bool())
+        if (this->get_parameter("publish_matrices").as_bool())
         {
             std::cout << "Resizing vectors... " << std::endl;
             _stiffness_mat_messages.resize(num_xpbd_objs);
             _stiffness_mat_publishers.resize(num_xpbd_objs);
+
+            _vertices_mat_messages.resize(num_xpbd_objs);
+            _vertices_mat_publishers.resize(num_xpbd_objs);
+
+            _faces_mat_messages.resize(num_xpbd_objs);
+            _faces_mat_publishers.resize(num_xpbd_objs);
+
+            _elements_mat_messages.resize(num_xpbd_objs);
+            _elements_mat_publishers.resize(num_xpbd_objs);
             std::cout << "Done." << std::endl;
         }
 
@@ -61,10 +71,13 @@ class SimBridge : public rclcpp::Node
             _setupDeformableMeshPublisher(index, deformable_mesh);
             _setupDeformableMeshPclPublisher(index, deformable_mesh);
             
-            if (this->get_parameter("publish_stiffness_matrix").as_bool())
+            if (this->get_parameter("publish_matrices").as_bool())
             {
-                std::cout << "Setting up publisher for index " << index << "..." << std::endl;
+                std::cout << "Setting up matrix publishers for index " << index << "..." << std::endl;
                 _setupStiffnessMatrixPublisher(index, obj.get());
+                _setupVerticesMatrixPublisher(index, obj.get());
+                _setupFacesMatrixPublisher(index, obj.get());
+                _setupElementsMatrixPublisher(index, obj.get());
                 std::cout << "Done." << std::endl;
             }
 
@@ -195,6 +208,117 @@ class SimBridge : public rclcpp::Node
         _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
     }
 
+    template <typename XPBDMeshObject_BaseType>
+    void _setupVerticesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
+    {
+        std::string topic_name = "/output/vertices_" + std::to_string(index);
+        _vertices_mat_publishers[index] = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 3);
+
+        std_msgs::msg::Float64MultiArray& mat_msg = _vertices_mat_messages[index];
+        mat_msg.layout.dim.resize(2);
+        mat_msg.layout.dim[0].label = "vertices";
+        mat_msg.layout.dim[1].label = "coordinates";
+        mat_msg.layout.dim[1].size = 3;
+        mat_msg.layout.data_offset = 0;
+        
+        auto mat_callback = 
+            [this, index, xpbd_obj]() -> void {
+                const Geometry::Mesh* mesh = xpbd_obj->mesh();
+
+                // make sure size is correct based on number of vertices
+                _vertices_mat_messages[index].layout.dim[0].size = mesh->numVertices();
+                _vertices_mat_messages[index].layout.dim[0].stride = mesh->numVertices() * 3;
+                _vertices_mat_messages[index].layout.dim[1].stride = mesh->numVertices();
+
+                _vertices_mat_messages[index].data.resize(mesh->numVertices()*3);
+                // update vertices
+                for (int i = 0; i < mesh->numVertices(); i++)
+                {
+                    memcpy((Real*)this->_vertices_mat_messages[index].data.data() + 3*i, mesh->vertex(i).data(), sizeof(Real)*3);
+                }
+
+                this->_vertices_mat_publishers[index]->publish(this->_vertices_mat_messages[index]);
+            };
+
+        // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
+        // i.e. publish every 10 time steps
+        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+    }
+
+    template <typename XPBDMeshObject_BaseType>
+    void _setupFacesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
+    {
+        std::string topic_name = "/output/faces_" + std::to_string(index);
+        _faces_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
+
+        std_msgs::msg::Int32MultiArray& mat_msg = _faces_mat_messages[index];
+        mat_msg.layout.dim.resize(2);
+        mat_msg.layout.dim[0].label = "faces";
+        mat_msg.layout.dim[1].label = "vertices";
+        mat_msg.layout.dim[1].size = 3;
+        mat_msg.layout.data_offset = 0;
+        
+        auto mat_callback = 
+            [this, index, xpbd_obj]() -> void {
+                const Geometry::Mesh* mesh = xpbd_obj->mesh();
+
+                // make sure size is correct based on number of vertices
+                _faces_mat_messages[index].layout.dim[0].size = mesh->numFaces();
+                _faces_mat_messages[index].layout.dim[0].stride = mesh->numFaces() * 3;
+                _faces_mat_messages[index].layout.dim[1].stride = mesh->numFaces();
+
+                _faces_mat_messages[index].data.resize(mesh->numFaces()*3);
+                // update faces
+                for (int i = 0; i < mesh->numFaces(); i++)
+                {
+                    memcpy((int*)this->_faces_mat_messages[index].data.data() + 3*i, mesh->face(i).data(), sizeof(int)*3);
+                }
+
+                this->_faces_mat_publishers[index]->publish(this->_faces_mat_messages[index]);
+            };
+
+        // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
+        // i.e. publish every 10 time steps
+        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+    }
+
+    template <typename XPBDMeshObject_BaseType>
+    void _setupElementsMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
+    {
+        std::string topic_name = "/output/elements_" + std::to_string(index);
+        _elements_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
+
+        std_msgs::msg::Int32MultiArray& mat_msg = _elements_mat_messages[index];
+        mat_msg.layout.dim.resize(2);
+        mat_msg.layout.dim[0].label = "elements";
+        mat_msg.layout.dim[1].label = "vertices";
+        mat_msg.layout.dim[1].size = 4;
+        mat_msg.layout.data_offset = 0;
+        
+        auto mat_callback = 
+            [this, index, xpbd_obj]() -> void {
+                const Geometry::TetMesh* mesh = xpbd_obj->tetMesh();
+
+                // make sure size is correct based on number of vertices
+                _elements_mat_messages[index].layout.dim[0].size = mesh->numElements();
+                _elements_mat_messages[index].layout.dim[0].stride = mesh->numElements() * 4;
+                _elements_mat_messages[index].layout.dim[1].stride = mesh->numElements();
+
+                _elements_mat_messages[index].data.resize(mesh->numElements()*4);
+                // update faces
+                for (int i = 0; i < mesh->numElements(); i++)
+                {
+                    memcpy((int*)this->_elements_mat_messages[index].data.data() + 4*i, mesh->element(i).data(), sizeof(int)*3);
+                }
+
+                this->_elements_mat_publishers[index]->publish(this->_elements_mat_messages[index]);
+            };
+
+        // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
+        // i.e. publish every 10 time steps
+        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+    }
+
     /** Parses a ROS JointState message with 5 fields
      * "inner_rotation" - inner tube rotation
      * "outer_rotation" - outer tube rotation
@@ -217,6 +341,15 @@ class SimBridge : public rclcpp::Node
 
     std::vector<std_msgs::msg::Float64MultiArray> _stiffness_mat_messages;
     std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _stiffness_mat_publishers;
+
+    std::vector<std_msgs::msg::Float64MultiArray> _vertices_mat_messages;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _vertices_mat_publishers;
+
+    std::vector<std_msgs::msg::Int32MultiArray> _faces_mat_messages;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr> _faces_mat_publishers;
+
+    std::vector<std_msgs::msg::Int32MultiArray> _elements_mat_messages;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr> _elements_mat_publishers;
 
     /** Pointer to the actively running Simulation object */
     SimulationType* _sim;
