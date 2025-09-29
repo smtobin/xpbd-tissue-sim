@@ -52,8 +52,8 @@ objects:
     # type: "XPBDMeshObject"          # use the standard, 2nd-order XPBD method
 
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
-    # filename: "../resource/cube/cube2.msh"    # cube mesh with 2 subdivisions
-    filename: "../resource/cube/cube4.msh"  # cube mesh with 4 subdivisions
+    filename: "../resource/cube/cube2.msh"    # cube mesh with 2 subdivisions
+    # filename: "../resource/cube/cube4.msh"  # cube mesh with 4 subdivisions
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 

@@ -186,7 +186,6 @@ class SimBridge : public rclcpp::Node
         
         auto mat_callback = 
             [this, index, xpbd_obj]() -> void {
-                std::cout << "Computing stiffness matrix..." << std::endl;
                 MatXr stiffness_mat = xpbd_obj->stiffnessMatrix();
 
                 // make sure size is correct based on number of vertices
@@ -196,7 +195,6 @@ class SimBridge : public rclcpp::Node
                 _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
 
                 _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
-                std::cout << "Copying memory..." << std::endl;
                 // update vertices
                 memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
 
@@ -211,7 +209,7 @@ class SimBridge : public rclcpp::Node
     template <typename XPBDMeshObject_BaseType>
     void _setupVerticesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/vertices_" + std::to_string(index);
+        std::string topic_name = "/output/vertices_mat_" + std::to_string(index);
         _vertices_mat_publishers[index] = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 3);
 
         std_msgs::msg::Float64MultiArray& mat_msg = _vertices_mat_messages[index];
@@ -248,7 +246,7 @@ class SimBridge : public rclcpp::Node
     template <typename XPBDMeshObject_BaseType>
     void _setupFacesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/faces_" + std::to_string(index);
+        std::string topic_name = "/output/faces_mat_" + std::to_string(index);
         _faces_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
 
         std_msgs::msg::Int32MultiArray& mat_msg = _faces_mat_messages[index];
@@ -285,7 +283,7 @@ class SimBridge : public rclcpp::Node
     template <typename XPBDMeshObject_BaseType>
     void _setupElementsMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/elements_" + std::to_string(index);
+        std::string topic_name = "/output/elements_mat_" + std::to_string(index);
         _elements_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
 
         std_msgs::msg::Int32MultiArray& mat_msg = _elements_mat_messages[index];
@@ -308,7 +306,7 @@ class SimBridge : public rclcpp::Node
                 // update faces
                 for (int i = 0; i < mesh->numElements(); i++)
                 {
-                    memcpy((int*)this->_elements_mat_messages[index].data.data() + 4*i, mesh->element(i).data(), sizeof(int)*3);
+                    memcpy((int*)this->_elements_mat_messages[index].data.data() + 4*i, mesh->element(i).data(), sizeof(int)*4);
                 }
 
                 this->_elements_mat_publishers[index]->publish(this->_elements_mat_messages[index]);
