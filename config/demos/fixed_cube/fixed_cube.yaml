@@ -20,8 +20,8 @@ end-time: 1000 # end time of the simulation [s]
 ## Fixed cube simulation parameters
 cube-fixed-face: "top"   # which face of the cube is fixed. Options: ["left", "right", "top", "bottom"]
 text-file-save-interval: -1   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
-point-cloud-sample-position: [0,0,0]  # the origin of the "view" frame of the partial view point cloud
-point-cloud-sample-orientation: [0,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
+point-cloud-sample-position: [0,-2,0]  # the origin of the "view" frame of the partial view point cloud
+point-cloud-sample-orientation: [-90,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
 
 ## define elastic materials
 materials:
@@ -66,12 +66,12 @@ objects:
     ## initial configuration
     max-size: 1   # size of largest model dimension (preserves aspect ratio)
     # size: [1, 1, 1]   # specify size of each dimension
-    position: [0, 0, 0.5]   # initial position of mesh center of mass [m]
-    velocity: [0, 0, 0.0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)
+    position: [0, 0, 0]   # initial position of mesh center of mass [m]
+    velocity: [0, 0, 0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)
     rotation: [0, 0, 0]     # initial rotation [deg] (specified as XYZ Euler angles)
 
     ## collisions
-    collisions: false
+    collisions: true
 
     ## XPBD-specific options
     num-solver-iters: 1   # number of solver loop iterations per time step 

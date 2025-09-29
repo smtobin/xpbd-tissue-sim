@@ -13,7 +13,7 @@ FixedCubeSimulation::FixedCubeSimulation(const Config::FixedCubeSimulationConfig
     _fixed_face = config->cubeFixedFace();
     
     Vec3r ori = config->pointCloudSampleOrientation();
-    Mat3r rot_mat = GeometryUtils::quatToMat(GeometryUtils::eulXYZ2Quat(ori[0], ori[1], ori[2]));
+    Mat3r rot_mat = GeometryUtils::quatToMat(GeometryUtils::eulXYZ2Quat(ori[0]*M_PI/180.0, ori[1]*M_PI/180.0, ori[2]*M_PI/180.0));
     _point_cloud_sample_frame = Geometry::CoordinateFrame(Geometry::TransformationMatrix(rot_mat, config->pointCloudSamplePosition()));
 }
 

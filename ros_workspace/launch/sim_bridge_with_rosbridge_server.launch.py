@@ -50,7 +50,7 @@ def generate_launch_description():
         parameters=[
             {"publish_rate_hz": 100.0},      # publish rate of topics
             {"publish_matrices": True},
-            {"partial_view_pc": False},      # whether or not to publish partial-view point cloud
+            {"partial_view_pc": True},      # whether or not to publish partial-view point cloud
             {"partial_view_pc_hfov": 80.0},   # degrees
             {"partial_view_pc_vfov": 50.0},   # degrees
             {"partial_view_pc_sample_density": 1.0}   # rays per degree (i.e. higher = denser point cloud)

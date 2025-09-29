@@ -32,6 +32,8 @@ public:
 
     virtual void setup() override;
 
+    const Geometry::CoordinateFrame& pointCloudSampleFrame() const { return _point_cloud_sample_frame; }
+
     protected:
 
     virtual void _timeStep() override;

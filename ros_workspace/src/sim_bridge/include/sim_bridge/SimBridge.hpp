@@ -85,7 +85,7 @@ class SimBridge : public rclcpp::Node
         });
     }
 
-    private:
+private:
 
     void _setupDeformableMeshPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
@@ -329,7 +329,7 @@ class SimBridge : public rclcpp::Node
     std::tuple<double, double, double, double, int> _jointMsgToJointState(sensor_msgs::msg::JointState* msg) const;
     
 
-    private:
+protected:
     /** Publishers */
     std::vector<shape_msgs::msg::Mesh> _mesh_messages;    // pre-allocated mesh ROS message for speed (assuming faces and number of vertices stay the same)
     std::vector<rclcpp::Publisher<shape_msgs::msg::Mesh>::SharedPtr> _mesh_publishers;    // publishes the current tissue mesh (all vertices and surface faces)
