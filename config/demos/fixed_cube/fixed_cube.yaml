@@ -15,11 +15,11 @@ sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-tim
 time-step: 1e-3   # simulation time step [s]
 collision-rate: 1000 # rate at which to run collision detection [Hz] 
 fps: 30 # frames per second of the visualization (i.e. how often to redraw graphics)
-end-time: 2 # end time of the simulation [s]
+end-time: 1000 # end time of the simulation [s]
 
 ## Fixed cube simulation parameters
 cube-fixed-face: "top"   # which face of the cube is fixed. Options: ["left", "right", "top", "bottom"]
-text-file-save-interval: 100   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
+text-file-save-interval: -1   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
 point-cloud-sample-position: [0,0,0]  # the origin of the "view" frame of the partial view point cloud
 point-cloud-sample-orientation: [0,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
 

@@ -6,9 +6,11 @@
 #include "config/simulation/GraspingSimulationConfig.hpp"
 #include "config/simulation/VirtuosoTissueGraspingSimulationConfig.hpp"
 #include "config/simulation/PalpationSimulationConfig.hpp"
+#include "config/simulation/FixedCubeSimulationConfig.hpp"
 #include "simulation/VirtuosoTissueGraspingSimulation.hpp"
 #include "simulation/PalpationSimulation.hpp"
 #include "simulation/GraspingSimulation.hpp"
+#include "simulation/FixedCubeSimulation.hpp"
 
 #include <mutex>
 #include <condition_variable>
@@ -107,6 +109,13 @@ int main(int argc, char ** argv)
         Sim::GraspingSimulation sim(&config);
 
         startNode<Sim::GraspingSimulation>(&sim);
+    }
+    else if (simulation_type == "FixedCubeSimulation")
+    {
+        Config::FixedCubeSimulationConfig config(YAML::LoadFile(config_filename));
+        Sim::FixedCubeSimulation sim(&config);
+
+        startNode<Sim::FixedCubeSimulation>(&sim);
     }
     else if (simulation_type == "Simulation")
     {

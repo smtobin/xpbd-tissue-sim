@@ -3,6 +3,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/float32_multi_array.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
@@ -12,6 +14,7 @@
 
 #include "geometry/Mesh.hpp"
 #include "simobject/XPBDMeshObjectBase.hpp"
+#include "simobject/XPBDMeshObjectBaseWrapper.hpp"
 
 #include <chrono>
 #include <thread>
@@ -24,31 +27,54 @@ class SimBridge : public rclcpp::Node
         : rclcpp::Node("sim_bridge"), _sim(sim)
     {
         this->declare_parameter("publish_rate_hz", 30.0);
+        this->declare_parameter("publish_stiffness_matrix", false);
 
         // assume that setup() has already been called on the Simulation object
         // then we can probe how many deformable objects are in the Sim
         const typename SimulationType::ObjectVectorType& sim_objects = sim->objects();
         const std::vector<std::unique_ptr<Sim::XPBDMeshObject_Base>>& xpbd_mesh_objs = sim_objects.template get<std::unique_ptr<Sim::XPBDMeshObject_Base>>();
+        const std::vector<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>& fo_xpbd_mesh_objs = 
+            sim_objects.template get<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>();
+        
+        unsigned num_xpbd_objs = xpbd_mesh_objs.size() + fo_xpbd_mesh_objs.size();
 
         // allocate space for messages and publishers (one for each XPBD mesh object in the sim)
-        _mesh_messages.resize(xpbd_mesh_objs.size());
-        _mesh_publishers.resize(xpbd_mesh_objs.size());
+        _mesh_messages.resize(num_xpbd_objs);
+        _mesh_publishers.resize(num_xpbd_objs);
 
-        _mesh_pcl_messages.resize(xpbd_mesh_objs.size());
-        _mesh_pcl_publishers.resize(xpbd_mesh_objs.size());
+        _mesh_pcl_messages.resize(num_xpbd_objs);
+        _mesh_pcl_publishers.resize(num_xpbd_objs);
+
+        
+        if (this->get_parameter("publish_stiffness_matrix").as_bool())
+        {
+            std::cout << "Resizing vectors... " << std::endl;
+            _stiffness_mat_messages.resize(num_xpbd_objs);
+            _stiffness_mat_publishers.resize(num_xpbd_objs);
+            std::cout << "Done." << std::endl;
+        }
 
         // set up callbacks to publish mesh as Mesh msg and PCL point cloud msg
-        for (unsigned i = 0; i < xpbd_mesh_objs.size(); i++)
-        {
-            const Geometry::Mesh* deformable_mesh = xpbd_mesh_objs[i]->mesh();
-            setupDeformableMeshPublisher(i, deformable_mesh);
-            setupDeformableMeshPclPublisher(i, deformable_mesh);
-        }
+        int index = 0;
+        sim_objects.template for_each_element<std::unique_ptr<Sim::XPBDMeshObject_Base>, std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>([&index, this](auto& obj){
+            const Geometry::Mesh* deformable_mesh = obj->mesh();
+            _setupDeformableMeshPublisher(index, deformable_mesh);
+            _setupDeformableMeshPclPublisher(index, deformable_mesh);
+            
+            if (this->get_parameter("publish_stiffness_matrix").as_bool())
+            {
+                std::cout << "Setting up publisher for index " << index << "..." << std::endl;
+                _setupStiffnessMatrixPublisher(index, obj.get());
+                std::cout << "Done." << std::endl;
+            }
+
+            index++;
+        });
     }
 
     private:
 
-    void setupDeformableMeshPublisher(int index, const Geometry::Mesh* deformable_mesh)
+    void _setupDeformableMeshPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
         std::string topic_name = "/output/mesh_" + std::to_string(index);
         _mesh_publishers[index] = this->create_publisher<shape_msgs::msg::Mesh>(topic_name, 3);
@@ -85,7 +111,7 @@ class SimBridge : public rclcpp::Node
         _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_callback);
     }
 
-    void setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
+    void _setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
         std::string topic_name = "/output/mesh_vertices_" + std::to_string(index);
         _mesh_pcl_publishers[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(topic_name, 3);
@@ -133,6 +159,42 @@ class SimBridge : public rclcpp::Node
         _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_pcl_callback);
     }
 
+    template <typename XPBDMeshObject_BaseType>
+    void _setupStiffnessMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
+    {
+        std::string topic_name = "/output/stiffness_mat_" + std::to_string(index);
+        _stiffness_mat_publishers[index] = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 3);
+
+        std_msgs::msg::Float64MultiArray& mat_msg = _stiffness_mat_messages[index];
+        mat_msg.layout.dim.resize(2);
+        mat_msg.layout.dim[0].label = "rows";
+        mat_msg.layout.dim[1].label = "cols";
+        mat_msg.layout.data_offset = 0;
+        
+        auto mat_callback = 
+            [this, index, xpbd_obj]() -> void {
+                std::cout << "Computing stiffness matrix..." << std::endl;
+                MatXr stiffness_mat = xpbd_obj->stiffnessMatrix();
+
+                // make sure size is correct based on number of vertices
+                _stiffness_mat_messages[index].layout.dim[0].size = stiffness_mat.rows();
+                _stiffness_mat_messages[index].layout.dim[0].stride = stiffness_mat.size();
+                _stiffness_mat_messages[index].layout.dim[1].size = stiffness_mat.cols();
+                _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
+
+                _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
+                std::cout << "Copying memory..." << std::endl;
+                // update vertices
+                memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
+
+                this->_stiffness_mat_publishers[index]->publish(this->_stiffness_mat_messages[index]);
+            };
+
+        // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
+        // i.e. publish every 10 time steps
+        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+    }
+
     /** Parses a ROS JointState message with 5 fields
      * "inner_rotation" - inner tube rotation
      * "outer_rotation" - outer tube rotation
@@ -153,6 +215,8 @@ class SimBridge : public rclcpp::Node
     std::vector<sensor_msgs::msg::PointCloud2> _mesh_pcl_messages;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 
+    std::vector<std_msgs::msg::Float64MultiArray> _stiffness_mat_messages;
+    std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _stiffness_mat_publishers;
 
     /** Pointer to the actively running Simulation object */
     SimulationType* _sim;
