@@ -27,6 +27,7 @@ class SimBridge : public rclcpp::Node
     SimBridge(SimulationType* sim)
         : rclcpp::Node("sim_bridge"), _sim(sim)
     {
+        this->declare_parameter("use_wall_time_for_publishing", true);
         this->declare_parameter("publish_rate_hz", 30.0);
         this->declare_parameter("publish_matrices", false);
 
@@ -121,7 +122,7 @@ private:
                 this->_mesh_publishers[index]->publish(this->_mesh_messages[index]);
             };
         
-        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_callback);
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     }
 
     void _setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
@@ -169,7 +170,7 @@ private:
                 this->_mesh_pcl_publishers[index]->publish(this->_mesh_pcl_messages[index]);
             };
         
-        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_pcl_callback);
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_pcl_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     }
 
     template <typename XPBDMeshObject_BaseType>
@@ -203,7 +204,7 @@ private:
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
         // i.e. publish every 10 time steps
-        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mat_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     }
 
     template <typename XPBDMeshObject_BaseType>
@@ -240,9 +241,10 @@ private:
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
         // i.e. publish every 10 time steps
-        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
-    }
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mat_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 
+    }
+    
     template <typename XPBDMeshObject_BaseType>
     void _setupFacesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
@@ -277,7 +279,7 @@ private:
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
         // i.e. publish every 10 time steps
-        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mat_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     }
 
     template <typename XPBDMeshObject_BaseType>
@@ -314,7 +316,7 @@ private:
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
         // i.e. publish every 10 time steps
-        _sim->addCallback(_sim->dt()*100, mat_callback, false); /** TODO: set this from a parameter */
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mat_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     }
 
     /** Parses a ROS JointState message with 5 fields
