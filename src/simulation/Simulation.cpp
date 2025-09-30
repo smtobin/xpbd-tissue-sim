@@ -159,7 +159,9 @@ void Simulation::update()
         // check if any callbacks need to be called
         for (auto& cb : _callbacks)
         {
-            if (wall_time_elapsed_s > cb.next_exec_time)
+            if ((cb.use_wall_time && wall_time_elapsed_s > cb.next_exec_time) ||
+                (!cb.use_wall_time && _time > cb.next_exec_time)
+            )
             {
                 cb.callback();
                 cb.next_exec_time = cb.next_exec_time + cb.interval;
