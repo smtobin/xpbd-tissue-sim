@@ -70,7 +70,10 @@ std::string VirtuosoArm::toString(const int indent) const
 
 Vec3r VirtuosoArm::actualTipPosition() const
 {
-    return innerTubeEndFrame().origin();
+    if (hasTool())
+        return _tt_frames.back().origin();
+    else
+        return _it_frames.back().origin();
 }
 
 void VirtuosoArm::setCommandedTipPosition(const Vec3r& new_position)
@@ -383,7 +386,7 @@ void VirtuosoArm::_recomputeCoordinateFrames()
     _stale_frames = false;
 
     // for now, the tool position is just the inner tube tip position with no offset
-    _tool_position = _it_frames.back().origin();
+    _tool_position = _tt_frames.back().origin();
 
 }
 
@@ -632,7 +635,7 @@ void VirtuosoArm::_recomputeCoordinateFramesStaticsModelWithNodalForces()
     _stale_frames = false;
 
     // for now, the tool position is just the inner tube tip position with no offset
-    _tool_position = _it_frames.back().origin();
+    _tool_position = _tt_frames.back().origin();
 }
 
 std::vector<VirtuosoArm::TubeIntegrationState::VecType> VirtuosoArm::_integrateTubeRK4(const VirtuosoArm::TubeIntegrationState& tube_base_state, const std::vector<Real>& s, const Vec3r& K_inv, const Vec3r& u_star) const
@@ -784,8 +787,18 @@ Geometry::TransformationMatrix VirtuosoArm::_computeTipTransform(Real ot_rot, Re
     Geometry::TransformationMatrix T_z_trans_it(Mat3r::Identity(), Vec3r(0, 0, it_length));
 
     Geometry::CoordinateFrame it_end_frame = ot_end_frame * T_rot_z_outer_to_inner * T_z_trans_it;
-
-    return it_end_frame.transform();
+    
+    if (hasTool())
+    {
+        Geometry::TransformationMatrix T_z_trans_tt(Mat3r::Identity(), Vec3r(0, 0, _tool_tube_length));
+        Geometry::CoordinateFrame tt_end_frame = it_end_frame * T_z_trans_tt;
+        return tt_end_frame.transform();
+    }
+    else
+    {
+        return it_end_frame.transform();
+    }
+    
 }
 
 void VirtuosoArm::_jacobianDifferentialInverseKinematics(const Vec3r& dx)
@@ -1003,11 +1016,28 @@ Eigen::Matrix<Real,6,3> VirtuosoArm::_3DOFSpatialJacobian()
                 0, 0, 0, dmax_d2,
                 0, 0, 0, 0;
 
-    
+
     // using product rule, evaluate dT/dq
-    Mat4r dT_d_ot_rot = dT1_dt1*T2*T3*T4 + T1*T2*T3*dT4_dt1;
-    Mat4r dT_d_ot_trans = T1*dT2_dd1*T3*T4 + T1*T2*dT3_dd1*T4 + T1*T2*T3*dT4_dd1;
-    Mat4r dT_d_it_trans = T1*T2*T3*dT4_dd2; 
+    Mat4r dT_d_ot_rot, dT_d_ot_trans, dT_d_it_trans;
+
+    if (hasTool())
+    {
+        // transform from inner tube tip to tool tip
+        Mat4r T5 = Mat4r::Identity();
+        T5(2,3) = _tool_tube_length;
+
+        dT_d_ot_rot = dT1_dt1*T2*T3*T4*T5 + T1*T2*T3*dT4_dt1*T5;
+        dT_d_ot_trans = T1*dT2_dd1*T3*T4*T5 + T1*T2*dT3_dd1*T4*T5 + T1*T2*T3*dT4_dd1*T5;
+        dT_d_it_trans = T1*T2*T3*dT4_dd2*T5;
+    }
+    else
+    {
+        dT_d_ot_rot = dT1_dt1*T2*T3*T4 + T1*T2*T3*dT4_dt1;
+        dT_d_ot_trans = T1*dT2_dd1*T3*T4 + T1*T2*dT3_dd1*T4 + T1*T2*T3*dT4_dd1;
+        dT_d_it_trans = T1*T2*T3*dT4_dd2; 
+    }
+
+    
 
     // and assemble them into the spatial Jacobian
     const Geometry::TransformationMatrix T_tip = _computeTipTransform(_ot_rotation, _ot_translation, _it_rotation, _it_translation);

@@ -105,48 +105,37 @@ int main(int argc, char* argv[])
 
         int num_hits = 0;
 
-        // go through each element and query each of its points
-        for (int e = 0; e < class_mesh.numElements(); e++)
+        // go through each element of the combined mesh and see if its centroid is inside any tetrahedra of the class mesh
+        // just brute force it for now
+        for (int e = 0; e < combined_mesh.numElements(); e++)
         {
-            const Eigen::Vector4i& element = class_mesh.element(e);
-
-            // calculate "radius" of element
-            Vec3r c = (class_mesh.vertex(element[0]) + class_mesh.vertex(element[1]) + class_mesh.vertex(element[2]) + class_mesh.vertex(element[3]))/4.0;
-            Real d1 = (class_mesh.vertex(element[0]) - c).norm();
-            Real d2 = (class_mesh.vertex(element[1]) - c).norm();
-            Real d3 = (class_mesh.vertex(element[2]) - c).norm();
-            Real d4 = (class_mesh.vertex(element[3]) - c).norm();
-            Real r = std::max({d1, d2, d3, d4});
-
-            // perform the query
-            std::set<Geometry::EmbreeHit> res = embree_scene.pointInTetrahedraQuery(c, r, &combined_mesh_obj);
-            for (const auto& hit : res)
+            const Eigen::Vector4i& element = combined_mesh.element(e);
+            Vec3r c = (combined_mesh.vertex(element[0]) + combined_mesh.vertex(element[1]) + combined_mesh.vertex(element[2]) + combined_mesh.vertex(element[3]))/4.0;
+            for (int class_e = 0; class_e < class_mesh.numElements(); class_e++)
             {
-                // if there's a hit, label the element that was hit with the current class
-                int elem_index = hit.prim_index;
-                if (elem_classes[elem_index] == 0)
+                const Eigen::Vector4i& class_element = class_mesh.element(class_e);
+                const Vec3r& v1 = class_mesh.vertex(class_element[0]);
+                const Vec3r& v2 = class_mesh.vertex(class_element[1]);
+                const Vec3r& v3 = class_mesh.vertex(class_element[2]);
+                const Vec3r& v4 = class_mesh.vertex(class_element[3]);
+
+                float p[3] = {(float)c[0], (float)c[1], (float)c[2]};
+                float f1[3] = {(float)v1[0], (float)v1[1], (float)v1[2]};
+                float f2[3] = {(float)v2[0], (float)v2[1], (float)v2[2]};
+                float f3[3] = {(float)v3[0], (float)v3[1], (float)v3[2]};
+                float f4[3] = {(float)v4[0], (float)v4[1], (float)v4[2]};
+                bool in_tet = Geometry::EmbreeTetMeshGeometry::isPointInTetrahedron(p, f1, f2, f3, f4);
+                if (in_tet)
                 {
                     num_hits++;
-                    elem_classes[elem_index] = class_int;
+                    elem_classes[e] = class_int;
+                    break;
                 }
             }
-            
         }
 
         std::cout << mesh_filename << " overlapped with " << num_hits << " tetrahedra!" << std::endl;
     }
-
-    // int num0=0, num1=0, num2=0;
-    // for (int e = 0; e < combined_mesh.numElements(); e++)
-    // {
-    //     if (elem_classes[e] == 0)   num0++;
-    //     if (elem_classes[e] == 1)   num1++;
-    //     if (elem_classes[e] == 2)   num2++;
-    // }
-
-    // std::cout << "Num class 0: " << num0 << std::endl;
-    // std::cout << "Num class 1: " << num1 << std::endl;
-    // std::cout << "Num class 2: " << num2 << std::endl;
 
     std::string out_filename = combined_mesh_filename.substr(0,combined_mesh_filename.length()-4) + "_element_classes.txt";
     std::ofstream out(out_filename);
