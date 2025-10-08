@@ -2,6 +2,7 @@
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "std_msgs/msg/int8.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 
@@ -14,9 +15,6 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
     VirtuosoSimBridge(Sim::VirtuosoSimulation* sim)
         : SimBridge<Sim::VirtuosoSimulation>(sim)
     {
-
-        this->declare_parameter("publish_rate_hz", 30.0);
-
         _setupTransformBroadcaster();
 
         _setupPublishers();
@@ -165,10 +163,6 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 
     void _setupPublishers()
     {
-        // set up callbacks to publish mesh as Mesh msg and PCL point cloud msg
-        const typename Sim::VirtuosoSimulation::ObjectVectorType& sim_objects = _sim->objects();
-        const auto& fo_xpbd_mesh_objs = sim_objects.template get<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>();
-
         _setupPartialViewPointCloudPublishers();
 
         // set up publishers for arm1 (if it exists)
@@ -180,11 +174,14 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
             _arm1_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/output/arm1_frames", 10);
             _arm1_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm1_tip_frame", 10);
             _arm1_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm1_commanded_tip_frame", 10);
+            _arm1_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/output/arm1_net_force", 10);
+
 
             _setupArmJointStatePublisher(arm1, _arm1_joint_state_publisher);
             _setupArmFramesPublisher(arm1, _arm1_frames_publisher);
             _setupArmTipFramePublisher(arm1, _arm1_tip_frame_publisher);
             _setupArmCommandedTipFramePublisher(arm1, _arm1_commanded_tip_frame_publisher);
+            _setupArmNetForcePublisher(arm1, _arm1_net_force_publisher);
 
             if (arm1->hasTool())
             {
@@ -202,11 +199,13 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
             _arm2_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/output/arm2_frames", 10);
             _arm2_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm2_tip_frame", 10);
             _arm2_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm2_commanded_tip_frame", 10);
+            _arm2_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/output/arm2_net_force", 10);
 
             _setupArmJointStatePublisher(arm2, _arm2_joint_state_publisher);
             _setupArmFramesPublisher(arm2, _arm2_frames_publisher);
             _setupArmTipFramePublisher(arm2, _arm2_tip_frame_publisher);
             _setupArmCommandedTipFramePublisher(arm2, _arm2_commanded_tip_frame_publisher);
+            _setupArmNetForcePublisher(arm2, _arm2_net_force_publisher);
 
             if (arm2->hasTool())
             {
@@ -348,6 +347,29 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
                 publisher->publish(message);
             };
 
+        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), callback);
+    }
+
+    void _setupArmNetForcePublisher(const Sim::VirtuosoArm* arm, rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr publisher)
+    {
+        auto callback =
+            [this, arm, publisher]() -> void {
+                const Vec3r net_force = arm->filteredCollisionForce();  // get the force being used by the quasistatic model
+
+                const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
+                const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();
+
+                const Vec3r vb_force = vb_transform_inv.rotMat()*net_force;
+
+                auto message = geometry_msgs::msg::Vector3Stamped();
+                message.header.stamp = this->now();
+                message.header.frame_id = "ves/left/base";
+                message.vector.x = vb_force[0];
+                message.vector.y = vb_force[1];
+                message.vector.z = vb_force[2];
+
+                publisher->publish(message);
+            };
         _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), callback);
     }
 
@@ -594,6 +616,9 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _arm1_tool_tip_frame_publisher;          // publishes the tool tip frame of arm1
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _arm2_tool_tip_frame_publisher;          // publishes the tool tip frame of arm2
+
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm1_net_force_publisher;         // publishes the net force on arm1
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm2_net_force_publisher;         // publishes the net force on amr2
 
     sensor_msgs::msg::PointCloud2 _trachea_partial_view_pc_message;
     sensor_msgs::msg::PointCloud2 _tumor_partial_view_pc_message;

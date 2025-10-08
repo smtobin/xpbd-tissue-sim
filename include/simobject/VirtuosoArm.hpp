@@ -263,7 +263,8 @@ class VirtuosoArm : public Object
     void setTipMoment(const Vec3r& new_tip_moment);
     void setTipForceAndMoment(const Vec3r& new_tip_force, const Vec3r& new_tip_moment);
 
-    Vec3r netCollisionForce() const { return _net_collision_force; }
+    Vec3r unfilteredCollisionForce() const { return _unfiltered_collision_force; }
+    Vec3r filteredCollisionForce() const { return _filtered_collision_force; }
 
     void addCollisionConstraint(CollisionConstraintInfo::ProjectorRefType&& proj_ref, int node_index, Real interp);
     void clearCollisionConstraints();
@@ -395,12 +396,16 @@ class VirtuosoArm : public Object
     Vec3r _tip_force;
     Vec3r _tip_moment;
 
-    /** The net collision force felt by the tube.
-     * This is the nominal total collision force, added up across all the collision constraints.
+    /** The unfiltered net collision force felt by the tube.
+     * This is the nominal total collision force (expressed in the global frame), added up across all the collision constraints.
      * This is NOT the actual force used by the quasistatic model - the force used by the model is smoothed using a complementary filter.
      */
-    Vec3r _net_collision_force;
+    Vec3r _unfiltered_collision_force;
 
+    /** The "filtered" net collision force felt by the tube.
+     * This is the force that is used by the quasistatic model - it is smoothed using a complementary filter.
+     */
+    Vec3r _filtered_collision_force;
 
     Geometry::CoordinateFrame _arm_base_frame;        // coordinate frame at the tool channel (where it leaves the endoscope)
     
