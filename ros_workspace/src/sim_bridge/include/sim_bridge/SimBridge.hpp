@@ -9,7 +9,6 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
-#include "shape_msgs/msg/mesh.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 
@@ -41,8 +40,6 @@ class SimBridge : public rclcpp::Node
         unsigned num_xpbd_objs = xpbd_mesh_objs.size() + fo_xpbd_mesh_objs.size();
 
         // allocate space for messages and publishers (one for each XPBD mesh object in the sim)
-        _mesh_messages.resize(num_xpbd_objs);
-        _mesh_publishers.resize(num_xpbd_objs);
 
         _mesh_pcl_messages.resize(num_xpbd_objs);
         _mesh_pcl_publishers.resize(num_xpbd_objs);
@@ -69,7 +66,6 @@ class SimBridge : public rclcpp::Node
         int index = 0;
         sim_objects.template for_each_element<std::unique_ptr<Sim::XPBDMeshObject_Base>, std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>([&index, this](auto& obj){
             const Geometry::Mesh* deformable_mesh = obj->mesh();
-            _setupDeformableMeshPublisher(index, deformable_mesh);
             _setupDeformableMeshPclPublisher(index, deformable_mesh);
             
             if (this->get_parameter("publish_matrices").as_bool())
@@ -88,46 +84,9 @@ class SimBridge : public rclcpp::Node
 
 private:
 
-    void _setupDeformableMeshPublisher(int index, const Geometry::Mesh* deformable_mesh)
-    {
-        std::string topic_name = "/output/mesh_" + std::to_string(index);
-        _mesh_publishers[index] = this->create_publisher<shape_msgs::msg::Mesh>(topic_name, 3);
-
-        _mesh_messages[index].triangles.resize(deformable_mesh->numFaces());
-        for (int i = 0; i < deformable_mesh->numFaces(); i++)
-        {
-            const Vec3i& face = deformable_mesh->face(i);
-            shape_msgs::msg::MeshTriangle tri;
-            tri.vertex_indices[0] = face[0];
-            tri.vertex_indices[1] = face[1];
-            tri.vertex_indices[2] = face[2];
-
-            _mesh_messages[index].triangles[i] = tri;
-        }
-
-        _mesh_messages[index].vertices.resize(deformable_mesh->numVertices());
-
-        auto mesh_callback = 
-            [this, index, deformable_mesh]() -> void {
-                // update vertices
-                for (int i = 0; i < deformable_mesh->numVertices(); i++)
-                {
-                    const Vec3r& vertex = deformable_mesh->vertex(i);
-                    this->_mesh_messages[index].vertices[i].x = vertex[0];
-                    this->_mesh_messages[index].vertices[i].y = vertex[1];
-                    this->_mesh_messages[index].vertices[i].z = vertex[2];
-                    
-                }
-
-                this->_mesh_publishers[index]->publish(this->_mesh_messages[index]);
-            };
-        
-        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
-    }
-
     void _setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
-        std::string topic_name = "/output/mesh_vertices_" + std::to_string(index);
+        std::string topic_name = "/output/mesh_vertices_pc_" + std::to_string(index);
         _mesh_pcl_publishers[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(topic_name, 3);
 
         // set header
@@ -333,9 +292,6 @@ private:
 
 protected:
     /** Publishers */
-    std::vector<shape_msgs::msg::Mesh> _mesh_messages;    // pre-allocated mesh ROS message for speed (assuming faces and number of vertices stay the same)
-    std::vector<rclcpp::Publisher<shape_msgs::msg::Mesh>::SharedPtr> _mesh_publishers;    // publishes the current tissue mesh (all vertices and surface faces)
-
     std::vector<sensor_msgs::msg::PointCloud2> _mesh_pcl_messages;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 

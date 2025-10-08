@@ -14,13 +14,13 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     config_file_arg = DeclareLaunchArgument(
         'config_filename',
-        default_value=TextSubstitution(text='/workspace/config/demos/virtuoso_trachea/virtuoso_trachea.yaml'),
+        default_value=TextSubstitution(text='../config/config.yaml'),
         description='Absolute path to the simulation config file.'
     )
 
     simulation_type_arg = DeclareLaunchArgument(
         'simulation_type',
-        default_value=TextSubstitution(text='VirtuosoTissueGraspingSimulation'),
+        default_value=TextSubstitution(text='Simulation'),
         description='The type of simulation to create.'
     )
 
@@ -50,7 +50,7 @@ def generate_launch_description():
         parameters=[
             {"use_wall_time_for_publishing": True},   # if true, the rate of publishing will be in terms of the wall time (which may not align with simulated time)
             {"publish_rate_hz": 10.0},      # publish rate of topics
-            {"publish_matrices": True},     # whether or not to publish mesh matrices, i.e. stiffness matrix, vertices, faces, and elements
+            {"publish_matrices": False},     # whether or not to publish mesh matrices, i.e. stiffness matrix, vertices, faces, and elements
             {"partial_view_pc": True},      # whether or not to publish partial-view point cloud
             {"partial_view_pc_hfov": 80.0},   # degrees
             {"partial_view_pc_vfov": 50.0},   # degrees
