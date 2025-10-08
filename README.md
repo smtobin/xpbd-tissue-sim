@@ -15,6 +15,8 @@ A place to prototype and test algorithms and approaches for simulation of highly
   * [Simple grasping demo](#simple-grasping-demo)
   * [Fixed object demo](#fixed-object-demo)
 * [ROS interface](#ros-interface)
+  * [Building](#building)
+  * [Launch files, arguments, parameters](#launch-files-arguments-parameters)
   * [Example usage](#example-usage)
   * [`sim_bridge` with VirtuosoSimulation](#sim_bridge-with-virtuososimulation)
   * [`sim_bridge` in general](#sim_bridge-in-general)
@@ -222,7 +224,7 @@ or
 **Generating the fixed faces file:**
 - **Step 0**: _Generating the .msh file._ Take your initial surface mesh (.stl or .obj) file and substitute it into the config file (i.e. edit the `filename` parameter for an object). When you run the demo, the simulator will automatically generate a volumetric .msh file (with the same name) using GMSH. It will also generate a `<filename>_surface_mesh.obj` file that is just the surface of the volumetric .msh file.
 - **Step 1**: _Selecting fixed faces with MeshLab._ Open the `<filename>_surface_mesh.obj` file in MeshLab (note: it is important to use the generated .obj file because GMSH will sometimes change the ordering of the surface faces when it does volumetric mesh generation). Using the "Select faces in rectangular region" tool, select the faces that you want to fix.
-- **Step 2**: _Generating .ply file with fixed face information._ With the faces you want fixed selected, run Filters --> Quality Measure and Computations --> Per Face Quality Function, and type the expression `fesl*fi` in the user-defined function box. This assigns to each face a quality value of the face index if it is selected, and 0 if not. Then, export the mesh as an ASCII .ply file. Check the box for "Quality", and uncheck the box for "Binary Encoding".
+- **Step 2**: _Generating .ply file with fixed face information._ With the faces you want fixed selected, run Filters --> Quality Measure and Computations --> Per Face Quality Function, and type the expression `fsel*fi` in the user-defined function box. This assigns to each face a quality value of the face index if it is selected, and 0 if not. Then, export the mesh as an ASCII .ply file. Check the box for "Quality", and uncheck the box for "Binary Encoding".
 - **Step 3**: _Generating the fixed faces .txt file._ Run the following command to extract only the lines from the .ply file that correspond to the fixed faces:
 ```
 cat <filename>.ply | grep -v " 0 $" | grep "^3 " > fixed_faces.txt
@@ -245,18 +247,39 @@ The output topics for the vertices, faces, elements, and stiffness matrix are `/
 
 
 ## ROS interface
-When `docker-compose-ros.yml` is used to build the Docker container, ROS2 Jazzy is installed inside the container. The folder `ros_workspace/` is the ROS workspace folder.
-
-**IMPORTANT:** when using the ROS interface, make sure to `make install` from the `/workspace/build` directory. This is needed so that the ROS node has access to the libraries and headers from the rest of the code.
-
 `sim_bridge` is a provided ROS node that will publish parts of the simulation state over ROS for visualization or integration with other pieces of code.
+
+When `docker-compose-ros.yml` is used to build the Docker container, ROS2 Jazzy is installed inside the container. If you are not using Docker, ROS2 Jazzy is assumed to be installed on your system already. The folder `ros_workspace/` is the ROS workspace folder.
+
+### Building
+**To initially build the ROS nodes:**
+* _Install libraries._ Run `sudo make install` from the `build/` directory. This will put the compiled static library files and headers in a place where the ROS node can see them and link against them. Make sure to use `sudo` as these files will be installed in `/usr/local/` which requires elevated permissions.
+* _Run environment setup._ Assuming you're in `ros_workspace/`, run `source ../scripts/set_env.sh ../../ThirdParty` to properly set environment variables. (replace `../../ThirdParty` with the path to the folder used to hold all the 3rd-party Github repos from installation).
+* _Build._ Run
+```
+colcon build --cmake-args -DXPBD_SIM_EASY3D_CMAKE_PREFIX_PATH=$XPBD_SIM_EASY3D_CMAKE_PREFIX_PATH -DXPBD_SIM_BASE_DIR=$XPBD_SIM_BASE_DIR
+```
+The `--cmake-args` part is necessary to pass along the environment variables from your current shell to the `colcon build` process (this is annoying, but unfortunately very necessary). Instead of this, you may instead opt to hardcode the paths in the `sim_bridge/CMakeLists.txt` file where these envrionment variables appear.
+
+**IMPORTANT:** Whenever you rebuild anything in the simulator (i.e. you pulled new changes or made edits yourself and needed to run `make`) and you want the most recent changes to be reflected in the ROS node, **you must**:
+- run `sudo make install` from the `build/` directory
+- remove the `build/` `install/` and `log/` folders in `ros_workspace`
+- run the `colcon build` command above
+
+### Launch files, arguments, parameters
 
 Two launch files are provided:
 * `ros_workspace/launch/sim_bridge.launch.py` - launches the `SimBridge` ROS node by itself.
 * `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - launches the `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
 
 The launch files provide a few launch arguments/parameters:
-* Parameter `publish_rate_hz` - the publish rate (in Hz) of the output topics of the `SimBridge` node. Default: 30.0 Hz.
+* Parameter `publish_rate_hz` - the publish rate (in Hz) of the output topics of the `SimBridge` node. Default: 10.0 Hz.
+* Parameter `publish_marices` - whether or not to publish matrices (vertices, faces, elements, stiffness) for each deformable object in the sim. Default `False`.
+* Parameter `partial_view_pc` - whether or not to publish a partial view point cloud, when applicable. Default `True`.
+* Parameter `partial_view_pc_hfov` - the horizontal FOV (in degrees) of the partial-view point cloud. Default 80 deg.
+* Parameter `partial_view_pc_vfov` - the vertical FOV (in degrees) of the partial-view point cloud. Default 50 deg.
+* Parameter `partial_view_pc_sample_density` - the sample density of the partial-view point cloud. Higher numbers = more dense point clouds. Default 1.0.
+* Parameter `use_wall_time_for_publishgin` - if `True`, the rate of publishing will be in terms of the wall time (which may not align with simulated time). If `False`, simulation time is used (i.e. a publish rate of 10 Hz corresponds to publishing 10 messages for every 1 second of simulated time). Normally you probably want this to be `True`, unless the act of publishing takes a very long time (as in the case for the stiffness matrix). Default `True`.
 * Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
 * Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoTissueGraspingSimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
 
@@ -271,6 +294,8 @@ Launching the simple grasping demo:
 ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
 ```
 ### `sim_bridge` with VirtuosoSimulation
+**OUTDATED**
+
 When `simulation_type` is `VirtuosoTissueGraspingSimulation` or `VirtuosoSimulation`, the `sim_bridge` node subscribes to input Virtuoso joint states and relays those to the simulation, and outputs coordinate frames along each Virtuoso arm, as well as the tissue mesh. The list of topics can be found below:
 
 | Topic        | Mapped To | Description | Frame | Type | Notes |
@@ -284,6 +309,8 @@ When `simulation_type` is `VirtuosoTissueGraspingSimulation` or `VirtuosoSimulat
 | `/output/partial_view_pc` | `/sim/partial_view_pc` | A "partial-view" point cloud from the current camera view. | `/world` | `sensor_msgs/PointCloud2` | Generated by casting rays emanating from the current camera position. Use ROS2 parameters `partial_view_pc_hfov`, `partial_view_pc_vfov`, and `partial_view_pc_sample_density` to change horizontal FOV (in degrees), vertical FOV (in degrees), and sample density (rays cast per degree) of the partial view point cloud. Use ROS2 parameter `partial_view_pc` to toggle publishing of the partial-view point cloud on or off (there is some overhead associated with generating the partial-view point cloud). |
 
 ### `sim_bridge` in general
+**OUTDATED**
+
 In general, the `sim_bridge` node publishes any deformable meshes in the simulation. The list of topics can be found below:
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
