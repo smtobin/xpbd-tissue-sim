@@ -1,14 +1,21 @@
-#include "simulation/FixedCubeSimulation.hpp"
+#include "simulation/FixedObjectSimulation.hpp"
 
-#include "config/simulation/FixedCubeSimulationConfig.hpp"
+#include "config/simulation/FixedObjectSimulationConfig.hpp"
 
 namespace Sim
 {
 
-FixedCubeSimulation::FixedCubeSimulation(const Config::FixedCubeSimulationConfig* config)
+FixedObjectSimulation::FixedObjectSimulation(const Config::FixedObjectSimulationConfig* config)
     : Simulation(config)
 {
+    _fixed_faces_filename = config->fixedFacesFilename();
+
     _text_file_save_interval = config->textFileSaveInterval();
+    _text_file_save_folder = config->textFileSaveFolder();
+    if (_text_file_save_folder.back() != '/')
+    {
+        _text_file_save_folder += "/";
+    }
 
     _fixed_face = config->cubeFixedFace();
     
@@ -17,7 +24,7 @@ FixedCubeSimulation::FixedCubeSimulation(const Config::FixedCubeSimulationConfig
     _point_cloud_sample_frame = Geometry::CoordinateFrame(Geometry::TransformationMatrix(rot_mat, config->pointCloudSamplePosition()));
 }
 
-void FixedCubeSimulation::setup()
+void FixedObjectSimulation::setup()
 {
     Simulation::setup();
 
@@ -57,25 +64,40 @@ void FixedCubeSimulation::setup()
         _cube_obj.fixVertex(vert_index);
     }
 
+    // if a fixed faces filename is specified, fix the vertices corresponding to the fixed faces in the file
+    if (_fixed_faces_filename.has_value())
+    {
+        std::set<int> vertices;
+        std::vector<int> faces;
+        MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
+        for (const auto& v : vertices)
+        {
+            _cube_obj.fixVertex(v);
+        }
+    }
+
     // save initial vertices/elements/faces .txt file
     if (_text_file_save_interval >= 0)
     {
+        // create the folder to save vertices and stiffness matrices
+        std::filesystem::create_directory(_text_file_save_folder);
+
         /** SAVE INITIAL VERTICES/ELEMENTS/FACES .txt file*/
-        std::ofstream vertices_ss("initial_vertices.txt");
+        std::ofstream vertices_ss(_text_file_save_folder + "initial_vertices.txt");
         vertices_ss << _cube_obj.mesh()->vertices().transpose();
         vertices_ss.close();
 
-        std::ofstream elements_ss("initial_elements.txt");
+        std::ofstream elements_ss(_text_file_save_folder + "initial_elements.txt");
         elements_ss << _cube_obj.tetMesh()->elements().transpose();
         elements_ss.close();
         
-        std::ofstream surface_faces_ss("initial_surface_faces.txt");
+        std::ofstream surface_faces_ss(_text_file_save_folder + "initial_surface_faces.txt");
         surface_faces_ss << _cube_obj.mesh()->faces().transpose();
         surface_faces_ss.close();
     }
 }
 
-void FixedCubeSimulation::_timeStep()
+void FixedObjectSimulation::_timeStep()
 {
     Simulation::_timeStep();
 
@@ -85,16 +107,16 @@ void FixedCubeSimulation::_timeStep()
 
         // save stiffness matrix
         std::stringstream sfilename_ss;
-        sfilename_ss << std::setw(6) << std::setfill('0') << "stiffness" << _num_saved_text_files << ".txt";
+        sfilename_ss << _text_file_save_folder << std::setw(6) << std::setfill('0') << "stiffness" << _num_saved_text_files << ".txt";
         std::ofstream stiffness_ss(sfilename_ss.str());
         stiffness_ss << stiffness_mat;
         stiffness_ss.close();
 
         // save vertices file
         std::stringstream vfilename_ss;
-        vfilename_ss << std::setw(6) << std::setfill('0') << "vertices" << _num_saved_text_files << ".txt";
+        vfilename_ss << _text_file_save_folder << std::setw(6) << std::setfill('0') << "vertices" << _num_saved_text_files << ".txt";
         std::ofstream vertices_ss(vfilename_ss.str());
-        vertices_ss << _cube_obj.mesh()->vertices().transpose();
+        vertices_ss << _text_file_save_folder << _cube_obj.mesh()->vertices().transpose();
         vertices_ss.close();
 
         _num_saved_text_files++;

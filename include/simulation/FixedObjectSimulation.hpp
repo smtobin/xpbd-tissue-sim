@@ -4,17 +4,17 @@
 #include "simulation/Simulation.hpp"
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
 
-// #include "config/FixedCubeSimulationConfig.hpp"
+// #include "config/FixedObjectSimulationConfig.hpp"
 
 namespace Config
 {
-    class FixedCubeSimulationConfig;
+    class FixedObjectSimulationConfig;
 }
 
 namespace Sim
 {
 
-class FixedCubeSimulation : public Simulation
+class FixedObjectSimulation : public Simulation
 {
 public:
 
@@ -23,12 +23,13 @@ public:
         LEFT=0,
         RIGHT,
         TOP,
-        BOTTOM
+        BOTTOM,
+        NONE
     };
 
-    FixedCubeSimulation(const Config::FixedCubeSimulationConfig* config);
+    FixedObjectSimulation(const Config::FixedObjectSimulationConfig* config);
 
-    virtual std::string type() const override { return "FixedCubeSimulation"; }
+    virtual std::string type() const override { return "FixedObjectSimulation"; }
 
     virtual void setup() override;
 
@@ -38,9 +39,11 @@ public:
 
     virtual void _timeStep() override;
 
+    std::optional<std::string> _fixed_faces_filename;   // a .txt filename that lists all the faces that should be held fixed
 
     int _num_saved_text_files = 0;
     int _text_file_save_interval;
+    std::string _text_file_save_folder;
     int _num_dt_since_last_save = 0;
 
     CubeFace _fixed_face;

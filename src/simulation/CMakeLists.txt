@@ -149,20 +149,20 @@ install(FILES ${INITIAL_DEFORMATION_SIMULATION_HEADERS}
 # Fixed cube simulation
 ###################################
 set (FIXED_CUBE_SIMULATION_HEADERS
-    "${SIMULATION_INCLUDE_DIR}/FixedCubeSimulation.hpp"
+    "${SIMULATION_INCLUDE_DIR}/FixedObjectSimulation.hpp"
 )
 
 set (FIXED_CUBE_SIMULATION_SOURCES
-    "${SIMULATION_SRC_DIR}/FixedCubeSimulation.cpp"
+    "${SIMULATION_SRC_DIR}/FixedObjectSimulation.cpp"
 )
 
-target_sources(FixedCubeSimulation
+target_sources(FixedObjectSimulation
     PRIVATE
         ${FIXED_CUBE_SIMULATION_HEADERS}
         ${FIXED_CUBE_SIMULATION_SOURCES}    
 )
 
-install(TARGETS FixedCubeSimulation EXPORT FixedCubeSimulation-targets
+install(TARGETS FixedObjectSimulation EXPORT FixedObjectSimulation-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION bin/${PROJECT_NAME}
 )

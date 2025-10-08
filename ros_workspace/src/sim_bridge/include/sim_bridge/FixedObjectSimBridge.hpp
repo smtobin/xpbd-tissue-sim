@@ -3,13 +3,13 @@
 
 #include "sim_bridge/SimBridge.hpp"
 
-#include "simulation/FixedCubeSimulation.hpp"
+#include "simulation/FixedObjectSimulation.hpp"
 
-class FixedCubeSimBridge : public SimBridge<Sim::FixedCubeSimulation>
+class FixedObjectSimBridge : public SimBridge<Sim::FixedObjectSimulation>
 {
 public:
-    FixedCubeSimBridge(Sim::FixedCubeSimulation* sim)
-        : SimBridge<Sim::FixedCubeSimulation>(sim)
+    FixedObjectSimBridge(Sim::FixedObjectSimulation* sim)
+        : SimBridge<Sim::FixedObjectSimulation>(sim)
     {
         _setupPartialViewPointCloudPublisher();
     }

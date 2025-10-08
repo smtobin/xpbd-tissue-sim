@@ -18,10 +18,11 @@ fps: 30 # frames per second of the visualization (i.e. how often to redraw graph
 end-time: 1000 # end time of the simulation [s]
 
 ## Fixed cube simulation parameters
-cube-fixed-face: "top"   # which face of the cube is fixed. Options: ["left", "right", "top", "bottom"]
-text-file-save-interval: 100   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
+cube-fixed-face: "left"   # which face of the cube is fixed. Options: ["none", "left", "right", "top", "bottom"]
+text-file-save-interval: -1   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
 point-cloud-sample-position: [0,-2,0]  # the origin of the "view" frame of the partial view point cloud
 point-cloud-sample-orientation: [-90,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
+
 
 ## define elastic materials
 materials:
@@ -54,7 +55,7 @@ objects:
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
     # filename: "../resource/cube/cube2.msh"    # cube mesh with 2 subdivisions
     # filename: "../resource/cube/cube4.msh"  # cube mesh with 4 subdivisions
-    filename: "../resource/cube/cube8.msh"  # cube mesh with 8 subdivisions
+    # filename: "../resource/cube/cube8.msh"  # cube mesh with 8 subdivisions
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 
@@ -88,4 +89,5 @@ objects:
     residual-policy: "Never"              # don't compute the residuals
 
     ## 1st-Order XPBD options (has no effect on XPBDMeshObject)
-    damping-multiplier: 50000   # 'b' from the 1st-Order XPBD paper
+    damping-multiplier: 50   # 'b' from the 1st-Order XPBD paper
+    adjust-damping-to-material: True
