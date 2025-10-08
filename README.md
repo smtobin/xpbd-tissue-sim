@@ -13,6 +13,7 @@ A place to prototype and test algorithms and approaches for simulation of highly
 * [Demos](#demos)
   * [Virtuoso trachea demo](#virtuoso-trachea-demo)
   * [Simple grasping demo](#simple-grasping-demo)
+  * [Fixed object demo](#fixed-object-demo)
 * [ROS interface](#ros-interface)
   * [Example usage](#example-usage)
   * [`sim_bridge` with VirtuosoSimulation](#sim_bridge-with-virtuososimulation)
@@ -195,6 +196,52 @@ This demo is basically a simpler version of the above demo, without the Virtuoso
 
 **Controls:**
 Hold `Space` and move the mouse to move the active arm tip position parallel to the camera plane. Hold `Space` and scroll the mouse wheel to move the active arm tip position into/out of the camera plane. `Left click` toggles grasping (note: you do not need to hold `Left click` to continually grasp -- one mouse click to toggle on, and another mouse click to toggle off). Press `W` to increase the grasp radius, and press `S` to decrease the grasp radius. Note that the amount the grasping sphere moves per frame depends scales with the size of it.
+
+
+### Fixed object demo
+This is a very simple demo that fixes part of an object's surface and lets the rest deform under gravity. It also gives the user the ability to periodically save the vertices and stiffness matrix at a fixed interval of time steps, and the demo also has a ROS interface. Over this ROS interface, a partial-view point cloud (generated from a user-specified vantage point) can be sent.
+
+**Running the demo:**
+```
+./FixedObjectSim ../config/demos/fixed_object/banana.yaml
+```
+or
+```
+./FixedObjectSim ../config/demos/fixed_object/fixed_cube.yaml
+```
+
+**Config file parameters:**
+
+- _cube-fixed-face_: the "face" (of the object) to fix. The options are "none", "left", "right", "top", "bottom". For the "left" option, this finds all vertices on the object with the minimum Y-coordinate and sets those to be fixed. Similar analogous operations are performed for the "right", "top" and "bottom" options. Note that this is really only well-defined for simple polyhedra like a cube, and for arbitrary objects you will need to explicitly specify which vertices/faces to fix.
+- _text-file-save-interval_: the (integer) number of time steps between the generation of text files for the vertices and the stiffness matrix. When set to an integer < 0, no text files will be saved.
+- _text-file-save-folder_: the string path for where to save the output text files. This folder will be created if it does not already exist.
+- _point-cloud-sample-position_: the position [X,Y,Z] of where the partial-view point cloud should be generated from.
+- _point-cloud-sample-orientation_: the orientation (specified using the XYZ Euler angle convention) of the partial-view point cloud "view" frame. The Z-axis of the view frame is the center of the partial view point cloud.
+- _fixed-faces-filename_: (optional) a path to a specially formatted .txt file that specifies the vertices/faces to fix in the object. This gives the user the ability to explicity specify which vertices/faces are fixed for arbitrary objects. More info below.
+
+**Generating the fixed faces file:**
+- **Step 0**: _Generating the .msh file._ Take your initial surface mesh (.stl or .obj) file and substitute it into the config file (i.e. edit the `filename` parameter for an object). When you run the demo, the simulator will automatically generate a volumetric .msh file (with the same name) using GMSH. It will also generate a `<filename>_surface_mesh.obj` file that is just the surface of the volumetric .msh file.
+- **Step 1**: _Selecting fixed faces with MeshLab._ Open the `<filename>_surface_mesh.obj` file in MeshLab (note: it is important to use the generated .obj file because GMSH will sometimes change the ordering of the surface faces when it does volumetric mesh generation). Using the "Select faces in rectangular region" tool, select the faces that you want to fix.
+- **Step 2**: _Generating .ply file with fixed face information._ With the faces you want fixed selected, run Filters --> Quality Measure and Computations --> Per Face Quality Function, and type the expression `fesl*fi` in the user-defined function box. This assigns to each face a quality value of the face index if it is selected, and 0 if not. Then, export the mesh as an ASCII .ply file. Check the box for "Quality", and uncheck the box for "Binary Encoding".
+- **Step 3**: _Generating the fixed faces .txt file._ Run the following command to extract only the lines from the .ply file that correspond to the fixed faces:
+```
+cat <filename>.ply | grep -v " 0 $" | grep "^3 " > fixed_faces.txt
+```
+Now `fixed_faces.txt` should only have faces that are fixed with the following format:
+```
+3 <v1> <v2> <v3> <f>
+```
+This is precisely the format that the simulator is expecting the text file under `fixed-faces-filename` to have.
+
+**Launching with ROS interface:**
+
+From the `ros_workspace` folder (after building the `SimBridge` node - see [ROS interface](#ros-interface)), run
+```
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/fixed_object/fixed_cube.yaml simulation_type:=FixedObjectSimulation
+```
+There are parameters in the launch file which should be changed, namely `publish_matrices` should be set to `True` (enables publishing of vertices, faces, elements, and stiffness matrix) and `partial_view_pc` should also be set to `True` (enables publishing of partial-view point cloud). Other parameters exist for setting the publish rate and partial-view point cloud parameters (horizontal and vertical FOV, sampling density).
+
+The output topics for the vertices, faces, elements, and stiffness matrix are `/output/vertices_mat_0`, `/output/faces_mat_0`, `/output/elements_mat_0`, and `/output/stiffness_mat_0`. The output topic `/output/mesh_vertices_pc_0` corresponds to the mesh vertices as a point cloud, which is useful for visualization in Foxglove.
 
 
 ## ROS interface
