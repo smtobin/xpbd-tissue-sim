@@ -185,6 +185,9 @@ target_link_libraries(VTKTest Graphics ${VTK_LIBRARIES})
 add_executable(StiffnessMatrixTest src/exec/test/stiffness_matrix_test.cpp)
 target_link_libraries(StiffnessMatrixTest Config SimObject Solver Simulation MeshUtils)
 
+add_executable(LaplaceFEMTest src/exec/test/laplace_fem_test.cpp)
+target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)
+
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
 target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
 

@@ -35,7 +35,7 @@ Mat4r LaplacianFEMSolver::_elementStiffnessMatrix(int element_index) const
     Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
 
     // single point Gauss quadrature
-    Mat4r K_e = 0.25*0.25*0.25 * detJ * _k * delN.transpose() * delN;
+    Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _k * delN.transpose() * delN;
 
     return K_e;
 }
@@ -54,10 +54,9 @@ void LaplacianFEMSolver::_assembly()
         const Vec4i& elem = _mesh->element(element_index);
         for (int i = 0; i < 4; i++)
         {
-            for (int j = i; j < 4; j++)
+            for (int j = 0; j < 4; j++)
             {
-                _system_matrix(elem[i], elem[j]) = K_e(i,j);
-                _system_matrix(elem[j], elem[i]) = K_e(j,i);
+                _system_matrix(elem[i], elem[j]) += K_e(i,j);
             }
         }   
     }
