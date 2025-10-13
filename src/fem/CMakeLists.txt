@@ -7,11 +7,13 @@ set(FEM_SRC_DIR "./")
 set(FEM_HEADERS
     ${FEM_INCLUDE_DIR}/FEMTetMesh.hpp
     ${FEM_INCLUDE_DIR}/LaplacianFEMSolver.hpp
+    ${FEM_INCLUDE_DIR}/HeatConductionFEMSolver.hpp
 )
 
 set(FEM_SOURCES
     ${FEM_SRC_DIR}/FEMTetMesh.cpp
     ${FEM_SRC_DIR}/LaplacianFEMSolver.cpp
+    ${FEM_SRC_DIR}/HeatConductionFEMSolver.cpp
 )
 
 target_sources(FEM

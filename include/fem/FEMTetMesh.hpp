@@ -4,6 +4,8 @@
 #include "geometry/Mesh.hpp"
 #include "geometry/TetMesh.hpp"
 
+#include <array>
+
 namespace FEM
 {
 
@@ -16,6 +18,19 @@ public:
     
     /** Typedef for the gradients of the face shape functions. Note that the gradient as column vector convention is used. */
     using FaceJacobianMat = Eigen::Matrix<Real, 2, 3>;
+
+    /** Gauss quadrature points and weights */
+    // for triangular faces
+    static constexpr int NUM_FACE_QUADRATURE_PTS = 3;
+    static constexpr std::array<Real, 3> FACE_QUADRATURE_e1 = {1.0/6.0, 2.0/3.0, 1.0/6.0};
+    static constexpr std::array<Real, 3> FACE_QUADRATURE_e2 = {1.0/6.0, 1.0/6.0, 2.0/3.0};
+    static constexpr std::array<Real, 3> FACE_QUADRATURE_weights = {1.0/6.0, 1.0/6.0, 1.0/6.0};
+    // for tetrahedral elements
+    static constexpr int NUM_ELEMENT_QUADRATURE_PTS = 1;
+    static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_e1 = {0.25};
+    static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_e2 = {0.25};
+    static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_e3 = {0.25};
+    static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_weights = {0.25};
 
     FEMTetMesh(const Geometry::TetMesh* mesh);
 
