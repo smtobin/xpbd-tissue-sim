@@ -69,6 +69,10 @@ add_subdirectory("src/config")
 add_library(Common)
 add_subdirectory("src/common")
 
+# FEM library
+add_library(FEM)
+add_subdirectory("src/fem")
+
 # Graphics library
 add_library(Graphics)
 add_subdirectory("src/graphics")
@@ -111,6 +115,7 @@ target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry S
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
 target_link_libraries(MeshUtils gmsh assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)
+target_link_libraries(FEM Eigen3::Eigen Geometry)
 
 ### Simulation libraries - each has its own executable
 add_library(Simulation)
