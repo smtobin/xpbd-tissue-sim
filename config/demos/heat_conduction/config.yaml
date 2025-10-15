@@ -26,13 +26,9 @@ materials:
     nu: 0.45  # Poisson's ratio [-]
     mu-s: 0.0 # coefficient of static friction [-]
     mu-k: 0.0 # coefficient of kinetic friction [-]
-  -
-    name: "Soft Tissue 2"
-    density: 1000   # density [kg/m^3]
-    E: 4e4    # Young's modulus [Pa]
-    nu: 0.45  # Poisson's ratio [-]
-    mu-s: 0.0 # coefficient of static friction [-]
-    mu-k: 0.0 # coefficient of kinetic friction [-]
+    specific-heat: 3600   # specific heat capacity [J/kg * K]
+    thermal-conductivity: 0.3 # thermal conductivity [W/m-K]
+    convective-heat-transfer-coeff: 0  # convection heat transfer coefficient between material and static air
 
 # rendering settings
 exposure: 0.2
@@ -76,7 +72,7 @@ objects:
     draw-faces: true
 
     ## initial configuration
-    max-size: 1   # size of largest model dimension (preserves aspect ratio)
+    max-size: 0.1   # size of largest model dimension (preserves aspect ratio)
     # size: [1, 1, 1]   # specify size of each dimension
     position: [0, 0, 0.5]   # initial position of mesh center of mass [m]
     velocity: [0, 0, 0.0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)

@@ -3,9 +3,9 @@
 namespace FEM
 {
 
-HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a)
-    : _mesh(mesh), _fem_mesh(mesh), _laplace_solver(mesh, sigma),
-     _rho(rho), _c(c), _k(k), _sigma(sigma), _h(h), _T_a(T_a)
+HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a)
+    : _mesh(mesh), _fem_mesh(mesh), _laplace_solver(mesh, material.electricalConductivity()),
+     _material(material), _h(h), _T_a(T_a)
 {
     _T.resize(_mesh->numVertices(), T_a);
     _T_prev = _T;
@@ -18,7 +18,7 @@ HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, Real r
         Real volume = _mesh->elementVolume(element_index);
         for (int i = 0; i < 4; i++)
         {
-            _M[elem[i]] += 0.25 * volume * rho * c;
+            _M[elem[i]] += 0.25 * volume * _material.density() * _material.specificHeat();
         }
     }
 
@@ -84,7 +84,7 @@ void HeatConductionFEMSolver::step(Real dt)
         Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
 
         // single point Gauss quadrature
-        Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _k * delN.transpose() * delN;
+        Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material.thermalConductivity() * delN.transpose() * delN;
 
         // compute K*T
         const Vec4i& elem = _mesh->element(element_index);
@@ -161,7 +161,7 @@ Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const
     Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
 
     // single point Gauss quadrature
-    Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _k * delN.transpose() * delN;
+    Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material.thermalConductivity() * delN.transpose() * delN;
 
     return K_e;
 }
@@ -174,7 +174,7 @@ Vec4r HeatConductionFEMSolver::_elementRHSVector(int element_index) const
     const Vec4r V_e(_V[elem[0]], _V[elem[1]], _V[elem[2]], _V[elem[3]]);
     const Vec3r delV = delN * V_e;
     // compute the heat source term using voltage gradient
-    Real q_g = _sigma * delV.dot(delV);
+    Real q_g = _material.electricalConductivity() * delV.dot(delV);
 
     Vec4r shape_funcs = _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
     Real detJ = _fem_mesh.elementJacobian(element_index).determinant();

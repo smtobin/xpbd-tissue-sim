@@ -6,6 +6,8 @@
 #include "fem/FEMTetMesh.hpp"
 #include "fem/LaplacianFEMSolver.hpp"
 
+#include "simobject/ElasticMaterial.hpp"
+
 #include <unordered_map>
 
 namespace FEM
@@ -28,7 +30,7 @@ namespace FEM
 class HeatConductionFEMSolver
 {
 public:
-    HeatConductionFEMSolver(Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a);
+    HeatConductionFEMSolver(Geometry::TetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a);
 
     /** Adds a new essential boundary condition for temperature at the specified index. */
     void setTemperatureAtBoundary(int vertex_index, Real value);
@@ -73,17 +75,7 @@ private:
 
     /** Material constants */
 
-    /** The density. */
-    Real _rho;
-
-    /** The specific heat capacity. */
-    Real _c;
-
-    /** The thermal conductivity. */
-    Real _k;
-
-    /** The electrical conductivity. */
-    Real _sigma;
+    const ElasticMaterial& _material;
 
     /** The convective heat transfer coefficient. */
     Real _h;

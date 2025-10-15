@@ -164,10 +164,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     _createElasticConstraints();     // create constraints and add ConstraintProjectors to the solver object
 
     // if we are modeling heat conduction, set up the solver
-    /** TODO: add thermal material properties */
     if (_compute_heat_conduction)
     {
-        _heat_solver.emplace(tetMesh(), 1000, 4187, 628, 100, 0, 23);
+        /** TODO: only using first material right now. Extend to handle multiple materials in the same mesh? */
+        _heat_solver.emplace(tetMesh(), _materials[0], 0, 23);
 
         const Vec3i& face0 = _mesh->face(0);
         _heat_solver->setTemperatureAtBoundary(face0[0], 100);
