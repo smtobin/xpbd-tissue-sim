@@ -72,6 +72,7 @@ void HeatConductionFEMSolver::step(Real dt)
     // enforce essential boundary conditions
     for (const auto& [vertex_index, temp] : _essential_boundary)
     {
+        _T_prev[vertex_index] = temp;
         _T[vertex_index] = temp;
     }
 

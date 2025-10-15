@@ -8,8 +8,8 @@ visualization: "VTK" # what graphics to use ('Easy3D' for Easy3D graphics or 'No
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 
 ## different simulation "modes"
-sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
-# sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-time' such that sim time = wall clock time
+# sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
+sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-time' such that sim time = wall clock time
 # sim-mode: "AFAP"            # "AFAP" runs the simulation As Fast As Possible, without caring if sim time is going faster than wall clock time
 
 time-step: 1e-3   # simulation time step [s]
@@ -86,7 +86,7 @@ objects:
     collisions: false
 
     ## XPBD-specific options
-    num-solver-iters: 1   # number of solver loop iterations per time step 
+    num-solver-iters: 0.1   # number of solver loop iterations per time step 
     
     solver-type: "Gauss-Seidel"   # use Gauss-Seidel solver (i.e. update mesh after every constraint projection)
     # solver-type: "Jacobi"       # use Jacobi solver (i.e. update mesh only after going through every constraint projection)
@@ -99,7 +99,7 @@ objects:
     residual-policy: "Never"              # don't compute the residuals
 
     ## 1st-Order XPBD options (has no effect on XPBDMeshObject)
-    damping-multiplier: 50000   # 'b' from the 1st-Order XPBD paper
+    damping-multiplier: 500000   # 'b' from the 1st-Order XPBD paper
 
     compute-heat-conduction: true
 
