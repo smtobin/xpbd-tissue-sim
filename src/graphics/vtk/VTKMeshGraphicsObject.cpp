@@ -189,10 +189,55 @@ void VTKMeshGraphicsObject::_setVertices()
     points->Modified();
 }
 
+void VTKMeshGraphicsObject::_setColors()
+{
+    if (!_mesh->hasVertexProperty<Real>("temperature"))
+        return;
+
+    // set colors for each section of the mesh
+    vtkNew<vtkUnsignedCharArray> colors;
+    colors->SetNumberOfComponents(3);
+    colors->SetName("Colors");
+
+    const Geometry::MeshProperty<Real>& temp_prop = _mesh->getVertexProperty<Real>("temperature");
+    for (const auto& vert_index : _mesh->vertices().validIndices())
+    {
+        Real temp = temp_prop.get(vert_index);
+
+        // for now, 0 = blue and 100 = red
+        unsigned char color[3];
+        if (temp <= 0)
+        {
+            color[0] = 0u;
+            color[1] = 0u;
+            color[2] = 255u;
+        }
+        else if (temp >= 100)
+        {
+            color[0] = 255u;
+            color[1] = 0u;
+            color[2] = 0u;
+        }
+        else
+        {
+            Real t = temp / 100.0;
+            color[0] = static_cast<unsigned char>(t * 255);
+            color[1] = 0u;
+            color[2] = static_cast<unsigned char>((1-t) * 255);
+        }
+
+        colors->InsertNextTypedTuple(color);
+    }
+
+    _vtk_poly_data->GetPointData()->SetScalars(colors);
+        
+}
+
 void VTKMeshGraphicsObject::update() 
 {
     
     _setVertices();
+    _setColors();
 
     if (_mesh->numFaces() != _vtk_poly_data->GetNumberOfCells())
     {
