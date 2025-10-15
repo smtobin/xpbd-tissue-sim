@@ -28,7 +28,7 @@ namespace FEM
 class HeatConductionFEMSolver
 {
 public:
-    HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real k, Real sigma, Real h, Real T_a);
+    HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a);
 
     /** Adds a new essential boundary condition for temperature at the specified index. */
     void setTemperatureAtBoundary(int vertex_index, Real value);
@@ -46,6 +46,9 @@ public:
      * Returns the nodal values.
      */
     VecXr solve();
+
+    /** Steps the Laplace equation forward in time using Forward Euler integration. */
+    void step(Real dt);
 
 private:
     /** Computes the elemental stiffness matrix using a 1-point Gauss quadrature (the centroid of the tet) */
@@ -67,6 +70,14 @@ private:
     FEMTetMesh _fem_mesh;
     /** Laplace equation solver used to solve for the voltage potential and its gradient. */
     LaplacianFEMSolver _laplace_solver;
+
+    /** Material constants */
+
+    /** The density. */
+    Real _rho;
+
+    /** The specific heat capacity. */
+    Real _c;
 
     /** The thermal conductivity. */
     Real _k;
@@ -91,6 +102,16 @@ private:
     MatXr _system_matrix;
     /** The global RHS vector. */
     VecXr _RHS_vec;
+
+    /** Tempuratures */
+    std::vector<Real> _T;
+    std::vector<Real> _T_prev;
+
+    /** Whether or not vertex index is on temperature essential boundary. */
+    std::vector<bool> _on_essential_boundary;
+
+    /** Lumped thermal masses - approximate this as constant throughout the sim. */
+    std::vector<Real> _M;
 };
 
 } // namespace FEM

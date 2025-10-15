@@ -3,21 +3,41 @@
 namespace FEM
 {
 
-HeatConductionFEMSolver::HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real k, Real sigma, Real h, Real T_a)
+HeatConductionFEMSolver::HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a)
     : _mesh(mesh), _fem_mesh(mesh), _laplace_solver(mesh, sigma),
-     _k(k), _sigma(sigma), _h(h), _T_a(T_a)
+     _rho(rho), _c(c), _k(k), _sigma(sigma), _h(h), _T_a(T_a)
 {
+    _T.resize(_mesh->numVertices(), T_a);
+    _T_prev = _T;
+
+    // compute thermal masses for each vertex
+    _M.resize(_mesh->numVertices(), 0);
+    for (const auto& element_index : _mesh->elements().validIndices())
+    {
+        const Vec4i& elem = _mesh->element(element_index);
+        Real volume = _mesh->elementVolume(element_index);
+        for (int i = 0; i < 4; i++)
+        {
+            _M[elem[i]] += 0.25 * volume * rho * c;
+        }
+    }
+
+    _on_essential_boundary.resize(_mesh->numVertices(), false);
 
 }
 
 void HeatConductionFEMSolver::setTemperatureAtBoundary(int vertex_index, Real value)
 {
     _essential_boundary[vertex_index] = value;
+
+    _on_essential_boundary[vertex_index] = true;
 }
 
 void HeatConductionFEMSolver::clearTemperatureBoundary()
 {
     _essential_boundary.clear();
+
+    _on_essential_boundary.assign(_mesh->numVertices(), false);
 }
 
 void HeatConductionFEMSolver::setVoltageAtBoundary(int vertex_index, Real voltage)
@@ -41,6 +61,80 @@ VecXr HeatConductionFEMSolver::solve()
     // solve the linear system
     VecXr x = _system_matrix.llt().solve(_RHS_vec);
     return x;
+}
+
+void HeatConductionFEMSolver::step(Real dt)
+{
+
+    // enforce essential boundary conditions
+    for (const auto& [vertex_index, temp] : _essential_boundary)
+    {
+        _T[vertex_index] = temp;
+    }
+
+    // loop through elements, calculate contribution to next temperatures
+    // for now, we assume heat generation is 0
+    for (const auto& element_index : _mesh->elements().validIndices())
+    {
+        const typename FEMTetMesh::ElementShapeFunctionGradientsMat delN = _fem_mesh.elementShapeFunctionGradients(element_index);
+        Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
+
+        // single point Gauss quadrature
+        Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _k * delN.transpose() * delN;
+
+        // compute K*T
+        const Vec4i& elem = _mesh->element(element_index);
+        Vec4r T_e(_T_prev[elem[0]], _T_prev[elem[1]], _T_prev[elem[2]], _T_prev[elem[3]]);
+        Vec4r K_e_T_e = K_e * T_e;
+
+        // scatter back to next temperature
+        // heat generation term will replace the zero
+        for (int i = 0; i < 4; i++)
+        {
+            if (_on_essential_boundary[elem[i]])
+                continue;
+
+            _T[elem[i]] += dt * 1.0/_M[elem[i]] * (0 - K_e_T_e[i]);
+        }
+        
+    }
+
+    // loop through surface faces, calculate contribution to next temperatures
+    // assuming a convective boundary
+    for (const auto& face_index : _mesh->faces().validIndices())
+    {
+        const typename FEMTetMesh::FaceJacobianMat J_e = _fem_mesh.faceJacobian(face_index);
+        Real detJ = J_e.row(0).cross(J_e.row(1)).norm();
+
+        // 3-point Gauss quadrature
+        Mat3r K_e = Mat3r::Zero();
+        for (int i = 0; i < FEMTetMesh::NUM_FACE_QUADRATURE_PTS; i++)
+        {
+            Real weight = FEMTetMesh::FACE_QUADRATURE_weights[i];
+            Real e1 = FEMTetMesh::FACE_QUADRATURE_e1[i];
+            Real e2 = FEMTetMesh::FACE_QUADRATURE_e2[i];
+
+            Vec3r shape_funcs = _fem_mesh.faceShapeFunctions(e1, e2);
+            K_e += weight * std::abs(detJ) * _h * shape_funcs * shape_funcs.transpose();
+        }
+
+        // compute K*T
+        const Vec3i& face = _mesh->face(face_index);
+        Vec3r T_e(_T_prev[face[0]], _T_prev[face[1]], _T_prev[face[2]]);
+        Vec3r K_e_T_e = K_e * T_e;
+
+        // scatter back to next temperature
+        for (int i = 0; i < 3; i++)
+        {
+            if (_on_essential_boundary[face[i]])
+                continue;
+
+            _T[face[i]] += dt * 1.0/_M[face[i]] * (-K_e_T_e[i]);
+        }
+    }
+
+    // update T_prev
+    _T_prev = _T;
 }
 
 Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const
