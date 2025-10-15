@@ -61,6 +61,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     {
         _extractParameter("materials", node, _materials);
         _extractParameter("element-classes-filename", node, _element_classes_filename);
+        _extractParameter("compute-heat-conduction", node, _compute_heat_conduction);
 
         // extract parameters
         _extractParameter("self-collisions", node, _self_collisions);
@@ -111,6 +112,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
 
     std::vector<std::string> materials() const { return _materials.value; }
     std::optional<std::string> elementClassesFilename() const { return _element_classes_filename.value; }
+    bool computeHeatConduction() const { return _compute_heat_conduction.value; }
 
     protected:
     // Parameters
@@ -123,6 +125,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
 
     ConfigParameter<std::vector<std::string>> _materials = ConfigParameter<std::vector<std::string>>({});
     ConfigParameter<std::optional<std::string>> _element_classes_filename;
+    ConfigParameter<bool> _compute_heat_conduction = ConfigParameter<bool>(false);
 };
 
 } // namespace Config

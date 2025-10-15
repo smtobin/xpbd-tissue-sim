@@ -28,7 +28,7 @@ namespace FEM
 class HeatConductionFEMSolver
 {
 public:
-    HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a);
+    HeatConductionFEMSolver(Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a);
 
     /** Adds a new essential boundary condition for temperature at the specified index. */
     void setTemperatureAtBoundary(int vertex_index, Real value);
@@ -65,7 +65,7 @@ private:
 
 private:
     /** The tetrahedral mesh */
-    const Geometry::TetMesh* _mesh;
+    Geometry::TetMesh* _mesh;
     /** Wrapper around the tet mesh for doing FEM calculations */
     FEMTetMesh _fem_mesh;
     /** Laplace equation solver used to solve for the voltage potential and its gradient. */

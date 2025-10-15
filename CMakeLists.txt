@@ -111,7 +111,7 @@ target_link_libraries(Config Eigen3::Eigen SimObject)
 target_link_libraries(Graphics Eigen3::Eigen easy3d::core easy3d::util easy3d::renderer easy3d::viewer ${VTK_LIBRARIES}) # link Easy3D for Graphics library
 target_link_libraries(Geometry Eigen3::Eigen mesh2sdf SimObject GeometryUtils embree)
 target_link_libraries(Haptics Eigen3::Eigen HD HDU)   # link OpenHaptics API libraries for Haptics library
-target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config)   # link MeshUtils and Solver libraries
+target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config FEM)   # link MeshUtils and Solver libraries
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
 target_link_libraries(MeshUtils gmsh assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)

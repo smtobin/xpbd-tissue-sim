@@ -79,6 +79,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // filename that has info on element classes (optional)
     _element_classes_filename = config->elementClassesFilename();
 
+    // whether or not to compute heat conduction
+    _compute_heat_conduction = config->computeHeatConduction();
+
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
     {
@@ -159,6 +162,19 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
     _calculatePerVertexQuantities();
     _createElasticConstraints();     // create constraints and add ConstraintProjectors to the solver object
+
+    // if we are modeling heat conduction, set up the solver
+    /** TODO: add thermal material properties */
+    if (_compute_heat_conduction)
+    {
+        _heat_solver.emplace(tetMesh(), 1000, 4187, 628, 100, 0, 23);
+
+        const Vec3i& face0 = _mesh->face(0);
+        _heat_solver->setTemperatureAtBoundary(face0[0], 100);
+        // _heat_solver->setTemperatureAtBoundary(face0[1], 100);
+        // _heat_solver->setTemperatureAtBoundary(face0[2], 100);
+    }
+        
 }
 
 // template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -443,6 +459,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::up
     //     }
         
     // }
+
+    if (_compute_heat_conduction)
+        _heat_solver->step(_sim->dt());
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

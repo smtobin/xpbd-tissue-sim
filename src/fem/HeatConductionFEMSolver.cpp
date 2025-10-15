@@ -3,7 +3,7 @@
 namespace FEM
 {
 
-HeatConductionFEMSolver::HeatConductionFEMSolver(const Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a)
+HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, Real rho, Real c, Real k, Real sigma, Real h, Real T_a)
     : _mesh(mesh), _fem_mesh(mesh), _laplace_solver(mesh, sigma),
      _rho(rho), _c(c), _k(k), _sigma(sigma), _h(h), _T_a(T_a)
 {
@@ -23,6 +23,9 @@ HeatConductionFEMSolver::HeatConductionFEMSolver(const Geometry::TetMesh* mesh, 
     }
 
     _on_essential_boundary.resize(_mesh->numVertices(), false);
+
+    // create temperature property for the mesh
+    _mesh->addVertexProperty<Real>("temperature", 0);
 
 }
 
@@ -135,6 +138,20 @@ void HeatConductionFEMSolver::step(Real dt)
 
     // update T_prev
     _T_prev = _T;
+
+    // copy into mesh property
+    Geometry::MeshProperty<Real>& temperature_prop = _mesh->getVertexProperty<Real>("temperature");
+    for (unsigned i = 0; i < _T.size(); i++)
+    {
+        temperature_prop.set(i, _T[i]);
+    }
+
+    std::cout << "T: [" << std::endl;
+    for (const auto& t : _T)
+    {
+        std::cout << t << std::endl;
+    }
+    std::cout << "]\n" << std::endl;
 }
 
 Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const

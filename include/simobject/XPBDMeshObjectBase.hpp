@@ -16,6 +16,8 @@
 
 #include "geometry/DeformableMeshSDF.hpp"
 
+#include "fem/HeatConductionFEMSolver.hpp"
+
 #include "common/XPBDEnumTypes.hpp"
 
 #include <variant>
@@ -255,6 +257,9 @@ protected:
 
     /** Signed Distance Field for the deformable object. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;
+
+    /** Heat conduction solver for computing thermal effects. This is optional, and specified in the config file to be created. */
+    std::optional<FEM::HeatConductionFEMSolver> _heat_solver;
 
 
     /** === Class members specific to when the object is 1st-order === */

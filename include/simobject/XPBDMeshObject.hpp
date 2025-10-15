@@ -65,6 +65,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::_vertex_volumes;
     using Base::_is_fixed_vertex;
     using Base::_sdf;
+    using Base::_heat_solver;
     using Base::_damping_multiplier;
     using Base::_adjust_b_to_material;
     using Base::_vertex_B;
@@ -250,6 +251,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
 
     /** The filename that has information about which class each element belongs to. Set by the config. */
     std::optional<std::string> _element_classes_filename;
+
+    /** Whether or not to calculate thermal effects. Set by the config. */
+    bool _compute_heat_conduction;
 };
 
 } // namespace Sim
