@@ -1,0 +1,75 @@
+#ifndef __VOLTAGE_FEM_SOLVER_HPP
+#define __VOLTAGE_FEM_SOLVER_HPP
+
+#include "geometry/TetMesh.hpp"
+#include "fem/FEMTetMesh.hpp"
+
+#include <unordered_map>
+
+namespace FEM
+{
+
+/** Solves the Laplace equation
+ *      del * (k delV) = 0
+ * using the finite element method over a tetrahedral mesh with linear elements, with a pseudo-time iteration.
+ * 
+ * Rather than solve the Laplace equation directly, we integrate with explicit Euler.
+ * 
+ * k is taken as constant throughout the mesh (for now), though in theory it can vary per element.
+ * 
+ * For now, all boundary flux (i.e. the natural boundary) is assumed to be 0.
+ */
+class VoltageFEMSolver
+{
+public:
+    VoltageFEMSolver(Geometry::TetMesh* mesh, Real k);
+
+    /** Adds a new essential boundary condition at the specified index.
+     *   i.e. RHS[index] = value
+     */
+    void setVoltageAtBoundary(int vertex_index, Real value);
+
+    /** Clears all essential boundary conditions. */
+    void clearVoltageBoundary();
+
+    /** Solves the Laplace equation on the tetrahedral mesh given the current essential boundary conditions.
+     * Returns the nodal values.
+     */
+    VecXr solve();
+
+    /** Steps the Laplace equation forward in time using Forward Euler integration. */
+    void step(Real dt);
+
+    const std::vector<Real>& voltage() const { return _V; }
+
+private:
+    /** Computes the elemental stiffness matrix using a 1-point Gauss quadrature (the centroid of the tet) */
+    Mat4r _elementStiffnessMatrix(int element_index) const;
+
+    /** Assembles the global system matrix and RHS vector. */
+    void _assembly();
+
+private:
+    Geometry::TetMesh* _mesh;
+    FEMTetMesh _fem_mesh;
+
+    /** The constant in the Laplace equation. */
+    Real _k;
+
+    /** Map that stores the essential boundary.
+     * The key is the vertex index on the boundary, the value is the value at the essential boundary.
+     */
+    std::unordered_map<int, Real> _essential_boundary;
+
+    /** Whether or not vertex index is on temperature essential boundary. */
+    std::vector<bool> _on_essential_boundary;
+
+    std::vector<Real> _V;
+    std::vector<Real> _V_prev;
+
+    std::vector<Real> _M;
+};
+
+} // namespace FEM
+
+#endif // __VOLTAGE_FEM_SOLVER_HPP

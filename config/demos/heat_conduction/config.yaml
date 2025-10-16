@@ -28,6 +28,7 @@ materials:
     mu-k: 0.0 # coefficient of kinetic friction [-]
     specific-heat: 3600   # specific heat capacity [J/kg * K]
     thermal-conductivity: 0.3 # thermal conductivity [W/m-K]
+    electrical-conductivity: 0.5 # electrical conductivity [S/m]
     convective-heat-transfer-coeff: 0  # convection heat transfer coefficient between material and static air
 
 # rendering settings
@@ -82,7 +83,7 @@ objects:
     collisions: false
 
     ## XPBD-specific options
-    num-solver-iters: 0.1   # number of solver loop iterations per time step 
+    num-solver-iters: 1   # number of solver loop iterations per time step 
     
     solver-type: "Gauss-Seidel"   # use Gauss-Seidel solver (i.e. update mesh after every constraint projection)
     # solver-type: "Jacobi"       # use Jacobi solver (i.e. update mesh only after going through every constraint projection)

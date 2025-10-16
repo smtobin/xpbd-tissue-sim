@@ -4,7 +4,7 @@ namespace FEM
 {
 
 HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a)
-    : _mesh(mesh), _fem_mesh(mesh), _laplace_solver(mesh, material.electricalConductivity()),
+    : _mesh(mesh), _fem_mesh(mesh), _voltage_solver(mesh, material.electricalConductivity()),
      _material(material), _h(h), _T_a(T_a)
 {
     _T.resize(_mesh->numVertices(), T_a);
@@ -45,29 +45,32 @@ void HeatConductionFEMSolver::clearTemperatureBoundary()
 
 void HeatConductionFEMSolver::setVoltageAtBoundary(int vertex_index, Real voltage)
 {
-    _laplace_solver.setEssentialBoundary(vertex_index, voltage);
+    _voltage_solver.setVoltageAtBoundary(vertex_index, voltage);
 }
 
 void HeatConductionFEMSolver::clearVoltageBoundary()
 {
-    _laplace_solver.clearEssentialBoundary();
+    _voltage_solver.clearVoltageBoundary();
 }
 
 VecXr HeatConductionFEMSolver::solve()
 {
     // solve for the voltage
-    _V = _laplace_solver.solve();
+    // _V = _voltage_solver.solve();
 
-    // assemble global system
-    _assembly();
+    // // assemble global system
+    // _assembly();
 
-    // solve the linear system
-    VecXr x = _system_matrix.llt().solve(_RHS_vec);
-    return x;
+    // // solve the linear system
+    // VecXr x = _system_matrix.llt().solve(_RHS_vec);
+    // return x;
 }
 
 void HeatConductionFEMSolver::step(Real dt)
 {
+
+    // step voltage
+    _voltage_solver.step(dt);
 
     // enforce essential boundary conditions
     for (const auto& [vertex_index, temp] : _essential_boundary)
@@ -75,6 +78,8 @@ void HeatConductionFEMSolver::step(Real dt)
         _T_prev[vertex_index] = temp;
         _T[vertex_index] = temp;
     }
+
+    const std::vector<Real>& voltage = _voltage_solver.voltage();
 
     // loop through elements, calculate contribution to next temperatures
     // for now, we assume heat generation is 0
@@ -91,6 +96,13 @@ void HeatConductionFEMSolver::step(Real dt)
         Vec4r T_e(_T_prev[elem[0]], _T_prev[elem[1]], _T_prev[elem[2]], _T_prev[elem[3]]);
         Vec4r K_e_T_e = K_e * T_e;
 
+        // compute heat generation term
+        // first, compute delV for the element
+        Vec4r V_e(voltage[elem[0]], voltage[elem[1]], voltage[elem[2]], voltage[elem[3]]);
+        Vec3r delV = delN * V_e;
+        Real q_g = _material.electricalConductivity() * delV.dot(delV);
+        Vec4r Q_e = q_g * _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
+
         // scatter back to next temperature
         // heat generation term will replace the zero
         for (int i = 0; i < 4; i++)
@@ -98,7 +110,7 @@ void HeatConductionFEMSolver::step(Real dt)
             if (_on_essential_boundary[elem[i]])
                 continue;
 
-            _T[elem[i]] += dt * 1.0/_M[elem[i]] * (0 - K_e_T_e[i]);
+            _T[elem[i]] += dt * 1.0/_M[elem[i]] * (Q_e[i] - K_e_T_e[i]);
         }
         
     }

@@ -8,12 +8,14 @@ set(FEM_HEADERS
     ${FEM_INCLUDE_DIR}/FEMTetMesh.hpp
     ${FEM_INCLUDE_DIR}/LaplacianFEMSolver.hpp
     ${FEM_INCLUDE_DIR}/HeatConductionFEMSolver.hpp
+    ${FEM_INCLUDE_DIR}/VoltageFEMSolver.hpp
 )
 
 set(FEM_SOURCES
     ${FEM_SRC_DIR}/FEMTetMesh.cpp
     ${FEM_SRC_DIR}/LaplacianFEMSolver.cpp
     ${FEM_SRC_DIR}/HeatConductionFEMSolver.cpp
+    ${FEM_SRC_DIR}/VoltageFEMSolver.cpp
 )
 
 target_sources(FEM

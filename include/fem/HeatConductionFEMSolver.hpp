@@ -4,7 +4,7 @@
 
 #include "geometry/TetMesh.hpp"
 #include "fem/FEMTetMesh.hpp"
-#include "fem/LaplacianFEMSolver.hpp"
+#include "fem/VoltageFEMSolver.hpp"
 
 #include "simobject/ElasticMaterial.hpp"
 
@@ -71,7 +71,7 @@ private:
     /** Wrapper around the tet mesh for doing FEM calculations */
     FEMTetMesh _fem_mesh;
     /** Laplace equation solver used to solve for the voltage potential and its gradient. */
-    LaplacianFEMSolver _laplace_solver;
+    VoltageFEMSolver _voltage_solver;
 
     /** Material constants */
 
