@@ -26,8 +26,6 @@ public:
     explicit FixedObjectSimulationConfig(const YAML::Node& node)
         : SimulationConfig(node)
     {
-        _extractParameter("fixed-faces-filename", node, _fixed_faces_filename);
-
         _extractParameter("text-file-save-interval", node, _text_file_save_interval);
         _extractParameter("text-file-save-folder", node, _text_file_save_folder);
 
@@ -36,8 +34,6 @@ public:
         _extractParameter("point-cloud-sample-position", node, _pc_sample_position);
         _extractParameter("point-cloud-sample-orientation", node, _pc_sample_orientation);
     }
-
-    std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
 
     int textFileSaveInterval() const { return _text_file_save_interval.value; }
     std::string textFileSaveFolder() const { return _text_file_save_folder.value; }
@@ -48,7 +44,6 @@ public:
     Vec3r pointCloudSampleOrientation() const { return _pc_sample_orientation.value; }
 
 private:
-    ConfigParameter<std::optional<std::string>> _fixed_faces_filename;
 
     ConfigParameter<int> _text_file_save_interval = ConfigParameter<int>(0);
     ConfigParameter<std::string> _text_file_save_folder = ConfigParameter<std::string>("./");

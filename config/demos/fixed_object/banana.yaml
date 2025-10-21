@@ -23,8 +23,6 @@ text-file-save-interval: 50   # the number of time steps between generation of t
 text-file-save-folder: "../output/banana_E=8e4/"  # the folder to save the output files in
 point-cloud-sample-position: [0,-2,0]  # the origin of the "view" frame of the partial view point cloud
 point-cloud-sample-orientation: [-90,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
-fixed-faces-filename: "../resource/general/banana_fixed_faces.txt"  # a specially formatted text file that contains information about which vertices/faces to fix
-
 
 ## define elastic materials
 materials:
@@ -56,6 +54,8 @@ objects:
 
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
     filename: "../resource/general/banana.stl"
+    fixed-faces-filename: "../resource/general/banana_fixed_faces.txt"  # a specially formatted text file that contains information about which vertices/faces to fix
+
 
     materials: ["Banana 2"] # the elastic material (must match with the name of a material defined above)
 

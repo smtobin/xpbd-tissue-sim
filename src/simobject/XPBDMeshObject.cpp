@@ -79,6 +79,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // filename that has info on element classes (optional)
     _element_classes_filename = config->elementClassesFilename();
 
+    // filename that has info on fixed faces/vertices (optional)
+    _fixed_faces_filename = config->fixedFacesFilename();
+
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
     {
@@ -157,6 +160,18 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
     _calculatePerVertexQuantities();
     _createElasticConstraints();     // create constraints and add ConstraintProjectors to the solver object
+
+    // if the fixed-faces file is given, read the fixed vertices from it and then set those vertices to be fixed during the sim
+    if (_fixed_faces_filename.has_value())
+    {
+        std::set<int> vertices;
+        std::vector<int> faces;
+        MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
+        for (const auto& v : vertices)
+        {
+            fixVertex(v);
+        }
+    }
 }
 
 // template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

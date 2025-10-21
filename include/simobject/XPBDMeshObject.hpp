@@ -244,6 +244,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** The filename that has information about which class each element belongs to. Set by the config. */
     std::optional<std::string> _element_classes_filename;
 
+    /** The filename that has information about which faces/vertices should be fixed. Optional, and set by the config. */
+    std::optional<std::string> _fixed_faces_filename;
+
     /** Pre-allocated storage for computing the stiffness matrix.
      * TODO: switch to a sparse matrix representation
      */

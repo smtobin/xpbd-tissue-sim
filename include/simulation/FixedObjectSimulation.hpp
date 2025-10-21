@@ -39,8 +39,6 @@ public:
 
     virtual void _timeStep() override;
 
-    std::optional<std::string> _fixed_faces_filename;   // a .txt filename that lists all the faces that should be held fixed
-
     int _num_saved_text_files = 0;
     int _text_file_save_interval;
     std::string _text_file_save_folder;

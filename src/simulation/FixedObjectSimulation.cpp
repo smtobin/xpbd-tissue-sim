@@ -8,8 +8,6 @@ namespace Sim
 FixedObjectSimulation::FixedObjectSimulation(const Config::FixedObjectSimulationConfig* config)
     : Simulation(config)
 {
-    _fixed_faces_filename = config->fixedFacesFilename();
-
     _text_file_save_interval = config->textFileSaveInterval();
     _text_file_save_folder = config->textFileSaveFolder();
     if (_text_file_save_folder.back() != '/')
@@ -62,18 +60,6 @@ void FixedObjectSimulation::setup()
     for (const auto& vert_index : vertices_to_fix)
     {
         _cube_obj.fixVertex(vert_index);
-    }
-
-    // if a fixed faces filename is specified, fix the vertices corresponding to the fixed faces in the file
-    if (_fixed_faces_filename.has_value())
-    {
-        std::set<int> vertices;
-        std::vector<int> faces;
-        MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
-        for (const auto& v : vertices)
-        {
-            _cube_obj.fixVertex(v);
-        }
     }
 
     // save initial vertices/elements/faces .txt file
