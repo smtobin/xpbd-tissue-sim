@@ -327,24 +327,53 @@ void VirtuosoArm::_cauteryToolAction()
 {
     if (_tool_state == 1)
     {
-        std::set<int> elements_to_remove;
+        /** Code for simple element removal on contact */
+        // std::set<int> elements_to_remove;
+        // for (const auto& collision : _collision_constraints)
+        // {
+        //     if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
+        //     {
+        //         // get element 
+        //         int face_index = collision.proj_ref.constraint()->faceIndex();
+        //         if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+        //             continue;
+                
+        //         int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+        //         elements_to_remove.insert(elem_index_to_remove);                
+        //     }
+        // }
+
+        // for (const auto& elem_index : elements_to_remove)
+        // {
+        //     _tool_manipulated_object.removeElement(elem_index);
+        // }
+
+        /** Code for applying voltage BC at tip */
+        if (_tool_manipulated_object.hasHeatSolver())
+        {
+            _tool_manipulated_object.heatSolver().clearVoltageBoundary();
+        }
+
         for (const auto& collision : _collision_constraints)
         {
             if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
             {
+                std::cout << "Cautery Collision!" << std::endl;
                 // get element 
                 int face_index = collision.proj_ref.constraint()->faceIndex();
                 if (!_tool_manipulated_object.mesh()->faceValid(face_index))
                     continue;
-                
-                int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                elements_to_remove.insert(elem_index_to_remove);                
-            }
-        }
 
-        for (const auto& elem_index : elements_to_remove)
-        {
-            _tool_manipulated_object.removeElement(elem_index);
+                // set voltage at the face in collision
+                const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
+                if (_tool_manipulated_object.hasHeatSolver())
+                {
+                    /** TODO: replace with the actual voltage of the cautery tool  */
+                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 100);
+                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 100);
+                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 100);
+                }           
+            }
         }
     }
 }

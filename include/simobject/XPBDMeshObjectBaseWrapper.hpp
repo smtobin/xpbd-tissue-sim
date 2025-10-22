@@ -242,6 +242,23 @@ public:
         return std::visit([&](const auto& obj) { return obj->lastConstraintResidual(); }, _variant);
     }
 
+    /** Queries whether or not the heat solver exists. */
+    bool hasHeatSolver() const
+    { 
+        return std::visit([&](const auto& obj) { return obj->hasHeatSolver(); }, _variant);
+    }
+
+    /** @returns the heat solver */
+    FEM::HeatConductionFEMSolver& heatSolver()
+    {
+        return std::visit([&](auto& obj) -> FEM::HeatConductionFEMSolver& { return obj->heatSolver(); }, _variant);
+    }
+
+    const FEM::HeatConductionFEMSolver& heatSolver() const
+    { 
+        return std::visit([&](const auto& obj) -> const FEM::HeatConductionFEMSolver& { return obj->heatSolver(); }, _variant);
+    }
+
 
     /** === TetMeshObject functionality === */
 

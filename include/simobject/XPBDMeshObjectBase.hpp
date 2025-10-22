@@ -202,6 +202,13 @@ public:
     /** @returns the most recently calculated constraint residual from the solver object */
     virtual VecXr lastConstraintResidual() const = 0;
 
+    /** Queries whether or not the heat solver exists. */
+    bool hasHeatSolver() const { return _heat_solver.has_value(); }
+
+    /** @returns the heat solver */
+    FEM::HeatConductionFEMSolver& heatSolver() { return *_heat_solver; }
+    const FEM::HeatConductionFEMSolver& heatSolver() const { return *_heat_solver; }
+
 
     /** === Miscellaneous useful methods === */
 

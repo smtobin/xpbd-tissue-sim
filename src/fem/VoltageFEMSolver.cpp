@@ -17,7 +17,7 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::TetMesh* mesh, Real k)
         Real volume = _mesh->elementVolume(element_index);
         for (int i = 0; i < 4; i++)
         {
-            _M[elem[i]] += 0.25 * volume; // some number
+            _M[elem[i]] += 0.25 * volume * 100; // some number
         }
     }
 

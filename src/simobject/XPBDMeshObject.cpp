@@ -169,9 +169,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
         /** TODO: only using first material right now. Extend to handle multiple materials in the same mesh? */
         _heat_solver.emplace(tetMesh(), _materials[0], 0, 23);
 
-        const Vec3i& face0 = _mesh->face(0);
-        _heat_solver->setTemperatureAtBoundary(face0[0], 100);
-        _heat_solver->setVoltageAtBoundary(face0[0], 100);
+        // const Vec3i& face0 = _mesh->face(0);
+        // _heat_solver->setTemperatureAtBoundary(face0[0], 100);
+        // _heat_solver->setVoltageAtBoundary(face0[0], 100);
         // _heat_solver->setTemperatureAtBoundary(face0[1], 100);
         // _heat_solver->setTemperatureAtBoundary(face0[2], 100);
     }
