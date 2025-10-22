@@ -325,6 +325,11 @@ void VirtuosoArm::_grasperToolAction()
 
 void VirtuosoArm::_cauteryToolAction()
 {
+    if (_tool_manipulated_object.hasHeatSolver())
+    {
+        _tool_manipulated_object.heatSolver().clearVoltageBoundary();
+    }
+
     if (_tool_state == 1)
     {
         /** Code for simple element removal on contact */
@@ -349,10 +354,7 @@ void VirtuosoArm::_cauteryToolAction()
         // }
 
         /** Code for applying voltage BC at tip */
-        if (_tool_manipulated_object.hasHeatSolver())
-        {
-            _tool_manipulated_object.heatSolver().clearVoltageBoundary();
-        }
+        
 
         for (const auto& collision : _collision_constraints)
         {

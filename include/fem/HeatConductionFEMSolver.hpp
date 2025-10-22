@@ -39,7 +39,7 @@ public:
     void clearTemperatureBoundary();
 
     /** Specifies voltage at a vertex. */
-    void setVoltageAtBoundary(int vertex_index, Real voltage);
+    void setVoltageAtBoundary(int vertex_index, Real voltage, bool permanent=false);
 
     /** Clears all voltage essential boundary conditions. */
     void clearVoltageBoundary();

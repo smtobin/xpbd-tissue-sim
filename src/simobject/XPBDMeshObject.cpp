@@ -79,6 +79,8 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // filename that has info on element classes (optional)
     _element_classes_filename = config->elementClassesFilename();
 
+    _ground_faces_filename = config->groundFacesFilename();
+
     // whether or not to compute heat conduction
     _compute_heat_conduction = config->computeHeatConduction();
 
@@ -166,14 +168,25 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     // if we are modeling heat conduction, set up the solver
     if (_compute_heat_conduction)
     {
-        /** TODO: only using first material right now. Extend to handle multiple materials in the same mesh? */
-        _heat_solver.emplace(tetMesh(), _materials[0], 0, 23);
+            /** TODO: only using first material right now. Extend to handle multiple materials in the same mesh? */
+            _heat_solver.emplace(tetMesh(), _materials[0], 0, 23);
 
-        // const Vec3i& face0 = _mesh->face(0);
-        // _heat_solver->setTemperatureAtBoundary(face0[0], 100);
-        // _heat_solver->setVoltageAtBoundary(face0[0], 100);
-        // _heat_solver->setTemperatureAtBoundary(face0[1], 100);
-        // _heat_solver->setTemperatureAtBoundary(face0[2], 100);
+            if (_ground_faces_filename.has_value())
+            {
+                std::set<int> vertices;
+                std::vector<int> faces;
+                MeshUtils::verticesAndFacesFromFixedFacesFile(_ground_faces_filename.value(), vertices, faces);
+                for (const auto& v : vertices)
+                {
+                    _heat_solver->setVoltageAtBoundary(v, 10, true);
+                }
+            }
+            else
+            {
+                // throw an error if no grounded faces are specified
+                std::cerr << KRED << BOLD << "FATAL:" << RST << KRED << " Thermal simulation enabled but grounded faces not specified! (did you forget to specify the ground-faces-filename parameter?)" << RST << std::endl;
+                assert(0);
+            }
     }
         
 }

@@ -252,6 +252,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** The filename that has information about which class each element belongs to. Set by the config. */
     std::optional<std::string> _element_classes_filename;
 
+    /** The filename that has information about which faces/vertices are grounded (voltage = 0). Set by the config. */
+    std::optional<std::string> _ground_faces_filename;
+
     /** Whether or not to calculate thermal effects. Set by the config. */
     bool _compute_heat_conduction;
 };

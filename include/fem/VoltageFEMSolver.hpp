@@ -27,7 +27,7 @@ public:
     /** Adds a new essential boundary condition at the specified index.
      *   i.e. RHS[index] = value
      */
-    void setVoltageAtBoundary(int vertex_index, Real value);
+    void setVoltageAtBoundary(int vertex_index, Real value, bool permanent=false);
 
     /** Clears all essential boundary conditions. */
     void clearVoltageBoundary();
@@ -56,10 +56,17 @@ private:
     /** The constant in the Laplace equation. */
     Real _k;
 
-    /** Map that stores the essential boundary.
+    /** Map that stores the "temporary" essential boundary.
+     * These get erased with clearVoltageBoundary().
      * The key is the vertex index on the boundary, the value is the value at the essential boundary.
      */
-    std::unordered_map<int, Real> _essential_boundary;
+    std::unordered_map<int, Real> _temporary_essential_boundary;
+
+    /** Map that stores the "permanent" essential boundary.
+     * These DO NOT get erased with clearVoltageBoundary().
+     * The key is the vertex index, the value is the value at the essential boundary.
+     */
+    std::unordered_map<int, Real> _permanent_essential_boundary;
 
     /** Whether or not vertex index is on temperature essential boundary. */
     std::vector<bool> _on_essential_boundary;
@@ -68,6 +75,11 @@ private:
     std::vector<Real> _V_prev;
 
     std::vector<Real> _M;
+
+    /** The global system matrix. */
+    MatXr _system_matrix;
+    /** The global RHS vector. */
+    VecXr _RHS_vec;
 };
 
 } // namespace FEM

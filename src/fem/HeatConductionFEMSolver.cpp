@@ -43,9 +43,9 @@ void HeatConductionFEMSolver::clearTemperatureBoundary()
     _on_essential_boundary.assign(_mesh->numVertices(), false);
 }
 
-void HeatConductionFEMSolver::setVoltageAtBoundary(int vertex_index, Real voltage)
+void HeatConductionFEMSolver::setVoltageAtBoundary(int vertex_index, Real voltage, bool permanent)
 {
-    _voltage_solver.setVoltageAtBoundary(vertex_index, voltage);
+    _voltage_solver.setVoltageAtBoundary(vertex_index, voltage, permanent);
 }
 
 void HeatConductionFEMSolver::clearVoltageBoundary()
@@ -101,7 +101,7 @@ void HeatConductionFEMSolver::step(Real dt)
         Vec4r V_e(voltage[elem[0]], voltage[elem[1]], voltage[elem[2]], voltage[elem[3]]);
         Vec3r delV = delN * V_e;
         Real q_g = _material.electricalConductivity() * delV.dot(delV);
-        Vec4r Q_e = q_g * _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
+        Vec4r Q_e = 0.25*0.25*0.25 * std::abs(detJ) * q_g * _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
 
         // scatter back to next temperature
         // heat generation term will replace the zero

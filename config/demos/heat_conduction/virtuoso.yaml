@@ -7,7 +7,7 @@ visualization: "VTK" # what graphics to use ('Easy3D' for Easy3D graphics or 'No
 
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 
 ## different simulation "modes"
 # sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
@@ -29,9 +29,9 @@ materials:
     mu-s: 0.0 # coefficient of static friction [-]
     mu-k: 0.0 # coefficient of kinetic friction [-]
     specific-heat: 3600   # specific heat capacity [J/kg * K]
-    thermal-conductivity: 0.3 # thermal conductivity [W/m-K]
-    electrical-conductivity: 0.5 # electrical conductivity [S/m]
-    convective-heat-transfer-coeff: 0  # convection heat transfer coefficient between material and static air
+    thermal-conductivity: 0.512 # thermal conductivity [W/m-K]
+    electrical-conductivity: 0.3 # electrical conductivity [S/m]
+    convective-heat-transfer-coeff: 20  # convection heat transfer coefficient between material and static air
 
 # rendering settings
 exposure: 0.2
@@ -55,13 +55,15 @@ objects:
     # filename: "../resource/general/stanford_bunny_lowpoly.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/general/single.msh"
-    filename: "../resource/cube/cube2.msh"
+    # filename: "../resource/cube/cube2.msh"
+    filename: "../resource/cube/cube4.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/cube/cube16.msh"
     # filename: "../resource/cube/cube32.msh"
     # filename: "../resource/tissue/Prostate.msh"
     # filename: "../resource/tissue/Trachea_processed.stl"
     # filename: "../resource/tissue/tracheal_tumor.msh"
+    ground-faces-filename: "../config/demos/heat_conduction/cube4_grounded_faces.txt"
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 
@@ -77,7 +79,7 @@ objects:
     ## initial configuration
     max-size: 0.01   # size of largest model dimension (preserves aspect ratio)
     # size: [1, 1, 1]   # specify size of each dimension
-    position: [0, 0.025, 0]   # initial position of mesh center of mass [m]
+    position: [0, 0.02, 0]   # initial position of mesh center of mass [m]
     velocity: [0, 0, 0.0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)
     rotation: [0, 0, 0]     # initial rotation [deg] (specified as XYZ Euler angles)
 
