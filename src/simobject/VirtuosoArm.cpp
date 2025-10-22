@@ -371,9 +371,9 @@ void VirtuosoArm::_cauteryToolAction()
                 if (_tool_manipulated_object.hasHeatSolver())
                 {
                     /** TODO: replace with the actual voltage of the cautery tool  */
-                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 100);
-                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 100);
-                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 100);
+                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
+                    // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
+                    // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
                 }           
             }
         }

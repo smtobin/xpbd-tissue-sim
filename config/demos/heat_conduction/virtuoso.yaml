@@ -14,10 +14,10 @@ input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic
 sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-time' such that sim time = wall clock time
 # sim-mode: "AFAP"            # "AFAP" runs the simulation As Fast As Possible, without caring if sim time is going faster than wall clock time
 
-time-step: 1e-3   # simulation time step [s]
+time-step: 1e-2   # simulation time step [s]
 collision-rate: 1000 # rate at which to run collision detection [Hz] 
 fps: 30 # frames per second of the visualization (i.e. how often to redraw graphics)
-end-time: 100 # end time of the simulation [s]
+end-time: 10 # end time of the simulation [s]
 
 ## define elastic materials
 materials:

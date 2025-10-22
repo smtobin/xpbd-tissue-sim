@@ -178,7 +178,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
                 MeshUtils::verticesAndFacesFromFixedFacesFile(_ground_faces_filename.value(), vertices, faces);
                 for (const auto& v : vertices)
                 {
-                    _heat_solver->setVoltageAtBoundary(v, 10, true);
+                    _heat_solver->setVoltageAtBoundary(v, 0, true);
                 }
             }
             else
