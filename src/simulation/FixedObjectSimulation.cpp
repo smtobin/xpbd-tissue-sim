@@ -102,7 +102,7 @@ void FixedObjectSimulation::_timeStep()
         std::stringstream vfilename_ss;
         vfilename_ss << _text_file_save_folder << std::setw(6) << std::setfill('0') << "vertices" << _num_saved_text_files << ".txt";
         std::ofstream vertices_ss(vfilename_ss.str());
-        vertices_ss << _text_file_save_folder << _cube_obj.mesh()->vertices().transpose();
+        vertices_ss << _cube_obj.mesh()->vertices().transpose();
         vertices_ss.close();
 
         _num_saved_text_files++;

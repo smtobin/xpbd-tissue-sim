@@ -10,7 +10,7 @@ enable-mouse-interaction: true
 # device-name2: "RightOmni"
 # device-name1: "Omni"
 
-g-accel: 9.81 # m/s2
+g-accel: 0 # m/s2
 # sim-mode: "Visualization"
 # sim-mode: "Frame-by-frame"
 sim-mode: "AFAP"
@@ -80,6 +80,35 @@ objects:
     draw-faces: true
 
   -
+    name: "Trachea"
+    # type: "RigidMeshObject"
+    type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+    materials: ["Raw Chicken Breast"]
+    max-size: 0.095
+    position: [0.003, 0, -0.005]
+    velocity: [0, 0, 0]
+    rotation: [90, 0, 0]
+
+    collisions: false
+    fixed: true
+
+    damping-multiplier: 2e5
+    # damping-multiplier: 6000000000
+    # damping-multiplier: 40000000000
+    adjust-damping-to-material: True
+
+    # rendering settings
+    colors: [[1.0, 0.3, 0.2]]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.3
+    smooth-normals: true
+    draw-points: false
+    draw-edges: false
+    draw-faces: true
+
+  -
     name: "Robot"
     type: "VirtuosoRobot"
     # position: [0, -0.035, -0.0015] #"close position"
@@ -100,11 +129,11 @@ objects:
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 6e-3
-      outer-tube-rotation: 1030
+      outer-tube-translation: 8e-3
+      outer-tube-rotation: 60
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 10e-3
+      inner-tube-translation: 15e-3
 
     # -
     #   name: "Arm2"

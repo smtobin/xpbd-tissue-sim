@@ -627,15 +627,15 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
     // these would have alpha=0 and thus alpha^-1 would be infinity, corresponding to infinite stiffness.
 
     // assemble global delC matrix
-    /** TODO: only get size of "elastic" i.e. internal constraints */
-    size_t num_constraints = _constraints.size();
-    _stiffness_matrix_C_vec = VecXr::Zero(num_constraints);
-    _stiffness_matrix_orig_delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
-    _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_constraints);
+    size_t num_elastic_constraints = _constraints.template get<Solver::DeviatoricConstraint>().size() + _constraints.template get<Solver::HydrostaticConstraint>().size();
+    // size_t num_constraints = _constraints.size();
+    _stiffness_matrix_C_vec = VecXr::Zero(num_elastic_constraints);
+    _stiffness_matrix_orig_delC = MatXr::Zero(num_elastic_constraints, 3*_mesh->numVertices());
+    _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_elastic_constraints);
 
     // iterate through each constraint and put its gradient into the global delC matrix
     int constraint_index = 0;
-    _constraints.for_each_element([&](const auto& constraint)
+    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
     {
         // get the gradient from the constraint
         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
@@ -669,7 +669,7 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
 
     // try calculating Hessian term per-constraint rather than per-DOF
     constraint_index = 0;
-    _constraints.for_each_element([&](const auto& constraint)
+    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
     {
         // get the gradient from the constraint
         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
