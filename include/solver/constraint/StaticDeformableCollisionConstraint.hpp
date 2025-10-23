@@ -29,7 +29,13 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
 
+    /** Returns the index of the face in contact. */
     int faceIndex() const { return _face_index; }
+
+    /** Returns the barycentric coordinates (u,v,w) of the face contact point.
+     * u corresponds to the first vertex, v the second, w the third.
+     */
+    Vec3r barycentricCoordinates() const { return Vec3r(_u,_v,_w); }
 
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)

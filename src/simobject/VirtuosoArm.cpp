@@ -360,7 +360,6 @@ void VirtuosoArm::_cauteryToolAction()
         {
             if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
             {
-                std::cout << "Cautery Collision!" << std::endl;
                 // get element 
                 int face_index = collision.proj_ref.constraint()->faceIndex();
                 if (!_tool_manipulated_object.mesh()->faceValid(face_index))
@@ -370,10 +369,17 @@ void VirtuosoArm::_cauteryToolAction()
                 const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
                 if (_tool_manipulated_object.hasHeatSolver())
                 {
-                    /** TODO: replace with the actual voltage of the cautery tool  */
-                    _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
-                    // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
-                    // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
+                    // set the closest vertex on the face to the voltage of the tool
+                    // Eigen doesn't have argmax...
+                     /** TODO: replace with the actual voltage of the cautery tool  */
+                    Vec3r barys = collision.proj_ref.constraint()->barycentricCoordinates();
+                    Real max_bary = barys.maxCoeff();
+                    if (max_bary == barys[0])
+                        _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
+                    else if (max_bary == barys[1])
+                        _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
+                    else if (max_bary == barys[2])
+                        _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
                 }           
             }
         }

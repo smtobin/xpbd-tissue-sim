@@ -17,7 +17,7 @@ sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-tim
 time-step: 1e-2   # simulation time step [s]
 collision-rate: 1000 # rate at which to run collision detection [Hz] 
 fps: 30 # frames per second of the visualization (i.e. how often to redraw graphics)
-end-time: 10 # end time of the simulation [s]
+end-time: 1000 # end time of the simulation [s]
 
 ## define elastic materials
 materials:

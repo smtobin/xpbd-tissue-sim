@@ -159,12 +159,12 @@ void HeatConductionFEMSolver::step(Real dt)
         temperature_prop.set(i, _T[i]);
     }
 
-    std::cout << "T: [" << std::endl;
-    for (const auto& t : _T)
-    {
-        std::cout << t << std::endl;
-    }
-    std::cout << "]\n" << std::endl;
+    // std::cout << "T: [" << std::endl;
+    // for (const auto& t : _T)
+    // {
+    //     std::cout << t << std::endl;
+    // }
+    // std::cout << "]\n" << std::endl;
 }
 
 Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const

@@ -121,7 +121,7 @@ void VoltageFEMSolver::step(Real /* dt */)
         voltage_prop.set(i, x[i]);
     }
 
-    std::cout << "V:\n" << x << std::endl;
+    // std::cout << "V:\n" << x << std::endl;
 }
 
 Mat4r VoltageFEMSolver::_elementStiffnessMatrix(int element_index) const
