@@ -127,23 +127,6 @@ void VirtuosoTissueGraspingSimulation::setup()
     {
         _graphics_scene->viewer()->addText("score", "Current Score: ", 10.0f, 35.0f, 15.0f, Graphics::Viewer::TextAlignment::LEFT, Graphics::Viewer::Font::MAO, std::array<float,3>({0,0,0}), 0.5f, false);
     }
-
-    // TEMP
-    // create the folder to save vertices and stiffness matrices
-    std::filesystem::create_directory("../output/tumor/");
-
-    /** SAVE INITIAL VERTICES/ELEMENTS/FACES .txt file*/
-    std::ofstream vertices_ss("../output/tumor/initial_vertices.txt");
-    vertices_ss << _tissue_obj.mesh()->vertices().transpose();
-    vertices_ss.close();
-
-    std::ofstream elements_ss("../output/tumor/initial_elements.txt");
-    elements_ss << _tissue_obj.tetMesh()->elements().transpose();
-    elements_ss.close();
-    
-    std::ofstream surface_faces_ss("../output/tumor/initial_surface_faces.txt");
-    surface_faces_ss << _tissue_obj.mesh()->faces().transpose();
-    surface_faces_ss.close();
     
 }
 
@@ -228,34 +211,6 @@ void VirtuosoTissueGraspingSimulation::_timeStep()
             _active_arm->setToolState(!_active_arm->toolState());
         }
     }
-
-    // TEMP
-    Vec3r cur_pos = _active_arm->commandedTipPosition();
-    _active_arm->setCommandedTipPosition(cur_pos + Vec3r(1e-6,1e-6,0));
-    if (_num_dt_since_last_save >= 25)
-    {
-        MatXr stiffness_mat = _tissue_obj.stiffnessMatrix();
-
-        // save stiffness matrix
-        std::stringstream sfilename_ss;
-        sfilename_ss << "../output/tumor/" << std::setw(6) << std::setfill('0') << "stiffness" << _num_saved_text_files << ".txt";
-        std::ofstream stiffness_ss(sfilename_ss.str());
-        stiffness_ss << stiffness_mat;
-        stiffness_ss.close();
-
-        // save vertices file
-        std::stringstream vfilename_ss;
-        vfilename_ss << "../output/tumor/" << std::setw(6) << std::setfill('0') << "vertices" << _num_saved_text_files << ".txt";
-        std::ofstream vertices_ss(vfilename_ss.str());
-        vertices_ss << _tissue_obj.mesh()->vertices().transpose();
-        vertices_ss.close();
-
-        _num_saved_text_files++;
-        _num_dt_since_last_save = 0;
-    }
-
-    _num_dt_since_last_save++;
-    
 }
 
 void VirtuosoTissueGraspingSimulation::_toggleGoal()
