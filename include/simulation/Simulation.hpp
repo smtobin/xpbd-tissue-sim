@@ -42,12 +42,13 @@ class Simulation
     public:
     struct CallbackInfo
     {
-        std::function<void()> callback;
-        double interval;
-        double next_exec_time;
+        std::function<void()> callback;     // the function to execute
+        double interval;                    // the time (in s) between calls
+        double next_exec_time;              // the next time this callback should be executed
+        bool use_wall_time;                 // if true, measure time in terms of wall clock time. if false, use sim time
 
-        CallbackInfo(std::function<void()> cb, double intvl, double start_time)
-            : callback(std::move(cb)), interval(intvl), next_exec_time(start_time + interval)
+        CallbackInfo(std::function<void()> cb, double intvl, double start_time, bool use_wall_time_)
+            : callback(std::move(cb)), interval(intvl), next_exec_time(start_time + interval), use_wall_time(use_wall_time_)
         {}
     };
 
@@ -130,13 +131,13 @@ class Simulation
         virtual void notifyMouseScrolled(double dx, double dy);
 
         template<typename CallbackT>
-        void addCallback(double interval, CallbackT&& lambda)
+        void addCallback(double interval, CallbackT&& lambda, bool use_wall_time=true)
         {
             std::function<void()> wrapper = [lambda = std::forward<CallbackT>(lambda)]() {
                 lambda();
             };
 
-            _callbacks.emplace_back(std::move(wrapper), interval, _time);
+            _callbacks.emplace_back(std::move(wrapper), interval, _time, use_wall_time);
         }
     
     protected:

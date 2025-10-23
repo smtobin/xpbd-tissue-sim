@@ -211,7 +211,6 @@ void VirtuosoTissueGraspingSimulation::_timeStep()
             _active_arm->setToolState(!_active_arm->toolState());
         }
     }
-    
 }
 
 void VirtuosoTissueGraspingSimulation::_toggleGoal()

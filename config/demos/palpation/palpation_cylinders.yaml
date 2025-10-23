@@ -43,16 +43,24 @@ materials:
     mu-s: 0.0 # coefficient of static friction [-]
     mu-k: 0.0 # coefficient of kinetic friction [-]
   -
-    name: "Stiffer Tissue"
+    name: "Stiff Tissue 1"
     density: 1030
-    E: 3e5
+    E: 1.2e5
     # E: 0.5e6
     nu: 0.49
+
   -
-    name: "Raw Chicken Breast"
-    density: 1060
-    E: 0.07e6
-    # E: 0.35e6
+    name: "Stiff Tissue 2"
+    density: 1030
+    E: 2.4e5
+    # E: 0.5e6
+    nu: 0.49
+
+  -
+    name: "Stiff Tissue 3"
+    density: 1030
+    E: 4.8e5
+    # E: 0.5e6
     nu: 0.49
 
 ## objects in the simulation
@@ -69,9 +77,9 @@ objects:
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
     filename: "../resource/demos/palpation/2x1x1_block16.msh"
     # filename: "../resource/cube/cube8.msh"
-    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes.txt"
+    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes_cylinders.txt"
 
-    materials: ["Soft Tissue", "Stiffer Tissue"] # the elastic material(s) (must match with the name of a material defined above)
+    materials: ["Soft Tissue", "Stiff Tissue 1", "Stiff Tissue 2", "Stiff Tissue 3"] # the elastic material(s) (must match with the name of a material defined above)
 
     ## initial configuration
     max-size: 0.025   # size of largest model dimension (preserves aspect ratio)
@@ -104,7 +112,9 @@ objects:
     # rendering settings
     colors: [
       [1.0, 0.3, 0.2],    # color of the bulk tissue
-      [1.0, 0.15, 0.05]   # color of the hard tissue
+      [1.0, 0.15, 0.05],   # color of the hard tissue
+      [1.0, 0.1, 0.02],
+      [1.0, 0.0, 0.0]
     ]
     render-type: "PBR"
     metallic: 0.0
@@ -132,8 +142,8 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "cautery"
-      tool-tube-length: 1e-3
+      tool-type: "palpation"
+      tool-tube-length: 15e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

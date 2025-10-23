@@ -173,14 +173,10 @@ class SimBridge<Sim::VirtuosoSimulation> : public rclcpp::Node
         _mesh_pcl_messages.resize(fo_xpbd_mesh_objs.size());
         _mesh_pcl_publishers.resize(fo_xpbd_mesh_objs.size());
 
-        _mesh_messages.resize(fo_xpbd_mesh_objs.size());
-        _mesh_publishers.resize(fo_xpbd_mesh_objs.size());
-
         for (unsigned i = 0; i < fo_xpbd_mesh_objs.size(); i++)
         {
             const Geometry::Mesh* deformable_mesh = fo_xpbd_mesh_objs[i]->mesh();
             _setupDeformableMeshPclPublisher(i, deformable_mesh);
-            _setupDeformableMeshPublisher(i, deformable_mesh);
         }
 
         _setupPartialViewPointCloudPublishers();
@@ -288,43 +284,6 @@ class SimBridge<Sim::VirtuosoSimulation> : public rclcpp::Node
             };
         
         _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_pcl_callback);
-    }
-
-    void _setupDeformableMeshPublisher(int index, const Geometry::Mesh* deformable_mesh)
-    {
-        std::string topic_name = "/output/mesh_" + std::to_string(index);
-        _mesh_publishers[index] = this->create_publisher<shape_msgs::msg::Mesh>(topic_name, 3);
-
-        _mesh_messages[index].triangles.resize(deformable_mesh->numFaces());
-        for (int i = 0; i < deformable_mesh->numFaces(); i++)
-        {
-            const Vec3i& face = deformable_mesh->face(i);
-            shape_msgs::msg::MeshTriangle tri;
-            tri.vertex_indices[0] = face[0];
-            tri.vertex_indices[1] = face[1];
-            tri.vertex_indices[2] = face[2];
-
-            _mesh_messages[index].triangles[i] = tri;
-        }
-
-        _mesh_messages[index].vertices.resize(deformable_mesh->numVertices());
-
-        auto mesh_callback = 
-            [this, index, deformable_mesh]() -> void {
-                // update vertices
-                for (int i = 0; i < deformable_mesh->numVertices(); i++)
-                {
-                    const Vec3r& vertex = deformable_mesh->vertex(i);
-                    this->_mesh_messages[index].vertices[i].x = vertex[0];
-                    this->_mesh_messages[index].vertices[i].y = vertex[1];
-                    this->_mesh_messages[index].vertices[i].z = vertex[2];
-                    
-                }
-
-                this->_mesh_publishers[index]->publish(this->_mesh_messages[index]);
-            };
-        
-        _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), mesh_callback);
     }
 
     void _setupArmJointStatePublisher(const Sim::VirtuosoArm* arm, rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher)
@@ -706,17 +665,11 @@ class SimBridge<Sim::VirtuosoSimulation> : public rclcpp::Node
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _arm1_tool_tip_frame_publisher;          // publishes the tool tip frame of arm1
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _arm2_tool_tip_frame_publisher;          // publishes the tool tip frame of arm2
 
-    shape_msgs::msg::Mesh _mesh_message;    // pre-allocated mesh ROS message for speed (assuming faces and number of vertices stay the same)
-    rclcpp::Publisher<shape_msgs::msg::Mesh>::SharedPtr _mesh_publisher;    // publishes the current tissue mesh (all vertices and surface faces)
-
     sensor_msgs::msg::PointCloud2 _mesh_pcl_message;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _mesh_pcl_publisher;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 
     std::vector<sensor_msgs::msg::PointCloud2> _mesh_pcl_messages;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
-
-    std::vector<shape_msgs::msg::Mesh> _mesh_messages;    // pre-allocated mesh ROS message for speed (assuming faces and number of vertices stay the same)
-    std::vector<rclcpp::Publisher<shape_msgs::msg::Mesh>::SharedPtr> _mesh_publishers;    // publishes the current tissue mesh (all vertices and surface faces)
 
     sensor_msgs::msg::PointCloud2 _trachea_partial_view_pc_message;
     sensor_msgs::msg::PointCloud2 _tumor_partial_view_pc_message;

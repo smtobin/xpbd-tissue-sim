@@ -62,6 +62,8 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
         _extractParameter("materials", node, _materials);
         _extractParameter("element-classes-filename", node, _element_classes_filename);
         _extractParameter("ground-faces-filename", node, _ground_faces_filename);
+        _extractParameter("fixed-faces-filename", node, _fixed_faces_filename);
+
         _extractParameter("compute-heat-conduction", node, _compute_heat_conduction);
 
         // extract parameters
@@ -81,6 +83,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
                                     bool draw_points, bool draw_edges, bool draw_faces, const Vec4r& color,
 
                                     const std::vector<std::string>& mat_names, const std::optional<std::string>& element_classes_filename,
+                                    const std::optional<std::string>& fixed_faces_filename,
 
                                     bool self_collisions, int num_solver_iters, int num_local_collision_iters,
                                     XPBDObjectSolverTypeEnum solver_type, XPBDMeshObjectConstraintConfigurationEnum constraint_type,                   // XPBDMeshObject params
@@ -92,6 +95,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     {
         _materials.value = mat_names;
         _element_classes_filename.value = element_classes_filename;
+        _fixed_faces_filename.value = fixed_faces_filename;
 
         _self_collisions.value = self_collisions;
         _num_solver_iters.value = num_solver_iters;
@@ -114,6 +118,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     std::vector<std::string> materials() const { return _materials.value; }
     std::optional<std::string> elementClassesFilename() const { return _element_classes_filename.value; }
     std::optional<std::string> groundFacesFilename() const { return _ground_faces_filename.value; }
+    std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
     bool computeHeatConduction() const { return _compute_heat_conduction.value; }
 
     protected:
@@ -128,6 +133,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     ConfigParameter<std::vector<std::string>> _materials = ConfigParameter<std::vector<std::string>>({});
     ConfigParameter<std::optional<std::string>> _element_classes_filename;
     ConfigParameter<std::optional<std::string>> _ground_faces_filename;
+    ConfigParameter<std::optional<std::string>> _fixed_faces_filename;
     ConfigParameter<bool> _compute_heat_conduction = ConfigParameter<bool>(false);
 };
 

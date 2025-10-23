@@ -2,13 +2,16 @@
 
 #include "sim_bridge/SimBridge.hpp"
 #include "sim_bridge/VirtuosoSimBridge.hpp"
+#include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
 #include "config/simulation/VirtuosoTissueGraspingSimulationConfig.hpp"
 #include "config/simulation/PalpationSimulationConfig.hpp"
+#include "config/simulation/FixedObjectSimulationConfig.hpp"
 #include "simulation/VirtuosoTissueGraspingSimulation.hpp"
 #include "simulation/PalpationSimulation.hpp"
 #include "simulation/GraspingSimulation.hpp"
+#include "simulation/FixedObjectSimulation.hpp"
 
 #include <mutex>
 #include <condition_variable>
@@ -35,7 +38,7 @@ void runSim(Sim::Simulation* sim)
     sim->run();
 }
 
-template<typename SimulationType>
+template<typename SimulationType, typename SimBridgeType=SimBridge<SimulationType>>
 void startNode(SimulationType* sim)
 {
     // start up the simulation in a separate thread
@@ -49,7 +52,7 @@ void startNode(SimulationType* sim)
     }
 
     // then start up the SimBridge ROS node
-    rclcpp::spin(std::make_shared<SimBridge<SimulationType>>(sim));
+    rclcpp::spin(std::make_shared<SimBridgeType>(sim));
 
     sim_thread.join();
 
@@ -107,6 +110,13 @@ int main(int argc, char ** argv)
         Sim::GraspingSimulation sim(&config);
 
         startNode<Sim::GraspingSimulation>(&sim);
+    }
+    else if (simulation_type == "FixedObjectSimulation")
+    {
+        Config::FixedObjectSimulationConfig config(YAML::LoadFile(config_filename));
+        Sim::FixedObjectSimulation sim(&config);
+
+        startNode<Sim::FixedObjectSimulation, FixedObjectSimBridge>(&sim);
     }
     else if (simulation_type == "Simulation")
     {

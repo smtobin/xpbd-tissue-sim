@@ -81,6 +81,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
 
     _ground_faces_filename = config->groundFacesFilename();
 
+    // filename that has info on fixed faces/vertices (optional)
+    _fixed_faces_filename = config->fixedFacesFilename();
+
     // whether or not to compute heat conduction
     _compute_heat_conduction = config->computeHeatConduction();
 
@@ -189,6 +192,17 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
             }
     }
         
+    // if the fixed-faces file is given, read the fixed vertices from it and then set those vertices to be fixed during the sim
+    if (_fixed_faces_filename.has_value())
+    {
+        std::set<int> vertices;
+        std::vector<int> faces;
+        MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
+        for (const auto& v : vertices)
+        {
+            fixVertex(v);
+        }
+    }
 }
 
 // template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -671,14 +685,15 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
     // these would have alpha=0 and thus alpha^-1 would be infinity, corresponding to infinite stiffness.
 
     // assemble global delC matrix
-    size_t num_constraints = _constraints.size();
-    VecXr C_vec(num_constraints);
-    MatXr orig_delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
-    VecXr alpha_inv(num_constraints);
+    size_t num_elastic_constraints = _constraints.template get<Solver::DeviatoricConstraint>().size() + _constraints.template get<Solver::HydrostaticConstraint>().size();
+    // size_t num_constraints = _constraints.size();
+    _stiffness_matrix_C_vec = VecXr::Zero(num_elastic_constraints);
+    _stiffness_matrix_orig_delC = MatXr::Zero(num_elastic_constraints, 3*_mesh->numVertices());
+    _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_elastic_constraints);
 
     // iterate through each constraint and put its gradient into the global delC matrix
     int constraint_index = 0;
-    _constraints.for_each_element([&orig_delC, &alpha_inv, &C_vec, &constraint_index](const auto& constraint)
+    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
     {
         // get the gradient from the constraint
         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
@@ -694,64 +709,61 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
             int position_index = constraint_positions[i].index;
             const Vec3r grad_i = Eigen::Map<Vec3r>(grad + 3*i);
 
-            orig_delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
+            _stiffness_matrix_orig_delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
         }
 
         // add constraint stiffness to alpha
-        alpha_inv[constraint_index] = 1.0/constraint.alpha();
+        _stiffness_matrix_alpha_inv_vec[constraint_index] = 1.0/constraint.alpha();
 
-        C_vec[constraint_index] = C;
+        _stiffness_matrix_C_vec[constraint_index] = C;
 
         constraint_index++;
     });
 
     /** TODO: compute Hessian term properly with TombstoneVector... */
     // compute the Hessian term (through numerical differentiation)
-    MatXr hessian_term = MatXr::Zero(3*_mesh->numVertices(), 3*_mesh->numVertices());
     // Real* data_ptr = _mesh->vertices().data();
     // Real delta = 0.0001;
-    // MatXr delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
-    // MatXr grad_delC_i = MatXr::Zero(num_constraints, 3*_mesh->numVertices())
-    // for (int dof = 0; dof < _mesh->vertices().size(); dof++)
+    // _stiffness_matrix_hessian_term = MatXr::Zero(3*_mesh->numVertices(), 3*_mesh->numVertices());
+
+    // // try calculating Hessian term per-constraint rather than per-DOF
+    // constraint_index = 0;
+    // _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
     // {
-    //     delC = MatXr::Zero(num_constraints, 3*_mesh->numVertices());
+    //     // get the gradient from the constraint
+    //     using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
+    //     Real grad[ConstraintType::NUM_COORDINATES];
+    //     const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
 
-    //     // vary each DOF
-    //     data_ptr[dof] += delta;
-
-    //     // loop through constraints to calculate the change in delC
-    //     int constraint_index = 0;
-    //     _constraints.for_each_element([&delC, &constraint_index](const auto& constraint)
+    //     // vary each vertex
+    //     for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
     //     {
-    //         // get the gradient from the constraint
-    //         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
-    //         Real grad[ConstraintType::NUM_COORDINATES];
-    //         constraint.gradient(grad);
-
-    //         // get the positions that the constraint affects
-    //         const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
-
-    //         for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
+    //         // vary each DOF (i.e. x, y, z coordinate) of each vertex
+    //         for (int k = 0; k < 3; k++)
     //         {
-    //             int position_index = constraint_positions[i].index;
-    //             const Vec3r grad_i = Eigen::Map<Vec3r>(grad + 3*i);
+    //             int dof = constraint_positions[i].index * 3 + k;
+    //             data_ptr[dof] += delta;
 
-    //             delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
+    //             // compute the new gradient from the perturbed position
+    //             constraint.gradient(grad);
+
+    //             // compute the contributions to the Hessian term
+    //             for (unsigned h = 0; h < ConstraintType::NUM_POSITIONS; h++)
+    //             {
+    //                 Vec3r ddelC_dx = (Eigen::Map<Vec3r>(grad + 3*h) - _stiffness_matrix_orig_delC.block<1,3>(constraint_index, 3*constraint_positions[h].index).transpose()) / delta;
+    //                 _stiffness_matrix_hessian_term.block<3,1>(constraint_positions[h].index*3, dof) += ddelC_dx * _stiffness_matrix_C_vec[constraint_index] / constraint.alpha();
+    //             }
+
+    //             // reset the perturbed DOF
+    //             data_ptr[dof] -= delta;
     //         }
+    //     }
 
-    //         constraint_index++;
-    //     });
+    //     constraint_index++;
+    // });
 
-    //     // compute gradient
-    //     grad_delC_i = (delC - orig_delC) / delta;
-
-    //     // compute associated column in the Hessian term
-    //     hessian_term.col(dof) = grad_delC_i.transpose() * alpha_inv.asDiagonal() * C_vec;
-
-    //     data_ptr[dof] -= delta;
-    // }
-
-    MatXr stiffness_matrix = hessian_term + orig_delC.transpose() * alpha_inv.asDiagonal() * orig_delC;
+    _stiffness_matrix = _stiffness_matrix_hessian_term + 
+        _stiffness_matrix_orig_delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * _stiffness_matrix_orig_delC;
 
     // "fix" all the fixed vertices in the mesh by adding a large amount to the diagonal corresponding to their 3 DOF
     for (int i = 0; i < _mesh->numVertices(); i++)
@@ -759,7 +771,7 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
         if (vertexFixed(i))
         {
             for (int j = 0; j < 3; j++)
-                stiffness_matrix(3*i+j,3*i+j) += 1e9;
+                _stiffness_matrix(3*i+j,3*i+j) += 1e9;
         }
     }
 
@@ -772,7 +784,7 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
     //     }
     // }
 
-    return stiffness_matrix;
+    return _stiffness_matrix;
     
 }
 

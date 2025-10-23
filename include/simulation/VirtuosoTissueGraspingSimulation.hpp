@@ -71,6 +71,10 @@ class VirtuosoTissueGraspingSimulation : public VirtuosoSimulation
 
     bool _grasping;                 // whether or not we are actively grasping the tissue
     std::vector<int> _grasped_vertices; // indexes of the grasped vertices in the tissue mesh
+
+    // TEMP
+    int _num_saved_text_files = 0;
+    int _num_dt_since_last_save = 0;
 };
 
 } // namespace Sim

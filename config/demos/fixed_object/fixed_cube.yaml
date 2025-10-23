@@ -1,0 +1,93 @@
+## NOTE: not all parameters below are required - the Simulation class and all Object classes have many default parameters
+
+name: "Example"  # name of the simulation
+description: "Example simulation" # description of the simulation
+
+visualization: "Easy3D" # what graphics to use ('Easy3D' for Easy3D graphics or 'None' for no graphics)
+
+g-accel: 9.81 # downward acceleration due to gravity (in the z-direction) [m/s2]
+
+## different simulation "modes"
+# sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
+sim-mode: "Visualization"     # "Visualization" runs the simulation at 'real-time' such that sim time = wall clock time
+# sim-mode: "AFAP"            # "AFAP" runs the simulation As Fast As Possible, without caring if sim time is going faster than wall clock time
+
+time-step: 1e-3   # simulation time step [s]
+collision-rate: 1000 # rate at which to run collision detection [Hz] 
+fps: 30 # frames per second of the visualization (i.e. how often to redraw graphics)
+end-time: 1000 # end time of the simulation [s]
+
+## Fixed cube simulation parameters
+cube-fixed-face: "right"   # which face of the cube is fixed. Options: ["none", "left", "right", "top", "bottom"]
+text-file-save-interval: -1   # the number of time steps between generation of text files of vertices, faces, and elements. If negative, text files are not generated.
+point-cloud-sample-position: [0,-2,0]  # the origin of the "view" frame of the partial view point cloud
+point-cloud-sample-orientation: [-90,0,0] # the orientation of the "view" frame of the partial view point cloud, specified with X-Y-Z Euler angles. The "view" direction is along the Z-axis. 
+
+
+## define elastic materials
+materials:
+  -
+    name: "Soft Tissue 1"
+    density: 1000   # density [kg/m^3]
+    E: 2e4    # Young's modulus [Pa]
+    nu: 0.45  # Poisson's ratio [-]
+    mu-s: 0.0 # coefficient of static friction [-]
+    mu-k: 0.0 # coefficient of kinetic friction [-]
+  -
+    name: "Soft Tissue 2"
+    density: 1000   # density [kg/m^3]
+    E: 4e4    # Young's modulus [Pa]
+    nu: 0.45  # Poisson's ratio [-]
+    mu-s: 0.0 # coefficient of static friction [-]
+    mu-k: 0.0 # coefficient of kinetic friction [-]
+
+## objects in the simulation
+objects:
+
+  ## example deformable object
+  -
+    name: "Cube1"
+
+    ## type of object
+    type: "FirstOrderXPBDMeshObject"  # use the 1st-order XPBD method
+    # type: "XPBDMeshObject"          # use the standard, 2nd-order XPBD method
+
+    ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
+    # filename: "../resource/cube/cube2.msh"    # cube mesh with 2 subdivisions
+    filename: "../resource/cube/cube4.msh"  # cube mesh with 4 subdivisions
+    # filename: "../resource/cube/cube8.msh"  # cube mesh with 8 subdivisions
+
+    materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
+
+    ## visualization options
+    color: [1.0, 0.5, 0.0] # uniform color of the mesh
+    draw-points: false  # draw mesh points
+    draw-edges: true    # draw mesh edges
+    draw-faces: true    # draw mesh faces
+
+    ## initial configuration
+    max-size: 1   # size of largest model dimension (preserves aspect ratio)
+    # size: [1, 1, 1]   # specify size of each dimension
+    position: [0, 0, 0]   # initial position of mesh center of mass [m]
+    velocity: [0, 0, 0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)
+    rotation: [0, 0, 0]     # initial rotation [deg] (specified as XYZ Euler angles)
+
+    ## collisions
+    collisions: true
+
+    ## XPBD-specific options
+    num-solver-iters: 1   # number of solver loop iterations per time step 
+    
+    solver-type: "Gauss-Seidel"   # use Gauss-Seidel solver (i.e. update mesh after every constraint projection)
+    # solver-type: "Jacobi"       # use Jacobi solver (i.e. update mesh only after going through every constraint projection)
+    # solver-type: "Parallel-Jacobi"  # use parallelized Jacobi solver (note: unstable and requires GPU)
+
+    constraint-type: "Stable-Neohookean-Combined"   # use Stable Neohookean constraints with 2x2 block constraint solve for each tet element
+    # constraint-type: "Stable-Neohookean"          # use Stable Neohookean constraints with separate constraint solve for each tet element
+
+    # residual-policy: "Every-Substep"    # compute the residuals after every time step
+    residual-policy: "Never"              # don't compute the residuals
+
+    ## 1st-Order XPBD options (has no effect on XPBDMeshObject)
+    damping-multiplier: 50   # 'b' from the 1st-Order XPBD paper
+    adjust-damping-to-material: True

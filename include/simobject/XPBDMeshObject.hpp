@@ -257,6 +257,19 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
 
     /** Whether or not to calculate thermal effects. Set by the config. */
     bool _compute_heat_conduction;
+    
+    /** The filename that has information about which faces/vertices should be fixed. Optional, and set by the config. */
+    std::optional<std::string> _fixed_faces_filename;
+
+    /** Pre-allocated storage for computing the stiffness matrix.
+     * TODO: switch to a sparse matrix representation
+     */
+    mutable MatXr _stiffness_matrix;
+    mutable MatXr _stiffness_matrix_hessian_term;
+    mutable MatXr _stiffness_matrix_orig_delC;
+    mutable VecXr _stiffness_matrix_C_vec;
+    mutable VecXr _stiffness_matrix_alpha_inv_vec;
+    
 };
 
 } // namespace Sim
