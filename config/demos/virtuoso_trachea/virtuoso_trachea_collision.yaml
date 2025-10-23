@@ -2,7 +2,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_fixed_faces.txt"
 tumor-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_tumor_faces.txt"
 show-tip-cursor: true
@@ -68,7 +68,7 @@ objects:
     velocity: [0, 0, 0]
     rotation: [90, 0, 0]
     num-solver-iters: 1
-    num-local-collision-iters: 10
+    num-local-collision-iters: 5
     residual-policy: "Never"
     solver-type: "Gauss-Seidel"
     # solver-type: "Jacobi"
