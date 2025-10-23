@@ -69,7 +69,7 @@ objects:
     velocity: [0, 0, 0]
     rotation: [90, 0, 0]
     num-solver-iters: 1
-    num-local-collision-iters: 10
+    num-local-collision-iters: 5
     residual-policy: "Never"
     solver-type: "Gauss-Seidel"
     # solver-type: "Jacobi"

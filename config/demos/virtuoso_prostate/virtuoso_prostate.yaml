@@ -2,10 +2,10 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_tumor_faces.txt"
-show-tip-cursor: false
+show-tip-cursor: true
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/trachea_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/tumor_faces.txt"
 # goal-filename: "../resource/demos/trachea_virtuoso/goals/goal1.obj"
@@ -22,7 +22,7 @@ g-accel: 0 # m/s2
 # sim-mode: "Visualization"
 # sim-mode: "Frame-by-frame"
 sim-mode: "AFAP"
-time-step: 1e-3 # for FO XPBD
+time-step: 3.33e-3 # for FO XPBD
 # time-step: 3.33e-5 # for normal XPBD
 collision-rate: 100
 fps: 30
@@ -45,15 +45,15 @@ window-height: 800
 objects:
 
   -
-    name: "Cube1"
+    name: "Prostate"
     # type: "XPBDMeshObject"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/prostate/bph_new_contrast_d.msh"
+    filename: "../resource/demos/prostate/bph_r.msh"
     materials: ["Raw Chicken Breast"]
     max-size: 0.0857
     position: [0, 0, -0.005]
     velocity: [0, 0, 0]
-    rotation: [90, 180, 0]
+    rotation: [-30, 0, 0]
     num-solver-iters: 1
     num-local-collision-iters: 5
     residual-policy: "Never"
@@ -61,13 +61,14 @@ objects:
     # solver-type: "Jacobi"
     # solver-type: "Parallel-Jacobi"
     constraint-type: "Stable-Neohookean-Combined"
-    damping-multiplier: 400000000
+    damping-multiplier: 2e5
+    adjust-damping-to-material: true
     # damping-multiplier: 40000000000
     collisions: true
     self-collisions: false
 
     # rendering settings
-    color: [1.0, 0.3, 0.2]
+    colors: [[1.0, 0.3, 0.2]]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
@@ -78,8 +79,8 @@ objects:
   -
     name: "Robot"
     type: "VirtuosoRobot"
-    position: [0.002, -0.03, 0.01]
-    rotation: [-70, 180, 0]
+    position: [0.002, 0, 0.016]
+    rotation: [0, 180, 0]
     collisions: true
     # rendering settings
     color: [0.7, 0.7, 0.7]
@@ -91,7 +92,7 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "grasper"
+      tool-type: "none"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
