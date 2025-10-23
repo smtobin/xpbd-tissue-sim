@@ -56,14 +56,16 @@ objects:
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/general/single.msh"
     # filename: "../resource/cube/cube2.msh"
-    filename: "../resource/cube/cube4.msh"
+    # filename: "../resource/cube/cube4.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/cube/cube16.msh"
     # filename: "../resource/cube/cube32.msh"
     # filename: "../resource/tissue/Prostate.msh"
     # filename: "../resource/tissue/Trachea_processed.stl"
     # filename: "../resource/tissue/tracheal_tumor.msh"
-    ground-faces-filename: "../config/demos/heat_conduction/cube4_grounded_faces.txt"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    ground-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 
@@ -71,17 +73,17 @@ objects:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
     draw-edges: true
     draw-faces: true
 
     ## initial configuration
-    max-size: 0.01   # size of largest model dimension (preserves aspect ratio)
+    max-size: 0.017   # size of largest model dimension (preserves aspect ratio)
     # size: [1, 1, 1]   # specify size of each dimension
     position: [0, 0.02, 0]   # initial position of mesh center of mass [m]
     velocity: [0, 0, 0.0]   # initial velocity [m/s] (applied to all vertices in the deformable mesh)
-    rotation: [0, 0, 0]     # initial rotation [deg] (specified as XYZ Euler angles)
+    rotation: [90, 0, 0]     # initial rotation [deg] (specified as XYZ Euler angles)
 
     ## collisions
     collisions: true
