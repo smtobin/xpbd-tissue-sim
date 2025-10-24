@@ -191,8 +191,8 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0.01;
-    const Real unload_frac = 0.01;//0.1;
+    const Real load_frac = 0.005;
+    const Real unload_frac = 0.005;//0.1;
     for (int i = 0; i < NUM_OT_FRAMES; i++)
     {
         const Vec3r& cur_force = outerTubeNodalForce(i);

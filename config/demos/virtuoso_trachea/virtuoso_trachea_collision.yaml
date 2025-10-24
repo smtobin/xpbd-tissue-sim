@@ -84,7 +84,7 @@ objects:
     self-collisions: false
 
     # rendering settings
-    colors: [[1.0, 0.4, 1.0], [1.0, 0.3, 0.2]]
+    colors: [[1.0, 0.4, 0.3], [1.0, 0.3, 0.2]]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3

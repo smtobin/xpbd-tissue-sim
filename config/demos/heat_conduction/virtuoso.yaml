@@ -4,6 +4,7 @@ name: "Heat Conduction"  # name of the simulation
 description: "Example simulation" # description of the simulation
 
 visualization: "VTK" # what graphics to use ('Easy3D' for Easy3D graphics or 'None' for no graphics)
+show-tip-cursor: false
 
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 

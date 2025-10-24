@@ -199,7 +199,7 @@ void VTKMeshGraphicsObject::_setColors()
     colors->SetNumberOfComponents(3);
     colors->SetName("Colors");
 
-    const Geometry::MeshProperty<Real>& temp_prop = _mesh->getVertexProperty<Real>("temperature");
+    const Geometry::MeshProperty<Real>& temp_prop = _mesh->getVertexProperty<Real>("voltage");
     for (const auto& vert_index : _mesh->vertices().validIndices())
     {
         Real temp = temp_prop.get(vert_index);
