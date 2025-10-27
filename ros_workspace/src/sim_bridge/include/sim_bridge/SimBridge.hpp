@@ -92,7 +92,7 @@ private:
         // set header
         sensor_msgs::msg::PointCloud2& mesh_pcl_message = _mesh_pcl_messages[index];
         mesh_pcl_message.header.stamp = this->now();
-        mesh_pcl_message.header.frame_id = "/world";
+        mesh_pcl_message.header.frame_id = "sim/world";
 
         // add point fields
         mesh_pcl_message.fields.resize(3);
