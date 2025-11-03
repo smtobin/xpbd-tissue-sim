@@ -81,8 +81,8 @@ objects:
 
   -
     name: "Trachea"
-    # type: "RigidMeshObject"
-    type: "FirstOrderXPBDMeshObject"
+    type: "RigidMeshObject"
+    # type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
     materials: ["Raw Chicken Breast"]
     max-size: 0.095
@@ -90,7 +90,7 @@ objects:
     velocity: [0, 0, 0]
     rotation: [90, 0, 0]
 
-    collisions: false
+    collisions: true
     fixed: true
 
     damping-multiplier: 2e5
