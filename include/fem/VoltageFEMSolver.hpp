@@ -4,6 +4,8 @@
 #include "geometry/TetMesh.hpp"
 #include "fem/FEMTetMesh.hpp"
 
+#include <petscksp.h>
+
 #include <unordered_map>
 
 namespace FEM
@@ -22,6 +24,11 @@ namespace FEM
 class VoltageFEMSolver
 {
 public:
+
+    // use row-major ordering for the elemental stiffness matrices, since this ordering is what PETSc expects.
+    // default in Eigen is column-major
+    using ElementStiffnessMatrixType = Eigen::Matrix<Real, 4, 4, Eigen::RowMajor>;
+
     VoltageFEMSolver(Geometry::TetMesh* mesh, Real k);
 
     /** Adds a new essential boundary condition at the specified index.
@@ -44,7 +51,7 @@ public:
 
 private:
     /** Computes the elemental stiffness matrix using a 1-point Gauss quadrature (the centroid of the tet) */
-    Mat4r _elementStiffnessMatrix(int element_index) const;
+    ElementStiffnessMatrixType _elementStiffnessMatrix(int element_index) const;
 
     /** Assembles the global system matrix and RHS vector. */
     void _assembly();
@@ -80,6 +87,15 @@ private:
     MatXr _system_matrix;
     /** The global RHS vector. */
     VecXr _RHS_vec;
+
+    /** PETSc global system matrix. */
+    Mat _A;
+    /** PETSc global RHS vector. */
+    Vec _b;
+    /** PETSc global solution vector. */
+    Vec _x;
+    /** PETSc linear solver context. */
+    KSP _ksp;
 };
 
 } // namespace FEM

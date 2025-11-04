@@ -34,6 +34,7 @@ class MeshProperty
     void set(int index, const T& new_val) { _properties[index] = new_val; }
 
     const std::vector<T>& properties() const { return _properties; }
+    std::vector<T>& properties() { return _properties; }
 
     protected:
     std::string _name;

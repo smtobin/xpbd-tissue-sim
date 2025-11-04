@@ -121,7 +121,7 @@ target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry S
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
 target_link_libraries(MeshUtils gmsh assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)
-target_link_libraries(FEM Eigen3::Eigen Geometry)
+target_link_libraries(FEM Eigen3::Eigen Geometry ${PETSC_LIB})
 
 ### Simulation libraries - each has its own executable
 add_library(Simulation)

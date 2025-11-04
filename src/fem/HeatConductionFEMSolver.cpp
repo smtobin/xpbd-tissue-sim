@@ -1,5 +1,7 @@
 #include "fem/HeatConductionFEMSolver.hpp"
 
+#include <chrono>
+
 namespace FEM
 {
 
@@ -70,7 +72,12 @@ void HeatConductionFEMSolver::step(Real dt)
 {
 
     // step voltage
+    auto t1 = std::chrono::high_resolution_clock::now();
     _voltage_solver.step(dt);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    double elapsed_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+    std::cout << "Voltage solve took " << elapsed_ms << " ms" << std::endl;
+
 
     // enforce essential boundary conditions
     for (const auto& [vertex_index, temp] : _essential_boundary)

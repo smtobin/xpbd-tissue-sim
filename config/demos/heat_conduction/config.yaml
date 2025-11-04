@@ -60,6 +60,8 @@ objects:
     # filename: "../resource/tissue/Prostate.msh"
     # filename: "../resource/tissue/Trachea_processed.stl"
     # filename: "../resource/tissue/tracheal_tumor.msh"
+    fixed-faces-filename: "../config/demos/heat_conduction/cube2_grounded_faces.txt"
+    ground-faces-filename: "../config/demos/heat_conduction/cube2_grounded_faces.txt"
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 
