@@ -53,6 +53,12 @@ message(STATUS "VTK_INCLUDE_DIRS: ${VTK_INCLUDE_DIRS}")
 
 include_directories("./include")
 
+# include PETSc directories
+message(STATUS "including: $ENV{PETSC_DIR}/include")
+include_directories("$ENV{PETSC_DIR}/include")
+include_directories("$ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include")
+set(PETSC_LIB "$ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/lib/libpetsc.so")
+
 if (HAVE_CUDA AND NOT NO_GPU)
     include_directories("/usr/local/cuda/include")
 endif()
@@ -189,6 +195,9 @@ target_link_libraries(VTKTest Graphics ${VTK_LIBRARIES})
 
 add_executable(StiffnessMatrixTest src/exec/test/stiffness_matrix_test.cpp)
 target_link_libraries(StiffnessMatrixTest Config SimObject Solver Simulation MeshUtils)
+
+add_executable(PETScTest src/exec/test/petsc_test.cpp)
+target_link_libraries(PETScTest ${PETSC_LIB})
 
 add_executable(LaplaceFEMTest src/exec/test/laplace_fem_test.cpp)
 target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)

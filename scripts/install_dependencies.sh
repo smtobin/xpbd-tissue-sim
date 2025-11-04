@@ -110,6 +110,14 @@ cmake ..
 make -j12
 sudo make install
 
+#########################
+# PETSc install
+#########################
+cd $THIRDPARTY_FOLDER
+git clone -b release https://gitlab.com/petsc/petsc.git petsc
+./configure --with-cc=gcc --with-cxx=g++ --with-fc=gfortran --download-f2cblaslapack --download-mpich
+make PETSC_DIR=$THIRDPARTY_FOLDER/petsc PETSC_ARCH=arch-linux-c-debug all
+
 
 ################################## 
 # Geomagic Touch device setup

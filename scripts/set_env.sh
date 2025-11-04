@@ -14,3 +14,7 @@ export XPBD_SIM_BASE_DIR=$(realpath $XPBD_SIM_SCRIPT_DIR/..)
 
 # needed for OpenHaptics SDK
 export GTDD_HOME=/root/.3dsystems
+
+# set PETSc location
+export PETSC_DIR=$(realpath $THIRDPARY_FOLDER/petsc)
+export PETSC_ARCH=arch-linux-c-debug
