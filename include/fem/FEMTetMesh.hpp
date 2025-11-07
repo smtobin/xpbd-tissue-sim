@@ -8,7 +8,7 @@
 
 namespace FEM
 {
-
+    
 /** A wrapper around Geometry::TetMesh that implements the finite element method for scalar-valued functions (i.e. temperature, voltage). */
 class FEMTetMesh
 {
