@@ -128,7 +128,7 @@ objects:
     name: "Robot"
     type: "VirtuosoRobot"
     # position: [0, -0.035, -0.0015] #"close position"
-    position: [0, 0.01, 0.03]
+    position: [0, 0.014, 0.03]
     rotation: [0, 180, 0]
     # rotation: [0,0,0]
     collisions: true
