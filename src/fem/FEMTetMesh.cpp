@@ -71,13 +71,14 @@ Vec3r FEMTetMesh::faceShapeFunctions(Real e1, Real e2) const
 /** Refinement */
 
 int FEMTetMesh::_addRefinedVertex(int parent_index1, int parent_index2,
-     const Vec4i& base_element, std::unordered_map<Edge, typename RefinedElement::ChildVertex>& child_vertices)
+     const Vec4i& base_element, RefinedElement* refined_element)
 {
     Edge parent_edge(parent_index1, parent_index2);
+
     TombstoneVector<Vec3r>& global_vertices = _mesh->vertices();
     
-    const typename RefinedElement::ChildVertex& p1 = child_vertices.at(parent_index1);
-    const typename RefinedElement::ChildVertex& p2 = child_vertices.at(parent_index2);
+    const typename RefinedElement::ChildVertex& p1 = refined_element->child_vertices.at(parent_index1);
+    const typename RefinedElement::ChildVertex& p2 = refined_element->child_vertices.at(parent_index2);
     bool p1_is_edge = p1.edge != RefinedElement::TetEdge::NONE;
     bool p2_is_edge = p2.edge != RefinedElement::TetEdge::NONE;
     bool p1_is_face = p1.face != RefinedElement::TetFace::NONE;
@@ -85,6 +86,14 @@ int FEMTetMesh::_addRefinedVertex(int parent_index1, int parent_index2,
     
     int new_level = std::max(p1.level, p2.level) + 1;
     typename RefinedElement::ChildVertex new_vert(-1, new_level, RefinedElement::TetEdge::NONE, RefinedElement::TetFace::NONE);
+
+    // check if this RefinedElement already has a vertex at the midpoint of this edge
+    if (auto search = refined_element->edge_to_vertex_map.find(parent_edge); search != refined_element->edge_to_vertex_map.end())
+    {
+        std::cout << "Vertex already exists!" << std::endl;
+        new_vert.index = search->second;
+        return new_vert.index;
+    }
 
     // now we need to determine if the new vertex is on an edge or a face, or neither
     // Case 1: one parent is not a base, edge, or face vertex - the child vertex is neither a base, edge, or face vertex
@@ -349,21 +358,14 @@ int FEMTetMesh::_addRefinedVertex(int parent_index1, int parent_index2,
 
     else
     {
-        auto it = child_vertices.find(parent_edge);
-        if (it == child_vertices.end())
-        {
-            int new_index = global_vertices.push_back( (global_vertices.at(parent_index1) + global_vertices.at(parent_index2)) / 2.0 );
-            new_vert.index = new_index;
-        }
-        else
-        {
-            return it->second.index;
-        }
+        int new_index = global_vertices.push_back( (global_vertices.at(parent_index1) + global_vertices.at(parent_index2)) / 2.0 );
+        new_vert.index = new_index;
         
     }
 
     // finally, push the new child vertex onto the child_vertices vector
-    child_vertices.insert({parent_edge, new_vert});
+    refined_element->child_vertices.insert({new_vert.index, new_vert});
+    refined_element->edge_to_vertex_map.insert({parent_edge, new_vert.index});
 
     // std::cout << "New child vertex!\n\tIndex: " << new_vert.index << "\n\tLevel: " << new_vert.level << "\n\tEdge: " << static_cast<int>(new_vert.edge) << "\n\tFace: " << static_cast<int>(new_vert.face) << std::endl;
 
@@ -426,7 +428,7 @@ void FEMTetMesh::refineElement(int element_index, int refinement_level)
             {
                 for (int vj = vi+1; vj < 4; vj++)
                 {
-                    mid_verts[mid_vert_cnt++] = _addRefinedVertex(parent_element[vi], parent_element[vj], base_element, refined_element->child_vertices);
+                    mid_verts[mid_vert_cnt++] = _addRefinedVertex(parent_element[vi], parent_element[vj], base_element, refined_element);
                 }
             }
 

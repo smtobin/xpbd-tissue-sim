@@ -178,7 +178,9 @@ public:
         /** Keep track of the child vertices, faces, and elements.
          * These are the vertices, faces and elements created for the refined element.
          */
-        std::unordered_map<Edge, ChildVertex, EdgeHash> child_vertices;
+        std::unordered_map<int, ChildVertex> child_vertices;
+        /** Maps a refined vertex to its parent edge (for vertices in this refined element).  */
+        std::unordered_map<Edge, int, EdgeHash> edge_to_vertex_map;
         std::vector<int> child_faces;
         std::vector<int> child_elements;
 
@@ -259,7 +261,7 @@ public:
 private:
 
     int _addRefinedVertex(int parent_index1, int parent_index2,
-     const Vec4i& base_element, std::unordered_map<Edge, typename RefinedElement::ChildVertex>& child_vertices);
+     const Vec4i& base_element, RefinedElement* refined_element);
     
 
 private:
