@@ -18,6 +18,26 @@ RefinedFEMElement::RefinedFEMElement(const Vec4i& parent_element,
     _createChildren();
 }
 
+void RefinedFEMElement::_addVertex(int parent_ind1, int parent_ind2)
+{
+    // first - determine if this new vertex is on one of the outer (i.e. original) edges of the tetrahedron
+    // for this to be true:
+    //   - both parent vertices must be on outer surface
+    //   - if both parent vertices are on edges, they must be on the same edge
+    bool on_outer_surface = _is_outer_surface_vertex[parent_ind1] && _is_outer_surface_vertex[parent_ind2]
+    _is_outer_edge_vertex.push_back(on_outer_edge);
+    _child_vertices.emplace_back((_child_vertices[parent_ind1] + _child_vertices[parent_ind2])/2.0);
+
+    int new_ind = _child_vertices.size() - 1;
+    if (on_outer_edge)
+    {
+        // get the two parent OuterEdgeVertex's
+        const OuterEdgeVertex& oe_vert1 = _outer_edge_vertices[parent_ind1];
+        const OuterEdgeVertex& oe_vert2 = _outer_edge_vertices[parent_ind2];
+        _outer_edge_vertices[new_ind] = OuterEdgeVertex(std::min(base_parent1, base_parent2), std::max(base_parent1, base_parent2), )
+    }
+}
+
 void RefinedFEMElement::_createChildren()
 {
     // recursively keep track of "parent" elements that we want to subdivide

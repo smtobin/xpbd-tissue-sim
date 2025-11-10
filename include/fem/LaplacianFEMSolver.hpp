@@ -20,7 +20,7 @@ namespace FEM
 class LaplacianFEMSolver
 {
 public:
-    LaplacianFEMSolver(const Geometry::TetMesh* mesh, Real k);
+    LaplacianFEMSolver(Geometry::TetMesh* mesh, Real k);
 
     /** Adds a new essential boundary condition at the specified index.
      *   i.e. RHS[index] = value
@@ -43,7 +43,7 @@ private:
     void _assembly();
 
 private:
-    const Geometry::TetMesh* _mesh;
+    Geometry::TetMesh* _mesh;
     FEMTetMesh _fem_mesh;
 
     /** The constant in the Laplace equation. */

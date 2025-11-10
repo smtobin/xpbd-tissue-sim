@@ -3,7 +3,7 @@
 namespace FEM
 {
 
-LaplacianFEMSolver::LaplacianFEMSolver(const Geometry::TetMesh* mesh, Real k)
+LaplacianFEMSolver::LaplacianFEMSolver(Geometry::TetMesh* mesh, Real k)
     : _mesh(mesh), _fem_mesh(mesh), _k(k) 
 {
 
