@@ -280,6 +280,12 @@ private:
     /** Stores the refined element structs, according to their "base" elements in the original tet mesh. */
     std::unordered_map<Vec4i, RefinedElement, EigenHash<Vec4i>> _refined_elements;
 
+    /** Stores the vertices associated with refinement. */
+    TombstoneVector<Vec3r> _temp_vertices;
+
+    /** Stores the faces associated with refinement. */
+    TombstoneVector<Vec3i> _temp_faces;
+
     /** Stores the actual elements associated with refinement. */
     TombstoneVector<Vec4i> _temp_elements;
 };

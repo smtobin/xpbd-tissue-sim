@@ -21,20 +21,33 @@ TetMesh::TetMesh(const TetMesh& other)
     : Mesh(other)
 {
     _elements = other._elements;
-    _attached_elements_to_vertex = other._attached_elements_to_vertex;
+
+    _vertex_to_elements_map = other._vertex_to_elements_map;
+    _edge_to_elements_map = other._edge_to_elements_map;
+    _face_to_elements_map = other._face_to_elements_map;
+
+    _surface_face_to_element_map = other._surface_face_to_element_map;
+    _element_to_surface_faces_map = other._element_to_surface_faces_map;
+
     _element_inv_undeformed_basis = other._element_inv_undeformed_basis;
     _element_rest_volumes = other._element_rest_volumes;
-    _surface_elements = other._surface_elements;
+    
 }
 
 TetMesh::TetMesh(TetMesh&& other)
     : Mesh(other)
 {
     _elements = std::move(other._elements);
-    _attached_elements_to_vertex = std::move(other._attached_elements_to_vertex);
+    _vertex_to_elements_map = std::move(other._vertex_to_elements_map);
+    _edge_to_elements_map = std::move(other._edge_to_elements_map);
+    _face_to_elements_map = std::move(other._face_to_elements_map);
+
+    _surface_face_to_element_map = std::move(other._surface_face_to_element_map);
+    _element_to_surface_faces_map = other._element_to_surface_faces_map;
+
     _element_inv_undeformed_basis = std::move(other._element_inv_undeformed_basis);
     _element_rest_volumes = std::move(other._element_rest_volumes);
-    _surface_elements = std::move(other._surface_elements);
+    
 }
 
 void TetMesh::_computeAdjacentVertices()
@@ -84,15 +97,25 @@ void TetMesh::setCurrentStateAsUndeformedState()
 {
     Mesh::setCurrentStateAsUndeformedState();
 
-    // compute mesh properties
-    _attached_elements_to_vertex.resize(numVertices());
+    // update maps for vertices -> elements, edges -> elements, faces -> elements
+    _vertex_to_elements_map.resize(numVertices());
     for (int i = 0; i < numElements(); i++)
     {
         const Eigen::Vector4i& elem = element(i);
-        _attached_elements_to_vertex[elem[0]].push_back(i);
-        _attached_elements_to_vertex[elem[1]].push_back(i);
-        _attached_elements_to_vertex[elem[2]].push_back(i);
-        _attached_elements_to_vertex[elem[3]].push_back(i);
+        // vertex -> elements map
+        for (int k = 0; k < 4; k++)
+            _vertex_to_elements_map[elem[k]].push_back(i);
+
+        // edge -> elements map
+        for (int k1 = 0; k1 < 4; k1++)
+            for (int k2 = k1+1; k2 < 4; k2++)
+                _edge_to_elements_map.insert({Edge(elem[k1], elem[k2]), i});
+
+        // face -> elements map
+        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[2]), i});
+        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[3]), i});
+        _face_to_elements_map.insert({Face(elem[0], elem[2], elem[3]), i});
+        _face_to_elements_map.insert({Face(elem[1], elem[2], elem[3]), i});
     }
 
     // inverse undeformed basis for each element
@@ -119,36 +142,10 @@ void TetMesh::setCurrentStateAsUndeformedState()
     {
         _element_rest_volumes[i] = elementVolume(i);
     }
-
-    // find elements that share faces
-    // for now, just do a dumb O(n^2) search
-    _face_adjacent_elements.resize(numElements());
-    for (int i = 0; i < numElements(); i++)
-    {
-        const Eigen::Vector4i& elem_i = element(i);
-        for (int j = i+1; j < numElements(); j++)
-        {
-            
-            const Eigen::Vector4i& elem_j = element(j);
-            int num_shared_vertices = 0;
-            for (int k = 0; k < 4; k++)
-            {
-                if (elem_j[k] == elem_i[0] || elem_j[k] == elem_i[1] || elem_j[k] == elem_i[2] || elem_j[k] == elem_i[3])
-                    num_shared_vertices++;
-            }
-
-            if (num_shared_vertices == 3)   // the two elements share a face
-            {
-                _face_adjacent_elements[i].push_back(j);
-                _face_adjacent_elements[j].push_back(i);
-            }
-                
-        }
-    }
-
+    
     // find surface elements
     // for now, just do a dumb O(n^2) search
-    _surface_elements.clear();
+    _surface_face_to_element_map.clear();
     for (int i = 0; i < numFaces(); i++)
     {
         const Vec3i& f = face(i);
@@ -160,14 +157,15 @@ void TetMesh::setCurrentStateAsUndeformedState()
                     (f[1] == elem[0] || f[1] == elem[1] || f[1] == elem[2] || f[1] == elem[3]) &&
                     (f[2] == elem[0] || f[2] == elem[1] || f[2] == elem[2] || f[2] == elem[3]) )
             {
-                _surface_elements.push_back(j);
+                _surface_face_to_element_map.push_back(j);
+                _element_to_surface_faces_map.insert({j, i});
                 break;
             }
         }
     }
 
     // make sure that we found an element that corresponds to each surface face
-    if (_surface_elements.size() != static_cast<unsigned>(numFaces()))
+    if (_surface_face_to_element_map.size() != static_cast<unsigned>(numFaces()))
     {
         std::cerr << KRED << BOLD << "FATAL" << RST << KRED << ": Some surface faces do not have elements associated with them!" << RST << std::endl;
         std::cerr << "Double check your .msh file for floating faces." << std::endl;
@@ -208,6 +206,68 @@ Mat3r TetMesh::elementDeformationGradient(int index) const
     return deformed_basis * _element_inv_undeformed_basis[index];
 }
 
+std::vector<int> TetMesh::faceAdjacentElements(int element_index)
+{
+    const Vec4i& elem = element(element_index);
+
+    std::vector<int> adjacent_elements;
+    adjacent_elements.reserve(4);
+
+    // F012
+    {
+        auto range = _face_to_elements_map.equal_range(Face(elem[0], elem[1], elem[2]));
+        for (auto it = range.first; it != range.second; it++)
+        {
+            if (it->second != element_index)
+            {
+                adjacent_elements.push_back(it->second);
+                break;  // only 1 other possible element - if we've found it, break
+            }
+        }
+    }
+
+    // F013
+    {
+        auto range = _face_to_elements_map.equal_range(Face(elem[0], elem[1], elem[3]));
+        for (auto it = range.first; it != range.second; it++)
+        {
+            if (it->second != element_index)
+            {
+                adjacent_elements.push_back(it->second);
+                break;  // only 1 other possible element - if we've found it, break
+            }
+        }
+    }
+
+    // F023
+    {
+        auto range = _face_to_elements_map.equal_range(Face(elem[0], elem[2], elem[3]));
+        for (auto it = range.first; it != range.second; it++)
+        {
+            if (it->second != element_index)
+            {
+                adjacent_elements.push_back(it->second);
+                break;  // only 1 other possible element - if we've found it, break
+            }
+        }
+    }
+
+    // F123
+    {
+        auto range = _face_to_elements_map.equal_range(Face(elem[1], elem[2], elem[3]));
+        for (auto it = range.first; it != range.second; it++)
+        {
+            if (it->second != element_index)
+            {
+                adjacent_elements.push_back(it->second);
+                break;  // only 1 other possible element - if we've found it, break
+            }
+        }
+    }
+
+    return adjacent_elements;
+}
+
 void TetMesh::removeElementWithFace(int face_index)
 {
     // get the element corresponding to the surface face
@@ -218,7 +278,7 @@ void TetMesh::removeElementWithFace(int face_index)
 void TetMesh::removeElement(int elem_index)
 {
     // get adjacent elements
-    const std::vector<int>& adjacent_elements = _face_adjacent_elements[elem_index];
+    const std::vector<int>& adjacent_elements = faceAdjacentElements(elem_index);
 
     // get surface faces associated with the element we're removing
     // for now, just brute force search through the surface faces
@@ -284,12 +344,21 @@ void TetMesh::removeElement(int elem_index)
         size_t new_face_index = _faces.push_back(std::move(new_face));
 
         // update surface elements vector
-        _surface_elements.resize(_faces.totalSize());
-        _surface_elements[new_face_index] = adj_elem_index;
+        _surface_face_to_element_map.resize(_faces.totalSize());
+        _surface_face_to_element_map[new_face_index] = adj_elem_index;
+
+        _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
 
         // remove the element from the adjacent element's adjacent element vector
-        std::vector<int>& adj_elems_for_adj_elem = _face_adjacent_elements[adj_elem_index];
-        adj_elems_for_adj_elem.erase(std::remove(adj_elems_for_adj_elem.begin(), adj_elems_for_adj_elem.end(), elem_index));
+        // update vertex -> element, edge -> element, and face -> element maps
+
+        
+        /** TODO: update the appropriate maps when we remove the element!
+         * 
+         * 
+         * 
+         * 
+         */
     }
 
     // remove element

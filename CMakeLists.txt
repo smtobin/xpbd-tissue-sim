@@ -203,13 +203,13 @@ add_executable(LaplaceFEMTest src/exec/test/laplace_fem_test.cpp)
 target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)
 
 add_executable(MeshRefinementTest src/exec/test/mesh_refinement_test.cpp)
-target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils)
+target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
 
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
 target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
 
 vtk_module_autoinit(
-  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest
+  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest MeshRefinementTest
   MODULES ${VTK_LIBRARIES}
 )
 

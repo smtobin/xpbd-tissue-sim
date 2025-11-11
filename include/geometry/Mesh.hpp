@@ -18,6 +18,97 @@
 namespace Geometry
 {
 
+struct Edge
+{
+    int index1;
+    int index2;
+
+    Edge(int i1, int i2)
+        : index1(std::min(i1,i2)), index2(std::max(i1,i2))
+    {}
+
+    Edge()
+        : index1(-1), index2(-1)
+    {}
+
+    bool operator==(const Edge& other) const
+    {
+        return index1 == other.index1 && index2 == other.index2;
+    }
+};
+struct EdgeHash
+{
+    size_t operator()(const Edge& e) const {
+        auto h1 = std::hash<int>{}(e.index1);
+        auto h2 = std::hash<int>{}(e.index2);
+        // Better mixing than simple XOR
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    }
+};
+
+struct Face
+{
+    int index1, index2, index3;
+
+    Face(int i1, int i2, int i3)
+    {
+        index1 = std::min({i1, i2, i3});    // index1 is minimum index
+        index3 = std::max({i1, i2, i3});    // index3 is maximum index
+        index2 = i1 + i2 + i3 - index1 - index3;   // index2 is in the middle
+    }
+
+    Face()
+        : index1(-1), index2(-1), index3(-1)
+    {}
+
+    bool operator==(const Face& other) const
+    {
+        return index1 == other.index1 && index2 == other.index2 && index3 == other.index3;
+    }
+};
+struct FaceHash
+{
+    size_t operator()(const Face& f) const {
+        auto h1 = std::hash<int>{}(f.index1);
+        auto h2 = std::hash<int>{}(f.index2);
+        auto h3 = std::hash<int>{}(f.index3);
+        // Better mixing than simple XOR
+        size_t seed = h1;
+        seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+};
+
+enum class TetVert
+{
+    V1 = 0,
+    V2,
+    V3,
+    V4,
+    NONE
+};
+
+enum class TetEdge
+{
+    E12 = 0,
+    E13,
+    E14,
+    E23,
+    E24,
+    E34,
+    NONE
+};
+
+enum class TetFace
+{
+    F123 = 0,
+    F124,
+    F134,
+    F234,
+    NONE 
+};
+
 /** A class for a surface mesh which consists of a set of vertices and a set of faces connecting those vertices.
  * The vertices are specified as 3-vectors of vertex coordinates.
  * The faces are specified as 3-vectors of vertex indices.

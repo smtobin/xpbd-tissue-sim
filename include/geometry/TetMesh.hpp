@@ -3,6 +3,8 @@
 
 #include "geometry/Mesh.hpp"
 
+#include <unordered_map>
+
 namespace Geometry
 {
 
@@ -57,7 +59,10 @@ class TetMesh : public Mesh
     Mat3r elementDeformationGradient(int index) const;
 
     /** Returns the element index corresponding to a surface face. */
-    int elementWithFace(int face_index) const { return _surface_elements.at(face_index); }
+    int elementWithFace(int face_index) const { return _surface_face_to_element_map.at(face_index); }
+
+    /** Returns the element indices for elements that are face-adjacent (share a face) with an element specified by its index. */
+    std::vector<int> faceAdjacentElements(int elem_index);
 
     /** Removes the element that corresponds to a surface face.
      * All surface faces associated with the removed element are removed.
@@ -80,7 +85,7 @@ class TetMesh : public Mesh
     virtual void createGPUResource() override;
 #endif
 
-    const std::vector<int>& vertexAttachedElements(int vertex_index) const { return _attached_elements_to_vertex[vertex_index]; }
+    const std::vector<int>& vertexAttachedElements(int vertex_index) const { return _vertex_to_elements_map[vertex_index]; }
 
     /** Creates an element property with the specified name, and optional default value. */
     template <typename T>
@@ -171,17 +176,29 @@ class TetMesh : public Mesh
    */
     std::vector<Mat3r> _element_inv_undeformed_basis;  
 
-    /** lists the elements (by index) attached to a vertex */
-    std::vector<std::vector<int>> _attached_elements_to_vertex; 
-
-    /** lists the elements (by index) that share a face with an element */
-    std::vector<std::vector<int>> _face_adjacent_elements;
-
     /** A list of elements that are on the surface, i.e. one of their faces is on the surface.
      * Entry i is the index of the element that corresponds to surface face i.
      * A single element may have multiple faces exposed to the surface, thus there may be duplicate indices in the vector
      */
-    std::vector<int> _surface_elements;
+    std::vector<int> _surface_face_to_element_map;
+
+    /** Maps elements to their surface faces. */
+    std::unordered_multimap<int, int> _element_to_surface_faces_map;
+    
+
+    /** Lists the elements (by index) attached to a vertex. */
+    std::vector<std::vector<int>> _vertex_to_elements_map; 
+
+    /** Maps interior edges to the elements that share that edge.
+     * I.e. given an edge (v1,v2), the multimap stores all the indices for the elements that share that edge
+     */
+    std::unordered_multimap<Edge, int, EdgeHash> _edge_to_elements_map;
+
+    /** Maps faces (interior and exterior) to the elements that share that face.
+     * I.e. given a face (v1,v2,v3), the multimap stores all the indices for the elements that share that face.
+     * This is either 0 (key is not in the map), 1, or 2 elements.
+     */
+    std::unordered_multimap<Face, int, FaceHash> _face_to_elements_map;
 };
 
 } // namespace Geometry

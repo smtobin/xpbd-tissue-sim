@@ -10,6 +10,7 @@ set(GEOMETRY_HEADERS
     ${GEOMETRY_INCLUDE_DIR}/AABB.hpp
     ${GEOMETRY_INCLUDE_DIR}/Mesh.hpp
     ${GEOMETRY_INCLUDE_DIR}/TetMesh.hpp
+    ${GEOMETRY_INCLUDE_DIR}/RefinedTetMesh.hpp
     ${GEOMETRY_INCLUDE_DIR}/MeshProperty.hpp
     ${GEOMETRY_INCLUDE_DIR}/SDF.hpp
     ${GEOMETRY_INCLUDE_DIR}/BoxSDF.hpp
@@ -27,6 +28,7 @@ set(GEOMETRY_HEADERS
 set(GEOMETRY_SOURCES
     ${GEOMETRY_SRC_DIR}/Mesh.cpp
     ${GEOMETRY_SRC_DIR}/TetMesh.cpp
+    ${GEOMETRY_SRC_DIR}/RefinedTetMesh.cpp
     ${GEOMETRY_SRC_DIR}/SphereSDF.cpp
     ${GEOMETRY_SRC_DIR}/BoxSDF.cpp
     ${GEOMETRY_SRC_DIR}/CylinderSDF.cpp
