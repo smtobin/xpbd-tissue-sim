@@ -90,7 +90,6 @@ int FEMTetMesh::_addRefinedVertex(int parent_index1, int parent_index2,
     // check if this RefinedElement already has a vertex at the midpoint of this edge
     if (auto search = refined_element->edge_to_vertex_map.find(parent_edge); search != refined_element->edge_to_vertex_map.end())
     {
-        std::cout << "Vertex already exists!" << std::endl;
         new_vert.index = search->second;
         return new_vert.index;
     }
@@ -199,8 +198,10 @@ int FEMTetMesh::_addRefinedVertex(int parent_index1, int parent_index2,
         else
         {
             // do nothing - child is on the interior
-            // this shouldn't happen, throw an error for now if it does
-            assert(0);
+            // std::cout << "Edge: " << static_cast<int>(edge) << "\tFace: " << static_cast<int>(face) << std::endl;
+            // std::cout << "Parent 1:\n\tIndex: " << p1.index << "\n\tLevel: " << p1.level << "\n\tEdge: " << static_cast<int>(p1.edge) << "\n\tFace: " << static_cast<int>(p1.face) << std::endl;
+            // std::cout << "Parent 2:\n\tIndex: " << p2.index << "\n\tLevel: " << p2.level << "\n\tEdge: " << static_cast<int>(p2.edge) << "\n\tFace: " << static_cast<int>(p2.face) << std::endl;
+            // assert(0);
         }
     }
     // Case 5: one parent is a edge vertex, the other is a base vertex

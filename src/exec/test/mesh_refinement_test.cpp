@@ -10,7 +10,7 @@ int main()
         FEM::FEMTetMesh fem_mesh(&mesh);
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        fem_mesh.refineElement(0, 2);
+        fem_mesh.refineElement(0, 5);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << mesh.numVertices() << std::endl;
