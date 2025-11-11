@@ -352,6 +352,32 @@ void TetMesh::removeElement(int elem_index)
         // remove the element from the adjacent element's adjacent element vector
         // update vertex -> element, edge -> element, and face -> element maps
 
+        // vertex -> element mappings
+        for (int k = 0; k < 4; k++)
+        {
+            std::vector<int>& vk_map = _vertex_to_elements_map[elem_to_remove[k]];
+            vk_map.erase(
+                std::remove(vk_map.begin(), vk_map.end(), elem_index), vk_map.end()
+            );
+        }
+
+        // edge -> element mappings
+        for (int k1 = 0; k1 < 4; k1++)
+        {
+            for (int k2 = 0; k2 < 4; k2++)
+            {
+                auto range = _edge_to_elements_map.equal_range(Edge(elem_to_remove[k1], elem_to_remove[k2]));
+                for (auto it = range.first; it != range.second; it++)
+                {
+                    if (it->second == elem_index) {
+                        _edge_to_elements_map.erase(it);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // TODO: face -> element mappings
         
         /** TODO: update the appropriate maps when we remove the element!
          * 
