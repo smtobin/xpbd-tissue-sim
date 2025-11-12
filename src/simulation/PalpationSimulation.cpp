@@ -50,7 +50,7 @@ void PalpationSimulation::_timeStep()
 {
     VirtuosoSimulation::_timeStep();
 
-    std::cout << "Collision force: " << _virtuoso_robot->arm1()->netCollisionForce().transpose() << " N" << std::endl;
+    std::cout << "Collision force: " << _virtuoso_robot->arm1()->unfilteredCollisionForce().transpose() << " N" << std::endl;
     if (_input_device == SimulationInput::Device::HAPTIC)
     {
         
@@ -65,7 +65,7 @@ void PalpationSimulation::_timeStep()
             rot_mat.col(1) = _graphics_scene->cameraUpDirection();
             rot_mat.col(2) = _graphics_scene->cameraViewDirection();
             rot_mat.col(0) = rot_mat.col(1).cross(rot_mat.col(2));
-            Vec3r cam_force = rot_mat.transpose() * _virtuoso_robot->arm1()->netCollisionForce();
+            Vec3r cam_force = rot_mat.transpose() * _virtuoso_robot->arm1()->unfilteredCollisionForce();
             Vec3r haptic_force = GeometryUtils::Ry(-M_PI) * cam_force;
             const Vec3r cur_force = _haptic_device_manager->force(handle);
             
