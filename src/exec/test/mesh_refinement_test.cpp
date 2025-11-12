@@ -20,7 +20,7 @@ int main()
         refined_mesh.setCurrentStateAsUndeformedState();
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        refined_mesh.refineElement(0, 1);
+        refined_mesh.refineElement(0, 4);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;
@@ -56,7 +56,7 @@ int main()
             true,
             false
         );
-        Graphics::VTKMeshGraphicsObject mesh_graphics_obj("mesh1", &mesh, render_config);
+        Graphics::VTKMeshGraphicsObject mesh_graphics_obj("mesh1", &refined_mesh, render_config);
 
         vtkNew<vtkOpenGLRenderer> renderer;
         renderer->SetBackground(0.0, 1.0, 1.0);

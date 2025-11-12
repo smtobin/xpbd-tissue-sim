@@ -160,6 +160,22 @@ class TetMesh : public Mesh
      */
     virtual void _computeAdjacentVertices() override;
 
+    /** Updates all the element maps when a new element is created.
+     * Specifically, updates:
+     *   - vertex -> element map (4 entries added, one for each vertex in the new element)
+     *   - edge -> element map   (6 entries added, one for each edge in the new element)
+     *   - face -> element map   (4 entries added, one for each face in the new element)
+     */
+    void _updateElementMapsForNewElement(int element_index);
+
+    /** Updates all the element maps when an element is removed from the mesh.
+     * Specifically, updates:
+     *   - vertex -> element map (4 entries removed, one for each vertex in the removed element)
+     *   - edge -> element map   (6 entries removed, one for each edge in the removed element)
+     *   - face -> element map   (4 entries removed, one for each face in the removed element)
+     */
+    void _updateElementMapsForRemovedElement(int element_index);
+
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
     elements_vec_type _elements;

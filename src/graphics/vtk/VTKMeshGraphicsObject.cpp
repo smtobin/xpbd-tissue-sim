@@ -34,21 +34,19 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
     // create points
     vtkNew<vtkPoints> vtk_points;
-    for (int vi = 0; vi < _mesh->numVertices(); vi++)
+    for (const auto& vert : _mesh->vertices())
     {
-        const Vec3r& v = _mesh->vertex(vi);
-        vtk_points->InsertNextPoint(v[0], v[1], v[2]);
+        vtk_points->InsertNextPoint(vert[0], vert[1], vert[2]);
     }
 
     // create faces
     vtkNew<vtkCellArray> vtk_faces;
-    for (int fi = 0; fi < _mesh->numFaces(); fi++)
+    for (const auto& face : _mesh->faces())
     {
-        const Vec3i& f = _mesh->face(fi);
         vtkNew<vtkTriangle> tri;
-        tri->GetPointIds()->SetId(0, f[0]);
-        tri->GetPointIds()->SetId(1, f[1]);
-        tri->GetPointIds()->SetId(2, f[2]);
+        tri->GetPointIds()->SetId(0, face[0]);
+        tri->GetPointIds()->SetId(1, face[1]);
+        tri->GetPointIds()->SetId(2, face[2]);
 
         vtk_faces->InsertNextCell(tri);
     }

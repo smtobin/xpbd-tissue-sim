@@ -134,6 +134,8 @@ private:
     int _addRefinedVertex(int parent_index1, int parent_index2,
         const Vec4i& base_element, RefinedElement& refined_element);
 
+    int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
+
 protected:
     
     /** Stores all refined vertices that are created on an edge in the original tet mesh.
