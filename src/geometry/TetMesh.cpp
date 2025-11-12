@@ -99,6 +99,8 @@ void TetMesh::setCurrentStateAsUndeformedState()
 
     // update maps for vertices -> elements, edges -> elements, faces -> elements
     _vertex_to_elements_map.resize(numVertices());
+    _edge_to_elements_map.clear();
+    _face_to_elements_map.clear();
     for (int i = 0; i < numElements(); i++)
     {
         const Eigen::Vector4i& elem = element(i);
@@ -146,6 +148,7 @@ void TetMesh::setCurrentStateAsUndeformedState()
     // find surface elements
     // for now, just do a dumb O(n^2) search
     _surface_face_to_element_map.clear();
+    _element_to_surface_faces_map.clear();
     for (int i = 0; i < numFaces(); i++)
     {
         const Vec3i& f = face(i);
@@ -369,6 +372,9 @@ void TetMesh::_updateElementMapsForRemovedElement(int element_index)
             }
         }
     }
+
+    // element -> surface faces map
+    _element_to_surface_faces_map.erase(element_index);
 }
 
 void TetMesh::removeElementWithFace(int face_index)

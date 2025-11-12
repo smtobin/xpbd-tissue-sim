@@ -136,7 +136,7 @@ public:
         }
         else
         {
-            _data.emplace_back(std::forward<Args>(args)...);
+            _data.emplace_back(std::in_place, std::forward<Args>(args)...);
             _num_valid++;
             return _data.size()-1;
         }

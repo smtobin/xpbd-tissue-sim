@@ -11,108 +11,82 @@
 namespace Geometry
 {
 
-struct RefinedElement
-{
-    /** Tracks information associated with a child vertex created for a refined element. */
-    struct ChildVertex
-    {
-        int index;
-        int level;
-        TetEdge edge = TetEdge::NONE;
-        TetFace face = TetFace::NONE;
+// struct RefinedElement
+// {
+//     /** Tracks information associated with a child vertex created for a refined element. */
+//     struct ChildVertex
+//     {
+//         int index;
+//         int level;
+//         TetEdge edge = TetEdge::NONE;
+//         TetFace face = TetFace::NONE;
 
-        ChildVertex(int index_, int level_)
-            : index(index_), level(level_)
-        {}
+//         ChildVertex(int index_, int level_)
+//             : index(index_), level(level_)
+//         {}
 
-        ChildVertex(int index_, int level_, TetEdge edge_, TetFace face_)
-            : index(index_), level(level_), edge(edge_), face(face_)
-        {}
-    };
+//         ChildVertex(int index_, int level_, TetEdge edge_, TetFace face_)
+//             : index(index_), level(level_), edge(edge_), face(face_)
+//         {}
+//     };
 
-    /** Keep track of the child vertices, faces, and elements.
-     * These are the vertices, faces and elements created for the refined element.
-     * Tracked as the indices in the global lists of vertices, faces, and elements.
-     */
-    std::unordered_map<int, ChildVertex> child_vertices;
-    std::vector<int> child_faces;
-    std::vector<int> child_elements;
+//     /** Keep track of the child vertices, faces, and elements.
+//      * These are the vertices, faces and elements created for the refined element.
+//      * Tracked as the indices in the global lists of vertices, faces, and elements.
+//      */
+//     std::unordered_map<int, ChildVertex> child_vertices;
+//     std::vector<int> child_faces;
+//     std::vector<int> child_elements;
 
-    /** Maps a "parent" edge to the vertex defined on its midpoint (for vertices in this refined element).
-     * This allows to easily check if we've already created a vertex on a given edge.
-      */
-    std::unordered_map<Edge, int, EdgeHash> edge_to_vertex_map;
+//     /** Maps a "parent" edge to the vertex defined on its midpoint (for vertices in this refined element).
+//      * This allows to easily check if we've already created a vertex on a given edge.
+//       */
+//     std::unordered_map<Edge, int, EdgeHash> edge_to_vertex_map;
 
-    /** Store the original base element so that we can restore it when the refined element is no longer needed. */
-    Vec4i parent_element;
+//     /** Store the original base element so that we can restore it when the refined element is no longer needed. */
+//     Vec4i parent_element;
 
-    /** The refinement level of the element (i.e. the number of recursive hierarchical subdivisions) */
-    int refinement_level;
+//     /** The refinement level of the element (i.e. the number of recursive hierarchical subdivisions) */
+//     int refinement_level;
 
-    RefinedElement(const Vec4i& parent_element_, int refinement_level_)
-        : parent_element(parent_element_), refinement_level(refinement_level_)
-    {
-    }
-};
+//     RefinedElement(const Vec4i& parent_element_, int refinement_level_)
+//         : parent_element(parent_element_), refinement_level(refinement_level_)
+//     {
+//     }
+// };
 
 class RefinedTetMesh : public TetMesh
 {
 public:
-    /** Tracks information associated with a refined (added) vertex that is on an edge of the original tet mesh. */
-    struct EdgeVertex
+    /** Represents a node in the tree structure that represents the hierarchical refinement. */
+    struct ElementTreeNode
     {
-        /** The index of this vertex (in the global vertices vector). */
-        int index;
+        static constexpr int INVALID_INDEX = -1;
 
-        /** Number of refined tets that share this vertex. */
-        int shared_count;
+        Vec4i vertices;     // the vertex indices of the element
+        int parent;         // the index of the parent TreeNode
+        std::vector<int> children;  // the TreeNode children indices - up to 8 children
+        int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
 
-        /** The edge in the base tet mesh that this vertex is on
-         */
-        Edge edge;
+        bool f123_on_surface = false;
+        bool f124_on_surface = false;
+        bool f134_on_surface = false;
+        bool f234_on_surface = false;
 
-        /** The direct parents of this vertex (indices in the global vertices vector).
-         * parent_index1 < parent_index2 always
-         */
-        int parent_index1, parent_index2;
+        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_)
+            : vertices(vertices_), parent(parent_), level(level_)
+        {
+            children.reserve(8);
+        }
 
-        /** The refinement level of this vertex.
-         * 0 = this is one of the original tet vertices
-         * 1 = this is the midpoint on an edge between origin tet vertices
-         * 2 = etc.
-         */
-        int refinement_level;
-
-        /** Whether or not this vertex is hanging. */
-        bool hanging;
+        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, bool f123, bool f124, bool f134, bool f234)
+            : vertices(vertices_), parent(parent_), level(level_),
+                f123_on_surface(f123), f124_on_surface(f124), f134_on_surface(f134), f234_on_surface(f234)
+        {
+            children.reserve(8);
+        }
     };
-
-    /** Tracks information associated with a refined (added) vertex that is on a face (interior or exterior) of the original tet mesh. */
-    struct FaceVertex
-    {
-        /** The index of this vertex (in the global vertices vector). */
-        int index;
-
-        /** The edge in the base tet mesh that this vertex is on
-         */
-        Face face;
-
-        /** The direct parents of this vertex (indices in the global vertices vector).
-         * parent_index1 < parent_index2 always
-         */
-        int parent_index1, parent_index2;
-
-        /** The refinement level of this vertex.
-         * 0 = this is one of the original tet vertices
-         * 1 = this is the midpoint on an edge between origin tet vertices
-         * 2 = etc.
-         */
-        int refinement_level;
-
-        /** Whether or not this vertex is hanging. */
-        bool hanging;
-    };
-
+    
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
      */
     RefinedTetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces, const std::vector<Vec4i>& elements);
@@ -134,28 +108,23 @@ public:
 
 private:
 
-    int _addRefinedVertex(int parent_index1, int parent_index2,
-        const Vec4i& base_element, RefinedElement& refined_element);
+    int _addRefinedVertex(int parent_index1, int parent_index2);
 
+    int _addNewElementFromElementTreeNode(int tree_node_index);
     int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
 
 protected:
-    
-    /** TODO: THINK ABOUT THIS!
-     * How should the following maps be updated when elements are removed??
-     */
-    /** Stores all refined vertices that are created on an edge in the original tet mesh.
-     * Useful for determining which vertices are "hanging".
-     */
-    // std::unordered_multimap<Edge, EdgeVertex, EdgeHash> _edge_vertices;
-
-    /** Stores all refined vertices that are created on a face (internal or external) in the original tet mesh.
-     * Useful for determing which vertices are "hanging".
-     */
-    // std::unordered_multimap<Face, FaceVertex, FaceHash> _face_vertices;
 
     /** Stores the refined element structs, according to their "base" elements in the original tet mesh. */
-    std::unordered_map<Vec4i, RefinedElement, EigenHash<Vec4i>> _refined_elements;
+    // std::unordered_map<Vec4i, RefinedElement, EigenHash<Vec4i>> _refined_elements;
+    
+    /** Stores the recursive refinement tree structure. This enables us to coarsen the mesh (i.e. undo refinement). */
+    TombstoneVector<ElementTreeNode> _element_tree_nodes;
+
+    /** Maps element indices (in the _elements vector) back to the associated node in the tree.
+     * Only elements that were created from refinement will have entries in the map.
+     */
+    std::unordered_map<int, int> _element_to_tree_node_map;
 
     /** Stores child vertices that were created from refining the original mesh.
      * Each vertex is stored under the "parent edge" that it was created on.
