@@ -6,6 +6,7 @@
 #include "common/EigenHash.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Geometry
 {
@@ -129,6 +130,8 @@ public:
 
     void refineElement(int element_index, int refinement_level);
 
+    const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
+
 private:
 
     int _addRefinedVertex(int parent_index1, int parent_index2,
@@ -138,18 +141,42 @@ private:
 
 protected:
     
+    /** TODO: THINK ABOUT THIS!
+     * How should the following maps be updated when elements are removed??
+     */
     /** Stores all refined vertices that are created on an edge in the original tet mesh.
      * Useful for determining which vertices are "hanging".
      */
-    std::unordered_multimap<Edge, EdgeVertex, EdgeHash> _edge_vertices;
+    // std::unordered_multimap<Edge, EdgeVertex, EdgeHash> _edge_vertices;
 
     /** Stores all refined vertices that are created on a face (internal or external) in the original tet mesh.
      * Useful for determing which vertices are "hanging".
      */
-    std::unordered_multimap<Face, FaceVertex, FaceHash> _face_vertices;
+    // std::unordered_multimap<Face, FaceVertex, FaceHash> _face_vertices;
 
     /** Stores the refined element structs, according to their "base" elements in the original tet mesh. */
     std::unordered_map<Vec4i, RefinedElement, EigenHash<Vec4i>> _refined_elements;
+
+    /** Stores child vertices that were created from refining the original mesh.
+     * Each vertex is stored under the "parent edge" that it was created on.
+     * (Each refined vertex is created as the midpoint of an edge between two parent vertices).
+     * 
+     * This is a one-to-one mapping, i.e. each parent edge should only have one child vertex.
+     */
+    std::unordered_map<Edge, int, EdgeHash> _parent_edge_to_child_vertex_map;
+
+    /** Stores the indices of vertices that are "hanging".
+     * A hanging vertex is one that is in the middle of an edge.
+     * 
+     *  *---*
+     *  |\  |
+     *  *-* | <----- the right-middle vertex is hanging
+     *  |/ \|
+     *  *---*
+     * 
+     * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
+     */
+    std::unordered_set<int> _hanging_vertices;
 
 };
 
