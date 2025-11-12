@@ -12,5 +12,8 @@ export XPBD_SIM_SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /de
 
 export XPBD_SIM_BASE_DIR=$(realpath $XPBD_SIM_SCRIPT_DIR/..)
 
+# needed so that we can find the Easy3D libraries
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/easy3d-2.6.1/lib/
+
 # needed for OpenHaptics SDK
 export GTDD_HOME=/root/.3dsystems
