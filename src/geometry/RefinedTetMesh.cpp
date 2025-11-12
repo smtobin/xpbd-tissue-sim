@@ -15,6 +15,92 @@ RefinedTetMesh::RefinedTetMesh(const TetMesh& tet_mesh)
 
 }
 
+void RefinedTetMesh::removeElement(int elem_index)
+{
+    // before we remove the element, we need to update the tree structure (when applicable)
+    if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
+    {
+        int node_index = search->second;
+        const ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
+        ElementTreeNode& parent_tree_node = _element_tree_nodes[node_to_remove.parent];
+        // remove the leaf tree node from its parent's list of children
+        parent_tree_node.children.erase(
+            std::remove(parent_tree_node.children.begin(), parent_tree_node.children.end(), node_index),
+            parent_tree_node.children.end()
+        );
+
+        // remove the leaf tree node
+        _element_tree_nodes.erase(node_index);
+
+        // remove the element from the element -> tree node map
+        _element_to_tree_node_map.erase(elem_index);
+    }
+
+    TetMesh::removeElement(elem_index);
+}
+
+void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
+{
+    // this is the same code as for TetMesh, but with extra logic to update the parent edge -> child vertex map when a vertex is removed
+    const Vec4i& elem_to_remove = element(element_index);
+    for (int k = 0; k < 4; k++)
+    {
+        std::vector<int>& vk_map = _vertex_to_elements_map[elem_to_remove[k]];
+        vk_map.erase(
+            std::remove(vk_map.begin(), vk_map.end(), element_index), vk_map.end()
+        );
+
+        // if there are no other elements associated with this vertex, remove it
+        if (vk_map.size() == 0)
+        {
+            _vertices.erase(elem_to_remove[k]);
+
+            // since this vertex is being removed, we must update the parent edge -> child vertex map
+            // but this only applies if the element being removed is a child element (i.e. created as a result of refinement)
+            if (auto search = _element_to_tree_node_map.find(element_index); search != _element_to_tree_node_map.end())
+            {
+                int node_index = search->second;
+                const ElementTreeNode& child_tree_node = _element_tree_nodes[node_index];
+                const ElementTreeNode& parent_tree_node = _element_tree_nodes[child_tree_node.parent];
+
+                // go through parent element edges - MMM SPAGHETTI!
+                const Vec4i& parent_elem = parent_tree_node.vertices;
+                if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[1])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[2])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[1], parent_elem[2])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[1], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[2], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
+                {
+                    if (it->second == elem_to_remove[k])
+                        _parent_edge_to_child_vertex_map.erase(it);
+                }
+                
+            }
+        }
+    }
+}
+
 /** Refinement */
 
 int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
@@ -160,13 +246,11 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         // note: we do not need to update the surface face -> element map since that will just be overwritten by whatever new faces are added
     }
 
-    // update the vertex -> element, edge -> element, face -> element, and element -> surface face maps
-    _updateElementMapsForRemovedElement(element_index);
-
-    // remove the element
-    _elements.erase(element_index);
-
-
+    // update the edge -> element, face -> element, and element -> surface face maps
+    // we need to wait to update the vertex -> element map, because if we do it now, we might accidentally remove some of the original tet's vertices!
+    _updateEdgeElementMapForRemovedElement(element_index);
+    _updateFaceElementMapForRemovedElement(element_index);
+    _updateElementSurfaceFaceMapForRemovedElement(element_index);
 
     /** === Step 4: Refine the element. === */
 
@@ -248,6 +332,11 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         parent_nodes = std::move(next_parent_nodes);
         
     }
+
+    // remove the element
+    _updateVertexElementMapForRemovedElement(element_index);
+    _elements.erase(element_index);
+
 
 }
 

@@ -74,7 +74,7 @@ class TetMesh : public Mesh
      * All surface faces associated with the removed element are removed.
      * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
      */
-    void removeElement(int elem_index);
+    virtual void removeElement(int elem_index);
 
     /** Returns the number of edges along with the average edge length in the tetrahedra of the mesh.
      * Note that this is different from averageFaceEdgeLength, which only returns the average edge length in the faces (i.e. the surface) of the mesh.
@@ -173,8 +173,18 @@ class TetMesh : public Mesh
      *   - vertex -> element map (4 entries removed, one for each vertex in the removed element)
      *   - edge -> element map   (6 entries removed, one for each edge in the removed element)
      *   - face -> element map   (4 entries removed, one for each face in the removed element)
+     *   - element -> surface face map (all entries associated with the removed element are removed)
      */
     void _updateElementMapsForRemovedElement(int element_index);
+
+    /** Updates the vertex -> element map when we are removing an element. */
+    virtual void _updateVertexElementMapForRemovedElement(int element_index);
+    /** Updates the edge -> element map when we are removing an element. */
+    void _updateEdgeElementMapForRemovedElement(int element_index);
+    /** Updates the face -> element map when we are removing an element. */
+    void _updateFaceElementMapForRemovedElement(int element_index);
+    /** Updates the element -> surface face map when we are removing an element. */
+    void _updateElementSurfaceFaceMapForRemovedElement(int element_index);
 
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */

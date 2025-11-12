@@ -300,18 +300,40 @@ void TetMesh::_updateElementMapsForNewElement(int element_index)
 
 void TetMesh::_updateElementMapsForRemovedElement(int element_index)
 {
-    const Vec4i& elem_to_remove = element(element_index);
-
     // vertex -> element mappings
+    _updateVertexElementMapForRemovedElement(element_index);
+
+    // edge -> element mappings
+    _updateEdgeElementMapForRemovedElement(element_index);
+
+    // face -> element mappings
+    _updateFaceElementMapForRemovedElement(element_index);
+
+    // element -> surface faces map
+    _updateElementSurfaceFaceMapForRemovedElement(element_index);
+}
+
+void TetMesh::_updateVertexElementMapForRemovedElement(int element_index)
+{
+    const Vec4i& elem_to_remove = element(element_index);
     for (int k = 0; k < 4; k++)
     {
         std::vector<int>& vk_map = _vertex_to_elements_map[elem_to_remove[k]];
         vk_map.erase(
             std::remove(vk_map.begin(), vk_map.end(), element_index), vk_map.end()
         );
-    }
 
-    // edge -> element mappings
+        // if there are no other elements associated with this vertex, remove it
+        if (vk_map.size() == 0)
+        {
+            _vertices.erase(elem_to_remove[k]);
+        }
+    }
+}
+
+void TetMesh::_updateEdgeElementMapForRemovedElement(int element_index)
+{
+    const Vec4i& elem_to_remove = element(element_index);
     for (int k1 = 0; k1 < 4; k1++)
     {
         for (int k2 = 0; k2 < 4; k2++)
@@ -326,8 +348,11 @@ void TetMesh::_updateElementMapsForRemovedElement(int element_index)
             }
         }
     }
+}
 
-    // face -> element mappings
+void TetMesh::_updateFaceElementMapForRemovedElement(int element_index)
+{
+    const Vec4i& elem_to_remove = element(element_index);
     // F012
     {
         auto range = _face_to_elements_map.equal_range(Face(elem_to_remove[0], elem_to_remove[1], elem_to_remove[2]));
@@ -372,8 +397,10 @@ void TetMesh::_updateElementMapsForRemovedElement(int element_index)
             }
         }
     }
+}
 
-    // element -> surface faces map
+void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
+{
     _element_to_surface_faces_map.erase(element_index);
 }
 
@@ -389,21 +416,11 @@ void TetMesh::removeElement(int elem_index)
     // get adjacent elements
     const std::vector<int>& adjacent_elements = faceAdjacentElements(elem_index);
 
-    // get surface faces associated with the element we're removing
-    // for now, just brute force search through the surface faces
-    std::vector<int> surface_faces_on_removed_element;
-    for (const auto& index : _faces.validIndices())
+    // remove any surface faces associated with the element we're removing
+    auto surface_faces_range = _element_to_surface_faces_map.equal_range(elem_index);
+    for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
     {
-        if (elementWithFace(index) == elem_index)
-        {
-            surface_faces_on_removed_element.push_back(index);
-        }
-    }
-
-    // remove surface faces
-    for (const auto& index : surface_faces_on_removed_element)
-    {
-        _faces.erase(index);
+        _faces.erase(it->second);
     }
 
     // add new surface faces
@@ -458,7 +475,7 @@ void TetMesh::removeElement(int elem_index)
 
         _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
 
-        // update vertex -> element, edge -> element, and face -> element maps
+        // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
         _updateElementMapsForRemovedElement(elem_index);
     }
 

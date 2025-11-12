@@ -106,6 +106,14 @@ public:
 
     const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
 
+    virtual void removeElement(int elem_index) override;
+
+protected:
+    /** Updates the vertex -> element map when we are removing an element with index element_index.
+     * This implements additional logic to update the parent edge -> child vertex map when a vertex is removed from the mesh.
+     */
+    virtual void _updateVertexElementMapForRemovedElement(int element_index) override;
+
 private:
 
     int _addRefinedVertex(int parent_index1, int parent_index2);
