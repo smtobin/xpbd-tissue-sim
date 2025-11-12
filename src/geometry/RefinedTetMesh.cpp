@@ -29,6 +29,12 @@ void RefinedTetMesh::removeElement(int elem_index)
             parent_tree_node.children.end()
         );
 
+        // if the parent has no more children, it is defunct, so remove it also
+        if (parent_tree_node.children.size() == 0)
+        {
+            _element_tree_nodes.erase(node_to_remove.parent);
+        }
+
         // remove the leaf tree node
         _element_tree_nodes.erase(node_index);
 
@@ -336,7 +342,32 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
     // remove the element
     _updateVertexElementMapForRemovedElement(element_index);
     _elements.erase(element_index);
+}
 
+void RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
+{
+    // get the element tree node associated with this element
+    auto search = _element_to_tree_node_map.find(element_index);
+
+    // if the element is not a result of refinement, return
+    if (search == _element_to_tree_node_map.end())
+        return;
+
+    const ElementTreeNode& leaf_node = _element_tree_nodes[search->second];
+
+    // if the element doesn't have a parent (for some reason), remove it and do nothing
+    if (leaf_node.parent == ElementTreeNode::INVALID_INDEX)
+    {
+        _element_tree_nodes.erase(search->second);
+        _element_to_tree_node_map.erase(element_index);
+        return;
+    }
+
+    // if the coarsening level was -1, use the level that the leaf node is at
+    if (coarsening_level == -1)
+        coarsening_level = leaf_node.level;
+
+     
 
 }
 
