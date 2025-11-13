@@ -34,8 +34,11 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
     // create points
     vtkNew<vtkPoints> vtk_points;
-    for (const auto& vert : _mesh->vertices())
+    for (int i = 0; i < _mesh->vertices().totalSize(); i++)
     {
+        // even if the vertex is invalid we still need to insert it so that the faces have proper indexing
+        /** TODO: is there a better way? */
+        const Vec3r& vert = _mesh->vertices()[i];
         vtk_points->InsertNextPoint(vert[0], vert[1], vert[2]);
     }
 
@@ -180,9 +183,14 @@ void VTKMeshGraphicsObject::_setVertices()
     // points->SetNumberOfPoints(_mesh->numVertices());
 
     int vtk_index = 0;
-    for (const auto& vert : _mesh->vertices())
+    // for (const auto& vert : _mesh->vertices())
+    for (int i = 0; i < _mesh->vertices().totalSize(); i++)
     {
-        points->SetPoint(vtk_index++, vert.data());
+        const Vec3r& vert = _mesh->vertices()[i];
+        points->SetPoint(i, vert.data());
+
+        if (!_mesh->vertexValid(i))
+            std::cout << "vertex " << i << " not valid!" << std::endl;
     }
     points->Modified();
 }
