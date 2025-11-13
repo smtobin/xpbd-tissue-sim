@@ -78,7 +78,12 @@ public:
      */
     void coarsenElement(int element_index, int coarsening_level);
 
-    const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
+    const std::unordered_map<int, std::pair<int,int>>& hangingVertices() const { return _hanging_vertices; }
+
+    /** Goes through the entire mesh and finds all hanging vertices.
+     * Useful for verifying that we are marking the hanging vertices correctly.
+     */
+    std::unordered_set<int> verifyHangingVertices() const;
 
     virtual void removeElement(int elem_index) override;
 
@@ -127,7 +132,7 @@ protected:
      * 
      * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
      */
-    std::unordered_set<int> _hanging_vertices;
+    std::unordered_map<int, std::pair<int,int>> _hanging_vertices;
 
 };
 

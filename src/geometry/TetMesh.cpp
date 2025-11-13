@@ -285,7 +285,7 @@ void TetMesh::_updateElementMapsForNewElement(int element_index)
     // update edge -> element map
     for (int k1 = 0; k1 < 4; k1++)
     {
-        for (int k2 = 0; k2 < 4; k2++)
+        for (int k2 = k1+1; k2 < 4; k2++)
         {
             _edge_to_elements_map.insert({Edge(elem[k1], elem[k2]), element_index});
         }
@@ -336,7 +336,7 @@ void TetMesh::_updateEdgeElementMapForRemovedElement(int element_index)
     const Vec4i& elem_to_remove = element(element_index);
     for (int k1 = 0; k1 < 4; k1++)
     {
-        for (int k2 = 0; k2 < 4; k2++)
+        for (int k2 = k1+1; k2 < 4; k2++)
         {
             auto range = _edge_to_elements_map.equal_range(Edge(elem_to_remove[k1], elem_to_remove[k2]));
             for (auto it = range.first; it != range.second; it++)

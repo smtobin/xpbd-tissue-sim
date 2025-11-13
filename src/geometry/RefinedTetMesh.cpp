@@ -62,6 +62,7 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
         if (vk_map.size() == 0)
         {
             _vertices.erase(elem_to_remove[k]);
+            _hanging_vertices.erase(elem_to_remove[k]);
 
             // since this vertex is being removed, we must update the parent edge -> child vertex map
             // but this only applies if the element being removed is a child element (i.e. created as a result of refinement)
@@ -120,7 +121,7 @@ int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
     {
         // update if this node is hanging or not
         // if the parent edge is not in the mesh, then the child is not hanging
-        if (_edge_to_elements_map.count(parent_edge) == 0)
+        if (_edge_to_elements_map.count(parent_edge) == 0 && _hanging_vertices.count(parent_index1) == 0 && _hanging_vertices.count(parent_index2) == 0)
         {
             _hanging_vertices.erase(search->second);
         }
@@ -132,10 +133,29 @@ int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
     int new_index = _vertices.push_back( (_vertices.at(parent_index1) + _vertices.at(parent_index2)) / 2.0 );
 
     // now we need to check if it is hanging or not
-    // if either of the parents are hanging, the child must be hanging too
-    if (_hanging_vertices.count(parent_index1) > 0 || _hanging_vertices.count(parent_index2) > 0)
+    // if both of the parents are hanging, the child must be hanging too
+    auto search_p1 = _hanging_vertices.find(parent_index1);
+    auto search_p2 = _hanging_vertices.find(parent_index2);
+    bool p1_hanging = search_p1 != _hanging_vertices.end();
+    bool p2_hanging = search_p2 != _hanging_vertices.end();
+    if (p1_hanging && p2_hanging)
     {
-        _hanging_vertices.insert(new_index);
+        _hanging_vertices.insert({new_index, std::make_pair(parent_index1, parent_index2)});
+    }
+    // if only one of the parents are hanging, there are two cases:
+    //  - the new vertex is on the same edge that the hanging parent is on, in which case the new vertex is hanging
+    //  - the new vertex is on a different edge than the hanging parent, in which case the new vertex is not hanging 
+    else if (p1_hanging)
+    {
+        std::pair<int,int> hanging_edge = search_p1->second;
+        if (parent_index2 == hanging_edge.first || parent_index2 == hanging_edge.second)
+            _hanging_vertices.insert({new_index, std::make_pair(parent_index1, parent_index2)});
+    }
+    else if (p2_hanging)
+    {
+        std::pair<int,int> hanging_edge = search_p2->second;
+        if (parent_index1 == hanging_edge.first || parent_index1 == hanging_edge.second)
+            _hanging_vertices.insert({new_index, std::make_pair(parent_index1, parent_index2)});
     }
     // if neither of the parents are hanging, we need to check if the parent edge is in the mesh
     // if the parent edge is not in the mesh, then the child is not hanging
@@ -143,7 +163,7 @@ int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
     {
         if (_edge_to_elements_map.count(parent_edge) > 0)
         {
-            _hanging_vertices.insert(new_index);
+            _hanging_vertices.insert({new_index, std::make_pair(parent_index1, parent_index2)});
         }
     }
 
@@ -435,6 +455,21 @@ void RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
                 _elements.erase(node.element_index);
                 _element_to_tree_node_map.erase(node.element_index);
             }
+            else
+            {
+                // if the node doesn't have an associated element index, it is a parent node
+                // check it's edges for midpoint vertices - these vertices will now be hanging
+                for (int k1 = 0; k1 < 4; k1++)
+                {
+                    for (int k2 = k1+1; k2 < 4; k2++)
+                    {
+                        if (auto search = _parent_edge_to_child_vertex_map.find(Edge(node.vertices[k1], node.vertices[k2])); search != _parent_edge_to_child_vertex_map.end())
+                        {
+                            _hanging_vertices.insert({search->second, std::make_pair(node.vertices[k1], node.vertices[k2])});
+                        }
+                    }
+                }
+            }
 
             // remove the node
             _element_tree_nodes.erase(node_index);
@@ -444,6 +479,18 @@ void RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
     // we have removed all the children so update the root node to reflect this
     root_node.children.clear();
 
+    // update hanging vertices for the root node edges
+    for (int k1 = 0; k1 < 4; k1++)
+    {
+        for (int k2 = k1+1; k2 < 4; k2++)
+        {
+            if (auto search = _parent_edge_to_child_vertex_map.find(Edge(root_node.vertices[k1], root_node.vertices[k2])); search != _parent_edge_to_child_vertex_map.end())
+            {
+                _hanging_vertices.insert({search->second, std::make_pair(root_node.vertices[k1], root_node.vertices[k2])});
+            }
+        }
+    }
+
     /** TODO:
      * 
      * 
@@ -452,6 +499,105 @@ void RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
 
 
 
+}
+
+std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
+{
+    std::unordered_set<int> hanging_verts;
+
+    // iterate through all the edges in the mesh
+    for (const auto& it : _edge_to_elements_map)
+    {
+        Edge edge = it.first;
+        // std::cout << "Edge: " << edge.index1 << ", " << edge.index2 << std::endl;
+
+        for (const auto& v_ind : _vertices.validIndices())
+        {
+            if (v_ind == edge.index1 || v_ind == edge.index2)
+                continue;
+            
+            // check if the vertex is on the line
+            const Vec3r& p = _vertices[v_ind];
+            const Vec3r& A = _vertices[edge.index1];
+            const Vec3r& B = _vertices[edge.index2];
+
+            // if cross product != 0, vertex is not on the line
+            const Vec3r AB = B - A;
+            const Vec3r AP = p - A;
+            const Vec3r cross = AB.cross(AP);
+            if (cross.norm() > 1e-10)
+                continue;
+
+            // check if p is between A and B
+            Real dot = AP.dot(AB);
+            Real len_AB_sq = AB.squaredNorm();
+
+            if (dot >= 0 && dot <= len_AB_sq)
+            {
+                // std::cout << "\tvertex " << v_ind << " on edge! " << std::endl;
+                hanging_verts.insert(v_ind);
+            }
+        }
+    }
+
+    // iterate through all the faces in the mesh
+    for (const auto& it : _face_to_elements_map)
+    {
+        Face face = it.first;
+        // std::cout << "Face: " << face.index1 << ", " << face.index2 << ", " << face.index3 << std::endl;
+
+        for (const auto& v_ind : _vertices.validIndices())
+        {
+            if (v_ind == face.index1 || v_ind == face.index2 || v_ind == face.index3)
+                continue;
+            
+            const Vec3r& p = _vertices[v_ind];
+            const Vec3r& A = _vertices[face.index1];
+            const Vec3r& B = _vertices[face.index2];
+            const Vec3r& C = _vertices[face.index3];
+
+            // check if vertex is on the face
+            const Vec3r v0 = C - A;
+            const Vec3r v1 = B - A;
+            const Vec3r v2 = p - A;
+
+            // Normal of triangle
+            const Vec3r normal = (B - A).cross(C - A);
+            Real normal_len = normal.norm();
+            
+            if (normal_len < 1e-10)
+                continue;
+            
+            
+            // Check coplanarity
+            if (std::abs((p - A).dot(normal)) > 1e-10)
+                continue;
+            
+            // Compute barycentric coordinates
+            Real dot00 = v0.dot(v0);
+            Real dot01 = v0.dot(v1);
+            Real dot02 = v0.dot(v2);
+            Real dot11 = v1.dot(v1);
+            Real dot12 = v1.dot(v2);
+            
+            Real denom = dot00 * dot11 - dot01 * dot01;
+            if (std::abs(denom) < 1e-10)
+                continue;
+            
+            Real inv_denom = 1.0 / denom;
+            Real u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+            Real v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
+            
+            // Check if point is in triangle (with small tolerance for numerical error)
+            if ( (u >= -1e-10) && (v >= -1e-10) && (u + v <= 1 + 1e-10) )
+            {
+                // std::cout << "\tvertex " << v_ind << " on face! " << std::endl; 
+                hanging_verts.insert(v_ind);
+            }
+        }
+    }
+
+    return hanging_verts;
 }
 
 } // namespace Geometry

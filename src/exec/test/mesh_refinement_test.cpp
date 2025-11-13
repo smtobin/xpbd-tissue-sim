@@ -20,7 +20,15 @@ int main()
         // refined_mesh.setCurrentStateAsUndeformedState();
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        refined_mesh.refineElement(0, 3);
+        refined_mesh.refineElement(0, 1);
+        refined_mesh.refineElement(1, 3);
+        // refined_mesh.refineElement(2, 2);
+        // refined_mesh.refineElement(3, 2);
+        // refined_mesh.refineElement(4, 2);
+        // refined_mesh.refineElement(5, 2);
+        // refined_mesh.refineElement(6, 2);
+        // refined_mesh.refineElement(7, 2);
+        // refined_mesh.refineElement(8, 2);
         refined_mesh.coarsenElement(25, 2);
         auto t2 = std::chrono::high_resolution_clock::now();
 
@@ -47,6 +55,8 @@ int main()
         std::cout << "Number of duplicate vertices: " << num_duplicate_verts << std::endl;
 
         std::cout << "Number of hanging vertices: " << refined_mesh.hangingVertices().size() << std::endl;
+
+        std::cout << "Number of hanging vertices (manual computation): " << refined_mesh.verifyHangingVertices().size() << std::endl;
 
         // visualize mesh with VTK
         Config::ObjectRenderConfig render_config(
