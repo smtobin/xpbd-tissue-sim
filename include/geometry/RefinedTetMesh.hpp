@@ -11,50 +11,6 @@
 namespace Geometry
 {
 
-// struct RefinedElement
-// {
-//     /** Tracks information associated with a child vertex created for a refined element. */
-//     struct ChildVertex
-//     {
-//         int index;
-//         int level;
-//         TetEdge edge = TetEdge::NONE;
-//         TetFace face = TetFace::NONE;
-
-//         ChildVertex(int index_, int level_)
-//             : index(index_), level(level_)
-//         {}
-
-//         ChildVertex(int index_, int level_, TetEdge edge_, TetFace face_)
-//             : index(index_), level(level_), edge(edge_), face(face_)
-//         {}
-//     };
-
-//     /** Keep track of the child vertices, faces, and elements.
-//      * These are the vertices, faces and elements created for the refined element.
-//      * Tracked as the indices in the global lists of vertices, faces, and elements.
-//      */
-//     std::unordered_map<int, ChildVertex> child_vertices;
-//     std::vector<int> child_faces;
-//     std::vector<int> child_elements;
-
-//     /** Maps a "parent" edge to the vertex defined on its midpoint (for vertices in this refined element).
-//      * This allows to easily check if we've already created a vertex on a given edge.
-//       */
-//     std::unordered_map<Edge, int, EdgeHash> edge_to_vertex_map;
-
-//     /** Store the original base element so that we can restore it when the refined element is no longer needed. */
-//     Vec4i parent_element;
-
-//     /** The refinement level of the element (i.e. the number of recursive hierarchical subdivisions) */
-//     int refinement_level;
-
-//     RefinedElement(const Vec4i& parent_element_, int refinement_level_)
-//         : parent_element(parent_element_), refinement_level(refinement_level_)
-//     {
-//     }
-// };
-
 class RefinedTetMesh : public TetMesh
 {
 public:
@@ -64,6 +20,7 @@ public:
         static constexpr int INVALID_INDEX = -1;
 
         Vec4i vertices;     // the vertex indices of the element
+        int element_index = INVALID_INDEX;  // the index of the element in the _elements vector (only applicable for leaf nodes)
         int parent;         // the index of the parent TreeNode
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
         int level;          // the level of refinement this node is at. Level 0 = base tetrahedron

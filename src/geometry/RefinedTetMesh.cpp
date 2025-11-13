@@ -1,5 +1,7 @@
 #include "geometry/RefinedTetMesh.hpp"
 
+#include <stack>
+
 namespace Geometry
 {
 
@@ -153,9 +155,13 @@ int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
 
 int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 {
-    const ElementTreeNode& node = _element_tree_nodes[tree_node_index];
+    ElementTreeNode& node = _element_tree_nodes[tree_node_index];
     int elem_index = _addNewElement(node.vertices, node.f123_on_surface, node.f124_on_surface, node.f134_on_surface, node.f234_on_surface);
+    node.element_index = elem_index;
+
+    // update the element -> tree node map
     _element_to_tree_node_map.insert({elem_index, tree_node_index});
+
     return elem_index;
 }
 
@@ -274,10 +280,12 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         // add newest level of midpoint vertices for each parent element at this level
         std::array<int,6> mid_verts;
         for (const auto& parent_node_index : parent_nodes)
-        {
-            // std::cout << "\n\n=== Parent Element: " << parent_node.transpose() << std::endl;
-            ElementTreeNode& parent_node = _element_tree_nodes[parent_node_index];
+        {            
+            // reserve space for the new ElementTreeNodes ahead of time so our reference is not invalidated
+            _element_tree_nodes.reserve(_element_tree_nodes.totalSize()+8);
 
+            ElementTreeNode& parent_node = _element_tree_nodes[parent_node_index];
+            // add vertices at midpoints
             int mid_vert_cnt = 0;
             for (int vi = 0; vi < 4; vi++)
             {
@@ -334,7 +342,6 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             }
 
         }
-        
         parent_nodes = std::move(next_parent_nodes);
         
     }
@@ -367,7 +374,83 @@ void RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
     if (coarsening_level == -1)
         coarsening_level = leaf_node.level;
 
-     
+    // get the root of the tree branch that we are going to replace this element (and its relatives) with
+    int root_index = leaf_node.parent;
+    int cur_level = leaf_node.level - 1;
+    while (cur_level > leaf_node.level - coarsening_level)
+    {
+        root_index = _element_tree_nodes[root_index].parent;
+        cur_level--;
+    }
+    
+
+    // add the element associated with root_node to the mesh
+    // do this before we remove child elements so that the vertices associated with the root element don't get deleted
+    ElementTreeNode& root_node = _element_tree_nodes[root_index];
+    _addNewElementFromElementTreeNode(root_index);
+
+    // Stack holds pairs of (node index, processing_stage)
+    // Stage 0: Push children
+    // Stage 1: Delete node
+    std::stack<std::pair<int, int>> stack;
+    
+    for (const auto& child_index : root_node.children)
+    {
+        stack.push({child_index, 0});
+    }
+
+    while (!stack.empty()) 
+    {
+        auto [node_index, stage] = stack.top();
+        ElementTreeNode& node = _element_tree_nodes[node_index];
+        stack.pop();
+        
+        if (stage == 0) 
+        {
+            // First visit: push this node back for deletion later
+            stack.push({node_index, 1});
+            
+            // Then push all children (they'll be processed first)
+            for (const auto& child_index : node.children) 
+            {
+                stack.push({child_index, 0});
+            }
+        } 
+        else 
+        {
+            // Second visit: all children are deleted, safe to delete this node
+            // if this is a leaf, delete the associated element in the mesh
+            if (node.element_index != ElementTreeNode::INVALID_INDEX)
+            {
+                // remove surface faces associated with this element
+                auto surface_faces_range = _element_to_surface_faces_map.equal_range(node.element_index);
+                for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
+                {
+                    _faces.erase(it->second);
+
+                    // note: we do not need to update the surface face -> element map since that will just be overwritten by whatever new faces are added
+                }
+
+                _updateElementMapsForRemovedElement(node.element_index);
+                _elements.erase(node.element_index);
+                _element_to_tree_node_map.erase(node.element_index);
+            }
+
+            // remove the node
+            _element_tree_nodes.erase(node_index);
+        }   
+    }
+
+    // we have removed all the children so update the root node to reflect this
+    root_node.children.clear();
+
+    /** TODO:
+     * 
+     * 
+     * update hanging vertices!!
+     */
+
+
 
 }
 
