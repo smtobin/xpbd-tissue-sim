@@ -30,6 +30,7 @@ int main()
         // refined_mesh.refineElement(7, 2);
         // refined_mesh.refineElement(8, 2);
         refined_mesh.coarsenElement(25, 2);
+        refined_mesh.refineElement(80, 2);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;

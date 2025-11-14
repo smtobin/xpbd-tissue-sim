@@ -100,6 +100,8 @@ private:
     int _addNewElementFromElementTreeNode(int tree_node_index);
     int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
 
+    void _updateParentEdgeToChildVertexMapForRemovedElement(const Vec4i& elem);
+
 protected:
 
     /** Stores the refined element structs, according to their "base" elements in the original tet mesh. */
@@ -120,6 +122,7 @@ protected:
      * This is a one-to-one mapping, i.e. each parent edge should only have one child vertex.
      */
     std::unordered_map<Edge, int, EdgeHash> _parent_edge_to_child_vertex_map;
+    std::unordered_map<int, Edge> _child_vertex_to_parent_edge_map;
 
     /** Stores the indices of vertices that are "hanging".
      * A hanging vertex is one that is in the middle of an edge.

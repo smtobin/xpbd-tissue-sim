@@ -65,46 +65,11 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
             _hanging_vertices.erase(elem_to_remove[k]);
 
             // since this vertex is being removed, we must update the parent edge -> child vertex map
-            // but this only applies if the element being removed is a child element (i.e. created as a result of refinement)
-            if (auto search = _element_to_tree_node_map.find(element_index); search != _element_to_tree_node_map.end())
+            // but this only applies if the vertex being removed is a child vertex (i.e. created as a result of refinement)
+            if (auto search = _child_vertex_to_parent_edge_map.find(elem_to_remove[k]); search != _child_vertex_to_parent_edge_map.end())
             {
-                int node_index = search->second;
-                const ElementTreeNode& child_tree_node = _element_tree_nodes[node_index];
-                const ElementTreeNode& parent_tree_node = _element_tree_nodes[child_tree_node.parent];
-
-                // go through parent element edges - MMM SPAGHETTI!
-                const Vec4i& parent_elem = parent_tree_node.vertices;
-                if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[1])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[2])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[0], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[1], parent_elem[2])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[1], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                else if (auto it = _parent_edge_to_child_vertex_map.find(Edge(parent_elem[2], parent_elem[3])); it != _parent_edge_to_child_vertex_map.end())
-                {
-                    if (it->second == elem_to_remove[k])
-                        _parent_edge_to_child_vertex_map.erase(it);
-                }
-                
+                _parent_edge_to_child_vertex_map.erase(search->second);
+                _child_vertex_to_parent_edge_map.erase(search->first);
             }
         }
     }
@@ -169,6 +134,7 @@ int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
 
     // add the new vertex to the parent edge -> child vertex map
     _parent_edge_to_child_vertex_map.insert({parent_edge, new_index});
+    _child_vertex_to_parent_edge_map.insert({new_index, parent_edge});
 
     return new_index;
 }
@@ -513,7 +479,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
 
         for (const auto& v_ind : _vertices.validIndices())
         {
-            if (v_ind == edge.index1 || v_ind == edge.index2)
+            if (static_cast<int>(v_ind) == edge.index1 || static_cast<int>(v_ind) == edge.index2)
                 continue;
             
             // check if the vertex is on the line
@@ -548,7 +514,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
 
         for (const auto& v_ind : _vertices.validIndices())
         {
-            if (v_ind == face.index1 || v_ind == face.index2 || v_ind == face.index3)
+            if (static_cast<int>(v_ind) == face.index1 || static_cast<int>(v_ind) == face.index2 || static_cast<int>(v_ind) == face.index3)
                 continue;
             
             const Vec3r& p = _vertices[v_ind];
@@ -589,7 +555,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
             Real v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
             
             // Check if point is in triangle (with small tolerance for numerical error)
-            if ( (u >= -1e-10) && (v >= -1e-10) && (u + v <= 1 + 1e-10) )
+            if ( (u >= 1e-10) && (v >= 1e-10) && (u + v <= 1 - 1e-10) )
             {
                 // std::cout << "\tvertex " << v_ind << " on face! " << std::endl; 
                 hanging_verts.insert(v_ind);
