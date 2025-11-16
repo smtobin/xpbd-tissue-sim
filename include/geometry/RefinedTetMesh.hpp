@@ -30,6 +30,11 @@ public:
         bool f134_on_surface = false;
         bool f234_on_surface = false;
 
+        bool f123_on_border = false;
+        bool f124_on_border = false;
+        bool f134_on_border = false;
+        bool f234_on_border = false;
+
         bool isLeaf() const { return children.size() == 0; }
 
         ElementTreeNode(const Vec4i& vertices_, int parent_, int level_)
@@ -38,11 +43,25 @@ public:
             children.reserve(8);
         }
 
-        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, bool f123, bool f124, bool f134, bool f234)
+        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, 
+            bool f123s, bool f124s, bool f134s, bool f234s, 
+            bool f123b, bool f124b, bool f134b, bool f234b)
             : vertices(vertices_), parent(parent_), level(level_),
-                f123_on_surface(f123), f124_on_surface(f124), f134_on_surface(f134), f234_on_surface(f234)
+                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s),
+                f123_on_border(f123b), f124_on_border(f124b), f134_on_border(f134b), f234_on_border(f234b)
         {
             children.reserve(8);
+        }
+    };
+
+    struct HangingVertex
+    {
+        Edge parent_edge;
+        bool on_face;
+
+        HangingVertex(int p1, int p2, bool on_face_)
+            : parent_edge(p1, p2), on_face(on_face_)
+        {
         }
     };
     
@@ -95,7 +114,8 @@ protected:
 
 private:
 
-    int _addRefinedVertex(int parent_index1, int parent_index2);
+    // int _addRefinedVertex(int parent_index1, int parent_index2);
+    int _addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj);
 
     int _addNewElementFromElementTreeNode(int tree_node_index);
     int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);

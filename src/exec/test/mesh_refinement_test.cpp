@@ -21,16 +21,17 @@ int main()
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(1, 3);
-        // refined_mesh.refineElement(2, 2);
+        refined_mesh.refineElement(7, 2);
+        refined_mesh.refineElement(4, 2);
         // refined_mesh.refineElement(3, 2);
         // refined_mesh.refineElement(4, 2);
         // refined_mesh.refineElement(5, 2);
         // refined_mesh.refineElement(6, 2);
         // refined_mesh.refineElement(7, 2);
         // refined_mesh.refineElement(8, 2);
-        refined_mesh.coarsenElement(25, 2);
-        refined_mesh.refineElement(80, 2);
+        // refined_mesh.coarsenElement(25, 2);
+        std::cout << "========" << std::endl;
+        // refined_mesh.refineElement(80, 2);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;
@@ -54,6 +55,24 @@ int main()
         }
 
         std::cout << "Number of duplicate vertices: " << num_duplicate_verts << std::endl;
+
+        auto hanging_verts = refined_mesh.hangingVertices();
+        auto verified_hanging_verts = refined_mesh.verifyHangingVertices();
+        for (const auto& v : hanging_verts)
+        {
+            if (verified_hanging_verts.count(v.first) == 0)
+            {
+                std::cout << "Vertex " << v.first << " is in hanging_verts but not verified_hanging_verts!" << std::endl;
+            }
+        }
+
+        for (const auto& v : verified_hanging_verts)
+        {
+            if (hanging_verts.count(v) == 0)
+            {
+                std::cout << "Vertex " << v << " is in verified_hanging_verts but not hanging_verts!" << std::endl;
+            }
+        }
 
         std::cout << "Number of hanging vertices: " << refined_mesh.hangingVertices().size() << std::endl;
 

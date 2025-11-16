@@ -61,6 +61,8 @@ struct Face
         : index1(-1), index2(-1), index3(-1)
     {}
 
+    bool isValid() const { return (index1 != -1 && index2 != -1 && index3 != -1); }
+
     bool operator==(const Face& other) const
     {
         return index1 == other.index1 && index2 == other.index2 && index3 == other.index3;
