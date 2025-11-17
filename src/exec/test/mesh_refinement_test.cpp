@@ -21,8 +21,12 @@ int main()
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(7, 2);
-        refined_mesh.refineElement(4, 2);
+        refined_mesh.refineElement(3, 3);
+        refined_mesh.refineElement(11, 3);
+        // refined_mesh.refineElement(4, 3);
+        // refined_mesh.refineElement(3, 3);
+        // refined_mesh.refineElement(6, 4);
+        // refined_mesh.refineElement(2, 1);
         // refined_mesh.refineElement(3, 2);
         // refined_mesh.refineElement(4, 2);
         // refined_mesh.refineElement(5, 2);

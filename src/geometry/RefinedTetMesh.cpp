@@ -78,7 +78,7 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 /** Refinement */
 
 // int RefinedTetMesh::_addRefinedVertex(int parent_index1, int parent_index2)
-int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj)
+int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj, int base_tree_node_index)
 {
     int parent_index1 = parent_node.vertices[vi];
     int parent_index2 = parent_node.vertices[vj];
@@ -89,19 +89,24 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
     if (auto search = _parent_edge_to_child_vertex_map.find(parent_edge); search != _parent_edge_to_child_vertex_map.end())
     {
         // update if this node is hanging or not
+
         // if the parent edge is not in the mesh, then the child is not hanging
-        // if (auto hang_search = _hanging_vertices.find(search->second); hang_search != _hanging_vertices.end() )
-        // {
-        //     if (hang_search->second.isValid())
-        //     {
-        //         std::cout << "Face vertex " << search->second << " no longer hanging!" << std::endl;
-        //         _hanging_vertices.erase(search->second);
-        //     }
-        // }
         if (_edge_to_elements_map.count(parent_edge) == 0 && _hanging_vertices.count(parent_index1) == 0 && _hanging_vertices.count(parent_index2) == 0)
         {
             std::cout << "Vertex " << search->second << " no longer hanging!" << std::endl;
             _hanging_vertices.erase(search->second);
+        }
+        // if the child node is hanging, and it is a "face" hanging node
+        if (auto hang_search = _hanging_vertices.find(search->second); hang_search != _hanging_vertices.end() )
+        {
+            bool is_face = hang_search->second.second;
+            int hanging_base_tree_node_index = hang_search->second.first;
+            std::cout << "hanging vertex: " << search->second << "  is_face: " << is_face << "  hanging_btni: " << hanging_base_tree_node_index << "  btni: " << base_tree_node_index << std::endl;
+            if (_edge_to_elements_map.count(parent_edge) == 0 && is_face && hanging_base_tree_node_index != base_tree_node_index)
+            {
+                std::cout << "Face vertex " << search->second << " no longer hanging!" << std::endl;
+                _hanging_vertices.erase(search->second);
+            }
         }
         
         return search->second;
@@ -121,16 +126,16 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
 
     // if neither of the parents are hanging, we need to check if the parent edge is in the mesh
     // if the parent edge is not in the mesh, then the child is not hanging
-    if (!p1_hanging && !p2_hanging)
-    {
+    // if (!p1_hanging && !p2_hanging)
+    // {
         if (_edge_to_elements_map.count(parent_edge) > 0)
         {
             std::cout << "  New vertex " << new_index << " is hanging with no hanging parents" << std::endl;
-            _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+            _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, false)});
         }
-    }
+    // }
     // at least one parent is hanging
-    else
+    else if (p1_hanging || p2_hanging)
     {
         std::cout << "  At least one parent is hanging..." << std::endl;
         Edge p1_edge = _child_vertex_to_parent_edge_map.at(parent_index1);
@@ -141,18 +146,24 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
         bool parent_on_p2_edge = (p2_edge.index1 == parent_index1 || p2_edge.index2 == parent_index1 || p2_edge.index2 == parent_index2 || p2_edge.index2 == parent_index2);
         if (parent_on_p1_edge)
         {
-            if (_hanging_vertices.count(parent_index1) > 0)
+            if (p1_hanging)
             {
                 std::cout << "  Both parents are on collinear edges = vertex is hanging" << std::endl;
-                _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                bool is_face = search_p1->second.second;
+                if (p2_hanging) is_face = is_face || search_p2->second.second;
+
+                _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, is_face)});
             }
         }
         else if (parent_on_p2_edge)
         {
-            if (_hanging_vertices.count(parent_index2) > 0)
+            if (p2_hanging)
             {
+                bool is_face = search_p2->second.second;
+                if (p1_hanging) is_face = is_face || search_p1->second.second;
+
                 std::cout << "  Both parents are on collinear edges = vertex is hanging" << std::endl;
-                _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, is_face)});
             }
         }
         // Case 1b: parents are on different edges that share a vertex
@@ -175,7 +186,7 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
                 if (face123 == face)
                 {
                     std::cout << "  On a border face not on a surface face = vertex is hanging" << std::endl;
-                    _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                    _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, true)});
                 }
             }
             if ( (grandparent_node.f124_on_border && !grandparent_node.f124_on_surface) )
@@ -185,7 +196,7 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
                 if (face124 == face)
                 {
                     std::cout << "  On a border face not on a surface face = vertex is hanging" << std::endl;
-                    _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                    _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, true)});
                 }
             }
             if ( (grandparent_node.f134_on_border && !grandparent_node.f134_on_surface))
@@ -195,7 +206,7 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
                 if (face134 == face)
                 {
                     std::cout << "  On a border face not on a surface face = vertex is hanging" << std::endl;
-                    _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                    _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, true)});
                 }
             }
             if ( (grandparent_node.f234_on_border && !grandparent_node.f234_on_surface) )
@@ -205,27 +216,9 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
                 if (face234 == face)
                 {
                     std::cout << "  On a border face not on a surface face = vertex is hanging" << std::endl;
-                    _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
+                    _hanging_vertices.insert({new_index, std::make_pair(base_tree_node_index, true)});
                 }
             }
-            // else
-            // {
-            //     std::cout << "  On a surface face or not on a border face = vertex is hanging" << std::endl;
-            //     _hanging_vertices.insert({new_index, std::make_pair(vi,vj)});
-            // }
-
-            
-
-            // check if face exists in mesh
-            // if (_face_to_elements_map.count(face) > 0)
-            // {
-            //     std::cout << "  Face exists in the mesh! = vertex is hanging" << std::endl;
-            //     _hanging_vertices.insert({new_index, face});
-            // }
-            // else
-            // {
-            //     std::cout << "  Face does not exist in the mesh! = vertex not hanging" << std::endl;
-            // }
         }
         // Case 1c: parents are on different edges that do not share a vertex
         else
@@ -235,146 +228,6 @@ int RefinedTetMesh::_addRefinedVertex(const ElementTreeNode& parent_node, int vi
         }
     }
     
-
-    // if both of the parents are hanging, there are two cases:
-    //  - if the parents are on the same edge, the child is hanging
-    //  - if the parents are on different edges that share a vertex, the child is on the face created by those edges. 
-    //      If the face exists in the mesh, or all 3 vertices are hanging, the child is hanging.
-    //  - if the parents are on different edges that do not share a vertex, the child is "internal" to the parent tet and so is not hanging
-    // if (p1_hanging && p2_hanging)
-    // {
-    //     // Case 1: both parents are "edge" hanging nodes (i.e. they are located on an edge of another element)
-    //     if (!search_p1->second.isValid() && !search_p2->second.isValid())
-    //     {
-    //         std::cout << "  Both parents are 'edge' hanging nodes" << std::endl;
-    //         Edge p1_edge = _child_vertex_to_parent_edge_map.at(parent_index1);
-    //         Edge p2_edge = _child_vertex_to_parent_edge_map.at(parent_index2);
-
-    //         // Case 1a: parents are on edges that are collinear
-    //         if (p1_edge.index1 == parent_index1 || p1_edge.index2 == parent_index1 || p1_edge.index1 == parent_index2 || p1_edge.index2 == parent_index2 ||
-    //         p2_edge.index1 == parent_index1 || p2_edge.index2 == parent_index1 || p2_edge.index2 == parent_index2 || p2_edge.index2 == parent_index2)
-    //         {
-    //             std::cout << "  Both parents are on collinear edges = vertex is hanging" << std::endl;
-    //             _hanging_vertices.insert({new_index, Face()});
-    //         }
-    //         // Case 1b: parents are on different edges that share a vertex
-    //         else if (p1_edge.index1 == p2_edge.index1 || p1_edge.index1 == p2_edge.index2 || p1_edge.index2 == p2_edge.index1 || p1_edge.index2 == p2_edge.index2)
-    //         {
-    //             std::cout << "  Parents are on different parent edges that share a vertex!" << std::endl;
-    //             Face face;
-    //             if (p1_edge.index1 == p2_edge.index1 || p1_edge.index2 == p2_edge.index1)   face = Face(p1_edge.index1, p1_edge.index2, p2_edge.index2);
-    //             if (p1_edge.index1 == p2_edge.index2 || p1_edge.index2 == p2_edge.index2)   face = Face(p1_edge.index1, p1_edge.index2, p2_edge.index1);
-
-    //             // check if the new vertex is on a surface face
-    //             if (parent_node.f123_on_surface && ( (vi == 0 && vj == 1) || (vi == 0 && vj == 2) || (vi == 1 && vj == 2) ))
-    //             {
-    //                 std::cout << "  On surface face 123 = vertex not hanging" << std::endl;
-    //                 // on surface face 123
-    //             }
-    //             else if (parent_node.f124_on_surface && ( (vi == 0 && vj == 1) || (vi == 0 && vj == 3) || (vi == 1 && vj == 3) ))
-    //             {
-    //                 std::cout << "  On surface face 124 = vertex not hanging" << std::endl;
-    //                 // on surface face 124
-    //             }
-    //             else if (parent_node.f134_on_surface && ( (vi == 0 && vj == 2) || (vi == 0 && vj == 3) || (vi == 2 && vj == 3) ))
-    //             {
-    //                 std::cout << "  On surface face 134 = vertex not hanging" << std::endl;
-    //                 // on surface face 134
-    //             }
-    //             else if (parent_node.f234_on_surface && ( (vi == 1 && vj == 2) || (vi == 1 && vj == 3) || (vi == 2 && vj == 3) ))
-    //             {
-    //                 std::cout << "  On surface face 234 = vertex not hanging" << std::endl;
-    //                 // on surface face 234
-    //             }
-    //             else
-    //             {
-    //                 std::cout << "  Not on a surface face = vertex is hanging" << std::endl;
-    //                 _hanging_vertices.insert({new_index, face});
-    //             }
-
-                
-
-    //             // check if face exists in mesh
-    //             // if (_face_to_elements_map.count(face) > 0)
-    //             // {
-    //             //     std::cout << "  Face exists in the mesh! = vertex is hanging" << std::endl;
-    //             //     _hanging_vertices.insert({new_index, face});
-    //             // }
-    //             // else
-    //             // {
-    //             //     std::cout << "  Face does not exist in the mesh! = vertex not hanging" << std::endl;
-    //             // }
-    //         }
-    //         // Case 1c: parents are on different edges that do not share a vertex
-    //         else
-    //         {
-    //             std::cout << "  Parents are on different edges that do not share a vertex = not hanging" << std::endl;
-    //             // do nothing
-    //         }
-    //     }
-    //     // Case 2: both parents are "face" hanging nodes (i.e. they are located on a face of another element)
-    //     else if (search_p1->second.isValid() && search_p2->second.isValid())
-    //     {
-    //         std::cout << "  Both parents are 'face' hanging nodes" << std::endl;
-    //         // this is a hanging vertex if both parents are on the same face
-    //         // i.e. both parent faces have the same normal
-    //         const Vec3r& f1a = _vertices[search_p1->second.index1];
-    //         const Vec3r& f1b = _vertices[search_p1->second.index2];
-    //         const Vec3r& f1c = _vertices[search_p1->second.index3];
-
-    //         const Vec3r& f2a = _vertices[search_p2->second.index1];
-    //         const Vec3r& f2b = _vertices[search_p2->second.index2];
-    //         const Vec3r& f2c = _vertices[search_p2->second.index3];
-
-    //         const Vec3r n1 = (f1b - f1a).cross(f1c - f1a);
-    //         const Vec3r n2 = (f2b - f2a).cross(f2c - f2a);
-    //         Real cross = n1.cross(n2).squaredNorm();
-    //         // if (search_p1->second == search_p2->second)
-    //         if (cross < 1e-10)
-    //         {
-    //             std::cout << "  Both parents on the same face = vertex is hanging" << std::endl;
-    //             _hanging_vertices.insert({new_index, search_p1->second});
-    //         }
-    //     }
-    //     // Case 3: one parent is a "face" hanging node
-    //     else
-    //     {
-    //         std::cout << "  One parent is a 'face' hanging node = vertex is hanging" << std::endl;
-    //         if (search_p1->second.isValid())    _hanging_vertices.insert({new_index, search_p1->second});
-    //         else                                _hanging_vertices.insert({new_index, search_p2->second});
-    //     }
-    // }   
-    // // if only one of the parents are hanging, there are two cases:
-    // //  - the new vertex is on the same edge that the hanging parent is on, in which case the new vertex is hanging
-    // //  - the new vertex is on a different edge than the hanging parent, in which case the new vertex is not hanging 
-    // else if (p1_hanging)
-    // {
-    //     Edge hanging_edge = _child_vertex_to_parent_edge_map.at(parent_index1);
-    //     if (parent_index2 == hanging_edge.index1 || parent_index2 == hanging_edge.index2)
-    //     {
-    //         std::cout << "  New vertex " << new_index << " is hanging with 1 hanging parent" << std::endl;
-    //         _hanging_vertices.insert({new_index, Face()});
-    //     }
-    // }
-    // else if (p2_hanging)
-    // {
-    //     Edge hanging_edge = _child_vertex_to_parent_edge_map.at(parent_index2);
-    //     if (parent_index1 == hanging_edge.index1 || parent_index1 == hanging_edge.index2)
-    //     {
-    //         std::cout << "  New vertex " << new_index << " is hanging with 1 hanging parent" << std::endl;
-    //         _hanging_vertices.insert({new_index, Face()});
-    //     }
-    // }
-    // // if neither of the parents are hanging, we need to check if the parent edge is in the mesh
-    // // if the parent edge is not in the mesh, then the child is not hanging
-    // else
-    // {
-    //     if (_edge_to_elements_map.count(parent_edge) > 0)
-    //     {
-    //         std::cout << "  New vertex " << new_index << " is hanging with no hanging parents" << std::endl;
-    //         _hanging_vertices.insert({new_index, Face()});
-    //     }
-    // }
 
     // add the new vertex to the parent edge -> child vertex map
     _parent_edge_to_child_vertex_map.insert({parent_edge, new_index});
@@ -452,30 +305,43 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
     const Vec4i base_element = element(element_index);  // don't use a ref here since the element will soon be removed
 
-    // create the initial ElementTreeNode struct for the base element that we are subdividing
-    ElementTreeNode base_node(element(element_index), ElementTreeNode::INVALID_INDEX, 0);
-        
-    // find which faces of the base element (if any) are on the outer surface of the mesh
+    int base_node_index;
     auto surface_faces_range = _element_to_surface_faces_map.equal_range(element_index);
-    for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
+
+    if (auto search = _element_to_tree_node_map.find(element_index); search != _element_to_tree_node_map.end())
     {
-        const Vec3i& face_vec = face(it->second);
-        const Vec4i& elem = base_element;
-        Face surface_face(face_vec[0], face_vec[1], face_vec[2]);
-        
-        if (Face(elem[0], elem[1], elem[2]) == surface_face)        base_node.f123_on_surface = true;
-        else if (Face(elem[0], elem[1], elem[3]) == surface_face)   base_node.f124_on_surface = true;
-        else if (Face(elem[0], elem[2], elem[3]) == surface_face)   base_node.f134_on_surface = true;
-        else if (Face(elem[1], elem[2], elem[3]) == surface_face)   base_node.f234_on_surface = true;
+        base_node_index = search->second;
+        _element_tree_nodes[base_node_index].f123_on_border = true;
+        _element_tree_nodes[base_node_index].f124_on_border = true;
+        _element_tree_nodes[base_node_index].f134_on_border = true;
+        _element_tree_nodes[base_node_index].f234_on_border = true;
     }
+    else
+    {
+        // create the initial ElementTreeNode struct for the base element that we are subdividing
+        ElementTreeNode base_node(element(element_index), ElementTreeNode::INVALID_INDEX, 0);
+            
+        // find which faces of the base element (if any) are on the outer surface of the mesh
+        for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
+        {
+            const Vec3i& face_vec = face(it->second);
+            const Vec4i& elem = base_element;
+            Face surface_face(face_vec[0], face_vec[1], face_vec[2]);
+            
+            if (Face(elem[0], elem[1], elem[2]) == surface_face)        base_node.f123_on_surface = true;
+            else if (Face(elem[0], elem[1], elem[3]) == surface_face)   base_node.f124_on_surface = true;
+            else if (Face(elem[0], elem[2], elem[3]) == surface_face)   base_node.f134_on_surface = true;
+            else if (Face(elem[1], elem[2], elem[3]) == surface_face)   base_node.f234_on_surface = true;
+        }
 
-    base_node.f123_on_border = true;
-    base_node.f124_on_border = true;
-    base_node.f134_on_border = true;
-    base_node.f234_on_border = true;
+        base_node.f123_on_border = true;
+        base_node.f124_on_border = true;
+        base_node.f134_on_border = true;
+        base_node.f234_on_border = true;
 
-    // add the base element tree node to the tree nodes vector
-    int base_node_index = _element_tree_nodes.push_back(std::move(base_node));
+        // add the base element tree node to the tree nodes vector
+        base_node_index = _element_tree_nodes.push_back(std::move(base_node));
+    }
     
     // recursively keep track of "parent" elements that we want to subdivide
     std::vector<int> parent_nodes = {base_node_index};
@@ -485,7 +351,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
     /** === Step 3: Remove the element from the mesh === */
 
-    // first remove surface faces associated with the element
+    // remove surface faces associated with the element
     for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
     {
         _faces.erase(it->second);
@@ -529,7 +395,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                 for (int vj = vi+1; vj < 4; vj++)
                 {
                     // mid_verts[mid_vert_cnt++] = _addRefinedVertex(parent_node.vertices[vi], parent_node.vertices[vj]);
-                    mid_verts[mid_vert_cnt++] = _addRefinedVertex(parent_node, vi, vj);
+                    mid_verts[mid_vert_cnt++] = _addRefinedVertex(parent_node, vi, vj, base_node_index);
                 }
             }
 

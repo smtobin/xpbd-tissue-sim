@@ -21,7 +21,7 @@ public:
 
         Vec4i vertices;     // the vertex indices of the element
         int element_index = INVALID_INDEX;  // the index of the element in the _elements vector (only applicable for leaf nodes)
-        int parent;         // the index of the parent TreeNode
+        int parent = INVALID_INDEX;         // the index of the parent TreeNode
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
         int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
 
@@ -97,7 +97,7 @@ public:
      */
     void coarsenElement(int element_index, int coarsening_level);
 
-    const std::unordered_map<int, std::pair<int,int>>& hangingVertices() const { return _hanging_vertices; }
+    const std::unordered_map<int, std::pair<int,bool>>& hangingVertices() const { return _hanging_vertices; }
 
     /** Goes through the entire mesh and finds all hanging vertices.
      * Useful for verifying that we are marking the hanging vertices correctly.
@@ -115,7 +115,7 @@ protected:
 private:
 
     // int _addRefinedVertex(int parent_index1, int parent_index2);
-    int _addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj);
+    int _addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj, int base_parent_node_index);
 
     int _addNewElementFromElementTreeNode(int tree_node_index);
     int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
@@ -155,7 +155,7 @@ protected:
      * 
      * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
      */
-    std::unordered_map<int, std::pair<int,int>> _hanging_vertices;
+    std::unordered_map<int, std::pair<int,bool>> _hanging_vertices;
 
 };
 
