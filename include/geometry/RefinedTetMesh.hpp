@@ -132,7 +132,7 @@ private:
 
     void _updateParentEdgeToChildVertexMapForRemovedElement(const Vec4i& elem);
 
-    void _updateFeatureTreeForRemovedElement(int element_index, int depth=std::numeric_limits<int>::max());
+    void _updateFeatureTreeForRemovedElement(int element_tree_node_index, int depth=std::numeric_limits<int>::max());
 
 protected:
 
