@@ -21,14 +21,14 @@ int main()
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(6, 3);
-        // refined_mesh.refineElement(9, 1);
-        // refined_mesh.refineElement(10, 1);
-        // refined_mesh.refineElement(11, 1);
-        // refined_mesh.refineElement(12, 1);
-        // refined_mesh.refineElement(13, 1);
-        // refined_mesh.refineElement(15, 1);
-        // refined_mesh.refineElement(14, 1);
+        refined_mesh.refineElement(6, 2);
+        refined_mesh.refineElement(9, 1);
+        refined_mesh.refineElement(10, 1);
+        refined_mesh.refineElement(11, 1);
+        refined_mesh.refineElement(12, 1);
+        refined_mesh.refineElement(13, 1);
+        refined_mesh.refineElement(15, 1);
+        refined_mesh.refineElement(14, 1);
         // refined_mesh.refineElement(6, 2);
         // refined_mesh.refineElement(9, 3);
         // refined_mesh.refineElement(4, 3);
@@ -89,6 +89,22 @@ int main()
         std::cout << "Number of hanging vertices: " << refined_mesh.hangingVertices().size() << std::endl;
 
         std::cout << "Number of hanging vertices (manual computation): " << refined_mesh.verifyHangingVertices().size() << std::endl;
+
+        for (const auto& face : refined_mesh.faces())
+        {
+            const Vec3r& v1 = refined_mesh.vertex(face[0]);
+            const Vec3r& v2 = refined_mesh.vertex(face[1]);
+            const Vec3r& v3 = refined_mesh.vertex(face[2]);
+
+            Real v1v2 = (v2-v1).norm();
+            Real v1v3 = (v3-v1).norm();
+            Real v2v3 = (v3-v2).norm();
+
+            if (v1v2/v1v3 < 0.75 || v1v2/v1v3 > 1.25 || v1v2/v2v3 < 0.75 || v1v2/v2v3 > 1.25 || v1v3/v2v3 < 0.75 || v1v3/v2v3 > 1.25)
+            {
+                std::cout << "Face " << face.transpose() << " is misshapen!" << std::endl;
+            }
+        }
 
         // visualize mesh with VTK
         Config::ObjectRenderConfig render_config(

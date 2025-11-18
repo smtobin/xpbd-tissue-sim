@@ -66,11 +66,11 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 
             // since this vertex is being removed, we must update the parent edge -> child vertex map
             // but this only applies if the vertex being removed is a child vertex (i.e. created as a result of refinement)
-            if (auto search = _child_vertex_to_parent_edge_map.find(elem_to_remove[k]); search != _child_vertex_to_parent_edge_map.end())
-            {
-                _parent_edge_to_child_vertex_map.erase(search->second);
-                _child_vertex_to_parent_edge_map.erase(search->first);
-            }
+            // if (auto search = _child_vertex_to_parent_edge_map.find(elem_to_remove[k]); search != _child_vertex_to_parent_edge_map.end())
+            // {
+            //     _parent_edge_to_child_vertex_map.erase(search->second);
+            //     _child_vertex_to_parent_edge_map.erase(search->first);
+            // }
         }
     }
 }
@@ -80,7 +80,11 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 {
     ElementTreeNode& node = _element_tree_nodes[tree_node_index];
-    int elem_index = _addNewElement(node.vertices, node.f123_on_surface, node.f124_on_surface, node.f134_on_surface, node.f234_on_surface);
+    bool f012_on_surface = (node.face_nodes[0] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[0]].on_surface);
+    bool f013_on_surface = (node.face_nodes[1] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[1]].on_surface);
+    bool f023_on_surface = (node.face_nodes[2] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[2]].on_surface);
+    bool f123_on_surface = (node.face_nodes[3] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[3]].on_surface);
+    int elem_index = _addNewElement(node.vertices, f012_on_surface, f013_on_surface, f023_on_surface, f123_on_surface);
     node.element_index = elem_index;
 
     // update the element -> tree node map
@@ -227,9 +231,9 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
 
         edge_nodes_to_update.pop();
 
-        if (auto search = _parent_edge_to_child_vertex_map.find(edge_node.edge); search != _parent_edge_to_child_vertex_map.end())
+        if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
         {
-            _hanging_vertices.erase(search->second);
+            _hanging_vertices.erase(edge_node.child_vertex);
         }
 
         if (!edge_node.is_leaf && d > 0)
@@ -272,16 +276,20 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         ElementTreeNode base_node(element(element_index), ElementTreeNode::INVALID_INDEX, 0);
             
         // find which faces of the base element (if any) are on the outer surface of the mesh
+        bool f012_on_surface = false;
+        bool f013_on_surface = false;
+        bool f023_on_surface = false;
+        bool f123_on_surface = false;
         for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
         {
             const Vec3i& face_vec = face(it->second);
             const Vec4i& elem = base_element;
             Face surface_face(face_vec[0], face_vec[1], face_vec[2]);
             
-            if (Face(elem[0], elem[1], elem[2]) == surface_face)        base_node.f123_on_surface = true;
-            else if (Face(elem[0], elem[1], elem[3]) == surface_face)   base_node.f124_on_surface = true;
-            else if (Face(elem[0], elem[2], elem[3]) == surface_face)   base_node.f134_on_surface = true;
-            else if (Face(elem[1], elem[2], elem[3]) == surface_face)   base_node.f234_on_surface = true;
+            if (Face(elem[0], elem[1], elem[2]) == surface_face)        f012_on_surface = true;
+            else if (Face(elem[0], elem[1], elem[3]) == surface_face)   f013_on_surface = true;
+            else if (Face(elem[0], elem[2], elem[3]) == surface_face)   f023_on_surface = true;
+            else if (Face(elem[1], elem[2], elem[3]) == surface_face)   f123_on_surface = true;
         }
 
         // set or create the edge nodes
@@ -306,7 +314,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             }
         }
         // set or create the face nodes
-        auto set_or_create_face_node = [&](int fi, int v1, int v2, int v3) -> void
+        auto set_or_create_face_node = [&](int fi, int v1, int v2, int v3, bool surface) -> void
         {
             Face face(v1, v2, v3);
             auto search = _face_to_face_node_map.find(face);
@@ -317,15 +325,17 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             else
             {
                 int new_face_node_index = _face_nodes.emplace_back(face);
+                _face_nodes[new_face_node_index].on_surface = surface;
+
                 base_node.face_nodes[fi] = new_face_node_index;
                 _face_to_face_node_map.insert({face, new_face_node_index});
             }
         };
 
-        set_or_create_face_node(0, base_node.vertices[0], base_node.vertices[1], base_node.vertices[2]);    // F012
-        set_or_create_face_node(1, base_node.vertices[0], base_node.vertices[1], base_node.vertices[3]);    // F013
-        set_or_create_face_node(2, base_node.vertices[0], base_node.vertices[2], base_node.vertices[3]);    // F023
-        set_or_create_face_node(3, base_node.vertices[1], base_node.vertices[2], base_node.vertices[3]);    // F123
+        set_or_create_face_node(0, base_node.vertices[0], base_node.vertices[1], base_node.vertices[2], f012_on_surface);    // F012
+        set_or_create_face_node(1, base_node.vertices[0], base_node.vertices[1], base_node.vertices[3], f013_on_surface);    // F013
+        set_or_create_face_node(2, base_node.vertices[0], base_node.vertices[2], base_node.vertices[3], f023_on_surface);    // F023
+        set_or_create_face_node(3, base_node.vertices[1], base_node.vertices[2], base_node.vertices[3], f123_on_surface);    // F123
 
         // add the base element tree node to the tree nodes vector
         base_node_index = _element_tree_nodes.push_back(std::move(base_node));
@@ -375,7 +385,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         // add newest level of midpoint vertices for each parent element at this level
         std::array<int,6> mid_verts;
         for (const auto& parent_node_index : parent_nodes)
-        {            
+        {
             // reserve space for the new ElementTreeNodes ahead of time so our reference is not invalidated
             _element_tree_nodes.reserve(_element_tree_nodes.totalSize()+8);
 
@@ -392,13 +402,22 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
                     // get the EdgeNode for the parent edge
                     int parent_edge_node_index = parent_node.edge_nodes[edge_index];
-                    std::cout << "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
                     Edge parent_edge = _edge_nodes[parent_edge_node_index].edge;
 
-                    // add vertex at midpoint
-                    if (auto search = _parent_edge_to_child_vertex_map.find(parent_edge); search != _parent_edge_to_child_vertex_map.end())
+                    Edge vertices_edge = Edge(parent_node.vertices[vi], parent_node.vertices[vj]);
+                    if (!(parent_edge == vertices_edge))
                     {
-                        mid_verts[edge_index] =  search->second;
+                        std::cout << "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
+                        "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
+                        std::cout << " vi: " << vi << "  vj: " << vj << std::endl;
+                        std::cout << " parent edge node_index: " << parent_edge_node_index << std::endl;
+                        std::cout << " element: " << parent_node.vertices.transpose() << std::endl;
+                    }
+
+                    // add vertex at midpoint
+                    if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
+                    {
+                        mid_verts[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
                     }
                     else
                     {
@@ -408,8 +427,8 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                         std::cout << "=== Created new vertex " << new_vert_index << " === " << std::endl;
                         std::cout << " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
 
-                        _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
-                        _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
+                        // _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
+                        // _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
 
                         // create EdgeNodes for the child edges
                         EdgeNode child1(parent_node.vertices[vi], mid_verts[edge_index]);
@@ -423,10 +442,17 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                         _edge_nodes[parent_edge_node_index].child_edge_node1 = _edge_nodes.push_back(std::move(child1));
                         _edge_nodes[parent_edge_node_index].child_edge_node2 = _edge_nodes.push_back(std::move(child2));
 
+                        std::cout << "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
+                         "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
+                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
+                            _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
+                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
+                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
+
                         _edge_nodes[parent_edge_node_index].is_leaf = false;
+                        _edge_nodes[parent_edge_node_index].child_vertex = new_vert_index;
                     }
 
-                    // TODO: where to do this?
                     // the midpoint vertex is hanging if the parent edge is "in" the mesh
                     if (_edge_nodes[parent_edge_node_index].in_mesh)
                     {
@@ -475,18 +501,22 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                 FaceNode child_face1(v1, m12, m13);
                 child_face1.parent_face_node = parent_face_node_index;
                 child_face1.in_mesh = child_feature_in_mesh;
+                child_face1.on_surface = _face_nodes[parent_face_node_index].on_surface;
 
                 FaceNode child_face2(v2, m12, m23);
                 child_face2.parent_face_node = parent_face_node_index;
                 child_face2.in_mesh = child_feature_in_mesh;
+                child_face2.on_surface = _face_nodes[parent_face_node_index].on_surface;
 
                 FaceNode child_face3(v3, m13, m23);
                 child_face3.parent_face_node = parent_face_node_index;
                 child_face3.in_mesh = child_feature_in_mesh;
+                child_face3.on_surface = _face_nodes[parent_face_node_index].on_surface;
 
                 FaceNode child_face4(m12, m13, m23);
                 child_face4.parent_face_node = parent_face_node_index;
                 child_face4.in_mesh = child_feature_in_mesh;
+                child_face4.on_surface = _face_nodes[parent_face_node_index].on_surface;
 
                 _face_nodes[parent_face_node_index].child_face_nodes[0] = _face_nodes.push_back(std::move(child_face1));
                 _face_nodes[parent_face_node_index].child_face_nodes[1] = _face_nodes.push_back(std::move(child_face2));
@@ -528,54 +558,157 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             _edge_nodes[e67_node_index].in_mesh = level == refinement_level-1;
 
             // indices for edges and faces created programmatically
-            int e04_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node1;
-            int e14_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node2;
-            int e05_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node1;
-            int e25_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node2;
-            int e06_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node1;
-            int e36_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node2;
-            int e17_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node1;
-            int e27_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node2;
-            int e18_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node1;
-            int e38_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node2;
-            int e29_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node1;
-            int e39_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node2;
+            auto match_child_edge_node_indices = [&](int parent_edge_node_index, int lower) -> std::pair<int,int>
+            {
+                const EdgeNode& parent_edge_node = _edge_nodes[parent_edge_node_index];
+                const EdgeNode& child_edge_node1 = _edge_nodes[parent_edge_node.child_edge_node1];
+                if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
+                {
+                    return {parent_edge_node.child_edge_node1, parent_edge_node.child_edge_node2};
+                }
+                else
+                {
+                    return {parent_edge_node.child_edge_node2, parent_edge_node.child_edge_node1};
+                }
+            };
 
-            int e45_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[0];
-            int e47_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[1];
-            int e57_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[2];
+            auto match_face_node_to_child_edge_node_indices = [&](int parent_face_node_index, int lower, int middle) -> std::tuple<int, int, int>
+            {
+                const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
+                const EdgeNode& child_edge_node1 = _edge_nodes[parent_face_node.child_edge_nodes[0]];
+                const EdgeNode& child_edge_node2 = _edge_nodes[parent_face_node.child_edge_nodes[1]];
+                if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
+                {
+                    if (child_edge_node1.edge.index1 == middle || child_edge_node1.edge.index2 == middle)
+                    {
+                        if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
+                            return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2]};
+                        else
+                            return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1]};
+                    }
+                    else
+                    {
+                        if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
+                            return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2]};
+                        else
+                            return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1]};
+                    }
+                }
+                else
+                {
+                    if ( (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower) && 
+                         (child_edge_node2.edge.index1 == middle || child_edge_node2.edge.index2 == middle) )
+                        return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0]};
+                    else
+                        return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0]};
+                }
+            };
 
-            int e46_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[0];
-            int e48_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[1];
-            int e68_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[2];
+            auto match_face_node_to_child_face_node_indices = [&](int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12) -> std::tuple<int, int, int, int>
+            {
+                const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
+                int ind1 = -1, ind2 = -1, ind3 = -1, ind4 = -1;
+                for (const auto& child_face_node_index : parent_face_node.child_face_nodes)
+                {
+                    const FaceNode& child_face_node = _face_nodes[child_face_node_index];
+                    if (ind1 < 0 && child_face_node.face == Face(v0, m01, m02))
+                    {
+                        ind1 = child_face_node_index;
+                        continue;
+                    }
+                    if (ind2 < 0 && child_face_node.face == Face(v1, m01, m12))
+                    {
+                        ind2 = child_face_node_index;
+                        continue;
+                    }
+                    if (ind3 < 0 && child_face_node.face == Face(v2, m02, m12))
+                    {
+                        ind3 = child_face_node_index;
+                        continue;
+                    }
+                    if (ind4 < 0 && child_face_node.face == Face(m01, m02, m12))
+                    {
+                        ind4 = child_face_node_index;
+                        continue;
+                    }
+                }
+                return {ind1, ind2, ind3, ind4};
+            };
 
-            int e56_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[0];
-            int e59_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[1];
-            int e69_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[2];
+            auto [e04_node_index, e14_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[0], parent_node.vertices[0]);
+            auto [e05_node_index, e25_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[1], parent_node.vertices[0]);
+            auto [e06_node_index, e36_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[2], parent_node.vertices[0]);
+            auto [e17_node_index, e27_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[3], parent_node.vertices[1]);
+            auto [e18_node_index, e38_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[4], parent_node.vertices[1]);
+            auto [e29_node_index, e39_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[5], parent_node.vertices[2]);
 
-            int e78_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[0];
-            int e79_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[1];
-            int e89_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[2];
+            // auto [e45_node_index, e14_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[0], parent_node.vertices[0]);
+            // int e04_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node1;
+            // int e14_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node2;
+            // int e05_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node1;
+            // int e25_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node2;
+            // int e06_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node1;
+            // int e36_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node2;
+            // int e17_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node1;
+            // int e27_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node2;
+            std::cout << "e17: " << _edge_nodes[e17_node_index].edge.index1 << ", " << _edge_nodes[e17_node_index].edge.index2 << std::endl;
+            std::cout << "e27: " << _edge_nodes[e27_node_index].edge.index1 << ", " << _edge_nodes[e27_node_index].edge.index2 << std::endl;
+            // int e18_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node1;
+            // int e38_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node2;
+            // int e29_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node1;
+            // int e39_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node2;
 
-            int f045_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[0];
-            int f147_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[1];
-            int f257_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[2];
-            int f457_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[3];
+            // int e45_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[0];
+            // int e47_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[1];
+            // int e57_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[2];
+            auto [e45_node_index, e47_node_index, e57_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[0], mid_verts[0], mid_verts[1]);
 
-            int f046_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[0];
-            int f148_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[1];
-            int f368_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[2];
-            int f468_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[3];
+            // int e46_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[0];
+            // int e48_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[1];
+            // int e68_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[2];
+            auto [e46_node_index, e48_node_index, e68_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[1], mid_verts[0], mid_verts[2]);
 
-            int f056_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[0];
-            int f259_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[1];
-            int f369_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[2];
-            int f569_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[3];
+            // int e56_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[0];
+            // int e59_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[1];
+            // int e69_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[2];
+            auto [e56_node_index, e59_node_index, e69_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[2], mid_verts[1], mid_verts[2]);
 
-            int f178_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[0];
-            int f279_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[1];
-            int f389_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[2];
-            int f789_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[3];
+            // int e78_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[0];
+            // int e79_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[1];
+            // int e89_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[2];
+            auto [e78_node_index, e79_node_index, e89_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[3], mid_verts[3], mid_verts[4]);
+
+            // int f045_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[0];
+            // int f147_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[1];
+            // int f257_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[2];
+            // int f457_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[3];
+            auto [f045_node_index, f147_node_index, f257_node_index, f457_node_index] = match_face_node_to_child_face_node_indices(
+                parent_node.face_nodes[0], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[2], mid_verts[0], mid_verts[1], mid_verts[3]
+            );
+
+            // int f046_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[0];
+            // int f148_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[1];
+            // int f368_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[2];
+            // int f468_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[3];
+            auto [f046_node_index, f148_node_index, f368_node_index, f468_node_index] = match_face_node_to_child_face_node_indices(
+                parent_node.face_nodes[1], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[3], mid_verts[0], mid_verts[2], mid_verts[4]
+            );
+
+            // int f056_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[0];
+            // int f259_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[1];
+            // int f369_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[2];
+            // int f569_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[3];
+            auto [f056_node_index, f259_node_index, f369_node_index, f569_node_index] = match_face_node_to_child_face_node_indices(
+                parent_node.face_nodes[2], parent_node.vertices[0], parent_node.vertices[2], parent_node.vertices[3], mid_verts[1], mid_verts[2], mid_verts[5]
+            );
+
+            // int f178_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[0];
+            // int f279_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[1];
+            // int f389_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[2];
+            // int f789_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[3];
+            auto [f178_node_index, f279_node_index, f389_node_index, f789_node_index] = match_face_node_to_child_face_node_indices(
+                parent_node.face_nodes[3], parent_node.vertices[1], parent_node.vertices[2], parent_node.vertices[3], mid_verts[3], mid_verts[4], mid_verts[5]
+            );
 
             // the 4 "corner" new tets
             const Vec4i elem1(parent_node.vertices[0], mid_verts[0], mid_verts[1], mid_verts[2]);   // (0, 4, 5, 6)
@@ -589,53 +722,54 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             const Vec4i elem7(mid_verts[2], mid_verts[4], mid_verts[5], mid_verts[3]);    // (6, 8, 9, 7)
             const Vec4i elem8(mid_verts[1], mid_verts[5], mid_verts[2], mid_verts[3]);    // (5, 9, 6, 7)
 
-            std::cout << "e46_node_index: " << e46_node_index << "  e56_node_index: " << e56_node_index << std::endl;
+            std::cout << "Parent element: " << parent_node.vertices.transpose() << std::endl;
+            std::cout << "Midpoint verts: " << mid_verts[0] << " " << mid_verts[1] << " " << mid_verts[2] << " " << mid_verts[3] << " " << mid_verts[4] << " " << mid_verts[5] << std::endl;
+            std::cout << "elem1: " << elem1.transpose() << std::endl;
+            std::cout << "elem2: " << elem2.transpose() << std::endl;
+            std::cout << "elem3: " << elem3.transpose() << std::endl;
+            std::cout << "elem4: " << elem4.transpose() << std::endl;
+            std::cout << "elem5: " << elem5.transpose() << std::endl;
+            std::cout << "elem6: " << elem6.transpose() << std::endl;
+            std::cout << "elem7: " << elem7.transpose() << std::endl;
+            std::cout << "elem8: " << elem8.transpose() << std::endl;
 
             // create tree nodes for each element
             int enode1 = _element_tree_nodes.emplace_back(elem1, parent_node_index, parent_node.level+1, 
-                parent_node.f123_on_surface, parent_node.f124_on_surface, parent_node.f134_on_surface, false,
                 std::array<int,6>{e04_node_index, e05_node_index, e06_node_index, e45_node_index, e46_node_index, e56_node_index},
                 std::array<int,4>{f045_node_index, f046_node_index, f056_node_index, f456_node_index}
             );
             
             int enode2 = _element_tree_nodes.emplace_back(elem2, parent_node_index, parent_node.level+1, 
-                parent_node.f123_on_surface, parent_node.f124_on_surface, parent_node.f234_on_surface, false,
                 std::array<int,6>{e14_node_index, e17_node_index, e18_node_index, e47_node_index, e48_node_index, e78_node_index},
                 std::array<int,4>{f147_node_index, f148_node_index, f178_node_index, f478_node_index}
             );
 
             int enode3 = _element_tree_nodes.emplace_back(elem3, parent_node_index, parent_node.level+1, 
-                parent_node.f123_on_surface, parent_node.f134_on_surface, parent_node.f234_on_surface, false,
                 std::array<int,6>{e25_node_index, e27_node_index, e29_node_index, e57_node_index, e59_node_index, e79_node_index},
                 std::array<int,4>{f257_node_index, f259_node_index, f279_node_index, f579_node_index}
             );
 
             int enode4 = _element_tree_nodes.emplace_back(elem4, parent_node_index, parent_node.level+1, 
-                false, parent_node.f124_on_surface, parent_node.f134_on_surface, parent_node.f234_on_surface,
                 std::array<int,6>{e68_node_index, e69_node_index, e36_node_index, e89_node_index, e38_node_index, e39_node_index},
                 std::array<int,4>{f689_node_index, f368_node_index, f369_node_index, f389_node_index}
             );
 
             int enode5 = _element_tree_nodes.emplace_back(elem5, parent_node_index, parent_node.level+1,
-                parent_node.f123_on_surface, false, false, false,
                 std::array<int,6>{e45_node_index, e47_node_index, e46_node_index, e57_node_index, e56_node_index, e67_node_index},
                 std::array<int,4>{f457_node_index, f456_node_index, f467_node_index, f567_node_index}
             );
 
-            int enode6 = _element_tree_nodes.emplace_back(elem6, parent_node_index, parent_node.level+1, 
-                false, parent_node.f124_on_surface, false, false,
+            int enode6 = _element_tree_nodes.emplace_back(elem6, parent_node_index, parent_node.level+1,
                 std::array<int,6>{e46_node_index, e47_node_index, e48_node_index, e67_node_index, e68_node_index, e78_node_index},
                 std::array<int,4>{f467_node_index, f468_node_index, f478_node_index, f678_node_index}
             );
 
-            int enode7 = _element_tree_nodes.emplace_back(elem7, parent_node_index, parent_node.level+1, 
-                false, false, false, parent_node.f234_on_surface,
+            int enode7 = _element_tree_nodes.emplace_back(elem7, parent_node_index, parent_node.level+1,
                 std::array<int,6>{e68_node_index, e69_node_index, e67_node_index, e89_node_index, e78_node_index, e79_node_index},
                 std::array<int,4>{f689_node_index, f678_node_index, f679_node_index, f789_node_index}
             );
 
-            int enode8 = _element_tree_nodes.emplace_back(elem8, parent_node_index, parent_node.level+1, 
-                parent_node.f134_on_surface, false, false, false,
+            int enode8 = _element_tree_nodes.emplace_back(elem8, parent_node_index, parent_node.level+1,
                 std::array<int,6>{e59_node_index, e56_node_index, e57_node_index, e69_node_index, e79_node_index, e67_node_index},
                 std::array<int,4>{f569_node_index, f579_node_index, f567_node_index, f679_node_index}
             );

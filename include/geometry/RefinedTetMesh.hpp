@@ -27,11 +27,6 @@ public:
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
         int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
 
-        bool f123_on_surface = false;
-        bool f124_on_surface = false;
-        bool f134_on_surface = false;
-        bool f234_on_surface = false;
-
         std::array<int,6> edge_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
         std::array<int,4> face_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
 
@@ -45,34 +40,13 @@ public:
             children.reserve(8);
         }
 
-        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, 
-            bool f123s, bool f124s, bool f134s, bool f234s)
-            : vertices(vertices_), parent(parent_), level(level_),
-                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s)
-        {
-            children.reserve(8);
-        }
-
-        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, 
-            bool f123s, bool f124s, bool f134s, bool f234s,
+        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_,
             const std::array<int,6>& edge_nodes_, const std::array<int,4>& face_nodes_)
             : vertices(vertices_), parent(parent_), level(level_),
-                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s),
                 edge_nodes(edge_nodes_), face_nodes(face_nodes_)
         {
             children.reserve(8);
         } 
-    };
-
-    struct HangingVertex
-    {
-        Edge parent_edge;
-        bool on_face;
-
-        HangingVertex(int p1, int p2, bool on_face_)
-            : parent_edge(p1, p2), on_face(on_face_)
-        {
-        }
     };
     
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
@@ -153,8 +127,8 @@ protected:
      * 
      * This is a one-to-one mapping, i.e. each parent edge should only have one child vertex.
      */
-    std::unordered_map<Edge, int, EdgeHash> _parent_edge_to_child_vertex_map;
-    std::unordered_map<int, Edge> _child_vertex_to_parent_edge_map;
+    // std::unordered_map<Edge, int, EdgeHash> _parent_edge_to_child_vertex_map;
+    // std::unordered_map<int, Edge> _child_vertex_to_parent_edge_map;
 
     /** Stores the indices of vertices that are "hanging".
      * A hanging vertex is one that is in the middle of an edge.
@@ -178,6 +152,7 @@ protected:
         bool in_mesh = false;
         int child_edge_node1 = ElementTreeNode::INVALID_INDEX;
         int child_edge_node2 = ElementTreeNode::INVALID_INDEX;
+        int child_vertex = ElementTreeNode::INVALID_INDEX;
 
         EdgeNode(const Edge& edge_)
             : edge(edge_)
@@ -196,6 +171,7 @@ protected:
         Face face;
         bool is_leaf = true;
         bool in_mesh = false;
+        bool on_surface = false;
         std::array<int,3> child_edge_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
         std::array<int,4> child_face_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
 
