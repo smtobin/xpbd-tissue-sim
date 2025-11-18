@@ -95,7 +95,7 @@ public:
      * 
      * If the specified element was not created with mesh refinement, this function does nothing.
      */
-    void coarsenElement(int element_index, int coarsening_level);
+    int coarsenElement(int element_index, int coarsening_level);
 
     const std::unordered_map<int, std::pair<int,bool>>& hangingVertices() const { return _hanging_vertices; }
 

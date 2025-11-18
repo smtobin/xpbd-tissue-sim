@@ -21,11 +21,19 @@ int main()
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(3, 3);
-        refined_mesh.refineElement(11, 3);
+        refined_mesh.refineElement(6, 1);
+        refined_mesh.refineElement(9, 1);
+        refined_mesh.refineElement(10, 1);
+        refined_mesh.refineElement(11, 1);
+        refined_mesh.refineElement(12, 1);
+        refined_mesh.refineElement(13, 1);
+        refined_mesh.refineElement(15, 1);
+        refined_mesh.refineElement(14, 1);
+        // refined_mesh.refineElement(6, 2);
+        // refined_mesh.refineElement(9, 3);
         // refined_mesh.refineElement(4, 3);
         // refined_mesh.refineElement(3, 3);
-        // refined_mesh.refineElement(6, 4);
+        
         // refined_mesh.refineElement(2, 1);
         // refined_mesh.refineElement(3, 2);
         // refined_mesh.refineElement(4, 2);
@@ -33,9 +41,9 @@ int main()
         // refined_mesh.refineElement(6, 2);
         // refined_mesh.refineElement(7, 2);
         // refined_mesh.refineElement(8, 2);
-        // refined_mesh.coarsenElement(25, 2);
+        // int coarse_elem = refined_mesh.coarsenElement(25, 2);
         std::cout << "========" << std::endl;
-        // refined_mesh.refineElement(80, 2);
+        // refined_mesh.refineElement(coarse_elem, 1);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;
