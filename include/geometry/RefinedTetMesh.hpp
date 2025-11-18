@@ -7,6 +7,8 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <array>
+#include <limits>
 
 namespace Geometry
 {
@@ -30,10 +32,10 @@ public:
         bool f134_on_surface = false;
         bool f234_on_surface = false;
 
-        bool f123_on_border = false;
-        bool f124_on_border = false;
-        bool f134_on_border = false;
-        bool f234_on_border = false;
+        std::array<int,6> edge_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
+        std::array<int,4> face_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
+
+        
 
         bool isLeaf() const { return children.size() == 0; }
 
@@ -44,14 +46,22 @@ public:
         }
 
         ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, 
-            bool f123s, bool f124s, bool f134s, bool f234s, 
-            bool f123b, bool f124b, bool f134b, bool f234b)
+            bool f123s, bool f124s, bool f134s, bool f234s)
             : vertices(vertices_), parent(parent_), level(level_),
-                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s),
-                f123_on_border(f123b), f124_on_border(f124b), f134_on_border(f134b), f234_on_border(f234b)
+                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s)
         {
             children.reserve(8);
         }
+
+        ElementTreeNode(const Vec4i& vertices_, int parent_, int level_, 
+            bool f123s, bool f124s, bool f134s, bool f234s,
+            const std::array<int,6>& edge_nodes_, const std::array<int,4>& face_nodes_)
+            : vertices(vertices_), parent(parent_), level(level_),
+                f123_on_surface(f123s), f124_on_surface(f124s), f134_on_surface(f134s), f234_on_surface(f234s),
+                edge_nodes(edge_nodes_), face_nodes(face_nodes_)
+        {
+            children.reserve(8);
+        } 
     };
 
     struct HangingVertex
@@ -97,7 +107,7 @@ public:
      */
     int coarsenElement(int element_index, int coarsening_level);
 
-    const std::unordered_map<int, std::pair<int,bool>>& hangingVertices() const { return _hanging_vertices; }
+    const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
 
     /** Goes through the entire mesh and finds all hanging vertices.
      * Useful for verifying that we are marking the hanging vertices correctly.
@@ -121,6 +131,8 @@ private:
     int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
 
     void _updateParentEdgeToChildVertexMapForRemovedElement(const Vec4i& elem);
+
+    void _updateFeatureTreeForRemovedElement(int element_index, int depth=std::numeric_limits<int>::max());
 
 protected:
 
@@ -155,20 +167,26 @@ protected:
      * 
      * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
      */
-    std::unordered_map<int, std::pair<int,bool>> _hanging_vertices;
+    std::unordered_set<int> _hanging_vertices;
 
     struct EdgeNode
     {
         int parent_face_node = ElementTreeNode::INVALID_INDEX;
         int parent_edge_node = ElementTreeNode::INVALID_INDEX;
         Edge edge;
+        bool is_leaf = true;
+        bool in_mesh = false;
         int child_edge_node1 = ElementTreeNode::INVALID_INDEX;
         int child_edge_node2 = ElementTreeNode::INVALID_INDEX;
 
         EdgeNode(const Edge& edge_)
             : edge(edge_)
         {
+        }
 
+        EdgeNode(int v1, int v2)
+            : edge(v1, v2)
+        {
         }
     };
 
@@ -176,14 +194,19 @@ protected:
     {
         int parent_face_node = ElementTreeNode::INVALID_INDEX;
         Face face;
-        std::vector<int> child_edge_nodes;
-        std::vector<int> child_face_nodes; 
+        bool is_leaf = true;
+        bool in_mesh = false;
+        std::array<int,3> child_edge_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
+        std::array<int,4> child_face_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
 
         FaceNode(const Face& face_)
             : face(face_)
         {
-            child_edge_nodes.reserve(3);
-            child_face_nodes.reserve(4);
+        }
+
+        FaceNode(int v1, int v2, int v3)
+            : face(v1, v2, v3)
+        {
         }
     };
 
@@ -194,6 +217,9 @@ protected:
 
     /** Map edges -> index in the edge node vector */
     std::unordered_map<Edge, int, EdgeHash> _edge_to_edge_node_map;
+
+    /** Map faces -> index in the face node vector */
+    std::unordered_map<Face, int, FaceHash> _face_to_face_node_map;
 
 };
 

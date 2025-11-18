@@ -21,14 +21,14 @@ int main()
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(6, 1);
-        refined_mesh.refineElement(9, 1);
-        refined_mesh.refineElement(10, 1);
-        refined_mesh.refineElement(11, 1);
-        refined_mesh.refineElement(12, 1);
-        refined_mesh.refineElement(13, 1);
-        refined_mesh.refineElement(15, 1);
-        refined_mesh.refineElement(14, 1);
+        // refined_mesh.refineElement(6, 1);
+        // refined_mesh.refineElement(9, 1);
+        // refined_mesh.refineElement(10, 1);
+        // refined_mesh.refineElement(11, 1);
+        // refined_mesh.refineElement(12, 1);
+        // refined_mesh.refineElement(13, 1);
+        // refined_mesh.refineElement(15, 1);
+        // refined_mesh.refineElement(14, 1);
         // refined_mesh.refineElement(6, 2);
         // refined_mesh.refineElement(9, 3);
         // refined_mesh.refineElement(4, 3);
@@ -72,9 +72,9 @@ int main()
         auto verified_hanging_verts = refined_mesh.verifyHangingVertices();
         for (const auto& v : hanging_verts)
         {
-            if (verified_hanging_verts.count(v.first) == 0)
+            if (verified_hanging_verts.count(v) == 0)
             {
-                std::cout << "Vertex " << v.first << " is in hanging_verts but not verified_hanging_verts!" << std::endl;
+                std::cout << "Vertex " << v << " is in hanging_verts but not verified_hanging_verts!" << std::endl;
             }
         }
 
