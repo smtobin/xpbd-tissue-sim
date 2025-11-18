@@ -157,6 +157,44 @@ protected:
      */
     std::unordered_map<int, std::pair<int,bool>> _hanging_vertices;
 
+    struct EdgeNode
+    {
+        int parent_face_node = ElementTreeNode::INVALID_INDEX;
+        int parent_edge_node = ElementTreeNode::INVALID_INDEX;
+        Edge edge;
+        int child_edge_node1 = ElementTreeNode::INVALID_INDEX;
+        int child_edge_node2 = ElementTreeNode::INVALID_INDEX;
+
+        EdgeNode(const Edge& edge_)
+            : edge(edge_)
+        {
+
+        }
+    };
+
+    struct FaceNode
+    {
+        int parent_face_node = ElementTreeNode::INVALID_INDEX;
+        Face face;
+        std::vector<int> child_edge_nodes;
+        std::vector<int> child_face_nodes; 
+
+        FaceNode(const Face& face_)
+            : face(face_)
+        {
+            child_edge_nodes.reserve(3);
+            child_face_nodes.reserve(4);
+        }
+    };
+
+
+    /** Store feature hierarchy */
+    TombstoneVector<EdgeNode> _edge_nodes;
+    TombstoneVector<FaceNode> _face_nodes;
+
+    /** Map edges -> index in the edge node vector */
+    std::unordered_map<Edge, int, EdgeHash> _edge_to_edge_node_map;
+
 };
 
 } // namespace Geometry
