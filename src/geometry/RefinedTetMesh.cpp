@@ -61,16 +61,9 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
         // if there are no other elements associated with this vertex, remove it
         if (vk_map.size() == 0)
         {
+            std::cout << "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
             _vertices.erase(elem_to_remove[k]);
             _hanging_vertices.erase(elem_to_remove[k]);
-
-            // since this vertex is being removed, we must update the parent edge -> child vertex map
-            // but this only applies if the vertex being removed is a child vertex (i.e. created as a result of refinement)
-            // if (auto search = _child_vertex_to_parent_edge_map.find(elem_to_remove[k]); search != _child_vertex_to_parent_edge_map.end())
-            // {
-            //     _parent_edge_to_child_vertex_map.erase(search->second);
-            //     _child_vertex_to_parent_edge_map.erase(search->first);
-            // }
         }
     }
 }
@@ -207,7 +200,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
         {
             for (const auto& child_face_node_index : face_node.child_face_nodes)
             {
-                if (child_face_node_index != ElementTreeNode::INVALID_INDEX)
+                if (child_face_node_index != ElementTreeNode::INVALID_INDEX && _face_to_elements_map.count(_face_nodes.at(child_face_node_index).face) == 0)
                 {
                     face_nodes_to_update.push({child_face_node_index, d-1});
                 }
@@ -215,7 +208,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
 
             for (const auto& child_edge_node_index : face_node.child_edge_nodes)
             {
-                if (child_edge_node_index != ElementTreeNode::INVALID_INDEX)
+                if (child_edge_node_index != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(child_edge_node_index).edge) == 0)
                 {
                     edge_nodes_to_update.push({child_edge_node_index, d-1});
                 }
@@ -227,22 +220,25 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
     {
         auto [node_index, d] = edge_nodes_to_update.top();
         EdgeNode& edge_node = _edge_nodes[node_index];
+
+        std::cout << "Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
         edge_node.in_mesh = false;
 
         edge_nodes_to_update.pop();
 
-        if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
-        {
-            _hanging_vertices.erase(edge_node.child_vertex);
-        }
-
         if (!edge_node.is_leaf && d > 0)
         {
-            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX)
+            if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
+            {
+                std::cout << "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
+                _hanging_vertices.erase(edge_node.child_vertex);
+            }
+
+            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node1).edge) == 0)
             {
                 edge_nodes_to_update.push({edge_node.child_edge_node1, d-1});
             }
-            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX)
+            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node2).edge) == 0)
             {
                 edge_nodes_to_update.push({edge_node.child_edge_node2, d-1});
             }
@@ -417,6 +413,9 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                     // add vertex at midpoint
                     if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
                     {
+                        std::cout << "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
+                        std::cout << "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
+                        std::cout << "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
                         mid_verts[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
                     }
                     else
@@ -460,6 +459,12 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                         _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
                         _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
                         _hanging_vertices.insert(mid_verts[edge_index]);
+                    }
+                    else
+                    {
+                        std::cout << "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
+                        _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
+                        _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
                     }
                 }
                 
@@ -642,70 +647,26 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             auto [e18_node_index, e38_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[4], parent_node.vertices[1]);
             auto [e29_node_index, e39_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[5], parent_node.vertices[2]);
 
-            // auto [e45_node_index, e14_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[0], parent_node.vertices[0]);
-            // int e04_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node1;
-            // int e14_node_index = _edge_nodes[parent_node.edge_nodes[0]].child_edge_node2;
-            // int e05_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node1;
-            // int e25_node_index = _edge_nodes[parent_node.edge_nodes[1]].child_edge_node2;
-            // int e06_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node1;
-            // int e36_node_index = _edge_nodes[parent_node.edge_nodes[2]].child_edge_node2;
-            // int e17_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node1;
-            // int e27_node_index = _edge_nodes[parent_node.edge_nodes[3]].child_edge_node2;
-            std::cout << "e17: " << _edge_nodes[e17_node_index].edge.index1 << ", " << _edge_nodes[e17_node_index].edge.index2 << std::endl;
-            std::cout << "e27: " << _edge_nodes[e27_node_index].edge.index1 << ", " << _edge_nodes[e27_node_index].edge.index2 << std::endl;
-            // int e18_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node1;
-            // int e38_node_index = _edge_nodes[parent_node.edge_nodes[4]].child_edge_node2;
-            // int e29_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node1;
-            // int e39_node_index = _edge_nodes[parent_node.edge_nodes[5]].child_edge_node2;
-
-            // int e45_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[0];
-            // int e47_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[1];
-            // int e57_node_index = _face_nodes[parent_node.face_nodes[0]].child_edge_nodes[2];
             auto [e45_node_index, e47_node_index, e57_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[0], mid_verts[0], mid_verts[1]);
 
-            // int e46_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[0];
-            // int e48_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[1];
-            // int e68_node_index = _face_nodes[parent_node.face_nodes[1]].child_edge_nodes[2];
             auto [e46_node_index, e48_node_index, e68_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[1], mid_verts[0], mid_verts[2]);
 
-            // int e56_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[0];
-            // int e59_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[1];
-            // int e69_node_index = _face_nodes[parent_node.face_nodes[2]].child_edge_nodes[2];
             auto [e56_node_index, e59_node_index, e69_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[2], mid_verts[1], mid_verts[2]);
 
-            // int e78_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[0];
-            // int e79_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[1];
-            // int e89_node_index = _face_nodes[parent_node.face_nodes[3]].child_edge_nodes[2];
             auto [e78_node_index, e79_node_index, e89_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[3], mid_verts[3], mid_verts[4]);
 
-            // int f045_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[0];
-            // int f147_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[1];
-            // int f257_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[2];
-            // int f457_node_index = _face_nodes[parent_node.face_nodes[0]].child_face_nodes[3];
             auto [f045_node_index, f147_node_index, f257_node_index, f457_node_index] = match_face_node_to_child_face_node_indices(
                 parent_node.face_nodes[0], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[2], mid_verts[0], mid_verts[1], mid_verts[3]
             );
 
-            // int f046_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[0];
-            // int f148_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[1];
-            // int f368_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[2];
-            // int f468_node_index = _face_nodes[parent_node.face_nodes[1]].child_face_nodes[3];
             auto [f046_node_index, f148_node_index, f368_node_index, f468_node_index] = match_face_node_to_child_face_node_indices(
                 parent_node.face_nodes[1], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[3], mid_verts[0], mid_verts[2], mid_verts[4]
             );
 
-            // int f056_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[0];
-            // int f259_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[1];
-            // int f369_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[2];
-            // int f569_node_index = _face_nodes[parent_node.face_nodes[2]].child_face_nodes[3];
             auto [f056_node_index, f259_node_index, f369_node_index, f569_node_index] = match_face_node_to_child_face_node_indices(
                 parent_node.face_nodes[2], parent_node.vertices[0], parent_node.vertices[2], parent_node.vertices[3], mid_verts[1], mid_verts[2], mid_verts[5]
             );
 
-            // int f178_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[0];
-            // int f279_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[1];
-            // int f389_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[2];
-            // int f789_node_index = _face_nodes[parent_node.face_nodes[3]].child_face_nodes[3];
             auto [f178_node_index, f279_node_index, f389_node_index, f789_node_index] = match_face_node_to_child_face_node_indices(
                 parent_node.face_nodes[3], parent_node.vertices[1], parent_node.vertices[2], parent_node.vertices[3], mid_verts[3], mid_verts[4], mid_verts[5]
             );
@@ -896,7 +857,118 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
             {
                 // if the node doesn't have an associated element index, it is a parent node
                 // check it's edges for midpoint vertices - these vertices will now be hanging
+                for (int k = 0; k < 4; k++)
+                {
+                    std::vector<int>& vk_map = _vertex_to_elements_map[node.vertices[k]];
+                    std::cout << "VK map size for vertex " << node.vertices[k] << ": " << vk_map.size() << std::endl;
+                    if (vk_map.size() == 0)
+                    {
+                        std::cout << "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
+                        _vertices.erase(node.vertices[k]);
+                        _hanging_vertices.erase(node.vertices[k]);
+                    }
+                }
                 
+            }
+
+            // update the feature hierarchy
+            // for an edge or face to be removed, it must:
+            //    - not have any children (i.e. it is a leaf)
+            //    - not be in the mesh itself
+            // then we can safely remove the feature from the feature hierarchy
+            std::cout << "=== Updating feature hierarchy for node with vertices " << node.vertices.transpose() << std::endl;
+            // check edges of the element
+            for (const auto& edge_node_index : node.edge_nodes)
+            {
+                if (edge_node_index == ElementTreeNode::INVALID_INDEX)
+                    assert(0);  // this shouldn't happen
+                
+                EdgeNode& edge_node = _edge_nodes[edge_node_index];
+
+                // move on if the edge node is not a leaf
+                if (!edge_node.is_leaf)
+                {
+                    assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
+                    edge_node.in_mesh = true;
+                    _hanging_vertices.insert(edge_node.child_vertex);
+                    continue;
+                }
+                    
+
+                // move on if the edge is still present in the mesh (i.e. another element shares this exact edge)
+                if (_edge_to_elements_map.count(edge_node.edge) > 0)
+                    continue;
+
+                // if we get to here, it is safe to remove this edge node
+                // edit the parent
+                if (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
+                {
+                    EdgeNode& parent_edge_node = _edge_nodes[edge_node.parent_edge_node];
+                    std::cout << "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
+                    parent_edge_node.child_vertex = ElementTreeNode::INVALID_INDEX;
+                    parent_edge_node.is_leaf = true;
+                    
+
+                    if (parent_edge_node.child_edge_node1 == edge_node_index)
+                        parent_edge_node.child_edge_node1 = ElementTreeNode::INVALID_INDEX;
+                    else
+                        parent_edge_node.child_edge_node2 = ElementTreeNode::INVALID_INDEX;
+                }
+                else if (edge_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
+                {
+                    FaceNode& parent_face_node = _face_nodes[edge_node.parent_face_node];
+                    parent_face_node.is_leaf = true;
+
+                    for (auto& parent_child_edge_node_index : parent_face_node.child_edge_nodes)
+                    {
+                        if (parent_child_edge_node_index == edge_node_index)
+                        {
+                            parent_child_edge_node_index = ElementTreeNode::INVALID_INDEX;
+                            break;
+                        }
+                    }
+                }
+                // remove the edge node
+                _edge_nodes.erase(edge_node_index);
+            }
+
+            // check faces of the element
+            for (const auto& face_node_index : node.face_nodes)
+            {
+                if (face_node_index == ElementTreeNode::INVALID_INDEX)
+                    assert(0);      // this shouldn't happen
+                
+                FaceNode& face_node = _face_nodes[face_node_index];
+
+                // move on if the face node is not a leaf
+                if (!face_node.is_leaf)
+                {
+                    face_node.in_mesh = true;
+                    continue;
+                }
+                
+                // move on if the face is still present in the mesh (i.e. another element shares this exact face)
+                if (_face_to_elements_map.count(face_node.face) > 0)
+                    continue;
+
+                // if we get to here, it is safe to remove this face node
+                // edit the parent
+                if (face_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
+                {
+                    FaceNode& parent_face_node = _face_nodes[face_node.parent_face_node];
+                    parent_face_node.is_leaf = true;
+                    
+                    for (auto& parent_child_face_node_index : parent_face_node.child_face_nodes)
+                    {
+                        if (parent_child_face_node_index == face_node_index)
+                        {
+                            parent_child_face_node_index = ElementTreeNode::INVALID_INDEX;
+                            break;
+                        }
+                    }
+                }
+
+                _face_nodes.erase(face_node_index);
             }
 
             // remove the node
@@ -906,6 +978,17 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
 
     // we have removed all the children so update the root node to reflect this
     root_node.children.clear();
+
+    // the edge nodes that are not leaves in the root node now have hanging vertices
+    for (const auto& edge_node_vertex : root_node.edge_nodes)
+    {
+        EdgeNode& edge_node = _edge_nodes[edge_node_vertex];
+        if (!edge_node.is_leaf)
+        {
+            _hanging_vertices.insert(edge_node.child_vertex);
+        }
+        // edge_node.in_mesh = true;
+    }
 
     return new_node_index;
 }
@@ -924,6 +1007,8 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
         {
             if (static_cast<int>(v_ind) == edge.index1 || static_cast<int>(v_ind) == edge.index2)
                 continue;
+
+            // std::cout << "Testing v " << v_ind << std::endl;
             
             // check if the vertex is on the line
             const Vec3r& p = _vertices[v_ind];
