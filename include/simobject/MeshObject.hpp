@@ -26,6 +26,7 @@ class MeshObject
 
         _initial_size = mesh_config->size();
         _max_size = mesh_config->maxSize();
+        _initial_scaling = mesh_config->scaling();
     }
 
     const Geometry::Mesh* mesh() const { return _mesh.get(); }
@@ -43,15 +44,23 @@ class MeshObject
             _mesh->resize(_max_size.value());
         }
 
-        if (_initial_size.has_value())
+        else if (_initial_size.has_value())
         {
             _mesh->resize(_initial_size.value());
+        }
+
+        else if (_initial_scaling.has_value())
+        {
+            Geometry::AABB bbox = _mesh->boundingBox();
+            Vec3r new_size = bbox.size().array() * _initial_scaling.value().array();
+            _mesh->resize(new_size);
         }
 
         const Vec3r center_of_mass = _mesh->massCenter();
 
         // move center of mass of the mesh to the specified initial position
         _mesh->moveTogether(-center_of_mass + _initial_position);
+        // _mesh->moveTogether(-_mesh->meshOrigin() + _initial_position);
 
         // then do rigid transformation - rotation and translation
         _mesh->rotateAbout(_initial_position, _initial_rotation);
@@ -82,6 +91,7 @@ class MeshObject
     Vec3r _initial_rotation;
     std::optional<Vec3r> _initial_size;
     std::optional<Real> _max_size;
+    std::optional<Vec3r> _initial_scaling;
     
 
 };

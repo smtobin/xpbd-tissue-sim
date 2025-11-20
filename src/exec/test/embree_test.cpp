@@ -22,7 +22,7 @@ int main()
     gmsh::initialize();
     // load mesh
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined.msh");
-    Config::MeshObjectConfig mesh_config("../resource/cube/cube2.msh", 2, std::nullopt,
+    Config::MeshObjectConfig mesh_config("../resource/cube/cube2.msh", 2, std::nullopt, std::nullopt,
         false, false, true, Vec4r(0,0,0,0));
 
     Config::ObjectConfig object_config("test", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());

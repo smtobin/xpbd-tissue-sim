@@ -20,14 +20,16 @@ class MeshObjectConfig
 
         Config::_extractParameter("max-size", node, _max_size);
         Config::_extractParameter("size", node, _size);
+        Config::_extractParameter("scaling", node, _scaling);
     }
 
-    explicit MeshObjectConfig(const std::string& filename, const std::optional<Real>& max_size, const std::optional<Vec3r>& size,
+    explicit MeshObjectConfig(const std::string& filename, const std::optional<Real>& max_size, const std::optional<Vec3r>& size, const std::optional<Vec3r>& scaling,
                              bool draw_points, bool draw_edges, bool draw_faces, const Vec4r& color)
     {
         _filename.value = filename;
         _max_size.value = max_size;
         _size.value = size;
+        _scaling.value = scaling;
         _draw_points.value = draw_points;
         _draw_edges.value = draw_edges;
         _draw_faces.value = draw_faces;
@@ -42,6 +44,7 @@ class MeshObjectConfig
 
     std::optional<Real> maxSize() const { return _max_size.value; }
     std::optional<Vec3r> size() const { return _size.value; }
+    std::optional<Vec3r> scaling() const { return _scaling.value; }
 
     protected:
     ConfigParameter<std::string> _filename = ConfigParameter<std::string>("");  // this should probably be an optional
@@ -52,6 +55,7 @@ class MeshObjectConfig
 
     ConfigParameter<std::optional<Real>> _max_size;
     ConfigParameter<std::optional<Vec3r>> _size;
+    ConfigParameter<std::optional<Vec3r>> _scaling;
 
 };
 
