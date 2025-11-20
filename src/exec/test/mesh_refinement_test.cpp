@@ -20,8 +20,8 @@ int main()
         // refined_mesh.setCurrentStateAsUndeformedState();
 
         auto t1 = std::chrono::high_resolution_clock::now();
-        refined_mesh.refineElement(0, 1);
-        refined_mesh.refineElement(4, 4);
+        refined_mesh.refineElement(0, 2);
+        refined_mesh.refineElement(4, 2);
         // refined_mesh.refineElement(9, 1);
         // refined_mesh.refineElement(10, 1);
         // refined_mesh.refineElement(11, 1);
@@ -41,9 +41,9 @@ int main()
         // refined_mesh.refineElement(6, 2);
         // refined_mesh.refineElement(7, 2);
         // refined_mesh.refineElement(8, 2);
-        int coarse_elem = refined_mesh.coarsenElement(150, 2);
+        int coarse_elem = refined_mesh.coarsenElement(120, 2);
         std::cout << "\n\n=!=!=!=!=!=!=!=" << std::endl;
-        refined_mesh.refineElement(coarse_elem, 4);
+        // refined_mesh.refineElement(coarse_elem, 4);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;

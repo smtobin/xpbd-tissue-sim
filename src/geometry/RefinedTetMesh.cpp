@@ -61,7 +61,7 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
         // if there are no other elements associated with this vertex, remove it
         if (vk_map.size() == 0)
         {
-            std::cout << "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
+            // std::cout "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
             _vertices.erase(elem_to_remove[k]);
             _hanging_vertices.erase(elem_to_remove[k]);
         }
@@ -135,9 +135,9 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f123_on_surfac
 
 void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_index, int depth)
 {
-    std::cout << "\n=== UpdateFeatureTreeForRemovedElement ===" << std::endl;
+    // std::cout "\n=== UpdateFeatureTreeForRemovedElement ===" << std::endl;
     ElementTreeNode& root_node = _element_tree_nodes[element_tree_node_index];
-    std::cout << "  element: " << root_node.vertices.transpose() << std::endl;
+    // std::cout "  element: " << root_node.vertices.transpose() << std::endl;
 
     // figure out if any updates need to be made (first int = node index, second int = depth)
     std::stack<std::pair<int,int>> face_nodes_to_update;
@@ -148,7 +148,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
             continue;
         
         FaceNode& face_node = _face_nodes[face_node_index];
-        std::cout << "    checking if face " << face_node.face.index1 << ", " << face_node.face.index2 << ", " << face_node.face.index3 << " needs to be updated" << std::endl;
+        // std::cout "    checking if face " << face_node.face.index1 << ", " << face_node.face.index2 << ", " << face_node.face.index3 << " needs to be updated" << std::endl;
         if (_face_to_elements_map.count(face_node.face) == 0)
         {
             if (face_node.parent_face_node != ElementTreeNode::INVALID_INDEX && _face_nodes[face_node.parent_face_node].in_mesh)
@@ -157,7 +157,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
             }
             else
             {
-                std::cout << "      updates needed!" << std::endl;
+                // std::cout "      updates needed!" << std::endl;
                 // the parent feature is not in the mesh, so we need to update the face_node's children to the specified depth
                 face_nodes_to_update.push({face_node_index, depth});
             }
@@ -170,7 +170,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
             continue;
 
         EdgeNode& edge_node = _edge_nodes[edge_node_index];
-        std::cout << "    checking if edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " needs to be updated" << std::endl;
+        // std::cout "    checking if edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " needs to be updated" << std::endl;
         if (_edge_to_elements_map.count(edge_node.edge) == 0)
         {
             if ( (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX && _edge_nodes[edge_node.parent_edge_node].in_mesh ) ||
@@ -180,7 +180,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
             }
             else
             {
-                std::cout << "      updates needed!" << std::endl;
+                // std::cout "      updates needed!" << std::endl;
                 // the parent feature is not in the mesh, so we need to update the edge_node's children to the specified depth
                 edge_nodes_to_update.push({edge_node_index, depth});
             }
@@ -221,7 +221,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
         auto [node_index, d] = edge_nodes_to_update.top();
         EdgeNode& edge_node = _edge_nodes[node_index];
 
-        std::cout << "Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
+        // std::cout "Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
         edge_node.in_mesh = false;
 
         edge_nodes_to_update.pop();
@@ -230,7 +230,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
         {
             if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
             {
-                std::cout << "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
+                // std::cout "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
                 _hanging_vertices.erase(edge_node.child_vertex);
             }
 
@@ -364,13 +364,13 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
     /** === Step 4: Refine the element. === */
 
-    std::cout << "\n\n\n======================\nRefining element " << element_index << "\n======================" << std::endl;
+    // std::cout "\n\n\n======================\nRefining element " << element_index << "\n======================" << std::endl;
     
     for (int level = 0; level < refinement_level; level++)
     {
         num_new_tets *= 8;
 
-        std::cout << "Level " << level << "..." << std::endl;
+        // std::cout "Level " << level << "..." << std::endl;
 
         // create a vector to store the next level of parent elements
         // note that this only applies when we are not at the deepest refinement level
@@ -403,19 +403,19 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                     Edge vertices_edge = Edge(parent_node.vertices[vi], parent_node.vertices[vj]);
                     if (!(parent_edge == vertices_edge))
                     {
-                        std::cout << "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
-                        "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
-                        std::cout << " vi: " << vi << "  vj: " << vj << std::endl;
-                        std::cout << " parent edge node_index: " << parent_edge_node_index << std::endl;
-                        std::cout << " element: " << parent_node.vertices.transpose() << std::endl;
+                        // std::cout "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
+                        // "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
+                        // std::cout " vi: " << vi << "  vj: " << vj << std::endl;
+                        // std::cout " parent edge node_index: " << parent_edge_node_index << std::endl;
+                        // std::cout " element: " << parent_node.vertices.transpose() << std::endl;
                     }
 
                     // add vertex at midpoint
                     if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
                     {
-                        std::cout << "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
-                        std::cout << "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
-                        std::cout << "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
+                        // std::cout "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
+                        // std::cout "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
+                        // std::cout "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
                         mid_verts[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
                     }
                     else
@@ -423,8 +423,8 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                         int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
                         mid_verts[edge_index] = new_vert_index;
 
-                        std::cout << "=== Created new vertex " << new_vert_index << " === " << std::endl;
-                        std::cout << " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
+                        // std::cout "=== Created new vertex " << new_vert_index << " === " << std::endl;
+                        // std::cout " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
 
                         // _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
                         // _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
@@ -441,12 +441,12 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                         _edge_nodes[parent_edge_node_index].child_edge_node1 = _edge_nodes.push_back(std::move(child1));
                         _edge_nodes[parent_edge_node_index].child_edge_node2 = _edge_nodes.push_back(std::move(child2));
 
-                        std::cout << "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
-                         "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
-                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
-                            _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
-                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
-                            _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
+                        // std::cout "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
+                        //  "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
+                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
+                            // _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
+                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
+                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
 
                         _edge_nodes[parent_edge_node_index].is_leaf = false;
                         _edge_nodes[parent_edge_node_index].child_vertex = new_vert_index;
@@ -455,16 +455,16 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                     // the midpoint vertex is hanging if the parent edge is "in" the mesh
                     if (_edge_nodes[parent_edge_node_index].in_mesh)
                     {
-                        std::cout << "  vertex " << mid_verts[edge_index] << " is hanging because the edge (" << 
-                        _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                        _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
+                        // std::cout "  vertex " << mid_verts[edge_index] << " is hanging because the edge (" << 
+                        // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
+                        // _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
                         _hanging_vertices.insert(mid_verts[edge_index]);
                     }
                     else
                     {
-                        std::cout << "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
-                        _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                        _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
+                        // std::cout "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
+                        // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
+                        // _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
                     }
                 }
                 
@@ -473,7 +473,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             // FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
             auto create_child_features_for_face = [&](int parent_face_node_index, int v1, int v2, int v3, int m12, int m13, int m23) -> void
             {
-                std::cout << "  === Face node " << parent_face_node_index << std::endl;
+                // std::cout "  === Face node " << parent_face_node_index << std::endl;
                 // the parent face node must be a leaf to be split
                 if (!_face_nodes[parent_face_node_index].is_leaf)
                     return;
@@ -497,10 +497,10 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
                 _face_nodes[parent_face_node_index].child_edge_nodes[1] = _edge_nodes.push_back(std::move(child_edge2));
                 _face_nodes[parent_face_node_index].child_edge_nodes[2] = _edge_nodes.push_back(std::move(child_edge3));
 
-                std::cout << "   child edge nodes: " <<
-                _face_nodes[parent_face_node_index].child_edge_nodes[0] << ", " <<
-                _face_nodes[parent_face_node_index].child_edge_nodes[1] << ", " <<
-                _face_nodes[parent_face_node_index].child_edge_nodes[2] << std::endl;
+                // std::cout "   child edge nodes: " <<
+                // _face_nodes[parent_face_node_index].child_edge_nodes[0] << ", " <<
+                // _face_nodes[parent_face_node_index].child_edge_nodes[1] << ", " <<
+                // _face_nodes[parent_face_node_index].child_edge_nodes[2] << std::endl;
 
                 // create FaceNodes for the child faces
                 FaceNode child_face1(v1, m12, m13);
@@ -683,16 +683,16 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             const Vec4i elem7(mid_verts[2], mid_verts[4], mid_verts[5], mid_verts[3]);    // (6, 8, 9, 7)
             const Vec4i elem8(mid_verts[1], mid_verts[5], mid_verts[2], mid_verts[3]);    // (5, 9, 6, 7)
 
-            std::cout << "Parent element: " << parent_node.vertices.transpose() << std::endl;
-            std::cout << "Midpoint verts: " << mid_verts[0] << " " << mid_verts[1] << " " << mid_verts[2] << " " << mid_verts[3] << " " << mid_verts[4] << " " << mid_verts[5] << std::endl;
-            std::cout << "elem1: " << elem1.transpose() << std::endl;
-            std::cout << "elem2: " << elem2.transpose() << std::endl;
-            std::cout << "elem3: " << elem3.transpose() << std::endl;
-            std::cout << "elem4: " << elem4.transpose() << std::endl;
-            std::cout << "elem5: " << elem5.transpose() << std::endl;
-            std::cout << "elem6: " << elem6.transpose() << std::endl;
-            std::cout << "elem7: " << elem7.transpose() << std::endl;
-            std::cout << "elem8: " << elem8.transpose() << std::endl;
+            // std::cout "Parent element: " << parent_node.vertices.transpose() << std::endl;
+            // std::cout "Midpoint verts: " << mid_verts[0] << " " << mid_verts[1] << " " << mid_verts[2] << " " << mid_verts[3] << " " << mid_verts[4] << " " << mid_verts[5] << std::endl;
+            // std::cout "elem1: " << elem1.transpose() << std::endl;
+            // std::cout "elem2: " << elem2.transpose() << std::endl;
+            // std::cout "elem3: " << elem3.transpose() << std::endl;
+            // std::cout "elem4: " << elem4.transpose() << std::endl;
+            // std::cout "elem5: " << elem5.transpose() << std::endl;
+            // std::cout "elem6: " << elem6.transpose() << std::endl;
+            // std::cout "elem7: " << elem7.transpose() << std::endl;
+            // std::cout "elem8: " << elem8.transpose() << std::endl;
 
             // create tree nodes for each element
             int enode1 = _element_tree_nodes.emplace_back(elem1, parent_node_index, parent_node.level+1, 
@@ -860,10 +860,10 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
                 for (int k = 0; k < 4; k++)
                 {
                     std::vector<int>& vk_map = _vertex_to_elements_map[node.vertices[k]];
-                    std::cout << "VK map size for vertex " << node.vertices[k] << ": " << vk_map.size() << std::endl;
+                    // std::cout "VK map size for vertex " << node.vertices[k] << ": " << vk_map.size() << std::endl;
                     if (vk_map.size() == 0)
                     {
-                        std::cout << "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
+                        // std::cout "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
                         _vertices.erase(node.vertices[k]);
                         _hanging_vertices.erase(node.vertices[k]);
                     }
@@ -876,7 +876,7 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
             //    - not have any children (i.e. it is a leaf)
             //    - not be in the mesh itself
             // then we can safely remove the feature from the feature hierarchy
-            std::cout << "=== Updating feature hierarchy for node with vertices " << node.vertices.transpose() << std::endl;
+            // std::cout "=== Updating feature hierarchy for node with vertices " << node.vertices.transpose() << std::endl;
             // check edges of the element
             for (const auto& edge_node_index : node.edge_nodes)
             {
@@ -904,7 +904,7 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
                 if (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
                 {
                     EdgeNode& parent_edge_node = _edge_nodes[edge_node.parent_edge_node];
-                    std::cout << "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
+                    // std::cout "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
                     parent_edge_node.child_vertex = ElementTreeNode::INVALID_INDEX;
                     parent_edge_node.is_leaf = true;
                     
@@ -1001,14 +1001,14 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
     for (const auto& it : _edge_to_elements_map)
     {
         Edge edge = it.first;
-        // std::cout << "Edge: " << edge.index1 << ", " << edge.index2 << std::endl;
+        // // std::cout "Edge: " << edge.index1 << ", " << edge.index2 << std::endl;
 
         for (const auto& v_ind : _vertices.validIndices())
         {
             if (static_cast<int>(v_ind) == edge.index1 || static_cast<int>(v_ind) == edge.index2)
                 continue;
 
-            // std::cout << "Testing v " << v_ind << std::endl;
+            // // std::cout "Testing v " << v_ind << std::endl;
             
             // check if the vertex is on the line
             const Vec3r& p = _vertices[v_ind];
@@ -1028,7 +1028,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
 
             if (dot >= 0 && dot <= len_AB_sq)
             {
-                // std::cout << "\tvertex " << v_ind << " on edge! " << std::endl;
+                // // std::cout "\tvertex " << v_ind << " on edge! " << std::endl;
                 hanging_verts.insert(v_ind);
             }
         }
@@ -1038,7 +1038,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
     for (const auto& it : _face_to_elements_map)
     {
         Face face = it.first;
-        // std::cout << "Face: " << face.index1 << ", " << face.index2 << ", " << face.index3 << std::endl;
+        // // std::cout "Face: " << face.index1 << ", " << face.index2 << ", " << face.index3 << std::endl;
 
         for (const auto& v_ind : _vertices.validIndices())
         {
@@ -1085,7 +1085,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
             // Check if point is in triangle (with small tolerance for numerical error)
             if ( (u >= 1e-10) && (v >= 1e-10) && (u + v <= 1 - 1e-10) )
             {
-                // std::cout << "\tvertex " << v_ind << " on face! " << std::endl; 
+                // // std::cout "\tvertex " << v_ind << " on face! " << std::endl; 
                 hanging_verts.insert(v_ind);
             }
         }
