@@ -43,7 +43,7 @@ int main()
         // refined_mesh.refineElement(8, 2);
         int coarse_elem = refined_mesh.coarsenElement(120, 2);
         std::cout << "\n\n=!=!=!=!=!=!=!=" << std::endl;
-        // refined_mesh.refineElement(coarse_elem, 4);
+        refined_mesh.refineElement(coarse_elem, 4);
         auto t2 = std::chrono::high_resolution_clock::now();
 
         std::cout << "Num vertices: " << refined_mesh.numVertices() << std::endl;

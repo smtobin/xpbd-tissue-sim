@@ -13,6 +13,58 @@
 namespace Geometry
 {
 
+
+/** Represents a selectively hierarchically refined tetrahedral mesh.
+ * 
+ * A single tetrahedral refinement consists of so-called "red" refinement: splitting the tetrahedra into 8 equal volume children by
+ * introducing vertices at the edge midpoints. There are 4 "corner" tetrahedra and an octahedron in the center which is split into 4 tetrahedra.
+ * Note that these child tetrahedra are NOT similar (i.e. it is not the same as dividing a triangle into 4 similar subtriangles).
+ * 
+ * The elements can be recursively split to produce a nested, tree-like structure. This is indeed how it is represented in the code, by an
+ * octtree data structure. Each "element node" has 8 children tree nodes corresponding to the 8 children tetrahedron from splitting. Each of
+ * those elements may also have 8 children, and so on. The leaf nodes in this tree are the elements that are actually in the mesh.
+ * 
+ * We can undo refinement by "coarsening" the mesh, essentially reversing a certain number of levels of refinement involving some tetrahedron.
+ * 
+ * While we refine/coarsen, we keep track of which vertices are "hanging", i.e. are on an edge in the mesh. This happens when face- or edge- adjacent
+ * elements have different levels of refinement, leading to non-conforming (hanging) vertices. Tracking these is important for accurately computing
+ * deformation, heat and voltage.
+ * 
+ * In order to track which vertices are hanging, a "feature hierarchy" data structure is employed. When splitting happens, each edge and face in the 
+ * original tetrahedron is split as well into child features, due to the addition of vertices at edge midpoints.
+ * For example, each edge is split into 2 child edges. Each triangular face is split into 4 subfaces, but also has 3 child edges (the edges that divide
+ * the original face into 4 subfaces. These edges are between the midpoints that belong the face being split.).
+ * 
+ * By storing the feature hierarchy in this way, we can track which edges and faces actually have elements associated with them. For example, for 
+ * an edge that is actively being "used" by an element in the mesh, any child vertices on the edge and all of its descendant edges are hanging!
+ * 
+ * =====================================================================================
+ * Illustrative example of face being split
+ *          1 *-----------*                     1  *-----------*
+ *           / \         /                        / \         /
+ *          /   \       /                        /   \       /
+ *         /     \     /     ==>              4 *-----* 5   /
+ *        /       \   /                        / \   / \   /
+ *       /         \ /                        /   \ /   \ /
+ *    2 *-----------* 3                    2 *-----*-----* 3
+ *                                                 6
+ * Parent face node: F123
+ *   Children edge nodes: E45, E46, E56
+ *   Children face nodes: F145, F246, F356, F456
+ * 
+ * Parent edge node: E12
+ *   Children edge nodes: E14, E24
+ * 
+ * Parent edge node: E13
+ *   Children edge nodes: E15, E35
+ * 
+ * Parent edge node: E23
+ *   Children edge nodes: E26, E36
+ * 
+ * Edge 13 is still in the mesh ==> Vertex 5 is hanging!
+ * ====================================================================================
+ * 
+ */
 class RefinedTetMesh : public TetMesh
 {
 public:
@@ -27,26 +79,106 @@ public:
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
         int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
 
+        // the edge nodes corresponding to the edges in this element
+        // stored in a specific order: E01, E02, E03, E12, E13, E23 (numbers refer to indices in the "vertices" member)
         std::array<int,6> edge_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
+        // the face nodes corresponding to the faces in this elements
+        // stored in a specific order: F012, F013, F023, F123 (numbers refer to indices in the "vertices" member)
         std::array<int,4> face_nodes = {INVALID_INDEX, INVALID_INDEX, INVALID_INDEX, INVALID_INDEX};
 
-        
-
+        // if this element has no children, then it is a leaf node!
         bool isLeaf() const { return children.size() == 0; }
 
+        /** Initialize the node from the vertices in the element, the parent tree node index, and the depth in the tree this node is at.
+         * This will initialize the edge_nodes and face_nodes to be all invalid.
+         */
         ElementTreeNode(const Vec4i& vertices_, int parent_, int level_)
             : vertices(vertices_), parent(parent_), level(level_)
         {
+            // preemptively reserve space for the children
             children.reserve(8);
         }
 
+        /** Initial the node from the vertices in the element, parent tree node index, depth in the tree,
+         * and the edge nodes and face nodes for the features in this element.
+         */
         ElementTreeNode(const Vec4i& vertices_, int parent_, int level_,
             const std::array<int,6>& edge_nodes_, const std::array<int,4>& face_nodes_)
             : vertices(vertices_), parent(parent_), level(level_),
                 edge_nodes(edge_nodes_), face_nodes(face_nodes_)
         {
+            // preemptively reserve space for the children
             children.reserve(8);
         } 
+    };
+
+    /** Represents a edge feature in the feature hierarchy tree.
+     * Each edge node has a parent (an edge or a face), two child edge nodes and a child midpoint vertex.
+     */
+    struct EdgeNode
+    {
+        // an edge in the mesh can "belong" to a parent face or a parent edge
+        int parent_face_node = ElementTreeNode::INVALID_INDEX;
+        int parent_edge_node = ElementTreeNode::INVALID_INDEX;
+        // the actual edge
+        Edge edge;
+        // if this edge is not split (i.e. has no children)
+        bool is_leaf = true;
+        // if this edge, or any of its ancestor features are "in" the mesh (i.e. if this edge is part of an active tet in the mesh)
+        // this ultimately dictates whether or not the child vertex is hanging or not
+        // e.g. if the grandparent edge to this one is an edge for element 10, then in_mesh = true for this edge node and its parent
+        bool in_mesh = false;
+
+        // child edge nodes
+        int child_edge_node1 = ElementTreeNode::INVALID_INDEX;
+        int child_edge_node2 = ElementTreeNode::INVALID_INDEX;
+
+        // child (midpoint) vertex. this is the index in the _vertices vector
+        int child_vertex = ElementTreeNode::INVALID_INDEX;
+
+        EdgeNode(const Edge& edge_)
+            : edge(edge_)
+        {
+        }
+
+        EdgeNode(int v1, int v2)
+            : edge(v1, v2)
+        {
+        }
+    };
+
+    /** Represents a face feature in the feature hierarchy tree.
+     * Each face node has a parent face node, 4 child face nodes and 3 child edge nodes.
+     */
+    struct FaceNode
+    {
+        // a face in the mesh can only "belong" to a parent face
+        int parent_face_node = ElementTreeNode::INVALID_INDEX;
+        // the actual face
+        Face face;
+        // if this face is not splie (i.e. has no children)
+        bool is_leaf = true;
+        // if this face, or any of its ancestor faces are "in" the mesh (i.e. if this face is part of an active tet in the mesh)
+        // this ultimately dictates whether vertices on the midpoint of descendant edges are hanging or not
+        // e.g. if the grandparent face to this one is an face for element 10, then in_mesh = true for this face node and its parent 
+        bool in_mesh = false;
+        // whether this face is on the outer surface of the mesh
+        bool on_surface = false;
+
+        // the child edge nodes
+        std::array<int,3> child_edge_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
+        // the child face nodes
+        std::array<int,4> child_face_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
+
+        FaceNode(const Face& face_)
+            : face(face_)
+        {
+        }
+
+        FaceNode(int v1, int v2, int v3)
+            : face(v1, v2, v3)
+        {
+        }
     };
     
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
@@ -81,6 +213,7 @@ public:
      */
     int coarsenElement(int element_index, int coarsening_level);
 
+    /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
     const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
 
     /** Goes through the entire mesh and finds all hanging vertices.
@@ -88,6 +221,7 @@ public:
      */
     std::unordered_set<int> verifyHangingVertices() const;
 
+    /** Removes an element from the mesh. */
     virtual void removeElement(int elem_index) override;
 
 protected:
@@ -98,20 +232,44 @@ protected:
 
 private:
 
-    // int _addRefinedVertex(int parent_index1, int parent_index2);
-    int _addRefinedVertex(const ElementTreeNode& parent_node, int vi, int vj, int base_parent_node_index);
-
+    /** Adds a new element to the mesh given an ElementTreeNode.
+     * An element tree node has all the information we need to add a new element to the mesh.
+     * Calls _addNewElement under the hood.
+     */
     int _addNewElementFromElementTreeNode(int tree_node_index);
-    int _addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface);
 
-    void _updateParentEdgeToChildVertexMapForRemovedElement(const Vec4i& elem);
+    /** Adds a new element to the mesh.
+     * @param new_element : the vertices of the new element
+     * @param f012_on_surface, f013_on_surface, f023_on_surface, f123_on_surface : whether a given face is on the outer surface of the mesh. If it is, we need to add a new surface face to the mesh appropriately.
+     */
+    int _addNewElement(const Vec4i& new_element, bool f012_on_surface, bool f013_on_surface, bool f023_on_surface, bool f123_on_surface);
 
-    void _updateFeatureTreeForRemovedElement(int element_tree_node_index, int depth=std::numeric_limits<int>::max());
+
+    /** Helper functions for element refinement */
+
+    /** When we are preparing to refine an element, we need to update child features (up to the refinement).
+     * 
+     * We update only the child features of the features in the element who either don't have a parent feature or have a parent feature
+     * who with in_mesh = false (i.e. features with no ancestor features in the mesh). This means that when we remove this element and
+     * replace it with smaller subelements, those features and their children should have in_mesh = false (until we get to the depth of refinement
+     * where in_mesh = true because those descendant features will all be in the mesh).
+     * 
+     * Ultimately this is needed so that the hanging vertices can be determined appropriately.
+     * 
+     * @param element_tree_node_index : the index of the element tree node that we are about to refine
+     * @param depth : the depth of refinement we are preparing to do
+     */
+    void _prepareFeatureTreeForRefinedElement(int element_tree_node_index, int depth);
+
+    void _createMidpointVerticesAndChildEdgeNodesForElement(int element_tree_node_index, std::array<int,6>& midpoint_vertices, bool at_refinement_depth);
+
+    void _createChildFaceNodesForElement(int element_tree_node_index, const std::array<int,6>& midpoint_vertices, bool at_refinement_depth);
+
+    std::pair<int,int> _matchChildEdgeNodeIndices(int parent_edge_node_index, int lower);
+    std::tuple<int,int,int> _matchFaceNodeToChildEdgeNodeIndices(int parent_face_node_index, int lower, int middle);
+    std::tuple<int,int,int,int> _matchFaceNodeToChildFaceNodeIndices(int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12);
 
 protected:
-
-    /** Stores the refined element structs, according to their "base" elements in the original tet mesh. */
-    // std::unordered_map<Vec4i, RefinedElement, EigenHash<Vec4i>> _refined_elements;
     
     /** Stores the recursive refinement tree structure. This enables us to coarsen the mesh (i.e. undo refinement). */
     TombstoneVector<ElementTreeNode> _element_tree_nodes;
@@ -120,15 +278,6 @@ protected:
      * Only elements that were created from refinement will have entries in the map.
      */
     std::unordered_map<int, int> _element_to_tree_node_map;
-
-    /** Stores child vertices that were created from refining the original mesh.
-     * Each vertex is stored under the "parent edge" that it was created on.
-     * (Each refined vertex is created as the midpoint of an edge between two parent vertices).
-     * 
-     * This is a one-to-one mapping, i.e. each parent edge should only have one child vertex.
-     */
-    // std::unordered_map<Edge, int, EdgeHash> _parent_edge_to_child_vertex_map;
-    // std::unordered_map<int, Edge> _child_vertex_to_parent_edge_map;
 
     /** Stores the indices of vertices that are "hanging".
      * A hanging vertex is one that is in the middle of an edge.
@@ -142,50 +291,6 @@ protected:
      * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
      */
     std::unordered_set<int> _hanging_vertices;
-
-    struct EdgeNode
-    {
-        int parent_face_node = ElementTreeNode::INVALID_INDEX;
-        int parent_edge_node = ElementTreeNode::INVALID_INDEX;
-        Edge edge;
-        bool is_leaf = true;
-        bool in_mesh = false;
-        int child_edge_node1 = ElementTreeNode::INVALID_INDEX;
-        int child_edge_node2 = ElementTreeNode::INVALID_INDEX;
-        int child_vertex = ElementTreeNode::INVALID_INDEX;
-
-        EdgeNode(const Edge& edge_)
-            : edge(edge_)
-        {
-        }
-
-        EdgeNode(int v1, int v2)
-            : edge(v1, v2)
-        {
-        }
-    };
-
-    struct FaceNode
-    {
-        int parent_face_node = ElementTreeNode::INVALID_INDEX;
-        Face face;
-        bool is_leaf = true;
-        bool in_mesh = false;
-        bool on_surface = false;
-        std::array<int,3> child_edge_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
-        std::array<int,4> child_face_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
-
-        FaceNode(const Face& face_)
-            : face(face_)
-        {
-        }
-
-        FaceNode(int v1, int v2, int v3)
-            : face(v1, v2, v3)
-        {
-        }
-    };
-
 
     /** Store feature hierarchy */
     TombstoneVector<EdgeNode> _edge_nodes;

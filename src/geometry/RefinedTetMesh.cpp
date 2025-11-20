@@ -19,6 +19,15 @@ RefinedTetMesh::RefinedTetMesh(const TetMesh& tet_mesh)
 
 void RefinedTetMesh::removeElement(int elem_index)
 {
+    /** TODO: need to update the feature hierarchy here
+     * 
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+
     // before we remove the element, we need to update the tree structure (when applicable)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
     {
@@ -32,10 +41,10 @@ void RefinedTetMesh::removeElement(int elem_index)
         );
 
         // if the parent has no more children, it is defunct, so remove it also
-        if (parent_tree_node.children.size() == 0)
-        {
-            _element_tree_nodes.erase(node_to_remove.parent);
-        }
+        // if (parent_tree_node.children.size() == 0)
+        // {
+        //     _element_tree_nodes.erase(node_to_remove.parent);
+        // }
 
         // remove the leaf tree node
         _element_tree_nodes.erase(node_index);
@@ -49,7 +58,7 @@ void RefinedTetMesh::removeElement(int elem_index)
 
 void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 {
-    // this is the same code as for TetMesh, but with extra logic to update the parent edge -> child vertex map when a vertex is removed
+    // this is the same code as for TetMesh, but with extra logic to update the list of hanging vertices
     const Vec4i& elem_to_remove = element(element_index);
     for (int k = 0; k < 4; k++)
     {
@@ -73,11 +82,14 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 {
     ElementTreeNode& node = _element_tree_nodes[tree_node_index];
+    // determine which faces (if any) or on the outer surface of the mesh so that we can add the appropriate faces to be visualized
     bool f012_on_surface = (node.face_nodes[0] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[0]].on_surface);
     bool f013_on_surface = (node.face_nodes[1] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[1]].on_surface);
     bool f023_on_surface = (node.face_nodes[2] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[2]].on_surface);
     bool f123_on_surface = (node.face_nodes[3] != ElementTreeNode::INVALID_INDEX && _face_nodes[node.face_nodes[3]].on_surface);
+    // add the new element to the mesh
     int elem_index = _addNewElement(node.vertices, f012_on_surface, f013_on_surface, f023_on_surface, f123_on_surface);
+    // set the index of the ElementTreeNode to point to that new element we just created
     node.element_index = elem_index;
 
     // update the element -> tree node map
@@ -86,7 +98,7 @@ int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
     return elem_index;
 }
 
-int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f123_on_surface, bool f124_on_surface, bool f134_on_surface, bool f234_on_surface)
+int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surface, bool f013_on_surface, bool f023_on_surface, bool f123_on_surface)
 {
     // add the new element to the elements vector
     int new_elem_index = _elements.push_back(new_element);
@@ -94,6 +106,7 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f123_on_surfac
     // update vertex -> element, edge -> element, face -> element maps
     _updateElementMapsForNewElement(new_elem_index);
 
+    // helper lambda that adds a new face to the mesh and updates the maps associated with that surface face
     auto add_new_face = [&](const Vec3i& new_face) -> void
     {
         int new_face_index = _faces.push_back(new_face);
@@ -106,25 +119,26 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f123_on_surfac
     };
 
     // add surface faces and update element -> surface face and surface face -> element maps
-    if (f123_on_surface)
+    // F012
+    if (f012_on_surface)
     {
         Vec3i new_face(new_element[0], new_element[1], new_element[2]);
         add_new_face(new_face);
     }
-
-    if (f124_on_surface)
+    // F013
+    if (f013_on_surface)
     {
         Vec3i new_face(new_element[0], new_element[1], new_element[3]);
         add_new_face(new_face);
     }
-
-    if (f134_on_surface)
+    // F023
+    if (f023_on_surface)
     {
         Vec3i new_face(new_element[0], new_element[2], new_element[3]);
         add_new_face(new_face);
     }
-
-    if (f234_on_surface)
+    // F123
+    if (f123_on_surface)
     {
         Vec3i new_face(new_element[1], new_element[2], new_element[3]);
         add_new_face(new_face);
@@ -133,15 +147,21 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f123_on_surfac
     return new_elem_index;
 }
 
-void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_index, int depth)
+void RefinedTetMesh::_prepareFeatureTreeForRefinedElement(int element_tree_node_index, int depth)
 {
     // std::cout "\n=== UpdateFeatureTreeForRemovedElement ===" << std::endl;
     ElementTreeNode& root_node = _element_tree_nodes[element_tree_node_index];
     // std::cout "  element: " << root_node.vertices.transpose() << std::endl;
 
-    // figure out if any updates need to be made (first int = node index, second int = depth)
+    /** First, figure out if any updates need to be made */
+
+    // store the edges and faces that need to be updated 
+    // (first int = node index, second int = depth)
     std::stack<std::pair<int,int>> face_nodes_to_update;
     std::stack<std::pair<int,int>> edge_nodes_to_update;
+
+    // iterate through the root's face nodes and look for faces whose parent feature has
+    // in_mesh = false and the face itself is not part of another element
     for (const auto& face_node_index : root_node.face_nodes)
     {
         if (face_node_index == ElementTreeNode::INVALID_INDEX)
@@ -164,6 +184,9 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
             
         }
     }
+
+    // iterate through the root's edge nodes and look for faces whose parent feature has
+    // in_mesh = false and the edge itself is not part of another element - these are the edges that need to be updated 
     for (const auto& edge_node_index : root_node.edge_nodes)
     {
         if (edge_node_index == ElementTreeNode::INVALID_INDEX)
@@ -187,7 +210,10 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
         }
     }
 
-    // update the branches marked for updates
+
+
+    /** Now, update the branches marked for updates to the specified depth */
+    // update branches starting with a face node
     while (!face_nodes_to_update.empty())
     {
         auto [node_index, d] = face_nodes_to_update.top();
@@ -198,6 +224,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
 
         if (!face_node.is_leaf && d > 0)
         {
+            // push the child faces and edges to be updated if they exist, and they do not belong to another element in the mesh
             for (const auto& child_face_node_index : face_node.child_face_nodes)
             {
                 if (child_face_node_index != ElementTreeNode::INVALID_INDEX && _face_to_elements_map.count(_face_nodes.at(child_face_node_index).face) == 0)
@@ -216,6 +243,7 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
         }
     }
 
+    // update branches starting with an edge node
     while (!edge_nodes_to_update.empty())
     {
         auto [node_index, d] = edge_nodes_to_update.top();
@@ -228,12 +256,14 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
 
         if (!edge_node.is_leaf && d > 0)
         {
+            // since the parent edge is no longer in the mesh, the child vertex (if it exists) is no longer hanging
             if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
             {
                 // std::cout "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
                 _hanging_vertices.erase(edge_node.child_vertex);
             }
 
+            // push the child edges to be updated if they exist, and they do not belong to another element in the mesh
             if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node1).edge) == 0)
             {
                 edge_nodes_to_update.push({edge_node.child_edge_node1, d-1});
@@ -246,6 +276,253 @@ void RefinedTetMesh::_updateFeatureTreeForRemovedElement(int element_tree_node_i
     }
 }
 
+void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int element_tree_node_index, std::array<int,6>& midpoint_vertices, bool at_refinement_depth)
+{
+    ElementTreeNode& parent_node = _element_tree_nodes[element_tree_node_index];
+    
+    for (int vi = 0; vi < 4; vi++)
+    {
+        for (int vj = vi+1; vj < 4; vj++)
+        {
+            // map the nested sequence to a linear sequence
+            int edge_index = 4*vi - (vi * (vi + 1)) / 2 + (vj - vi - 1);
+
+            // get the EdgeNode for the parent edge
+            int parent_edge_node_index = parent_node.edge_nodes[edge_index];
+            Edge parent_edge = _edge_nodes[parent_edge_node_index].edge;
+
+            Edge vertices_edge = Edge(parent_node.vertices[vi], parent_node.vertices[vj]);
+            if (!(parent_edge == vertices_edge))
+            {
+                // std::cout "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
+                // "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
+                // std::cout " vi: " << vi << "  vj: " << vj << std::endl;
+                // std::cout " parent edge node_index: " << parent_edge_node_index << std::endl;
+                // std::cout " element: " << parent_node.vertices.transpose() << std::endl;
+            }
+
+            // add vertex at midpoint
+            if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
+            {
+                // std::cout "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
+                // std::cout "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
+                // std::cout "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
+                midpoint_vertices[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
+            }
+            else
+            {
+                int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
+                midpoint_vertices[edge_index] = new_vert_index;
+
+                // std::cout "=== Created new vertex " << new_vert_index << " === " << std::endl;
+                // std::cout " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
+
+                // _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
+                // _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
+
+                // create EdgeNodes for the child edges
+                EdgeNode child1(parent_node.vertices[vi], midpoint_vertices[edge_index]);
+                child1.parent_edge_node = parent_edge_node_index;
+                child1.in_mesh = _edge_nodes[parent_edge_node_index].in_mesh || at_refinement_depth;
+
+                EdgeNode child2(parent_node.vertices[vj], midpoint_vertices[edge_index]);
+                child2.parent_edge_node = parent_edge_node_index;
+                child2.in_mesh = child1.in_mesh;
+
+                _edge_nodes[parent_edge_node_index].child_edge_node1 = _edge_nodes.push_back(std::move(child1));
+                _edge_nodes[parent_edge_node_index].child_edge_node2 = _edge_nodes.push_back(std::move(child2));
+
+                // std::cout "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
+                //  "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
+                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
+                    // _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
+                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
+                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
+
+                _edge_nodes[parent_edge_node_index].is_leaf = false;
+                _edge_nodes[parent_edge_node_index].child_vertex = new_vert_index;
+            }
+
+            // the midpoint vertex is hanging if the parent edge is "in" the mesh
+            if (_edge_nodes[parent_edge_node_index].in_mesh)
+            {
+                // std::cout "  vertex " << mid_verts[edge_index] << " is hanging because the edge (" << 
+                // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
+                // _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
+                _hanging_vertices.insert(midpoint_vertices[edge_index]);
+            }
+            else
+            {
+                // std::cout "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
+                // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
+                // _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
+            }
+        }
+        
+    }
+}
+
+void RefinedTetMesh::_createChildFaceNodesForElement(int element_tree_node_index, const std::array<int,6>& mid_verts, bool at_refinement_depth)
+{
+    ElementTreeNode& parent_node = _element_tree_nodes[element_tree_node_index];
+
+    // lambda helper function to create child edge nodes and child face nodes for a given face
+    // parent_face_node_index = the index of the parent face node
+    // v1,v2,v3 = indices of the parent face vertices
+    // m12, m13, m23 = midpoint vertices of the parent face (m12 is on edge 12, etc.)
+    auto create_child_features_for_face = [&](int parent_face_node_index, int v1, int v2, int v3, int m12, int m13, int m23) -> void
+    {
+        // std::cout "  === Face node " << parent_face_node_index << std::endl;
+        // the parent face node must be a leaf to be split
+        if (!_face_nodes[parent_face_node_index].is_leaf)
+            return;
+
+        // is the child feature in the mesh? That depends on if its parent is in the mesh, or we are at the final refinement level
+        bool child_feature_in_mesh = _face_nodes[parent_face_node_index].in_mesh || at_refinement_depth;
+
+        // create EdgeNodes for the child edges - 3 of them constructed from the midpoint vertices
+        EdgeNode child_edge1(m12, m13);
+        child_edge1.parent_face_node = parent_face_node_index;
+        child_edge1.in_mesh = child_feature_in_mesh;
+
+        EdgeNode child_edge2(m12, m23);
+        child_edge2.parent_face_node = parent_face_node_index;
+        child_edge2.in_mesh = child_feature_in_mesh;
+
+        EdgeNode child_edge3(m13, m23);
+        child_edge3.parent_face_node = parent_face_node_index;
+        child_edge3.in_mesh = child_feature_in_mesh;
+
+        _face_nodes[parent_face_node_index].child_edge_nodes[0] = _edge_nodes.push_back(std::move(child_edge1));
+        _face_nodes[parent_face_node_index].child_edge_nodes[1] = _edge_nodes.push_back(std::move(child_edge2));
+        _face_nodes[parent_face_node_index].child_edge_nodes[2] = _edge_nodes.push_back(std::move(child_edge3));
+
+        // create FaceNodes for the child faces - 4 of them
+        // whether these new subfaces are on the outer surface of the mesh depends on if the parent face is on the outer surface of the mesh
+        FaceNode child_face1(v1, m12, m13);
+        child_face1.parent_face_node = parent_face_node_index;
+        child_face1.in_mesh = child_feature_in_mesh;
+        child_face1.on_surface = _face_nodes[parent_face_node_index].on_surface;
+
+        FaceNode child_face2(v2, m12, m23);
+        child_face2.parent_face_node = parent_face_node_index;
+        child_face2.in_mesh = child_feature_in_mesh;
+        child_face2.on_surface = _face_nodes[parent_face_node_index].on_surface;
+
+        FaceNode child_face3(v3, m13, m23);
+        child_face3.parent_face_node = parent_face_node_index;
+        child_face3.in_mesh = child_feature_in_mesh;
+        child_face3.on_surface = _face_nodes[parent_face_node_index].on_surface;
+
+        FaceNode child_face4(m12, m13, m23);
+        child_face4.parent_face_node = parent_face_node_index;
+        child_face4.in_mesh = child_feature_in_mesh;
+        child_face4.on_surface = _face_nodes[parent_face_node_index].on_surface;
+
+        _face_nodes[parent_face_node_index].child_face_nodes[0] = _face_nodes.push_back(std::move(child_face1));
+        _face_nodes[parent_face_node_index].child_face_nodes[1] = _face_nodes.push_back(std::move(child_face2));
+        _face_nodes[parent_face_node_index].child_face_nodes[2] = _face_nodes.push_back(std::move(child_face3));
+        _face_nodes[parent_face_node_index].child_face_nodes[3] = _face_nodes.push_back(std::move(child_face4));
+
+        // mark the parent face node as no longer being a leaf (it has children now!)
+        _face_nodes[parent_face_node_index].is_leaf = false;
+    };
+    
+    // F012
+    create_child_features_for_face(parent_node.face_nodes[0], 
+        parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[2],
+        mid_verts[0], mid_verts[1], mid_verts[3]);
+    // F013
+    create_child_features_for_face(parent_node.face_nodes[1],
+        parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[3],
+        mid_verts[0], mid_verts[2], mid_verts[4]);
+    // F023
+    create_child_features_for_face(parent_node.face_nodes[2],
+        parent_node.vertices[0], parent_node.vertices[2], parent_node.vertices[3],
+        mid_verts[1], mid_verts[2], mid_verts[5]);
+    // F123
+    create_child_features_for_face(parent_node.face_nodes[3],
+        parent_node.vertices[1], parent_node.vertices[2], parent_node.vertices[3],
+        mid_verts[3], mid_verts[4], mid_verts[5]);
+}
+
+std::pair<int,int> RefinedTetMesh::_matchChildEdgeNodeIndices(int parent_edge_node_index, int lower)
+{
+    const EdgeNode& parent_edge_node = _edge_nodes[parent_edge_node_index];
+    const EdgeNode& child_edge_node1 = _edge_nodes[parent_edge_node.child_edge_node1];
+    if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
+    {
+        return {parent_edge_node.child_edge_node1, parent_edge_node.child_edge_node2};
+    }
+    else
+    {
+        return {parent_edge_node.child_edge_node2, parent_edge_node.child_edge_node1};
+    }
+}
+
+std::tuple<int,int,int> RefinedTetMesh::_matchFaceNodeToChildEdgeNodeIndices(int parent_face_node_index, int lower, int middle)
+{
+    const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
+    const EdgeNode& child_edge_node1 = _edge_nodes[parent_face_node.child_edge_nodes[0]];
+    const EdgeNode& child_edge_node2 = _edge_nodes[parent_face_node.child_edge_nodes[1]];
+    if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
+    {
+        if (child_edge_node1.edge.index1 == middle || child_edge_node1.edge.index2 == middle)
+        {
+            if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
+                return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2]};
+            else
+                return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1]};
+        }
+        else
+        {
+            if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
+                return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2]};
+            else
+                return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1]};
+        }
+    }
+    else
+    {
+        if ( (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower) && 
+                (child_edge_node2.edge.index1 == middle || child_edge_node2.edge.index2 == middle) )
+            return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0]};
+        else
+            return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0]};
+    }
+}
+
+std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices(int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12)
+{
+    const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
+    int ind1 = -1, ind2 = -1, ind3 = -1, ind4 = -1;
+    for (const auto& child_face_node_index : parent_face_node.child_face_nodes)
+    {
+        const FaceNode& child_face_node = _face_nodes[child_face_node_index];
+        if (ind1 < 0 && child_face_node.face == Face(v0, m01, m02))
+        {
+            ind1 = child_face_node_index;
+            continue;
+        }
+        if (ind2 < 0 && child_face_node.face == Face(v1, m01, m12))
+        {
+            ind2 = child_face_node_index;
+            continue;
+        }
+        if (ind3 < 0 && child_face_node.face == Face(v2, m02, m12))
+        {
+            ind3 = child_face_node_index;
+            continue;
+        }
+        if (ind4 < 0 && child_face_node.face == Face(m01, m02, m12))
+        {
+            ind4 = child_face_node_index;
+            continue;
+        }
+    }
+    return {ind1, ind2, ind3, ind4};
+}
+
 void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 {
     
@@ -256,16 +533,26 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
     const Vec4i base_element = element(element_index);  // don't use a ref here since the element will soon be removed
 
-    int base_node_index;
-    auto surface_faces_range = _element_to_surface_faces_map.equal_range(element_index);
 
+    // find the ElementTreeNode associated with the specified element to refine, and 
+    // create a new ElementTreeNode if one doesn't already exist for the element
+    //
+
+
+    int base_node_index;    // the index of the tree node we are refining
+    auto surface_faces_range = _element_to_surface_faces_map.equal_range(element_index);    // iterators for the surface faces associated with the element - useful later
+
+    // Case 1: an ElementTreeNode already exists for the element
     if (auto search = _element_to_tree_node_map.find(element_index); search != _element_to_tree_node_map.end())
     {
-        base_node_index = search->second;
-        _element_tree_nodes[base_node_index].element_index = ElementTreeNode::INVALID_INDEX;
+        base_node_index = search->second; 
 
+        // unset the element_index for the tree node, since the element will no longer exist
+        _element_tree_nodes[base_node_index].element_index = ElementTreeNode::INVALID_INDEX;
+        // update the element -> element tree node map
         _element_to_tree_node_map.erase(search);
     }
+    // Case 2: an ElementTreeNode does not exist for the element, we must create one
     else
     {
         // create the initial ElementTreeNode struct for the base element that we are subdividing
@@ -295,31 +582,42 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             {
                 // map the nested sequence to a linear sequence
                 int edge_index = 4*vi - (vi * (vi + 1)) / 2 + (vj - vi - 1);
+
                 Edge edge(base_node.vertices[vi], base_node.vertices[vj]);
+                // search for the edge in the Edge -> Edge Node map
                 auto search = _edge_to_edge_node_map.find(edge);
                 if (search != _edge_to_edge_node_map.end())
                 {
+                    // the edge node already exists!
                     base_node.edge_nodes[edge_index] = search->second;
                 }
                 else
                 {
+                    // the edge node does not exist, create a new one
                     int new_edge_node_index = _edge_nodes.emplace_back(edge);
                     base_node.edge_nodes[edge_index] = new_edge_node_index;
                     _edge_to_edge_node_map.insert({edge, new_edge_node_index});
                 }
             }
         }
+
+
         // set or create the face nodes
+
+        // lambda helper for doing this for a given face
         auto set_or_create_face_node = [&](int fi, int v1, int v2, int v3, bool surface) -> void
         {
             Face face(v1, v2, v3);
+            // search for the face in the Face -> Face Node map
             auto search = _face_to_face_node_map.find(face);
             if (search != _face_to_face_node_map.end())
             {
+                // the face node already exists!
                 base_node.face_nodes[fi] = search->second;
             }
             else
             {
+                // the face node does not exist, create a new one
                 int new_face_node_index = _face_nodes.emplace_back(face);
                 _face_nodes[new_face_node_index].on_surface = surface;
 
@@ -333,14 +631,9 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
         set_or_create_face_node(2, base_node.vertices[0], base_node.vertices[2], base_node.vertices[3], f023_on_surface);    // F023
         set_or_create_face_node(3, base_node.vertices[1], base_node.vertices[2], base_node.vertices[3], f123_on_surface);    // F123
 
-        // add the base element tree node to the tree nodes vector
+        // add the base element tree node that we just created to the tree nodes vector
         base_node_index = _element_tree_nodes.push_back(std::move(base_node));
     }
-    
-    // recursively keep track of "parent" elements that we want to subdivide
-    std::vector<int> parent_nodes = {base_node_index};
-    int num_new_tets = 1;   // calculate the number of new tets to be added at each refinement level
-
 
 
     /** === Step 3: Remove the element from the mesh === */
@@ -360,12 +653,16 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
     _updateElementSurfaceFaceMapForRemovedElement(element_index);
 
     // update the feature hierarchy (i.e. whether or not a feature has an ancestor feature in the mesh or not)
-    _updateFeatureTreeForRemovedElement(base_node_index, refinement_level);
+    _prepareFeatureTreeForRefinedElement(base_node_index, refinement_level);
 
     /** === Step 4: Refine the element. === */
 
     // std::cout "\n\n\n======================\nRefining element " << element_index << "\n======================" << std::endl;
     
+    // recursively keep track of "parent" elements that we want to subdivide
+    std::vector<int> parent_nodes = {base_node_index};
+    int num_new_tets = 1;   // calculate the number of new tets to be added at each refinement level
+
     for (int level = 0; level < refinement_level; level++)
     {
         num_new_tets *= 8;
@@ -387,169 +684,19 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
             ElementTreeNode& parent_node = _element_tree_nodes[parent_node_index];
 
-            // create new features in the feature hierarchy
+            /** Create new features in the feature hierarchy */
+
             // each edge in the parent element -> 2 sub edges
-            for (int vi = 0; vi < 4; vi++)
-            {
-                for (int vj = vi+1; vj < 4; vj++)
-                {
-                    // map the nested sequence to a linear sequence
-                    int edge_index = 4*vi - (vi * (vi + 1)) / 2 + (vj - vi - 1);
+            // each edge in the parent element also will have a new vertex created at its midpoint
+            _createMidpointVerticesAndChildEdgeNodesForElement(parent_node_index, mid_verts, level == refinement_level-1);
 
-                    // get the EdgeNode for the parent edge
-                    int parent_edge_node_index = parent_node.edge_nodes[edge_index];
-                    Edge parent_edge = _edge_nodes[parent_edge_node_index].edge;
-
-                    Edge vertices_edge = Edge(parent_node.vertices[vi], parent_node.vertices[vj]);
-                    if (!(parent_edge == vertices_edge))
-                    {
-                        // std::cout "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
-                        // "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
-                        // std::cout " vi: " << vi << "  vj: " << vj << std::endl;
-                        // std::cout " parent edge node_index: " << parent_edge_node_index << std::endl;
-                        // std::cout " element: " << parent_node.vertices.transpose() << std::endl;
-                    }
-
-                    // add vertex at midpoint
-                    if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
-                    {
-                        // std::cout "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
-                        // std::cout "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
-                        // std::cout "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
-                        mid_verts[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
-                    }
-                    else
-                    {
-                        int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
-                        mid_verts[edge_index] = new_vert_index;
-
-                        // std::cout "=== Created new vertex " << new_vert_index << " === " << std::endl;
-                        // std::cout " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
-
-                        // _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
-                        // _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
-
-                        // create EdgeNodes for the child edges
-                        EdgeNode child1(parent_node.vertices[vi], mid_verts[edge_index]);
-                        child1.parent_edge_node = parent_edge_node_index;
-                        child1.in_mesh = _edge_nodes[parent_edge_node_index].in_mesh || level == refinement_level-1;
-
-                        EdgeNode child2(parent_node.vertices[vj], mid_verts[edge_index]);
-                        child2.parent_edge_node = parent_edge_node_index;
-                        child2.in_mesh = child1.in_mesh;
-
-                        _edge_nodes[parent_edge_node_index].child_edge_node1 = _edge_nodes.push_back(std::move(child1));
-                        _edge_nodes[parent_edge_node_index].child_edge_node2 = _edge_nodes.push_back(std::move(child2));
-
-                        // std::cout "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
-                        //  "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
-                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
-                            // _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
-                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
-                            // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
-
-                        _edge_nodes[parent_edge_node_index].is_leaf = false;
-                        _edge_nodes[parent_edge_node_index].child_vertex = new_vert_index;
-                    }
-
-                    // the midpoint vertex is hanging if the parent edge is "in" the mesh
-                    if (_edge_nodes[parent_edge_node_index].in_mesh)
-                    {
-                        // std::cout "  vertex " << mid_verts[edge_index] << " is hanging because the edge (" << 
-                        // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                        // _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
-                        _hanging_vertices.insert(mid_verts[edge_index]);
-                    }
-                    else
-                    {
-                        // std::cout "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
-                        // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                        // _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
-                    }
-                }
-                
-            }
             // each face in the parent element -> 4 sub faces and 3 sub edges
             // FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
-            auto create_child_features_for_face = [&](int parent_face_node_index, int v1, int v2, int v3, int m12, int m13, int m23) -> void
-            {
-                // std::cout "  === Face node " << parent_face_node_index << std::endl;
-                // the parent face node must be a leaf to be split
-                if (!_face_nodes[parent_face_node_index].is_leaf)
-                    return;
+            _createChildFaceNodesForElement(parent_node_index, mid_verts, level == refinement_level-1);
 
-                bool child_feature_in_mesh = _face_nodes[parent_face_node_index].in_mesh || level == refinement_level-1;
-
-                // create EdgeNodes for the child edges
-                EdgeNode child_edge1(m12, m13);
-                child_edge1.parent_face_node = parent_face_node_index;
-                child_edge1.in_mesh = child_feature_in_mesh;
-
-                EdgeNode child_edge2(m12, m23);
-                child_edge2.parent_face_node = parent_face_node_index;
-                child_edge2.in_mesh = child_feature_in_mesh;
-
-                EdgeNode child_edge3(m13, m23);
-                child_edge3.parent_face_node = parent_face_node_index;
-                child_edge3.in_mesh = child_feature_in_mesh;
-
-                _face_nodes[parent_face_node_index].child_edge_nodes[0] = _edge_nodes.push_back(std::move(child_edge1));
-                _face_nodes[parent_face_node_index].child_edge_nodes[1] = _edge_nodes.push_back(std::move(child_edge2));
-                _face_nodes[parent_face_node_index].child_edge_nodes[2] = _edge_nodes.push_back(std::move(child_edge3));
-
-                // std::cout "   child edge nodes: " <<
-                // _face_nodes[parent_face_node_index].child_edge_nodes[0] << ", " <<
-                // _face_nodes[parent_face_node_index].child_edge_nodes[1] << ", " <<
-                // _face_nodes[parent_face_node_index].child_edge_nodes[2] << std::endl;
-
-                // create FaceNodes for the child faces
-                FaceNode child_face1(v1, m12, m13);
-                child_face1.parent_face_node = parent_face_node_index;
-                child_face1.in_mesh = child_feature_in_mesh;
-                child_face1.on_surface = _face_nodes[parent_face_node_index].on_surface;
-
-                FaceNode child_face2(v2, m12, m23);
-                child_face2.parent_face_node = parent_face_node_index;
-                child_face2.in_mesh = child_feature_in_mesh;
-                child_face2.on_surface = _face_nodes[parent_face_node_index].on_surface;
-
-                FaceNode child_face3(v3, m13, m23);
-                child_face3.parent_face_node = parent_face_node_index;
-                child_face3.in_mesh = child_feature_in_mesh;
-                child_face3.on_surface = _face_nodes[parent_face_node_index].on_surface;
-
-                FaceNode child_face4(m12, m13, m23);
-                child_face4.parent_face_node = parent_face_node_index;
-                child_face4.in_mesh = child_feature_in_mesh;
-                child_face4.on_surface = _face_nodes[parent_face_node_index].on_surface;
-
-                _face_nodes[parent_face_node_index].child_face_nodes[0] = _face_nodes.push_back(std::move(child_face1));
-                _face_nodes[parent_face_node_index].child_face_nodes[1] = _face_nodes.push_back(std::move(child_face2));
-                _face_nodes[parent_face_node_index].child_face_nodes[2] = _face_nodes.push_back(std::move(child_face3));
-                _face_nodes[parent_face_node_index].child_face_nodes[3] = _face_nodes.push_back(std::move(child_face4));
-
-                _face_nodes[parent_face_node_index].is_leaf = false;
-            };
-            
-            // F012
-            create_child_features_for_face(parent_node.face_nodes[0], 
-                parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[2],
-                mid_verts[0], mid_verts[1], mid_verts[3]);
-            // F013
-            create_child_features_for_face(parent_node.face_nodes[1],
-                parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[3],
-                mid_verts[0], mid_verts[2], mid_verts[4]);
-            // F023
-            create_child_features_for_face(parent_node.face_nodes[2],
-                parent_node.vertices[0], parent_node.vertices[2], parent_node.vertices[3],
-                mid_verts[1], mid_verts[2], mid_verts[5]);
-            // F123
-            create_child_features_for_face(parent_node.face_nodes[3],
-                parent_node.vertices[1], parent_node.vertices[2], parent_node.vertices[3],
-                mid_verts[3], mid_verts[4], mid_verts[5]);
-
-            // 8 internal faces
-            int f456_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[1], mid_verts[2]);  _face_nodes[f456_node_index].in_mesh = level == refinement_level-1;
+            // splitting a tet produces 8 "internal" faces that do not have a parent face in the tet that was split
+            // create the face nodes associated with these faces
+            int f456_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[1], mid_verts[2]);   _face_nodes[f456_node_index].in_mesh = level == refinement_level-1;
             int f478_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[3], mid_verts[4]);   _face_nodes[f478_node_index].in_mesh = level == refinement_level-1;  
             int f579_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[3], mid_verts[5]);   _face_nodes[f579_node_index].in_mesh = level == refinement_level-1;
             int f689_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[4], mid_verts[5]);   _face_nodes[f689_node_index].in_mesh = level == refinement_level-1;
@@ -558,116 +705,38 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
             int f567_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[2], mid_verts[3]);   _face_nodes[f567_node_index].in_mesh = level == refinement_level-1;
             int f678_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[3], mid_verts[4]);   _face_nodes[f678_node_index].in_mesh = level == refinement_level-1;
 
-            // 1 internal edge
+            // splitting a tet also produces 1 "internal" edge that does not have a parent edge or face in the parent tet that was split
+            // create the edge node associated with this edge
             int e67_node_index = _edge_nodes.emplace_back(mid_verts[2], mid_verts[3]);
             _edge_nodes[e67_node_index].in_mesh = level == refinement_level-1;
 
+
+            /** Create the child element tree nodes */
+
             // indices for edges and faces created programmatically
-            auto match_child_edge_node_indices = [&](int parent_edge_node_index, int lower) -> std::pair<int,int>
-            {
-                const EdgeNode& parent_edge_node = _edge_nodes[parent_edge_node_index];
-                const EdgeNode& child_edge_node1 = _edge_nodes[parent_edge_node.child_edge_node1];
-                if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
-                {
-                    return {parent_edge_node.child_edge_node1, parent_edge_node.child_edge_node2};
-                }
-                else
-                {
-                    return {parent_edge_node.child_edge_node2, parent_edge_node.child_edge_node1};
-                }
-            };
 
-            auto match_face_node_to_child_edge_node_indices = [&](int parent_face_node_index, int lower, int middle) -> std::tuple<int, int, int>
-            {
-                const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
-                const EdgeNode& child_edge_node1 = _edge_nodes[parent_face_node.child_edge_nodes[0]];
-                const EdgeNode& child_edge_node2 = _edge_nodes[parent_face_node.child_edge_nodes[1]];
-                if (child_edge_node1.edge.index1 == lower || child_edge_node1.edge.index2 == lower)
-                {
-                    if (child_edge_node1.edge.index1 == middle || child_edge_node1.edge.index2 == middle)
-                    {
-                        if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
-                            return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2]};
-                        else
-                            return {parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1]};
-                    }
-                    else
-                    {
-                        if (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower)
-                            return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[2]};
-                        else
-                            return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0], parent_face_node.child_edge_nodes[1]};
-                    }
-                }
-                else
-                {
-                    if ( (child_edge_node2.edge.index1 == lower || child_edge_node2.edge.index2 == lower) && 
-                         (child_edge_node2.edge.index1 == middle || child_edge_node2.edge.index2 == middle) )
-                        return {parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[0]};
-                    else
-                        return {parent_face_node.child_edge_nodes[2], parent_face_node.child_edge_nodes[1], parent_face_node.child_edge_nodes[0]};
-                }
-            };
+            auto [e04_node_index, e14_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[0], parent_node.vertices[0]);
+            auto [e05_node_index, e25_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[1], parent_node.vertices[0]);
+            auto [e06_node_index, e36_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[2], parent_node.vertices[0]);
+            auto [e17_node_index, e27_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[3], parent_node.vertices[1]);
+            auto [e18_node_index, e38_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[4], parent_node.vertices[1]);
+            auto [e29_node_index, e39_node_index] = _matchChildEdgeNodeIndices(parent_node.edge_nodes[5], parent_node.vertices[2]);
 
-            auto match_face_node_to_child_face_node_indices = [&](int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12) -> std::tuple<int, int, int, int>
-            {
-                const FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
-                int ind1 = -1, ind2 = -1, ind3 = -1, ind4 = -1;
-                for (const auto& child_face_node_index : parent_face_node.child_face_nodes)
-                {
-                    const FaceNode& child_face_node = _face_nodes[child_face_node_index];
-                    if (ind1 < 0 && child_face_node.face == Face(v0, m01, m02))
-                    {
-                        ind1 = child_face_node_index;
-                        continue;
-                    }
-                    if (ind2 < 0 && child_face_node.face == Face(v1, m01, m12))
-                    {
-                        ind2 = child_face_node_index;
-                        continue;
-                    }
-                    if (ind3 < 0 && child_face_node.face == Face(v2, m02, m12))
-                    {
-                        ind3 = child_face_node_index;
-                        continue;
-                    }
-                    if (ind4 < 0 && child_face_node.face == Face(m01, m02, m12))
-                    {
-                        ind4 = child_face_node_index;
-                        continue;
-                    }
-                }
-                return {ind1, ind2, ind3, ind4};
-            };
+            auto [e45_node_index, e47_node_index, e57_node_index] = _matchFaceNodeToChildEdgeNodeIndices(parent_node.face_nodes[0], mid_verts[0], mid_verts[1]);
+            auto [e46_node_index, e48_node_index, e68_node_index] = _matchFaceNodeToChildEdgeNodeIndices(parent_node.face_nodes[1], mid_verts[0], mid_verts[2]);
+            auto [e56_node_index, e59_node_index, e69_node_index] = _matchFaceNodeToChildEdgeNodeIndices(parent_node.face_nodes[2], mid_verts[1], mid_verts[2]);
+            auto [e78_node_index, e79_node_index, e89_node_index] = _matchFaceNodeToChildEdgeNodeIndices(parent_node.face_nodes[3], mid_verts[3], mid_verts[4]);
 
-            auto [e04_node_index, e14_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[0], parent_node.vertices[0]);
-            auto [e05_node_index, e25_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[1], parent_node.vertices[0]);
-            auto [e06_node_index, e36_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[2], parent_node.vertices[0]);
-            auto [e17_node_index, e27_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[3], parent_node.vertices[1]);
-            auto [e18_node_index, e38_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[4], parent_node.vertices[1]);
-            auto [e29_node_index, e39_node_index] = match_child_edge_node_indices(parent_node.edge_nodes[5], parent_node.vertices[2]);
-
-            auto [e45_node_index, e47_node_index, e57_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[0], mid_verts[0], mid_verts[1]);
-
-            auto [e46_node_index, e48_node_index, e68_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[1], mid_verts[0], mid_verts[2]);
-
-            auto [e56_node_index, e59_node_index, e69_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[2], mid_verts[1], mid_verts[2]);
-
-            auto [e78_node_index, e79_node_index, e89_node_index] = match_face_node_to_child_edge_node_indices(parent_node.face_nodes[3], mid_verts[3], mid_verts[4]);
-
-            auto [f045_node_index, f147_node_index, f257_node_index, f457_node_index] = match_face_node_to_child_face_node_indices(
+            auto [f045_node_index, f147_node_index, f257_node_index, f457_node_index] = _matchFaceNodeToChildFaceNodeIndices(
                 parent_node.face_nodes[0], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[2], mid_verts[0], mid_verts[1], mid_verts[3]
             );
-
-            auto [f046_node_index, f148_node_index, f368_node_index, f468_node_index] = match_face_node_to_child_face_node_indices(
+            auto [f046_node_index, f148_node_index, f368_node_index, f468_node_index] = _matchFaceNodeToChildFaceNodeIndices(
                 parent_node.face_nodes[1], parent_node.vertices[0], parent_node.vertices[1], parent_node.vertices[3], mid_verts[0], mid_verts[2], mid_verts[4]
             );
-
-            auto [f056_node_index, f259_node_index, f369_node_index, f569_node_index] = match_face_node_to_child_face_node_indices(
+            auto [f056_node_index, f259_node_index, f369_node_index, f569_node_index] = _matchFaceNodeToChildFaceNodeIndices(
                 parent_node.face_nodes[2], parent_node.vertices[0], parent_node.vertices[2], parent_node.vertices[3], mid_verts[1], mid_verts[2], mid_verts[5]
             );
-
-            auto [f178_node_index, f279_node_index, f389_node_index, f789_node_index] = match_face_node_to_child_face_node_indices(
+            auto [f178_node_index, f279_node_index, f389_node_index, f789_node_index] = _matchFaceNodeToChildFaceNodeIndices(
                 parent_node.face_nodes[3], parent_node.vertices[1], parent_node.vertices[2], parent_node.vertices[3], mid_verts[3], mid_verts[4], mid_verts[5]
             );
 
