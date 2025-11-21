@@ -39,6 +39,7 @@ Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with 
 `sim_bridge` `sim_bridge`: The ROS interface to the sim. This node, upon startup, will launch a simulation and communicate with it via ROS. The topics subscribed/published to will vary depending on the **type** of simulation that is launched. The types of simulations that can be launched (with examples) can be found here (TODO: link). `sim_bridge` has a general ROS interface that exists regardless of the specific type of simulation.
 
 ### Any Simulation
+**Publishers:**
 In general, the `sim_bridge` node publishes the vertices for any deformable mesh in the simulation. The list of topics can be found below:
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
@@ -48,6 +49,7 @@ In general, the `sim_bridge` node publishes the vertices for any deformable mesh
 | `/output/faces_mat_<i>` | N/A | Nx3 matrix of the current **surface** faces for the ith deformable mesh in the simulation. The faces are specified as 3-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
 |`/output/elements_mat_<i>` | N/A | Nx4 matrix of current elements for the ith deformable mesh in the simulation. The elements are specified as 4-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true. |
 
+**Node parameters:**
 Every simulation has the following parameters
 | Parameter    | Type | Default | Description |
 |--------------|------|---------|-------------|
@@ -56,6 +58,7 @@ Every simulation has the following parameters
 | `use_wall_time_for_publishing` | `bool` | `false` | When the simulator ROS node publishes topics, it has two options for the time scale used for publishing: simulated time or wall time. When using simulated time, a 1 Hz publish rate will correspond to publishing once per **simulated** second. This may be faster of slower than 1 Hz wall clock time. Generally, messages should be published using wall clock time for consistent intervals. However, for some messages that are extremely slow to compute (i.e. stiffness matrices), you might prefer that the simulated time is used. |
 
 ### `VirtuosoSimulation`
+**Publishers:**
 Any simulation that involves a Virtuoso robot publishes the following additional topics:
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
@@ -74,6 +77,7 @@ Any simulation that involves a Virtuoso robot publishes the following additional
 | `/output/trachea_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the trachea. | `ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Enabled by setting the `partial_view_pc` parameter to `true`. Requires some computation time, since the Embree ray collision scene must be updated. Also requires that a tissue mesh be in the scene that has labels for trachea and tumor parts. |
 | `/output/tumor_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the tumor. | `/ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Same as above. |
 
+**Subscriptions:**
 Any simulation that involves a Virtuoso robot subscribes to the following topics for inputting commandes to the robot. The interface was designed to try to be identical to that of `ves_ros_interface`. (i.e. controlling the simulated Virtuoso arm over ROS should be the same as controlling the real Virtuoso arm over ROS).
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
@@ -84,6 +88,7 @@ Any simulation that involves a Virtuoso robot subscribes to the following topics
 | `/input/arm1_tool_state` | `/ves/left/set_tool` | Input tool state for the simulated Virtuoso left arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 | `/input/arm2_tool_state` | `/ves/right/set_tool` | Input tool state for the simualte Virtuoso right arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 
+**Node parameters:**
 The `VirtuosoSimulation` has the following extra parameters, mostly for configuring the partial view point clouds:
 | Parameter    | Type | Default | Description |
 |--------------|------|---------|-------------|
@@ -92,6 +97,7 @@ The `VirtuosoSimulation` has the following extra parameters, mostly for configur
 | `partial_view_pc_vfov` | `double` | 30 | The vertical field-of-view (in degrees) of the rays cast for computing the point cloud. |
 | `partial_view_pc_sample_density` | `double` | 1 | The density of rays (per degree) cast when computing the point cloud. Higher number = denser point cloud. Note: this doesn't really correspond to anything physical (like sensor parameters), it's just a way to get a denser point cloud if you want it. |
 
+**`tf` transforms:**
 `VirtuosoSimulation` also broadcasts the following `tf` transforms:
 | Frame | Child Frame | Description |
 |-------|-------------|-------------|
@@ -192,7 +198,7 @@ The launch files provide a few launch arguments:
 
 Launching the Virtuoso robot + trachea demo:
 ```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea.yaml simulation_type:=VirtuosoTissueGraspingSimulation
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml simulation_type:=VirtuosoTissueGraspingSimulation
 ```
 Launching the simple grasping demo:
 ```
@@ -226,6 +232,11 @@ Collisions between the tissue and the Virtuoso arm can be enabled by running
 ```
 ./VirtuosoTracheaDemo ../config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml
 ```
+
+**Screenshots:**
+
+<img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/2a1d9b68-c79e-40c7-8379-1f263de73069"/>
+
 
 ### Simple grasping demo
 This demo is basically a simpler version of the above demo, without the Virtuoso arm. The yellow sphere at the tip of the robot represents the grasping radius -- when grasping is toggled to be active, all tissue mesh nodes inside the sphere will be "grasped" and move around with the tip of the robot. When grasping is toggled to be inactive, any grasped mesh nodes are released. The bottom face of the mesh is optionally fixed to better see the effects of deformation.
@@ -283,7 +294,7 @@ This is the first place you should go to play with simulation parameters. Config
 Provided config files are found in the `config/` directory. A commented example config file that should cover most of the options available in config files can be found [here](https://github.com/smtobin/XPBD_Sandbox/blob/1952ffcee7a9623914602a4baf0c7eccfefcebf0/config/example_config.yaml).
 
 ### Changing the mesh
-The mesh of a simulated deformable object can be changed by simply changing the `filename` parameter. For deformable objects, a volumetric mesh is required (common mesh formats like `.stl` and `.obj` are for surface meshes). Internally, the simulation uses GMSH's mesh format (`.msh`). The simulation is able to take input `.stl` and `.obj` surface mesh files and use GMSH to generate a volumetric `.msh` mesh file from that. A `.msh` file with the same filepath as the input `.stl` or `.obj` file.
+The mesh of a simulated deformable object can be changed by simply changing the `filename` parameter. For deformable objects, a volumetric mesh is required (common mesh formats like `.stl` and `.obj` are for surface meshes). Internally, the simulation uses GMSH's mesh format (`.msh`). The simulation is able to take input `.stl` and `.obj` surface mesh files and use GMSH to generate a volumetric `.msh` mesh file from that. A `.msh` file with the same filepath as the input `.stl` or `.obj` file will be generated.
 
 # Code Structure
 This section will briefly go over how the repository is organized, and generally how the code is structured.
@@ -311,119 +322,3 @@ The `XPBDSolver` class solves the constraints with its `solve()` class method. I
 The `include/config/` folder contains the `Config` class and its derived classes that parse YAML config files and make the parameters available for object instantiation. The base `Config` class provides the machinery needed (with the help of the [yaml-cpp](https://github.com/jbeder/yaml-cpp) library) to parse a YAML node/subnode and extract expected parameters from it using the `_extractParameter()` templated function. Static default values can be set and used if the YAML parameter is not found. If the extracted parameter is limited to a set of options (i.e. it should be a choice from an enum), `_extractParameterWithOptions()` can be used instead, and we pass in a static map that maps user-specified text to the appropriate value (e.g. from "Gauss-Seidel" to `XPBDObjectSolverType::GAUSS_SEIDEL`).
 
 Classes derived from `Config` correspond to specific objects and have extract additional parameters that correspond specifically to the options of that type of object. For example, `MeshObjectConfig` extract information from the YAML file that is used to set up a `MeshObject`, such as the size, initial position, initial velocity, color, etc.
-
-
-
-
-
-
-#### ROS
-
-
-### Windows
-Using WSL, the process should be similar, though there might be some extra stuff to do with the X11 forwarding.
-
-
-## Changing simulation parameters
-This section described how to change simulation parameters to suit your needs.
-
-### Config files
-This is the first place you should go to play with simulation parameters. Config files are `.yaml` files that are parsed on simulation launch and used to set parameters of the simulation and all the objects in the simulation. This means that we can change parameters in a config file (e.g. the time step or the size of an object) **without having to rebuild**.
-
-Provided config files are found in the `config/` directory. A commented example config file that should cover most of the options available in config files can be found [here](https://github.com/smtobin/XPBD_Sandbox/blob/1952ffcee7a9623914602a4baf0c7eccfefcebf0/config/example_config.yaml).
-
-### Changing the mesh
-The mesh of a simulated deformable object can be changed by simply changing the `filename` parameter. For deformable objects, a volumetric mesh is required (common mesh formats like `.stl` and `.obj` are for surface meshes). Internally, the simulation uses GMSH's mesh format (`.msh`). The simulation is able to take input `.stl` and `.obj` surface mesh files and use GMSH to generate a volumetric `.msh` mesh file from that. A `.msh` file with the same filepath as the input `.stl` or `.obj` file.
-
-### Creating a new derived `Simulation` class (advanced)
-If there are specific capabilities not captured by the current simulation types, it is pretty easy to create a new `Simulation` class that provides specific functionality. For an example of how this is done, look at `VirtuosoSimulation`, which extends the base `Simulation` class to add keyboard, mouse, and haptic device control for the Virtuoso robot that is in the simulation.
-
-
-
-**Launching with ROS interface:**
-
-From the `ros_workspace` folder (after building the `SimBridge` node - see [ROS interface](#ros-interface)), run
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/fixed_object/fixed_cube.yaml simulation_type:=FixedObjectSimulation
-```
-There are parameters in the launch file which should be changed, namely `publish_matrices` should be set to `True` (enables publishing of vertices, faces, elements, and stiffness matrix) and `partial_view_pc` should also be set to `True` (enables publishing of partial-view point cloud). Other parameters exist for setting the publish rate and partial-view point cloud parameters (horizontal and vertical FOV, sampling density).
-
-The output topics for the vertices, faces, elements, and stiffness matrix are `/output/vertices_mat_0`, `/output/faces_mat_0`, `/output/elements_mat_0`, and `/output/stiffness_mat_0`. The output topic `/output/mesh_vertices_pc_0` corresponds to the mesh vertices as a point cloud, which is useful for visualization in Foxglove.
-
-
-## ROS interface
-`sim_bridge` is a provided ROS node that will publish parts of the simulation state over ROS for visualization or integration with other pieces of code.
-
-When `docker-compose-ros.yml` is used to build the Docker container, ROS2 Jazzy is installed inside the container. If you are not using Docker, ROS2 Jazzy is assumed to be installed on your system already. The folder `ros_workspace/` is the ROS workspace folder.
-
-### Building
-**To initially build the ROS nodes:**
-* _Install libraries._ Run `sudo make install` from the `build/` directory. This will put the compiled static library files and headers in a place where the ROS node can see them and link against them. Make sure to use `sudo` as these files will be installed in `/usr/local/` which requires elevated permissions.
-* _Run environment setup._ Assuming you're in `ros_workspace/`, run `source ../scripts/set_env.sh ../../ThirdParty` to properly set environment variables. (replace `../../ThirdParty` with the path to the folder used to hold all the 3rd-party Github repos from installation).
-* _Build._ Run
-```
-colcon build --cmake-args -DXPBD_SIM_EASY3D_CMAKE_PREFIX_PATH=$XPBD_SIM_EASY3D_CMAKE_PREFIX_PATH -DXPBD_SIM_BASE_DIR=$XPBD_SIM_BASE_DIR
-```
-The `--cmake-args` part is necessary to pass along the environment variables from your current shell to the `colcon build` process (this is annoying, but unfortunately very necessary). Instead of this, you may instead opt to hardcode the paths in the `sim_bridge/CMakeLists.txt` file where these envrionment variables appear.
-
-**IMPORTANT:** Whenever you rebuild anything in the simulator (i.e. you pulled new changes or made edits yourself and needed to run `make`) and you want the most recent changes to be reflected in the ROS node, **you must**:
-- run `sudo make install` from the `build/` directory
-- remove the `build/` `install/` and `log/` folders in `ros_workspace`
-- run the `colcon build` command above
-
-### Launch files, arguments, parameters
-
-Two launch files are provided:
-* `ros_workspace/launch/sim_bridge.launch.py` - launches the `SimBridge` ROS node by itself.
-* `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - launches the `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
-
-The launch files provide a few launch arguments/parameters:
-* Parameter `publish_rate_hz` - the publish rate (in Hz) of the output topics of the `SimBridge` node. Default: 10.0 Hz.
-* Parameter `publish_marices` - whether or not to publish matrices (vertices, faces, elements, stiffness) for each deformable object in the sim. Default `False`.
-* Parameter `partial_view_pc` - whether or not to publish a partial view point cloud, when applicable. Default `True`.
-* Parameter `partial_view_pc_hfov` - the horizontal FOV (in degrees) of the partial-view point cloud. Default 80 deg.
-* Parameter `partial_view_pc_vfov` - the vertical FOV (in degrees) of the partial-view point cloud. Default 50 deg.
-* Parameter `partial_view_pc_sample_density` - the sample density of the partial-view point cloud. Higher numbers = more dense point clouds. Default 1.0.
-* Parameter `use_wall_time_for_publishgin` - if `True`, the rate of publishing will be in terms of the wall time (which may not align with simulated time). If `False`, simulation time is used (i.e. a publish rate of 10 Hz corresponds to publishing 10 messages for every 1 second of simulated time). Normally you probably want this to be `True`, unless the act of publishing takes a very long time (as in the case for the stiffness matrix). Default `True`.
-* Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
-* Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoTissueGraspingSimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
-
-### Example usage
-
-Launching the Virtuoso robot + trachea demo:
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea.yaml simulation_type:=VirtuosoTissueGraspingSimulation
-```
-Launching the simple grasping demo:
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
-```
-### `sim_bridge` with VirtuosoSimulation
-**OUTDATED**
-
-When `simulation_type` is `VirtuosoTissueGraspingSimulation` or `VirtuosoSimulation`, the `sim_bridge` node subscribes to input Virtuoso joint states and relays those to the simulation, and outputs coordinate frames along each Virtuoso arm, as well as the tissue mesh. The list of topics can be found below:
-
-| Topic        | Mapped To | Description | Frame | Type | Notes |
-|--------------|-----------|-------------|-------|------|-------|
-| `/input/arm1_joint_state` | `/ves/left/joint_servo_jp` | Input joint state for the left Virtuoso arm. | N/A | `sensor_msgs/JointState` |   |
-| `/input/arm2_joint_state` | `/ves/right/joint_servo_jp`| Input joint state for the right Virtuoso arm. | N/A | `sensor_msgs/JointState` |  |
-| `/output/arm1_frames` | `/sim/arm1_frames` | Coordinate frames along left Virtuoso arm. | `/world` | `geometry_msgs/PoseArray` |  |
-| `/output/arm2_frames` | `/sim/arm2_frames` | Coordinate frames along backbone of right Virtuoso arm. | `/world` | `geometry_msgs/PoseArray` |  |
-| `/output/tissue_mesh` | `/sim/tissue_mesh` | Output surface mesh (vertices, surface faces) of the deformable tissue mesh. | `/world` | `shape_msgs/Mesh` | This message is not timestamped. All vertices are sent, but only surface faces sent.  |
-| `/output/tissue_mesh_vertices` | `/sim/tissue_mesh_vertices` | Vertices of the deformable tissue mesh. | `/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
-| `/output/partial_view_pc` | `/sim/partial_view_pc` | A "partial-view" point cloud from the current camera view. | `/world` | `sensor_msgs/PointCloud2` | Generated by casting rays emanating from the current camera position. Use ROS2 parameters `partial_view_pc_hfov`, `partial_view_pc_vfov`, and `partial_view_pc_sample_density` to change horizontal FOV (in degrees), vertical FOV (in degrees), and sample density (rays cast per degree) of the partial view point cloud. Use ROS2 parameter `partial_view_pc` to toggle publishing of the partial-view point cloud on or off (there is some overhead associated with generating the partial-view point cloud). |
-
-### `sim_bridge` in general
-**OUTDATED**
-
-In general, the `sim_bridge` node publishes any deformable meshes in the simulation. The list of topics can be found below:
-| Topic        | Mapped To | Description | Frame | Type | Notes |
-|--------------|-----------|-------------|-------|------|-------|
-| `/output/mesh_vertices_<i>` | N/A | Vertices of the ith deformable mesh in the simulation. | `/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
-| `/output/mesh_<i>` | N/A | Output surface mesh (vertices, surface faces) of the ith deformable mesh in the simulation. | `/world` | `shape_msgs/Mesh` | This message is not timestamped. All vertices are sent, but only surface faces sent. |
-
-
-
-
-
-
