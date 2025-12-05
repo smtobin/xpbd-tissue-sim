@@ -14,8 +14,8 @@ class VirtuosoTissueGraspingSimulation : public VirtuosoSimulation
     public:
     struct TissueClasses
     {
-        constexpr static int TRACHEA=0;
-        constexpr static int TUMOR=1;
+        constexpr static int TRACHEA=1;
+        constexpr static int TUMOR=0;
     };
 
     VirtuosoTissueGraspingSimulation(const Config::VirtuosoTissueGraspingSimulationConfig* config);
