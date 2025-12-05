@@ -45,8 +45,18 @@ void VirtuosoTissueGraspingSimulation::setup()
         _objects.for_each_element([&](auto& obj){
             
             const Geometry::CoordinateFrame& vb_frame = _virtuoso_robot->VBFrame();
-            if constexpr (std::is_base_of_v<Sim::MeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
+            if constexpr (std::is_base_of_v<Sim::RigidMeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
             {
+                /** 12/5/25 TODO: this needs to work for initial rotations of VB frame. Right now, only works if VB orientation is identity. */
+                std::cout << "Moving RigidMeshObject to express it in VB frame..." << std::endl;
+                Vec3r dp = obj->mesh()->massCenter() - obj->mesh()->meshOrigin();
+                obj->setPosition(obj->position() + dp);
+                obj->rotateAboutOrigin(vb_frame.transform().rotMat());
+                obj->setPosition(obj->position() + vb_frame.transform().translation());
+            }
+            else if constexpr (std::is_base_of_v<Sim::MeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
+            {
+                std::cout << "Moving mesh to express it in VB frame..." << std::endl;
                 // move the mesh so that it's prescribed position is w.r.t its mesh origin rather than its center of mass
                 Vec3r com = obj->mesh()->massCenter();
                 obj->mesh()->moveTogether(-obj->mesh()->meshOrigin() + com);

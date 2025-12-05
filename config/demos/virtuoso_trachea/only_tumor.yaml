@@ -2,7 +2,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 show-tip-cursor: true
 enable-mouse-interaction: true
 
@@ -55,11 +55,11 @@ objects:
     materials: ["Raw Chicken Breast"]
     # max-size: 0.017
     scaling: [1e-3, 1e-3, 1e-3]
-    position: [0.110, 0.141, 0.076]
+    position: [0.110, 0.141, 0.07]
     velocity: [0, 0, 0]
     rotation: [0, 0, 0]
     num-solver-iters: 1
-    num-local-collision-iters: 5
+    num-local-collision-iters: 10
     residual-policy: "Never"
     solver-type: "Gauss-Seidel"
     # solver-type: "Jacobi"
@@ -90,11 +90,11 @@ objects:
     materials: ["Raw Chicken Breast"]
     # max-size: 0.095
     scaling: [1e-3, 1e-3, 1e-3]
-    position: [0.110, 0.141, 0.076]
+    position: [0.110, 0.141, 0.07]
     velocity: [0, 0, 0]
     rotation: [0, 0, 0]
 
-    collisions: false
+    collisions: true
     fixed: true
 
     damping-multiplier: 2e5
@@ -117,7 +117,7 @@ objects:
     type: "VirtuosoRobot"
     # position: [0, -0.035, -0.0015] #"close position"
     position: [0, 0, 0]
-    rotation: [0, 0, 0]
+    rotation: [0, 0, 0] # TODO: fix bug where changing VB orientation causes misalignment. 12/5
     collisions: true
     # rendering settings
     color: [0.7, 0.7, 0.7]
