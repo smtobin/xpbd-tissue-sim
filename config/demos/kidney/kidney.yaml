@@ -1,0 +1,120 @@
+name: "Virtuoso Trachea"
+visualization: "VTK"
+
+# Tissue grasping simulation-specific parameters
+input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+# fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_fixed_faces.txt"
+# tumor-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_tumor_faces.txt"
+show-tip-cursor: true
+# fixed-faces-filename: "../resource/demos/trachea_virtuoso/trachea_fixed_faces.txt"
+# tumor-faces-filename: "../resource/demos/trachea_virtuoso/tumor_faces.txt"
+# goal-filename: "../resource/demos/trachea_virtuoso/goals/goal1.obj"
+# goals-folder: "../resource/demos/trachea_virtuoso/goals/"
+
+# fixed-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_fixed_faces.txt"
+# tumor-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_tumor_faces.txt"
+
+# device-name1: "LeftOmni"
+# device-name2: "RightOmni"
+# device-name1: "Omni"
+
+g-accel: 0 # m/s2
+# sim-mode: "Visualization"
+# sim-mode: "Frame-by-frame"
+sim-mode: "AFAP"
+time-step: 3.33e-3 # for FO XPBD
+# time-step: 3.33e-5 # for normal XPBD
+collision-rate: 100
+fps: 30
+end-time: 5000
+
+materials:
+  -
+    name: "Raw Chicken Breast"
+    density: 1000
+    E: 0.07e6
+    nu: 0.49
+
+# rendering settings
+exposure: 0.3
+hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
+create-skybox: true
+window-width: 800
+window-height: 800
+
+objects:
+
+  -
+    name: "Kidney"
+    # type: "XPBDMeshObject"
+    type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/kidney/kidney_merged.msh"
+    element-classes-filename: "../resource/demos/kidney/kidney_merged_element_classes.txt"
+    materials: ["Raw Chicken Breast", "Raw Chicken Breast"]
+    max-size: 0.0857
+    position: [0, 0, -0.005]
+    velocity: [0, 0, 0]
+    rotation: [-30, 0, 0]
+    num-solver-iters: 1
+    num-local-collision-iters: 5
+    residual-policy: "Never"
+    solver-type: "Gauss-Seidel"
+    # solver-type: "Jacobi"
+    # solver-type: "Parallel-Jacobi"
+    constraint-type: "Stable-Neohookean-Combined"
+    damping-multiplier: 2e5
+    adjust-damping-to-material: true
+    # damping-multiplier: 40000000000
+    collisions: true
+    self-collisions: false
+
+    # rendering settings
+    colors: [[1.0, 0.3, 0.2], [1.0, 0.6, 0.3]]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.3
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+
+  # -
+  #   name: "Robot"
+  #   type: "VirtuosoRobot"
+  #   position: [0.002, 0, 0.016]
+  #   rotation: [0, 180, 0]
+  #   collisions: true
+  #   # rendering settings
+  #   color: [0.7, 0.7, 0.7]
+  #   render-type: "PBR"
+  #   metallic: 1.0
+  #   roughness: 0.2
+
+  #   arms:
+  #   -
+  #     name: "Arm1"
+  #     type: "VirtuosoArm"
+  #     tool-type: "none"
+  #     outer-tube-diameter: 1.56e-3
+  #     outer-tube-radius-of-curvature: 1.5383e-2
+  #     outer-tube-distal-straight-length: 5e-3
+  #     outer-tube-translation: 7e-3
+  #     outer-tube-rotation: 30
+  #     inner-tube-rotation: 30
+  #     inner-tube-diameter: 1.04e-3
+  #     inner-tube-translation: 15e-3
+
+    # -
+    #   name: "Arm2"
+    #   type: "VirtuosoArm"
+    #   outer-tube-diameter: 1.56e-3
+    #   outer-tube-radius-of-curvature: 1.5383e-2
+    #   outer-tube-distal-straight-length: 5e-3
+    #   outer-tube-translation: 7e-3
+    #   outer-tube-rotation: -45
+    #   inner-tube-rotation: 45
+    #   inner-tube-diameter: 1.04e-3
+    #   inner-tube-translation: 20e-3
+
+  
+
+
