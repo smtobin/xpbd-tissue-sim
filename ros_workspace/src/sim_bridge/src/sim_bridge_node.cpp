@@ -88,7 +88,7 @@ int main(int argc, char ** argv)
         // create the simulation from the config object
         Sim::VirtuosoTissueGraspingSimulation sim(&config);
 
-        startNode<Sim::VirtuosoSimulation>(&sim);
+        startNode<Sim::VirtuosoSimulation, VirtuosoSimBridge>(&sim);
     }
     else if (simulation_type == "VirtuosoSimulation")
     {

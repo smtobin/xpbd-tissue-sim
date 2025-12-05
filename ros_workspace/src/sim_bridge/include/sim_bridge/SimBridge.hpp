@@ -98,17 +98,20 @@ private:
         mesh_pcl_message.fields.resize(3);
         mesh_pcl_message.fields[0].name = "x";
         mesh_pcl_message.fields[0].offset = 0;
-        mesh_pcl_message.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        // mesh_pcl_message.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[0].count = 1;
 
         mesh_pcl_message.fields[1].name = "y";
-        mesh_pcl_message.fields[1].offset = sizeof(Real);
-        mesh_pcl_message.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[1].offset = sizeof(float);
+        // mesh_pcl_message.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[1].count = 1;
 
         mesh_pcl_message.fields[2].name = "z";
-        mesh_pcl_message.fields[2].offset = 2*sizeof(Real);
-        mesh_pcl_message.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[2].offset = 2*sizeof(float);
+        // mesh_pcl_message.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[2].count = 1;
 
         mesh_pcl_message.height = 1;
@@ -116,7 +119,7 @@ private:
         mesh_pcl_message.is_dense = true;
         mesh_pcl_message.is_bigendian = false;
 
-        mesh_pcl_message.point_step = 3*sizeof(Real);
+        mesh_pcl_message.point_step = 3*sizeof(float);
         mesh_pcl_message.row_step = mesh_pcl_message.point_step * mesh_pcl_message.width;
 
         mesh_pcl_message.data.resize(mesh_pcl_message.row_step);
@@ -124,7 +127,17 @@ private:
         auto mesh_pcl_callback = 
             [this, index, deformable_mesh]() -> void {
                 // update vertices
-                memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+                // memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+
+                float* pc_data = (float*)this->_mesh_pcl_messages[index].data.data();
+                for (int i = 0; i < deformable_mesh->numVertices(); i++)
+                {
+                    // memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                    const Vec3r& vertex = deformable_mesh->vertex(i);
+                    *(pc_data + 3*i) = static_cast<float>(vertex[0]);
+                    *(pc_data + 3*i+1) = static_cast<float>(vertex[1]);
+                    *(pc_data + 3*i+2) = static_cast<float>(vertex[2]);
+                }
 
                 this->_mesh_pcl_publishers[index]->publish(this->_mesh_pcl_messages[index]);
             };

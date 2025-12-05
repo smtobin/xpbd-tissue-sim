@@ -71,7 +71,10 @@ def generate_launch_description():
     
     # Create the include launch description action
     rosbridge_server = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(rosbridge_launch_file)
+        AnyLaunchDescriptionSource(rosbridge_launch_file),
+        launch_arguments={
+            'delay_between_messages': '0.0',
+        }.items()
     )
 
     ld = LaunchDescription([

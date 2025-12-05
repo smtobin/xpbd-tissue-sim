@@ -375,8 +375,8 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 
     void _setupPartialViewPointCloudPublishers()
     {
-        _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/trachea_partial_view_pc", 3);
-        _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/tumor_partial_view_pc", 3);
+        _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/trachea_partial_view_pc", 10);
+        _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/tumor_partial_view_pc", 10);
         
         this->declare_parameter("partial_view_pc", true);
         this->declare_parameter("partial_view_pc_hfov", 80.0);
@@ -407,17 +407,20 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
             pcl_msg.fields.resize(3);
             pcl_msg.fields[0].name = "x";
             pcl_msg.fields[0].offset = 0;
-            pcl_msg.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            // pcl_msg.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            pcl_msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32; // always use floats
             pcl_msg.fields[0].count = 1;
 
             pcl_msg.fields[1].name = "y";
-            pcl_msg.fields[1].offset = sizeof(Real);
-            pcl_msg.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            pcl_msg.fields[1].offset = sizeof(float);
+            // pcl_msg.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            pcl_msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32; // always use floats
             pcl_msg.fields[1].count = 1;
 
             pcl_msg.fields[2].name = "z";
-            pcl_msg.fields[2].offset = 2*sizeof(Real);
-            pcl_msg.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            pcl_msg.fields[2].offset = 2*sizeof(float);
+            // pcl_msg.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+            pcl_msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32; // always use floats
             pcl_msg.fields[2].count = 1;
 
             pcl_msg.height = 1;
@@ -425,7 +428,7 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
             pcl_msg.is_dense = true;
             pcl_msg.is_bigendian = false;
 
-            pcl_msg.point_step = 3*sizeof(Real);
+            pcl_msg.point_step = 3*sizeof(float);
             pcl_msg.row_step = pcl_msg.point_step * pcl_msg.width;
 
             pcl_msg.data.resize(pcl_msg.row_step);
@@ -478,9 +481,13 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
                         //     this->_trachea_partial_view_pc_message.data.resize(data_size);
                         // }
 
+                        float* pc_data = (float*)this->_trachea_partial_view_pc_message.data.data();
                         for (unsigned i = 0; i < pc.points.size(); i++)
                         {
-                            memcpy((Real*)this->_trachea_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                            // memcpy((Real*)this->_trachea_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                            *(pc_data + 3*i) = static_cast<float>(pc.points[i][0]);
+                            *(pc_data + 3*i+1) = static_cast<float>(pc.points[i][1]);
+                            *(pc_data + 3*i+2) = static_cast<float>(pc.points[i][2]);
                         }
                     }
 
@@ -499,9 +506,13 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
                         //     this->_tumor_partial_view_pc_message.data.resize(data_size);
                         // }
 
+                        float* pc_data = (float*)this->_tumor_partial_view_pc_message.data.data();
                         for (unsigned i = 0; i < pc.points.size(); i++)
                         {
-                            memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                            // memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                            *(pc_data + 3*i) = static_cast<float>(pc.points[i][0]);
+                            *(pc_data + 3*i+1) = static_cast<float>(pc.points[i][1]);
+                            *(pc_data + 3*i+2) = static_cast<float>(pc.points[i][2]);
                         }
                     }
                 }

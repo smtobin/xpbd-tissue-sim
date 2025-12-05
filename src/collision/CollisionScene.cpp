@@ -140,7 +140,7 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         const Real p2p3 = (p3-p2).norm();
 
         const Real max_edge = std::max({p1p2, p1p3, p2p3});
-        const int num_samples = (int)(5*max_edge / 0.5e-3);
+        const int num_samples = (int)(5*max_edge / 1e-3);
 
         // const int num_samples = 4;
         for (int si = 0; si <= num_samples; si++)
