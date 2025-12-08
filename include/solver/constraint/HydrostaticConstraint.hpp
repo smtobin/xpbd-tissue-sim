@@ -37,7 +37,8 @@ class HydrostaticConstraint : public ElementConstraint
                           int v2, Real* p2, Real m2,
                           int v3, Real* p3, Real m3,
                           int v4, Real* p4, Real m4,
-                          const ElasticMaterial& material);
+                          const ElasticMaterial& material,
+                        Real pressure_correction=1.0);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

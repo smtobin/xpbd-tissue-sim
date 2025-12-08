@@ -147,6 +147,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     _render_window = vtkSmartPointer<vtkRenderWindow>::New();
     _render_window->SetNumberOfLayers(2);
     _render_window->AddRenderer(_renderer);
+    _renderer->SetBackground(0.7, 0.7, 0.7);
     _render_window->SetSize(render_config.windowWidth(), render_config.windowHeight());
     _render_window->SetWindowName(_name.c_str());
     
