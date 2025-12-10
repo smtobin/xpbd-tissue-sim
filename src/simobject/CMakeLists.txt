@@ -29,7 +29,7 @@ target_sources(SimObject
         ${SIMOBJECT_HEADERS}
         ${SIMOBJECT_SOURCES}
 )
-install(TARGETS SimObject EXPORT SimObject-targets
+install(TARGETS SimObject EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${SIMOBJECT_HEADERS}

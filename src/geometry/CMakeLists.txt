@@ -45,7 +45,7 @@ target_sources(Geometry
         ${GEOMETRY_SOURCES}
 )
 
-install(TARGETS Geometry EXPORT Geometry-targets
+install(TARGETS Geometry EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${GEOMETRY_HEADERS}

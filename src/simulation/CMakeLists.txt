@@ -24,7 +24,7 @@ target_sources(Simulation
         ${SIMULATION_SOURCES}
         
 )
-install(TARGETS Simulation EXPORT Simulation-targets
+install(TARGETS Simulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${SIMULATION_HEADERS}
@@ -41,6 +41,12 @@ target_sources(BeamSimulation
         ${SIMULATION_INCLUDE_DIR}/BeamSimulation.hpp
         ${SIMULATION_SRC_DIR}/BeamSimulation.cpp
 )
+
+install(TARGETS BeamSimulation EXPORT XPBDSim-targets
+    RUNTIME DESTINATION bin/${PROJECT_NAME}
+    LIBRARY DESTINATION lib/${PROJECT_NAME})
+install(FILES ${SIMULATION_HEADERS}
+    DESTINATION include/${PROJECT_NAME}/simulation)
 
 ######################################
 # Grasping Simulation
@@ -60,7 +66,7 @@ target_sources(GraspingSimulation
         ${GRASPING_SIMULATION_SOURCES}
 )
 
-install(TARGETS GraspingSimulation EXPORT GraspingSimulation-targets
+install(TARGETS GraspingSimulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME}
 )
@@ -86,7 +92,7 @@ target_sources(VirtuosoSimulation
         ${VIRTUOSO_SIMULATION_HEADERS}
         ${VIRTUOSO_SIMULATION_SOURCES}
 )
-install(TARGETS VirtuosoSimulation EXPORT VirtuosoSimulation-targets
+install(TARGETS VirtuosoSimulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME}
 )
@@ -113,7 +119,7 @@ target_sources(PalpationSimulation
         ${PALPATION_SIMULATION_SOURCES}
 )
 
-install(TARGETS PalpationSimulation EXPORT PalpationSimulation-targets
+install(TARGETS PalpationSimulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME}
 )
@@ -137,7 +143,7 @@ target_sources(InitialDeformationSimulation
         ${INITIAL_DEFORMATION_SIMULATION_HEADERS}
         ${INITIAL_DEFORMATION_SIMULATION_SOURCES}
 )
-install(TARGETS InitialDeformationSimulation EXPORT InitialDeformationSimulation-targets
+install(TARGETS InitialDeformationSimulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME}
 )
@@ -162,7 +168,7 @@ target_sources(FixedObjectSimulation
         ${FIXED_CUBE_SIMULATION_SOURCES}    
 )
 
-install(TARGETS FixedObjectSimulation EXPORT FixedObjectSimulation-targets
+install(TARGETS FixedObjectSimulation EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION bin/${PROJECT_NAME}
 )

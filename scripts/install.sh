@@ -37,8 +37,10 @@ ask_confirmation() {
 }
 
 # Usage
-THIRDPARTY_DIR=$(realpath $1)
-echo "Third-party drivers and Github repositories will be installed in ${THIRDPARTY_DIR}"
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+INSTALL_DIR=$(realpath $SCRIPT_DIR/../dependencies)
+
+echo "Third-party drivers and Github repositories will be installed in ${INSTALL_DIR}. If this directory exists, its contents will be removed before installing the external dependencies."
 if ask_confirmation "Do you want to continue?"; then
     echo "Continuing..."
 else
@@ -46,10 +48,10 @@ else
     exit 1
 fi
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 
 # install dependencies
-bash $SCRIPT_DIR/install_dependencies.sh $THIRDPARTY_DIR
+bash $SCRIPT_DIR/install_dependencies.sh
 
 # set up environment
 source $SCRIPT_DIR/set_env.sh $THIRDPARTY_DIR

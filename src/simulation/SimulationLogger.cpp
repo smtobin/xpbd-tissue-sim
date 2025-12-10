@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <cassert>
 
 namespace Sim
 {

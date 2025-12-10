@@ -6,6 +6,7 @@ yaml-cpp/
 
 # ignore build files
 build/
+dependencies/
 CMakeFiles/
 .vscode/
 Makefile
