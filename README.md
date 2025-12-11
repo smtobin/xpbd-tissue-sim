@@ -131,16 +131,11 @@ This repository relies on a few external dependencies, namely:
 - [VTK](https://gitlab.kitware.com/vtk/vtk) as a visualization option
 - OpenHaptics drivers for interfacing with Geomagic Touch haptic devices
 
-The dependency installation and environment variables setup is done with the script located in `scripts/install.sh`. The script installs all required external Github repositories and drivers in a directory specified by the user. Example usage:
+The dependency installation and environment variables setup is done with the script located in `scripts/install.sh`. Example usage:
 ```
-bash scripts/install.sh <external-dep-dir>
+bash scripts/install.sh
 ```
-where `<external-dep-dir>` is the directory where external Github repositories will be cloned and built from source. This can either be a subdirectory in the repo itself, or somewhere else! Specifying this path is required.
-
-Part of `scripts/install.sh` is an environment setup script `scripts/set_env.sh`, which sets a couple of environment variables that are necessary for CMake to find some of the installed repositories. **This does not get added to `~/.bashrc` (though you can manually add it there), so every time a new terminal window is opened, you will have to rerun `scripts/set_env.sh` for things to build.** Like with `scripts/install.sh`, the third-party directory is a required input, and should match the directory given to `scripts/install.sh`. For example:
-```
-bash scripts/set_env.sh <external-dep-dir>
-```
+`sudo` may be needed to install the required `apt` packages. A directory `dependencies/` is created at the root level of the repository to store the external dependencies. The script clones the latest version of all dependencies, putting the code in the `dependencies/src` directory. Each library is built (in `Release` mode) and installed **locally** in the `dependencies/install` directory.
 
 ## Compilation
 **Building the simulator:**
@@ -169,18 +164,15 @@ Some of the launch files simulatenously launch a Rosbridge server for connecting
 sudo apt-get install ros-jazzy-rosbridge-server -y
 ```
 
-* _Install libraries._ Run `sudo make install` from the `build/` directory. This will put the compiled static library files and headers in a place where the ROS node can see them and link against them. Make sure to use `sudo` as these files will be installed in `/usr/local/` which requires elevated permissions.
-* _Run environment setup._ Assuming you're in `ros_workspace/`, run `source ../scripts/set_env.sh ../../ThirdParty` to properly set environment variables. (replace `../../ThirdParty` with the path to the folder used to hold all the 3rd-party Github repos from installation).
-* _Build._ Run
+When you build the simulator from the `build/` directory, CMake config files are automatically generated each time (inside the `build/` directory) that point CMake to the appropriate library files that are also inside the `build/` directory. The CMake file for the ROS node automatically knows where these files are, so all that is needed is to run
 ```
-colcon build --cmake-args -DXPBD_SIM_EASY3D_CMAKE_PREFIX_PATH=$XPBD_SIM_EASY3D_CMAKE_PREFIX_PATH -DXPBD_SIM_BASE_DIR=$XPBD_SIM_BASE_DIR
+colcon build
 ```
-The `--cmake-args` part is necessary to pass along the environment variables from your current shell to the `colcon build` process (this is annoying, but unfortunately very necessary). Instead of this, you may instead opt to hardcode the paths in the `sim_bridge/CMakeLists.txt` file where these envrionment variables appear.
+from the `ros_workspace/` directory.
 
 **IMPORTANT:** Whenever you rebuild anything in the simulator (i.e. you pulled new changes or made edits yourself and needed to run `make`) and you want the most recent changes to be reflected in the ROS node, **you must**:
-- run `sudo make install` from the `build/` directory
-- remove the `build/` `install/` and `log/` folders in `ros_workspace`
-- run the `colcon build` command above
+- remove the `build/` folder in `ros_workspace`
+- run `colcon build`
 
 # Use
 ## ROS Launch
