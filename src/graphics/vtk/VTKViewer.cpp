@@ -45,6 +45,8 @@ VTK_MODULE_INIT(vtkInteractionStyle);
 VTK_MODULE_INIT(vtkRenderingFreeType);
 VTK_MODULE_INIT(vtkRenderingOpenGL2);
 
+#include <filesystem>
+
 namespace Graphics
 {
 
@@ -67,7 +69,6 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     /////////////////////////////////////////////////////////
 
     std::optional<std::string> hdr_filename = render_config.hdrImageFilename();
-    std::cout << "hdr_filename: " << hdr_filename.value_or("NO HDR FILENAME") << std::endl;
     if (hdr_filename.has_value())
     {
         vtkNew<vtkTexture> hdr_texture;

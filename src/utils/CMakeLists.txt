@@ -29,7 +29,7 @@ target_sources(MeshUtils
         ${MESH_UTILS_SOURCES}       
 )
 
-install(TARGETS MeshUtils EXPORT MeshUtils-targets
+install(TARGETS MeshUtils EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${MESH_UTILS_HEADERS}
@@ -41,7 +41,7 @@ target_sources(GeometryUtils
         ${GEOMETRY_UTILS_SOURCES}
 )
 
-install(TARGETS GeometryUtils EXPORT GeometryUtils-targets
+install(TARGETS GeometryUtils EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${GEOMETRY_UTILS_HEADERS}

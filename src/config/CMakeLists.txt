@@ -44,7 +44,7 @@ target_sources(Config
         ${CONFIG_SOURCES}       
 )
 
-install(TARGETS Config EXPORT Config-targets
+install(TARGETS Config EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${CONFIG_HEADERS}

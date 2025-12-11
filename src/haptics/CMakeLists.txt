@@ -18,7 +18,7 @@ target_sources(Haptics
         ${HAPTICS_SOURCES}       
 )
 
-install(TARGETS Haptics EXPORT Haptics-targets
+install(TARGETS Haptics EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${HAPTICS_HEADERS}

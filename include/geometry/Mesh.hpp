@@ -8,6 +8,7 @@
 #include "geometry/MeshProperty.hpp"
 
 #include <optional>
+#include <cassert>
 
 #ifdef HAVE_CUDA
 #include <memory>

@@ -4,6 +4,8 @@
 #include "solver/constraint/ElementConstraint.hpp"
 #include "simobject/ElasticMaterial.hpp"
 
+#include <cassert>
+
 #ifdef HAVE_CUDA
 #include "gpu/constraint/GPUHydrostaticConstraint.cuh"
 #endif

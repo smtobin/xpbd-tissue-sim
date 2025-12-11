@@ -45,7 +45,7 @@ target_sources(Solver
         ${SOLVER_SOURCES}
 )
 
-install(TARGETS Solver EXPORT Solver-targets
+install(TARGETS Solver EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${SOLVER_HEADERS}
