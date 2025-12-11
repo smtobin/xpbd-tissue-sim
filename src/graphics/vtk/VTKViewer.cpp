@@ -69,17 +69,8 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     /////////////////////////////////////////////////////////
 
     std::optional<std::string> hdr_filename = render_config.hdrImageFilename();
-    std::cout << "hdr_filename: " << hdr_filename.value_or("NO HDR FILENAME") << std::endl;
     if (hdr_filename.has_value())
     {
-        if (!std::filesystem::exists(hdr_filename.value())) {
-            std::cerr << "ERROR: HDR file not found!" << std::endl;
-            // Skip HDR loading or use default
-        }
-        else
-        {
-            std::cout << "HDR file found!" << std::endl;
-        }
         vtkNew<vtkTexture> hdr_texture;
         vtkNew<vtkHDRReader> reader;
         reader->SetFileName(hdr_filename.value().c_str());
