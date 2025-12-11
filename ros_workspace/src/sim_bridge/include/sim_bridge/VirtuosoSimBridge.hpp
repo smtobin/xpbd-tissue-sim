@@ -141,15 +141,15 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
             [this]() -> void {
                 geometry_msgs::msg::TransformStamped t;
                 t.header.stamp = this->now();
-                t.header.frame_id = "/sim/world";
-                t.child_frame_id = "/ves/left/base";
+                t.header.frame_id = "/ves/left/base";
+                t.child_frame_id = "/sim/world";
 
-                const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
-                t.transform.translation.x = vb_frame.origin()[0];
-                t.transform.translation.y = vb_frame.origin()[1];
-                t.transform.translation.z = vb_frame.origin()[2];
+                const Geometry::TransformationMatrix& vb_transform_inv = this->_sim->virtuosoRobot()->VBFrame().transform().inverse();
+                t.transform.translation.x = vb_transform_inv.translation()[0];
+                t.transform.translation.y = vb_transform_inv.translation()[1];
+                t.transform.translation.z = vb_transform_inv.translation()[2];
 
-                Vec4r quat = GeometryUtils::matToQuat(vb_frame.transform().rotMat());
+                Vec4r quat = GeometryUtils::matToQuat(vb_transform_inv.rotMat());
                 t.transform.rotation.x = quat[0];
                 t.transform.rotation.y = quat[1];
                 t.transform.rotation.z = quat[2];
