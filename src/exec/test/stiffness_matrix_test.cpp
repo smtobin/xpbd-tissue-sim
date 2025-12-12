@@ -45,7 +45,7 @@ int main()
     std::vector<std::string> materials = {"material"};
     Config::FirstOrderXPBDMeshObjectConfig config(
         "test", Vec3r(0,0,0.50), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
-        cube_filename, 1, std::nullopt, std::nullopt,
+        bunny_filename, 1, std::nullopt, std::nullopt,
         false, true, true, Vec4r(1,1,1,1),
         materials, std::nullopt, std::nullopt,
         false, 10, 5, XPBDObjectSolverTypeEnum::GAUSS_SEIDEL,
@@ -68,14 +68,21 @@ int main()
         xpbd_mesh_obj->fixVertex(v);
     }
 
-    for (int i = 0; i < xpbd_mesh_obj->mesh()->numVertices(); i++)
-    {
-        Vec3r v = xpbd_mesh_obj->mesh()->vertex(i);
-        std::cout << "Vertex " << i << ": " << v.transpose() << std::endl;
-    }
+    // for (int i = 0; i < xpbd_mesh_obj->mesh()->numVertices(); i++)
+    // {
+    //     Vec3r v = xpbd_mesh_obj->mesh()->vertex(i);
+    //     std::cout << "Vertex " << i << ": " << v.transpose() << std::endl;
+    // }
 
+    auto t1 = std::chrono::high_resolution_clock::now();
     MatXr stiffness_mat = xpbd_mesh_obj->stiffnessMatrix();
+    auto t2 = std::chrono::high_resolution_clock::now();
     MatXr stiffness_mat_old = xpbd_mesh_obj->stiffnessMatrixOLD();
+    auto t3 = std::chrono::high_resolution_clock::now();
+
+    double new_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+    double old_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
+    std::cout << "New took: " << new_ms << " ms\nOld took: " << old_ms << " ms" << std::endl;
 
     // std::cout << "\n\nOld stiffness matrix:\n" << stiffness_mat_old << std::endl;
     // std::cout << "\nNew stiffness matrix:\n" << stiffness_mat << std::endl;
