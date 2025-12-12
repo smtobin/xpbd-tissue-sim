@@ -30,6 +30,8 @@ class DeviatoricConstraint : public ElementConstraint
     constexpr static int NUM_POSITIONS = 4;
     constexpr static int NUM_COORDINATES = 12;
 
+    using HessianMatType = Eigen::Matrix<Real, NUM_COORDINATES, NUM_COORDINATES>;
+
     public:
     /** Creates the deviatoric constraint from a MeshObject and the 4 vertices that make up the tetrahedral element. */
     DeviatoricConstraint(int v1, Real* p1, Real m1,
@@ -56,6 +58,11 @@ class DeviatoricConstraint : public ElementConstraint
      * @param grad (OUTPUT) - the pointer to the (currently empty) constraint gradient vector. Expects it to be _gradient_vector_size x 1.
      */
     void gradient(Real* grad) const;
+
+    /** Computes the Hessian of this constraint.
+     * i.e. returns d/dx (delC(x))
+     */
+    HessianMatType hessian() const;
 
     /** Computes the value and gradient of this constraint with pre-allocated memory.
      * i.e. returns C(x) and delC(x) together.

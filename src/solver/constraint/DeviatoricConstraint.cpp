@@ -32,6 +32,48 @@ void DeviatoricConstraint::gradient(Real* grad) const
     _gradient(grad, &C, F);
 }
 
+DeviatoricConstraint::HessianMatType DeviatoricConstraint::hessian() const
+{
+    // compute the deformation gradient
+    Real F[9];
+    Real X[9];
+    _computeF(F, X);
+
+    // compute the constraint itself
+    Real C;
+    _evaluate(&C, F);
+
+    // initialize Hessian
+    HessianMatType hessian_mat = HessianMatType::Zero();
+    
+    Eigen::Map<const Mat3r> F_mat(F);
+
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            const Vec3r qir = _Q.row(i);
+            const Vec3r qjr = _Q.row(j);
+
+            const Vec3r Fqir = F_mat * qir;
+            const Vec3r Fqjr = F_mat * qjr;
+            
+            // 2 terms from product rule
+            Mat3r term1 = -1/(C*C*C) * (Fqir * Fqjr.transpose());
+            Mat3r term2 = 1/C * qir.dot(qjr) * Mat3r::Identity();
+            Mat3r hess_3x3_block =  term1 + term2;
+            hessian_mat.block<3,3>(3*i, 3*j) = hess_3x3_block;
+
+            // subtract the 3x3 block from the part of the Hessian that's w.r.t. the 4th vertex
+            hessian_mat.block<3,3>(3*i, 9) -= hess_3x3_block;
+            hessian_mat.block<3,3>(9, 3*j) -= hess_3x3_block;
+            hessian_mat.block<3,3>(9, 9) += hess_3x3_block; // note the plus sign - minus signs cancel out in this case
+        }
+    }
+
+    return hessian_mat;
+}
+
 #ifdef HAVE_CUDA
 DeviatoricConstraint::GPUConstraintType DeviatoricConstraint::createGPUConstraint() const
 {

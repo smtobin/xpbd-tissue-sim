@@ -621,7 +621,7 @@ Vec3r XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::e
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
-MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrix() const
+MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrixOLD() const
 {
     // FOR NOW, WE ASSUME THAT IF WE ARE CALCULATING THE STIFFNESS MATRIX, WE DON'T HAVE ANY HARD CONSTRAINTS ON THE OBJECT
     // these would have alpha=0 and thus alpha^-1 would be infinity, corresponding to infinite stiffness.
@@ -676,6 +676,7 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
         Real grad[ConstraintType::NUM_COORDINATES];
         const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
 
+        Eigen::Matrix<Real, 12, 12> hessian_mat = Eigen::Matrix<Real, 12, 12>::Zero();
         // vary each vertex
         for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
         {
@@ -683,6 +684,7 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
             for (int k = 0; k < 3; k++)
             {
                 int dof = constraint_positions[i].index * 3 + k;
+                // std::cout << "DOF: " << dof << std::endl;
                 data_ptr[dof] += delta;
 
                 // compute the new gradient from the perturbed position
@@ -691,8 +693,15 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
                 // compute the contributions to the Hessian term
                 for (unsigned h = 0; h < ConstraintType::NUM_POSITIONS; h++)
                 {
-                    Vec3r ddelC_dx = (Eigen::Map<Vec3r>(grad + 3*h) - _stiffness_matrix_orig_delC.block<1,3>(constraint_index, 3*constraint_positions[h].index).transpose()) / delta;
+                    Vec3r orig_delC = _stiffness_matrix_orig_delC.block<1,3>(constraint_index, 3*constraint_positions[h].index);
+                    Vec3r new_delC = Eigen::Map<Vec3r>(grad + 3*h);
+
+                    Vec3r ddelC_dx = (new_delC - orig_delC) / delta;
                     _stiffness_matrix_hessian_term.block<3,1>(constraint_positions[h].index*3, dof) += ddelC_dx * _stiffness_matrix_C_vec[constraint_index] / constraint.alpha();
+                
+                    // std::cout << "i = " << i << ", k = " << k << ", h = " << h << ", ddelC_dx = " << ddelC_dx.transpose() << std::endl;
+                    // std::cout << "  Original delC: " << orig_delC.transpose() << "  New delC: " << new_delC.transpose() << std::endl;
+                    hessian_mat.block<3,1>(3*h, 3*i + k) += ddelC_dx * _stiffness_matrix_C_vec[constraint_index] / constraint.alpha();
                 }
 
                 // reset the perturbed DOF
@@ -700,21 +709,25 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
             }
         }
 
+        // std::cout << "\nOLD Constraint " << constraint_index << " Hessian mat:\n" << hessian_mat << std::endl;
+
         constraint_index++;
     });
+
+    // std::cout << "OLD stiffness matrix hessian term:\n" << _stiffness_matrix_hessian_term << std::endl;
 
     _stiffness_matrix = _stiffness_matrix_hessian_term + 
         _stiffness_matrix_orig_delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * _stiffness_matrix_orig_delC;
 
     // "fix" all the fixed vertices in the mesh by adding a large amount to the diagonal corresponding to their 3 DOF
-    for (int i = 0; i < _mesh->numVertices(); i++)
-    {
-        if (vertexFixed(i))
-        {
-            for (int j = 0; j < 3; j++)
-                _stiffness_matrix(3*i+j,3*i+j) += 1e9;
-        }
-    }
+    // for (int i = 0; i < _mesh->numVertices(); i++)
+    // {
+    //     if (vertexFixed(i))
+    //     {
+    //         for (int j = 0; j < 3; j++)
+    //             _stiffness_matrix(3*i+j,3*i+j) += 1e9;
+    //     }
+    // }
 
     // add large values for nodes in contact with the ground (when the ground plane is active)
     // for (int i = 0; i < _mesh->numVertices(); i++)
@@ -727,6 +740,91 @@ MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::s
 
     return _stiffness_matrix;
     
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+MatXr XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrix() const
+{
+    // assemble global delC matrix
+    size_t num_elastic_constraints = _constraints.template get<Solver::DeviatoricConstraint>().size() + _constraints.template get<Solver::HydrostaticConstraint>().size();
+    // size_t num_constraints = _constraints.size();
+    _stiffness_matrix_C_vec = VecXr::Zero(num_elastic_constraints);
+    _stiffness_matrix_orig_delC = MatXr::Zero(num_elastic_constraints, 3*_mesh->numVertices());
+    _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_elastic_constraints);
+
+    // iterate through each constraint and put its gradient into the global delC matrix
+    int constraint_index = 0;
+    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
+    {
+        // get the gradient from the constraint
+        using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
+        Real grad[ConstraintType::NUM_COORDINATES];
+        Real C;
+        constraint.evaluateWithGradient(&C, grad);
+
+        // get the positions that the constraint affects
+        const std::vector<Solver::PositionReference>& constraint_positions = constraint.positions();
+
+        for (unsigned i = 0; i < ConstraintType::NUM_POSITIONS; i++)
+        {
+            int position_index = constraint_positions[i].index;
+            const Vec3r grad_i = Eigen::Map<Vec3r>(grad + 3*i);
+
+            _stiffness_matrix_orig_delC.block<1,3>(constraint_index, 3*position_index) = grad_i;
+        }
+
+        // add constraint stiffness to alpha
+        _stiffness_matrix_alpha_inv_vec[constraint_index] = 1.0/constraint.alpha();
+
+        _stiffness_matrix_C_vec[constraint_index] = C;
+
+        constraint_index++;
+    });
+
+    _stiffness_matrix_hessian_term = MatXr::Zero(3*_mesh->numVertices(), 3*_mesh->numVertices());
+    constraint_index = 0;
+    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
+    {
+        // get the 12x12 Hessian matrix from the constraint
+        using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
+
+        // Real alpha_inv = _stiffness_matrix_alpha_inv_vec[constraint_index];
+        Real C = _stiffness_matrix_C_vec[constraint_index];
+        typename ConstraintType::HessianMatType hessian_mat = constraint.hessian() * C / constraint.alpha();
+
+        // scatter the constraint-specific Hessian mat to the appropriate DOF in the global Hessian matrix
+        for (int i = 0; i < ConstraintType::NUM_POSITIONS; i++)
+        {
+            int dof_i = constraint.positions()[i].index;
+            for (int j = 0; j < ConstraintType::NUM_POSITIONS; j++)
+            {
+                int dof_j = constraint.positions()[j].index;
+                
+                _stiffness_matrix_hessian_term.block<3,3>(3*dof_i, 3*dof_j) += hessian_mat.template block<3,3>(3*i, 3*j);
+            }
+        }
+
+        // std::cout << "\nNEW Constraint " << constraint_index << " Hessian mat:\n" << hessian_mat << std::endl;
+
+        constraint_index++;
+    });
+
+    // std::cout << "NEW stiffness matrix hessian term:\n" << _stiffness_matrix_hessian_term << std::endl;
+
+    _stiffness_matrix = _stiffness_matrix_hessian_term + 
+        _stiffness_matrix_orig_delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * _stiffness_matrix_orig_delC;
+
+    // "fix" all the fixed vertices in the mesh by adding a large amount to the diagonal corresponding to their 3 DOF
+    // for (int i = 0; i < _mesh->numVertices(); i++)
+    // {
+    //     if (vertexFixed(i))
+    //     {
+    //         for (int j = 0; j < 3; j++)
+    //             _stiffness_matrix(3*i+j,3*i+j) += 1e9;
+    //     }
+    // }
+
+    return _stiffness_matrix;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
