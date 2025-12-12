@@ -38,6 +38,17 @@ find_package(sensor_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2)
 
+# Build custom message types
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/SparseMatrix.msg"
+  DEPENDENCIES std_msgs
+)
+
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+
 
 # === Find External Dependencies ===
 
@@ -158,6 +169,8 @@ target_link_libraries(${PROJECT_NAME}_node
   mesh2sdf
   ${VTK_LIBRARIES}
 )
+
+target_link_libraries(${PROJECT_NAME}_node "${cpp_typesupport_target}")
 
 vtk_module_autoinit(
   TARGETS ${PROJECT_NAME}_node

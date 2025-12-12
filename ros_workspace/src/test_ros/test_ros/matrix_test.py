@@ -1,7 +1,9 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Int32MultiArray
+from sim_bridge.msg import SparseMatrix
 import numpy as np
+import scipy.sparse as sp
 
 
 class MatrixSubscriber(Node):
@@ -19,6 +21,13 @@ class MatrixSubscriber(Node):
             10
         )
 
+        self.stiffness_mat_subscription = self.create_subscription(
+            SparseMatrix,
+            '/output/stiffness_mat_0',
+            self.sparse_matrix_callback,
+            10
+        )
+
     def matrix_callback(self, msg):
         # Extract dimensions
         if len(msg.layout.dim) < 2:
@@ -33,6 +42,16 @@ class MatrixSubscriber(Node):
         
         self.get_logger().info(f'Received {rows}x{cols} matrix:')
         self.get_logger().info(f'\n{matrix}')
+
+    def sparse_matrix_callback(self, msg):
+        # use SciPy COO format to build sparse matrix
+        sparse_mat_coo = sp.coo_matrix((msg.values, (msg.row_indices, msg.col_indices)), shape=(msg.rows,msg.cols))
+        # convert to CSR (compressed sparse row) - recommended for most matrix operations
+        sparse_mat = sparse_mat_coo.tocsr()
+
+        self.get_logger().info(f'Received {msg.rows}x{msg.cols} sparse matrix with {sparse_mat.count_nonzero()} nonzero entries')
+
+        
 
 def main(args=None):
     rclpy.init(args=args)
