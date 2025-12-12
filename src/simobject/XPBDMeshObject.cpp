@@ -754,16 +754,16 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
     // _stiffness_matrix_orig_delC = MatXr::Zero(num_elastic_constraints, 3*_mesh->numVertices());
     _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_elastic_constraints);
 
-    auto t_alloc = std::chrono::high_resolution_clock::now();
-    double alloc_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc - t_start).count() / 1.0e6;
-    std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_ms << " ms" << std::endl;
+    // auto t_alloc = std::chrono::high_resolution_clock::now();
+    // double alloc_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc - t_start).count() / 1.0e6;
+    // std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_ms << " ms" << std::endl;
 
     std::vector<Eigen::Triplet<Real>> delC_triplets;
     delC_triplets.reserve(12*num_elastic_constraints);   // each constraint gradient has 12 nonzeros
 
-    auto t_alloc_delC = std::chrono::high_resolution_clock::now();
-    double alloc_delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc_delC - t_alloc).count() / 1.0e6;
-    std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_delC_ms << " ms" << std::endl;
+    // auto t_alloc_delC = std::chrono::high_resolution_clock::now();
+    // double alloc_delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc_delC - t_alloc).count() / 1.0e6;
+    // std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_delC_ms << " ms" << std::endl;
 
     // iterate through each constraint and put its gradient into the global delC matrix
     int constraint_index = 0;
@@ -797,26 +797,26 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
         constraint_index++;
     });
 
-    auto t_delC = std::chrono::high_resolution_clock::now();
-    double delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC - t_alloc_delC).count() / 1.0e6;
-    std::cout << "Computing delC triplets took: " << delC_ms << " ms" << std::endl;
+    // auto t_delC = std::chrono::high_resolution_clock::now();
+    // double delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC - t_alloc_delC).count() / 1.0e6;
+    // std::cout << "Computing delC triplets took: " << delC_ms << " ms" << std::endl;
 
     // std::cout << "delC triplets size: " << delC_triplets.size() << ", 12*num_elastic_constraints: " << 12*num_elastic_constraints << std::endl;
 
     Eigen::SparseMatrix<Real> delC(num_elastic_constraints, 3*_mesh->numVertices());
     delC.setFromTriplets(delC_triplets.begin(), delC_triplets.end());
 
-    auto t_delC_ass = std::chrono::high_resolution_clock::now();
-    double delC_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC_ass - t_delC).count() / 1.0e6;
-    std::cout << "Assembling delC triplets took: " << delC_ass_ms << " ms" << std::endl;
+    // auto t_delC_ass = std::chrono::high_resolution_clock::now();
+    // double delC_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC_ass - t_delC).count() / 1.0e6;
+    // std::cout << "Assembling delC triplets took: " << delC_ass_ms << " ms" << std::endl;
 
     // compute the Hessian term
     std::vector<Eigen::Triplet<Real>> hessian_triplets;
     hessian_triplets.reserve(144*num_elastic_constraints);
 
-    auto t_hess = std::chrono::high_resolution_clock::now();
-    double hess_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess - t_delC_ass).count() / 1.0e6;
-    std::cout << "Reserving Hessian triplets took: " << hess_ms << " ms" << std::endl;
+    // auto t_hess = std::chrono::high_resolution_clock::now();
+    // double hess_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess - t_delC_ass).count() / 1.0e6;
+    // std::cout << "Reserving Hessian triplets took: " << hess_ms << " ms" << std::endl;
 
     constraint_index = 0;
     _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
@@ -852,26 +852,26 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
         constraint_index++;
     });
 
-    auto t_hess_triplet = std::chrono::high_resolution_clock::now();
-    double hess_triplet_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_triplet - t_hess).count() / 1.0e6;
-    std::cout << "Computing Hessian triplets took: " << hess_triplet_ms << " ms" << std::endl;
+    // auto t_hess_triplet = std::chrono::high_resolution_clock::now();
+    // double hess_triplet_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_triplet - t_hess).count() / 1.0e6;
+    // std::cout << "Computing Hessian triplets took: " << hess_triplet_ms << " ms" << std::endl;
 
     // std::cout << "144*num_elastic_constraints: " << 144*num_elastic_constraints << ", hessian_triplets size: " << hessian_triplets.size() << std::endl;
 
     Eigen::SparseMatrix<Real> stiffness_matrix(3*_mesh->numVertices(), 3*_mesh->numVertices());
     stiffness_matrix.setFromTriplets(hessian_triplets.begin(), hessian_triplets.end());
 
-    auto t_hess_ass = std::chrono::high_resolution_clock::now();
-    double hess_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_ass - t_hess_triplet).count() / 1.0e6;
-    std::cout << "Assembling Hessian triplets took: " << hess_ass_ms << " ms" << std::endl;
+    // auto t_hess_ass = std::chrono::high_resolution_clock::now();
+    // double hess_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_ass - t_hess_triplet).count() / 1.0e6;
+    // std::cout << "Assembling Hessian triplets took: " << hess_ass_ms << " ms" << std::endl;
 
     // std::cout << "NEW stiffness matrix hessian term:\n" << _stiffness_matrix_hessian_term << std::endl;
 
     stiffness_matrix += (delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * delC);
 
-    auto t_add = std::chrono::high_resolution_clock::now();
-    double add_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_add - t_hess_ass).count() / 1.0e6;
-    std::cout << "Adding stiffness matrix terms took: " << add_ms << " ms" << std::endl;
+    // auto t_add = std::chrono::high_resolution_clock::now();
+    // double add_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_add - t_hess_ass).count() / 1.0e6;
+    // std::cout << "Adding stiffness matrix terms took: " << add_ms << " ms" << std::endl;
 
     // "fix" all the fixed vertices in the mesh by adding a large amount to the diagonal corresponding to their 3 DOF
     // for (int i = 0; i < _mesh->numVertices(); i++)

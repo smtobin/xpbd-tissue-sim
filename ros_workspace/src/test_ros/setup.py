@@ -14,7 +14,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='reach-lab',
-    maintainer_email='smtobin@wisc.edu',
+    maintainer_email='stobin2@vols.utk',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
