@@ -168,11 +168,6 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Computes the current global stiffness matrix of the mesh. This is done with a first-order approximation of delC^T * alpha * delC.
      * @returns the global stiffness matrix
      */
-    virtual MatXr stiffnessMatrixOLD() const override;
-
-    /** Computes the current global stiffness matrix of the mesh. This is done with a first-order approximation of delC^T * alpha * delC.
-     * @returns the global stiffness matrix
-     */
     virtual Eigen::SparseMatrix<Real> stiffnessMatrix() const override;
 
     /** Performs a check for self collision.

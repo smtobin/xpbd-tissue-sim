@@ -45,7 +45,7 @@ int main()
     std::vector<std::string> materials = {"material"};
     Config::FirstOrderXPBDMeshObjectConfig config(
         "test", Vec3r(0,0,0.50), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
-        bunny_filename, 1, std::nullopt, std::nullopt,
+        single_tet_filename, 1, std::nullopt, std::nullopt,
         false, true, true, Vec4r(1,1,1,1),
         materials, std::nullopt, std::nullopt,
         false, 10, 5, XPBDObjectSolverTypeEnum::GAUSS_SEIDEL,
@@ -77,16 +77,10 @@ int main()
     auto t1 = std::chrono::high_resolution_clock::now();
     MatXr stiffness_mat = xpbd_mesh_obj->stiffnessMatrix();
     auto t2 = std::chrono::high_resolution_clock::now();
-    MatXr stiffness_mat_old = xpbd_mesh_obj->stiffnessMatrixOLD();
-    auto t3 = std::chrono::high_resolution_clock::now();
 
     double new_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-    double old_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
-    std::cout << "New took: " << new_ms << " ms\nOld took: " << old_ms << " ms" << std::endl;
 
-    // std::cout << "\n\nOld stiffness matrix:\n" << stiffness_mat_old << std::endl;
-    // std::cout << "\nNew stiffness matrix:\n" << stiffness_mat << std::endl;
-    std::cout << "Norm of diff: " << (stiffness_mat - stiffness_mat_old).norm() << std::endl;
+    std::cout << "\n\nStiffness matrix:\n" << stiffness_mat << std::endl;
 
     // int v1 = xpbd_mesh_obj->mesh()->getClosestVertex(bbox.min);
     // int v2 = xpbd_mesh_obj->mesh()->getClosestVertex(Vec3r(bbox.min[0], bbox.max[1], bbox.min[2]));
@@ -125,10 +119,6 @@ int main()
     //         vertices_ss.close();
     //     }
     // }
-    
-    
-
-    // std::cout << "\n\nStiffness matrix:\n" << stiffness_mat << std::endl;
 
     // Eigen::SelfAdjointEigenSolver<MatXr> eig;
     // eig.compute(stiffness_mat);
