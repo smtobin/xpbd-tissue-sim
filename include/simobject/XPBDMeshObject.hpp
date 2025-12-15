@@ -55,6 +55,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::vertexConstraintInertia;
 
     using Base::tetMesh;
+    using Base::refinedTetMesh;
     using Base::loadAndConfigureMesh;
     // members
     using Base::_previous_vertices;
@@ -151,6 +152,35 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      * This will update the mesh representation and disable any internal constraints associated with that element.
      */
     virtual void removeElement(int elem_index) override;
+
+    /** Refines an element in the mesh object via recursive, hierarchical refinement.
+     * The element gets split into 8 equal-volume child tetrahedra, and each child gets split into 8 equal-volume child tetrahedra, etc... 
+     * until the specified refinement level is reached.
+     * @param elem_index : the index of the element
+     * @param refinement_level : the number of refinements to do
+     * @param absolute : when True, the refinement_level parameter is taken to be the "absolute" refinement_level. 
+     * I.e. refinement_level = 0 is the base tet mesh, refinement_level = 1 is a base element split into 8 children, etc.
+     * The refinement stops once the absolute refinement level has been reached, and does nothing if the refinement level is not greater than the current level of the element.
+     * When False, the refinement_level parameter is taken to be the "relative" refinement level, and always refines by the number of levels specified.
+     */
+    virtual void refineElement(int elem_index, int refinement_level, bool absolute) override;
+
+    /** Coarsens an element in the mesh object via recursive coarsening. (basically undoes refinement from refineElement() ).
+     * This will not coarsen the mesh to be coarser than the original tet mesh.
+     * 
+     * If coarsening one level, the element and all of its siblings will be replaced by their parent element (8 elements -> 1 element)
+     * If coarsening two levels, the element and all of its siblings and cousins will be replaced by their grandparent element (64 elements -> 1 element)
+     * etc.
+     * 
+     * To undo all refinement that resulted in the leaf element, use coarsening_level=0 and absolute=true.
+     * 
+     * If the specified element was not created with mesh refinement, this function does nothing.
+     * 
+     * @param elem_index : the index of the element to coarsen
+     * @param coarsening_level : the number of coarsening operations to do (i.e. the number of levels up the tree to traverse)
+     * @param absolute : defined the same as for refineElement()
+     */
+    virtual void coarsenElement(int elem_index, int coarsening_level, bool absolute) override;
 
     /** === Querying the solver === */
 

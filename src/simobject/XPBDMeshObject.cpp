@@ -33,7 +33,7 @@ namespace Sim
 
 template<bool IsFirstOrder>
 XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, const ConfigType* config)
-    : Object(sim, config), TetMeshObject(config, config)
+    : Object(sim, config), RefinedTetMeshObject(config, config)
 {
     for (const auto& mat_name : config->materials())
     {
@@ -605,6 +605,33 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         // remove the element from the mesh
         tetMesh()->removeElement(elem_index);
     }
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::refineElement(int elem_index, int refinement_level, bool absolute)
+{
+    /** TODO: update constraints
+     * 
+     * 
+     * 
+     * 
+     */
+
+    refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::coarsenElement(int elem_index, int coarsening_level, bool absolute)
+{
+    /** TODO: update constraints
+     * 
+     * 
+     * 
+     * 
+     * 
+     */
+
+     refinedTetMesh()->coarsenElement(elem_index, coarsening_level, absolute);
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

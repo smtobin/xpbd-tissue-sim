@@ -58,119 +58,161 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
     _vtk_poly_data->SetPolys(vtk_faces);
 
     
-    if (render_config.drawEdges())
-    {
+    // if (render_config.drawEdges())
+    // {
         
-        vtkNew<vtkExtractEdges> extract_edges;
-        extract_edges->SetInputData(_vtk_poly_data);
-        extract_edges->Update();
+    //     vtkNew<vtkExtractEdges> extract_edges;
+    //     extract_edges->SetInputData(_vtk_poly_data);
+    //     extract_edges->Update();
 
-        vtkNew<vtkPolyDataMapper> mapper;
-        mapper->SetInputConnection(extract_edges->GetOutputPort());
+    //     vtkNew<vtkPolyDataMapper> mapper;
+    //     mapper->SetInputConnection(extract_edges->GetOutputPort());
 
-        _edges_vtk_actor = vtkSmartPointer<vtkActor>::New();
-        _edges_vtk_actor->SetMapper(mapper);
+    //     _edges_vtk_actor = vtkSmartPointer<vtkActor>::New();
+    //     _edges_vtk_actor->SetMapper(mapper);
 
-        _edges_vtk_actor->GetProperty()->SetColor(0.0, 0.0, 0.0);
-    }
+    //     _edges_vtk_actor->GetProperty()->SetColor(0.0, 0.0, 0.0);
+    // }
 
-    if (render_config.drawFaces())
-    {
-        _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        if (render_config.smoothNormals())
-        {
-            // smooth normals
-            _normals_generator = vtkSmartPointer<vtkPolyDataNormals>::New();
-            _normals_generator->SetInputData(_vtk_poly_data);
-            _normals_generator->SetFeatureAngle(30.0);
-            _normals_generator->SplittingOff();
-            // normal_generator->ConsistencyOn();
-            _normals_generator->ComputePointNormalsOn();
-            _normals_generator->ComputeCellNormalsOff();
-            _normals_generator->Update();
+    // if (render_config.drawFaces())
+    // {
+    //     _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    //     if (render_config.smoothNormals())
+    //     {
+    //         // smooth normals
+    //         _normals_generator = vtkSmartPointer<vtkPolyDataNormals>::New();
+    //         _normals_generator->SetInputData(_vtk_poly_data);
+    //         _normals_generator->SetFeatureAngle(30.0);
+    //         _normals_generator->SplittingOff();
+    //         // normal_generator->ConsistencyOn();
+    //         _normals_generator->ComputePointNormalsOn();
+    //         _normals_generator->ComputeCellNormalsOff();
+    //         _normals_generator->Update();
 
-            // vtkNew<vtkPolyDataTangents> tangents;
-            // tangents->SetInputConnection(normal_generator->GetOutputPort());
-            // tangents->Update();
+    //         // vtkNew<vtkPolyDataTangents> tangents;
+    //         // tangents->SetInputConnection(normal_generator->GetOutputPort());
+    //         // tangents->Update();
 
-            _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
-        }
-        else
-        {
-            _face_mapper->SetInputData(_vtk_poly_data);
-        }
+    //         _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
+    //     }
+    //     else
+    //     {
+    //         _face_mapper->SetInputData(_vtk_poly_data);
+    //     }
         
-        _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
-        _faces_vtk_actor->SetMapper(_face_mapper);
+    //     _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
+    //     _faces_vtk_actor->SetMapper(_face_mapper);
 
-        VTKUtils::setupActorFromRenderConfig(_faces_vtk_actor.Get(), render_config);
+    //     VTKUtils::setupActorFromRenderConfig(_faces_vtk_actor.Get(), render_config);
 
-        // if the config file specifies multiple colors, and the mesh has the "class" vertex attribute
-        // then we can assign different colors to vertices based on their class
-        if (render_config.colors().has_value() && mesh->hasVertexProperty<int>("class"))
-        {
-            // set colors for each section of the mesh
-            vtkNew<vtkUnsignedCharArray> colors;
-            colors->SetNumberOfComponents(3);
-            colors->SetName("Colors");
+    //     // if the config file specifies multiple colors, and the mesh has the "class" vertex attribute
+    //     // then we can assign different colors to vertices based on their class
+    //     if (render_config.colors().has_value() && mesh->hasVertexProperty<int>("class"))
+    //     {
+    //         // set colors for each section of the mesh
+    //         vtkNew<vtkUnsignedCharArray> colors;
+    //         colors->SetNumberOfComponents(3);
+    //         colors->SetName("Colors");
 
-            std::vector<Vec3r> colors_f = render_config.colors().value();
-            const Geometry::MeshProperty<int>& vert_class_prop = mesh->getVertexProperty<int>("class");
-            for (int i = 0; i < mesh->numVertices(); i++)
-            {
-                int vert_class = vert_class_prop.get(i);
+    //         std::vector<Vec3r> colors_f = render_config.colors().value();
+    //         const Geometry::MeshProperty<int>& vert_class_prop = mesh->getVertexProperty<int>("class");
+    //         for (int i = 0; i < mesh->numVertices(); i++)
+    //         {
+    //             int vert_class = vert_class_prop.get(i);
 
-                // make sure the config file specifies enough colors
-                if (static_cast<unsigned>(vert_class) >= colors_f.size())
-                {
-                    std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but vertex " << i <<
-                    " has class " << vert_class << ". (Specify more colors in the config file)" << RST << std::endl;
-                }
+    //             // make sure the config file specifies enough colors
+    //             if (static_cast<unsigned>(vert_class) >= colors_f.size())
+    //             {
+    //                 std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but vertex " << i <<
+    //                 " has class " << vert_class << ". (Specify more colors in the config file)" << RST << std::endl;
+    //             }
 
-                Vec3r color_f = colors_f[vert_class];
-                unsigned char color[3];
-                color[0] = static_cast<unsigned char>(color_f[0] * 255);
-                color[1] = static_cast<unsigned char>(color_f[1] * 255);
-                color[2] = static_cast<unsigned char>(color_f[2] * 255);
+    //             Vec3r color_f = colors_f[vert_class];
+    //             unsigned char color[3];
+    //             color[0] = static_cast<unsigned char>(color_f[0] * 255);
+    //             color[1] = static_cast<unsigned char>(color_f[1] * 255);
+    //             color[2] = static_cast<unsigned char>(color_f[2] * 255);
 
-                colors->InsertNextTypedTuple(color);
-            }
+    //             colors->InsertNextTypedTuple(color);
+    //         }
 
-            _vtk_poly_data->GetPointData()->SetScalars(colors);
-        }
-    }
+    //         _vtk_poly_data->GetPointData()->SetScalars(colors);
+    //     }
+    // }
     
 }
+
+void VTKMeshGraphicsObject::_rebuildPolyData()
+{
+    std::cout << "REBUILDING POLY DATA!" << std::endl;
+    // Create fresh polydata
+    vtkNew<vtkPoints> points;
+    points->SetNumberOfPoints(_mesh->vertices().totalSize());
+    
+    for (int i = 0; i < _mesh->vertices().totalSize(); i++)
+    {
+        const Vec3r& vert = _mesh->vertices()[i];
+        points->SetPoint(i, vert[0], vert[1], vert[2]);
+    }
+    
+    vtkNew<vtkCellArray> faces;
+    faces->Allocate(_mesh->numFaces(), _mesh->numFaces() * 3);
+    
+    for (const auto& face : _mesh->faces())
+    {
+        vtkIdType triangle[3] = {face[0], face[1], face[2]};
+        faces->InsertNextCell(3, triangle);
+    }
+    
+    // Clear and rebuild polydata
+    vtkNew<vtkPolyData> new_poly_data;
+    new_poly_data->SetPoints(points);
+    new_poly_data->SetPolys(faces);
+    new_poly_data->BuildCells();
+    new_poly_data->BuildLinks();
+
+    _vtk_poly_data->ShallowCopy(new_poly_data);
+    _vtk_poly_data->Modified();
+    
+    // _setColors();
+}
+
 
 void VTKMeshGraphicsObject::_setFaces()
 {
     vtkNew<vtkCellArray> new_faces;
     new_faces->Allocate(_mesh->numFaces(), _mesh->numFaces() * 3);
     
+    int max_vertex_index = -1;
+
     for (const auto& face : _mesh->faces())
     {
         vtkIdType triangle[3] = {face[0], face[1], face[2]};
+
+        // Track the maximum vertex index
+        max_vertex_index = std::max(max_vertex_index, 
+                                   std::max({(int)face[0], (int)face[1], (int)face[2]}));
+
         new_faces->InsertNextCell(3, triangle);
     }
+
+    // VALIDATION: Check if faces reference vertices that don't exist
+    int num_points = _vtk_poly_data->GetNumberOfPoints();
+    // if (max_vertex_index >= num_points)
+    // {
+        std::cerr << "Face references vertex " << max_vertex_index 
+                  << " and " << num_points << " points exist!" << std::endl;
+        std::cerr << "Mesh reports " << _mesh->vertices().totalSize() 
+                  << " total vertices" << std::endl;
+        // abort();
+    // }
+
+    _vtk_poly_data->DeleteCells();
+    _vtk_poly_data->DeleteLinks();
     
     _vtk_poly_data->SetPolys(new_faces);
 
-    if (_normals_generator)
-    {
-        _normals_generator->SetInputData(_vtk_poly_data);
-        _normals_generator->Update();
-        _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
-        // vtkPolyData* output = _normals_generator->GetOutput();
-    
-        // Copy only the normals back
-        // _vtk_poly_data->GetPointData()->SetNormals(
-        //     output->GetPointData()->GetNormals()
-        // );
-        // _vtk_poly_data->GetCellData()->SetNormals(
-        //     output->GetCellData()->GetNormals()
-        // );
-        // _vtk_poly_data->ShallowCopy(_normals_generator->GetOutput());
-    }
+    _vtk_poly_data->Modified();
     
 }
 
@@ -179,8 +221,8 @@ void VTKMeshGraphicsObject::_setVertices()
     // create points
     vtkPoints* points = _vtk_poly_data->GetPoints();
 
-    // points->Resize(_mesh->numVertices());
-    // points->SetNumberOfPoints(_mesh->numVertices());
+    // _vtk_poly_data->GetPointData()->Initialize();
+    // points->SetNumberOfPoints(_mesh->vertices().totalSize());
 
     int vtk_index = 0;
     // for (const auto& vert : _mesh->vertices())
@@ -242,12 +284,22 @@ void VTKMeshGraphicsObject::_setColors()
 void VTKMeshGraphicsObject::update() 
 {
     
-    _setVertices();
-    _setColors();
+    int old_num_points = _vtk_poly_data->GetNumberOfPoints();
+    int old_num_cells = _vtk_poly_data->GetNumberOfCells();
+    
+    bool topology_changed = (_mesh->vertices().totalSize() != old_num_points) ||
+                           (_mesh->numFaces() != old_num_cells);
 
-    if (_mesh->numFaces() != _vtk_poly_data->GetNumberOfCells())
+    
+    // _setColors();
+
+    if (topology_changed)
     {
-        _setFaces();
+        _rebuildPolyData();
+    }
+    else
+    {
+        _setVertices();
     }
     
 }

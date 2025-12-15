@@ -10,6 +10,7 @@
 #include <math.h>
 #include <algorithm>
 #include <numeric>
+#include <unordered_set>
 
 namespace Sim 
 {
@@ -176,6 +177,27 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
+    // refine tissue mesh around tool tip
+    if (_tool_manipulated_object)
+    {
+        std::unordered_set<int> elements_to_refine;
+        for (const auto& collision : _collision_constraints)
+        {
+            // get element 
+            int face_index = collision.proj_ref.constraint()->faceIndex();
+            if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                continue;
+            
+            int elem_index_to_refine = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+            elements_to_refine.insert(elem_index_to_refine);
+        }
+
+        for (const auto& elem_index : elements_to_refine)
+        {
+            _tool_manipulated_object.refineElement(elem_index, 1, true);
+        }
+    }
+
     // apply forces from collision constraints
     std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
     _net_collision_force = Vec3r::Zero();
@@ -336,7 +358,7 @@ void VirtuosoArm::_cauteryToolAction()
     if (_tool_state == 1)
     {
         /** Code for simple element removal on contact */
-        // std::set<int> elements_to_remove;
+        // std::unordered_set<int> elements_to_remove;
         // for (const auto& collision : _collision_constraints)
         // {
         //     if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)

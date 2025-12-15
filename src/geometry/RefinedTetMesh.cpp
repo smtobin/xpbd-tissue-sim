@@ -629,7 +629,7 @@ std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices
     return {ind1, ind2, ind3, ind4};
 }
 
-void RefinedTetMesh::refineElement(int element_index, int refinement_level)
+void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute)
 {
     
     assert(elementValid(element_index));
@@ -739,6 +739,17 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
 
         // add the base element tree node that we just created to the tree nodes vector
         base_node_index = _element_tree_nodes.push_back(std::move(base_node));
+    }
+
+    // if absolute = true, we are only refining up to an absolute refinement level
+    // so must get the relative refinement level
+    // if the relative refinement level <= 0, we don't need to do anything
+    int rel_refinement_level = refinement_level;
+    if (absolute)
+    {   
+        rel_refinement_level = refinement_level - _element_tree_nodes[base_node_index].level;
+        if (rel_refinement_level <= 0)
+            return;
     }
 
 
@@ -944,7 +955,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level)
     _elements.erase(element_index);
 }
 
-int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
+int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute)
 {
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);
@@ -963,14 +974,21 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
         return -1;
     }
 
-    // if the coarsening level was -1, use the level that the leaf node is at
-    if (coarsening_level == -1)
-        coarsening_level = leaf_node.level;
+    // if absolute = true, we are only coarsening up to an absolute coarsening level
+    // so must get the relative coarsening level
+    // if the relative coarsening level <= 0, we don't need to do anything
+    int rel_coarsening_level = coarsening_level;
+    if (absolute)
+    {
+        rel_coarsening_level = leaf_node.level - coarsening_level;
+        if (rel_coarsening_level <= 0)
+            return element_index;
+    }
 
     // get the root of the tree branch that we are going to replace this element (and its relatives) with
     int root_index = leaf_node.parent;
     int cur_level = leaf_node.level - 1;
-    while (cur_level > leaf_node.level - coarsening_level)
+    while (cur_level > leaf_node.level - rel_coarsening_level)
     {
         // need to ensure that the parent has all of its children
         // otherwise we might lose information!

@@ -3,6 +3,7 @@
 
 #include "geometry/Mesh.hpp"
 #include "geometry/TetMesh.hpp"
+#include "geometry/RefinedTetMesh.hpp"
 #include "utils/MeshUtils.hpp"
 #include "config/simobject/ObjectConfig.hpp"
 #include "config/simobject/MeshObjectConfig.hpp"
@@ -105,6 +106,30 @@ class TetMeshObject : public MeshObject
     virtual void _loadMeshFromFile(const std::string& fname)
     {
         _mesh = std::make_unique<Geometry::TetMesh>(MeshUtils::loadTetMeshFromGmshFile(fname));
+    }
+};
+
+
+
+////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////
+
+class RefinedTetMeshObject : public TetMeshObject
+{
+    public:
+    RefinedTetMeshObject(const ConfigType* mesh_config, const Config::ObjectConfig* obj_config)
+        : TetMeshObject(mesh_config, obj_config)
+    {
+
+    }
+
+    const Geometry::RefinedTetMesh* refinedTetMesh() const { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
+    Geometry::RefinedTetMesh* refinedTetMesh() { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
+
+    protected:
+    virtual void _loadMeshFromFile(const std::string& fname)
+    {
+        _mesh = std::make_unique<Geometry::RefinedTetMesh>(MeshUtils::loadTetMeshFromGmshFile(fname));
     }
 };
 

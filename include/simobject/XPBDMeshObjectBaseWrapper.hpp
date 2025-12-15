@@ -210,6 +210,16 @@ public:
         return std::visit([&](auto& obj) { obj->removeElement(elem_index); }, _variant);
     }
 
+    void refineElement(int elem_index, int refinement_level, bool absolute)
+    {
+        return std::visit([&](auto& obj) { obj->refineElement(elem_index, refinement_level, absolute); }, _variant);
+    }
+
+    void coarsenElement(int elem_index, int coarsening_level, bool absolute)
+    {
+        return std::visit([&](auto& obj) { obj->coarsenElement(elem_index, coarsening_level, absolute); }, _variant);
+    }
+
     /** === Miscellaneous === */
 
     Real totalStrainEnergy() const

@@ -200,18 +200,18 @@ public:
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
     */
-    void refineElement(int element_index, int refinement_level);
+    void refineElement(int element_index, int refinement_level, bool absolute=false);
 
     /** Recursively coarsens the specified element coarsening_level times.
      * This function assumes that the element was created from hiearchical subdivision. (i.e. from the refineElement function)
      * If coarsening one level, the element and all of its siblings will be replaced by their parent element (8 elements -> 1 element)
      * If coarsening two levels, the element and all of its siblings and cousins will be replaced by their grandparent element (64 elements -> 1 element)
      * 
-     * If coarsening_level is set to -1, all refinement that resulted in the leaf element is undone.
+     * To undo all refinement that resulted in the leaf element, use coarsening_level=0 and absolute=true.
      * 
      * If the specified element was not created with mesh refinement, this function does nothing.
      */
-    int coarsenElement(int element_index, int coarsening_level);
+    int coarsenElement(int element_index, int coarsening_level, bool absolute=false);
 
     /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
     const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
