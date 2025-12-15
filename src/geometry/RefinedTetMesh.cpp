@@ -19,32 +19,33 @@ RefinedTetMesh::RefinedTetMesh(const TetMesh& tet_mesh)
 
 void RefinedTetMesh::removeElement(int elem_index)
 {
-    /** TODO: need to update the feature hierarchy here
-     * 
-     * 
-     * 
-     * 
-     * 
-     * 
-     */
-
     // before we remove the element, we need to update the tree structure (when applicable)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
     {
         int node_index = search->second;
         const ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
         ElementTreeNode& parent_tree_node = _element_tree_nodes[node_to_remove.parent];
+
+        // since this element is being removed, all of its faces (if they are still in the mesh after the element is removed) will now be on the surface
+        // so update the face nodes of the element to reflect this
+        // Likely, most of the face nodes associated with the element will be removed, but the ones that are left behind (because they are still in the mesh)
+        //   will correctly be marked on the surface
+        for (const auto& face_node_index : node_to_remove.face_nodes)
+        {
+            if (face_node_index == ElementTreeNode::INVALID_INDEX)
+                continue;
+
+            _face_nodes[face_node_index].on_surface = true;
+        }
+
+        // update the feature hierarchy (i.e. remove edge nodes and face nodes that are no longer in the mesh)
+        _updateFeatureHierarchyForRemovedElementTreeNode(node_index);
+
         // remove the leaf tree node from its parent's list of children
         parent_tree_node.children.erase(
             std::remove(parent_tree_node.children.begin(), parent_tree_node.children.end(), node_index),
             parent_tree_node.children.end()
         );
-
-        // if the parent has no more children, it is defunct, so remove it also
-        // if (parent_tree_node.children.size() == 0)
-        // {
-        //     _element_tree_nodes.erase(node_to_remove.parent);
-        // }
 
         // remove the leaf tree node
         _element_tree_nodes.erase(node_index);
@@ -54,6 +55,111 @@ void RefinedTetMesh::removeElement(int elem_index)
     }
 
     TetMesh::removeElement(elem_index);
+}
+
+void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index)
+{
+    ElementTreeNode& node = _element_tree_nodes[element_tree_node_index];
+
+    // update the feature hierarchy
+    // for an edge or face to be removed, it must:
+    //    - not have any children (i.e. it is a leaf)
+    //    - not be in the mesh itself
+    // then we can safely remove the feature from the feature hierarchy
+    // std::cout "=== Updating feature hierarchy for node with vertices " << node.vertices.transpose() << std::endl;
+    // check edges of the element
+    for (const auto& edge_node_index : node.edge_nodes)
+    {
+        if (edge_node_index == ElementTreeNode::INVALID_INDEX)
+            assert(0);  // this shouldn't happen
+        
+        EdgeNode& edge_node = _edge_nodes[edge_node_index];
+
+        // move on if the edge node is not a leaf
+        if (!edge_node.is_leaf)
+        {
+            assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
+            edge_node.in_mesh = true;
+            _hanging_vertices.insert(edge_node.child_vertex);
+            continue;
+        }
+            
+
+        // move on if the edge is still present in the mesh (i.e. another element shares this exact edge)
+        if (_edge_to_elements_map.count(edge_node.edge) > 0)
+            continue;
+
+        // if we get to here, it is safe to remove this edge node
+        // edit the parent
+        if (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
+        {
+            EdgeNode& parent_edge_node = _edge_nodes[edge_node.parent_edge_node];
+            // std::cout "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
+            parent_edge_node.child_vertex = ElementTreeNode::INVALID_INDEX;
+            parent_edge_node.is_leaf = true;
+            
+
+            if (parent_edge_node.child_edge_node1 == edge_node_index)
+                parent_edge_node.child_edge_node1 = ElementTreeNode::INVALID_INDEX;
+            else
+                parent_edge_node.child_edge_node2 = ElementTreeNode::INVALID_INDEX;
+        }
+        else if (edge_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
+        {
+            FaceNode& parent_face_node = _face_nodes[edge_node.parent_face_node];
+            parent_face_node.is_leaf = true;
+
+            for (auto& parent_child_edge_node_index : parent_face_node.child_edge_nodes)
+            {
+                if (parent_child_edge_node_index == edge_node_index)
+                {
+                    parent_child_edge_node_index = ElementTreeNode::INVALID_INDEX;
+                    break;
+                }
+            }
+        }
+        // remove the edge node
+        _edge_nodes.erase(edge_node_index);
+    }
+
+    // check faces of the element
+    for (const auto& face_node_index : node.face_nodes)
+    {
+        if (face_node_index == ElementTreeNode::INVALID_INDEX)
+            assert(0);      // this shouldn't happen
+        
+        FaceNode& face_node = _face_nodes[face_node_index];
+
+        // move on if the face node is not a leaf
+        if (!face_node.is_leaf)
+        {
+            face_node.in_mesh = true;
+            continue;
+        }
+        
+        // move on if the face is still present in the mesh (i.e. another element shares this exact face)
+        if (_face_to_elements_map.count(face_node.face) > 0)
+            continue;
+
+        // if we get to here, it is safe to remove this face node
+        // edit the parent
+        if (face_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
+        {
+            FaceNode& parent_face_node = _face_nodes[face_node.parent_face_node];
+            parent_face_node.is_leaf = true;
+            
+            for (auto& parent_child_face_node_index : parent_face_node.child_face_nodes)
+            {
+                if (parent_child_face_node_index == face_node_index)
+                {
+                    parent_child_face_node_index = ElementTreeNode::INVALID_INDEX;
+                    break;
+                }
+            }
+        }
+
+        _face_nodes.erase(face_node_index);
+    }
 }
 
 void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
@@ -866,7 +972,14 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
     int cur_level = leaf_node.level - 1;
     while (cur_level > leaf_node.level - coarsening_level)
     {
-        root_index = _element_tree_nodes[root_index].parent;
+        // need to ensure that the parent has all of its children
+        // otherwise we might lose information!
+        int parent_index = _element_tree_nodes[root_index].parent;
+        if (_element_tree_nodes[parent_index].children.size() < 8)
+            break;
+
+        // parent has all of its children - keep traversing up the tree
+        root_index = parent_index;
         cur_level--;
     }
     
@@ -925,7 +1038,8 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
             else
             {
                 // if the node doesn't have an associated element index, it is a parent node
-                // check it's edges for midpoint vertices - these vertices will now be hanging
+                // check each of its vertices to see if it is still used in the mesh
+                // if not - remove it from the mesh!
                 for (int k = 0; k < 4; k++)
                 {
                     std::vector<int>& vk_map = _vertex_to_elements_map[node.vertices[k]];
@@ -940,105 +1054,7 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level)
                 
             }
 
-            // update the feature hierarchy
-            // for an edge or face to be removed, it must:
-            //    - not have any children (i.e. it is a leaf)
-            //    - not be in the mesh itself
-            // then we can safely remove the feature from the feature hierarchy
-            // std::cout "=== Updating feature hierarchy for node with vertices " << node.vertices.transpose() << std::endl;
-            // check edges of the element
-            for (const auto& edge_node_index : node.edge_nodes)
-            {
-                if (edge_node_index == ElementTreeNode::INVALID_INDEX)
-                    assert(0);  // this shouldn't happen
-                
-                EdgeNode& edge_node = _edge_nodes[edge_node_index];
-
-                // move on if the edge node is not a leaf
-                if (!edge_node.is_leaf)
-                {
-                    assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
-                    edge_node.in_mesh = true;
-                    _hanging_vertices.insert(edge_node.child_vertex);
-                    continue;
-                }
-                    
-
-                // move on if the edge is still present in the mesh (i.e. another element shares this exact edge)
-                if (_edge_to_elements_map.count(edge_node.edge) > 0)
-                    continue;
-
-                // if we get to here, it is safe to remove this edge node
-                // edit the parent
-                if (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
-                {
-                    EdgeNode& parent_edge_node = _edge_nodes[edge_node.parent_edge_node];
-                    // std::cout "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
-                    parent_edge_node.child_vertex = ElementTreeNode::INVALID_INDEX;
-                    parent_edge_node.is_leaf = true;
-                    
-
-                    if (parent_edge_node.child_edge_node1 == edge_node_index)
-                        parent_edge_node.child_edge_node1 = ElementTreeNode::INVALID_INDEX;
-                    else
-                        parent_edge_node.child_edge_node2 = ElementTreeNode::INVALID_INDEX;
-                }
-                else if (edge_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
-                {
-                    FaceNode& parent_face_node = _face_nodes[edge_node.parent_face_node];
-                    parent_face_node.is_leaf = true;
-
-                    for (auto& parent_child_edge_node_index : parent_face_node.child_edge_nodes)
-                    {
-                        if (parent_child_edge_node_index == edge_node_index)
-                        {
-                            parent_child_edge_node_index = ElementTreeNode::INVALID_INDEX;
-                            break;
-                        }
-                    }
-                }
-                // remove the edge node
-                _edge_nodes.erase(edge_node_index);
-            }
-
-            // check faces of the element
-            for (const auto& face_node_index : node.face_nodes)
-            {
-                if (face_node_index == ElementTreeNode::INVALID_INDEX)
-                    assert(0);      // this shouldn't happen
-                
-                FaceNode& face_node = _face_nodes[face_node_index];
-
-                // move on if the face node is not a leaf
-                if (!face_node.is_leaf)
-                {
-                    face_node.in_mesh = true;
-                    continue;
-                }
-                
-                // move on if the face is still present in the mesh (i.e. another element shares this exact face)
-                if (_face_to_elements_map.count(face_node.face) > 0)
-                    continue;
-
-                // if we get to here, it is safe to remove this face node
-                // edit the parent
-                if (face_node.parent_face_node != ElementTreeNode::INVALID_INDEX)
-                {
-                    FaceNode& parent_face_node = _face_nodes[face_node.parent_face_node];
-                    parent_face_node.is_leaf = true;
-                    
-                    for (auto& parent_child_face_node_index : parent_face_node.child_face_nodes)
-                    {
-                        if (parent_child_face_node_index == face_node_index)
-                        {
-                            parent_child_face_node_index = ElementTreeNode::INVALID_INDEX;
-                            break;
-                        }
-                    }
-                }
-
-                _face_nodes.erase(face_node_index);
-            }
+            _updateFeatureHierarchyForRemovedElementTreeNode(node_index);
 
             // remove the node
             _element_tree_nodes.erase(node_index);
