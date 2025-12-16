@@ -634,13 +634,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     Real refined_element_rest_volume = tetMesh()->elementRestVolume(elem_index);
     int refined_element_class = class_elem_prop.get(elem_index);
 
-    std::cout << "Initial location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
-
     bool refined = refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
     if (!refined)
+    {
+        std::cout << "   Nothing was done!" << std::endl;
         return;
-
-    std::cout << "New location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
+    }
 
     /** Resize per-vertex vectors */
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector

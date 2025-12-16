@@ -658,6 +658,12 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     _latest_new_elements.clear();
     _latest_removed_elements.clear();
 
+
+    // what we really care about is the RELATIVE refinement level
+    // when absolute=true, the specified refinement level is the absolute depth to refine to ==> it is possible we are already there!
+    // here, we just initialize the relative refinement level to the refinement level passed in
+    int rel_refinement_level = refinement_level;
+
     // find the ElementTreeNode associated with the specified element to refine, and 
     // create a new ElementTreeNode if one doesn't already exist for the element
     //
@@ -671,6 +677,17 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     {
         base_node_index = search->second; 
 
+        // if absolute = true, we are only refining up to an absolute refinement level
+        // so must get the relative refinement level
+        // if the relative refinement level <= 0, we don't need to do anything
+        // note: this only applies for the case where an element tree node already exists, since it is only in this case that its level can be > 0
+        if (absolute)
+        {   
+            rel_refinement_level = refinement_level - _element_tree_nodes[base_node_index].level;
+            if (rel_refinement_level <= 0)
+                return false;
+        }
+
         // unset the element_index for the tree node, since the element will no longer exist
         _element_tree_nodes[base_node_index].element_index = ElementTreeNode::INVALID_INDEX;
         // update the element -> element tree node map
@@ -679,6 +696,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     // Case 2: an ElementTreeNode does not exist for the element, we must create one
     else
     {
+        std::cout << "    Creating ElementTreeNode for element " << element_index << std::endl;
         // create the initial ElementTreeNode struct for the base element that we are subdividing
         ElementTreeNode base_node(element(element_index), ElementTreeNode::INVALID_INDEX, 0);
             
@@ -759,18 +777,6 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
         base_node_index = _element_tree_nodes.push_back(std::move(base_node));
     }
 
-    // if absolute = true, we are only refining up to an absolute refinement level
-    // so must get the relative refinement level
-    // if the relative refinement level <= 0, we don't need to do anything
-    int rel_refinement_level = refinement_level;
-    if (absolute)
-    {   
-        rel_refinement_level = refinement_level - _element_tree_nodes[base_node_index].level;
-        if (rel_refinement_level <= 0)
-            return false;
-    }
-
-
     /** === Step 3: Remove the element from the mesh === */
 
     // remove surface faces associated with the element
@@ -788,7 +794,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     _updateElementSurfaceFaceMapForRemovedElement(element_index);
 
     // update the feature hierarchy (i.e. whether or not a feature has an ancestor feature in the mesh or not)
-    _prepareFeatureTreeForRefinedElement(base_node_index, refinement_level);
+    _prepareFeatureTreeForRefinedElement(base_node_index, rel_refinement_level);
 
     // add the removed parent element to the latest removed elements
     _latest_removed_elements.emplace_back(element_index, base_element);
@@ -802,7 +808,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     std::vector<int> parent_nodes = {base_node_index};
     int num_new_tets = 1;   // calculate the number of new tets to be added at each refinement level
 
-    for (int level = 0; level < refinement_level; level++)
+    for (int level = 0; level < rel_refinement_level; level++)
     {
         num_new_tets *= 8;
 
@@ -811,7 +817,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
         // create a vector to store the next level of parent elements
         // note that this only applies when we are not at the deepest refinement level
         std::vector<int> next_parent_nodes;
-        if (level < refinement_level-1)
+        if (level < rel_refinement_level-1)
             next_parent_nodes.reserve(num_new_tets);
 
         // add newest level of midpoint vertices for each parent element at this level
@@ -827,27 +833,27 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
             // each edge in the parent element -> 2 sub edges
             // each edge in the parent element also will have a new vertex created at its midpoint
-            _createMidpointVerticesAndChildEdgeNodesForElement(parent_node_index, mid_verts, level == refinement_level-1);
+            _createMidpointVerticesAndChildEdgeNodesForElement(parent_node_index, mid_verts, level == rel_refinement_level-1);
 
             // each face in the parent element -> 4 sub faces and 3 sub edges
             // FaceNode& parent_face_node = _face_nodes[parent_face_node_index];
-            _createChildFaceNodesForElement(parent_node_index, mid_verts, level == refinement_level-1);
+            _createChildFaceNodesForElement(parent_node_index, mid_verts, level == rel_refinement_level-1);
 
             // splitting a tet produces 8 "internal" faces that do not have a parent face in the tet that was split
             // create the face nodes associated with these faces
-            int f456_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[1], mid_verts[2]);   _face_nodes[f456_node_index].in_mesh = level == refinement_level-1;
-            int f478_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[3], mid_verts[4]);   _face_nodes[f478_node_index].in_mesh = level == refinement_level-1;  
-            int f579_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[3], mid_verts[5]);   _face_nodes[f579_node_index].in_mesh = level == refinement_level-1;
-            int f689_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[4], mid_verts[5]);   _face_nodes[f689_node_index].in_mesh = level == refinement_level-1;
-            int f467_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[2], mid_verts[3]);   _face_nodes[f467_node_index].in_mesh = level == refinement_level-1;
-            int f679_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[3], mid_verts[5]);   _face_nodes[f679_node_index].in_mesh = level == refinement_level-1;
-            int f567_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[2], mid_verts[3]);   _face_nodes[f567_node_index].in_mesh = level == refinement_level-1;
-            int f678_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[3], mid_verts[4]);   _face_nodes[f678_node_index].in_mesh = level == refinement_level-1;
+            int f456_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[1], mid_verts[2]);   _face_nodes[f456_node_index].in_mesh = level == rel_refinement_level-1;
+            int f478_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[3], mid_verts[4]);   _face_nodes[f478_node_index].in_mesh = level == rel_refinement_level-1;  
+            int f579_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[3], mid_verts[5]);   _face_nodes[f579_node_index].in_mesh = level == rel_refinement_level-1;
+            int f689_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[4], mid_verts[5]);   _face_nodes[f689_node_index].in_mesh = level == rel_refinement_level-1;
+            int f467_node_index = _face_nodes.emplace_back(mid_verts[0], mid_verts[2], mid_verts[3]);   _face_nodes[f467_node_index].in_mesh = level == rel_refinement_level-1;
+            int f679_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[3], mid_verts[5]);   _face_nodes[f679_node_index].in_mesh = level == rel_refinement_level-1;
+            int f567_node_index = _face_nodes.emplace_back(mid_verts[1], mid_verts[2], mid_verts[3]);   _face_nodes[f567_node_index].in_mesh = level == rel_refinement_level-1;
+            int f678_node_index = _face_nodes.emplace_back(mid_verts[2], mid_verts[3], mid_verts[4]);   _face_nodes[f678_node_index].in_mesh = level == rel_refinement_level-1;
 
             // splitting a tet also produces 1 "internal" edge that does not have a parent edge or face in the parent tet that was split
             // create the edge node associated with this edge
             int e67_node_index = _edge_nodes.emplace_back(mid_verts[2], mid_verts[3]);
-            _edge_nodes[e67_node_index].in_mesh = level == refinement_level-1;
+            _edge_nodes[e67_node_index].in_mesh = level == rel_refinement_level-1;
 
 
             /** Create the child element tree nodes */
@@ -946,7 +952,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
             // add each child node to the parent
             parent_node.children.insert(parent_node.children.end(), {enode1, enode2, enode3, enode4, enode5, enode6, enode7, enode8});
 
-            if (level == refinement_level-1)
+            if (level == rel_refinement_level-1)
             {
                 // we are at the lowest level
                 // so add the new elements to the global elements list

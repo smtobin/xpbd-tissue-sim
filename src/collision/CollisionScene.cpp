@@ -122,6 +122,8 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
+
+    std::unordered_set<int> elems_to_refine;
     for (const auto& i : mesh->faces().validIndices())
     {
         const Vec3i& f = mesh->face(i);
@@ -131,6 +133,10 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 
         // check if centroid of face is close
         const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
+        if (centroid_dist < 5e-3)
+        {
+            elems_to_refine.insert(xpbd_mesh_obj->tetMesh()->elementWithFace(i));
+        }
         if (centroid_dist > 2e-3)
             continue;
 
@@ -164,6 +170,19 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
                 }
             }
         }
+    }
+
+    if (elems_to_refine.size() > 0)
+    {
+        std::cout << "REFINING ELEMENTS..." << std::endl;
+        for (const auto& elem : elems_to_refine)
+        {
+            std::cout << "  Refining element " << elem << std::endl;
+            xpbd_mesh_obj->refineElement(elem, 1, true);
+        }
+
+        if (elems_to_refine.size() > 10)
+            assert(0);
     }
 }
 
