@@ -174,15 +174,12 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 
     if (elems_to_refine.size() > 0)
     {
-        std::cout << "REFINING ELEMENTS..." << std::endl;
+        // std::cout << "REFINING ELEMENTS..." << std::endl;
         for (const auto& elem : elems_to_refine)
         {
-            std::cout << "  Refining element " << elem << std::endl;
-            xpbd_mesh_obj->refineElement(elem, 1, true);
+            // std::cout << "  Refining element " << elem << std::endl;
+            xpbd_mesh_obj->refineElement(elem, 2, true);
         }
-
-        if (elems_to_refine.size() > 10)
-            assert(0);
     }
 }
 

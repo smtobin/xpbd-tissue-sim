@@ -696,7 +696,6 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     // Case 2: an ElementTreeNode does not exist for the element, we must create one
     else
     {
-        std::cout << "    Creating ElementTreeNode for element " << element_index << std::endl;
         // create the initial ElementTreeNode struct for the base element that we are subdividing
         ElementTreeNode base_node(element(element_index), ElementTreeNode::INVALID_INDEX, 0);
             

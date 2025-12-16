@@ -8,6 +8,7 @@
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkPolyDataNormals.h>
+#include <vtkExtractEdges.h>
 #include <vtkSmartPointer.h>
 #include <vtkActor.h>
 
@@ -29,15 +30,15 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     void _setFaces(const RenderInfo* rmesh);
     void _setColors();
 
-    void _rebuildPolyData();
-
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
 
     vtkSmartPointer<vtkPolyData> _front_poly_data;
-    vtkSmartPointer<vtkPolyData> _back_poly_data;
     
     vtkSmartPointer<vtkActor> _faces_vtk_actor;
     vtkSmartPointer<vtkActor> _edges_vtk_actor;
+
+    vtkSmartPointer<vtkExtractEdges> _edge_extractor;
+    vtkSmartPointer<vtkPolyDataMapper> _edge_mapper;
 
     vtkSmartPointer<vtkPolyDataMapper> _face_mapper;
     vtkSmartPointer<vtkPolyDataNormals> _normals_generator;

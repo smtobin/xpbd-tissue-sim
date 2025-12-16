@@ -637,7 +637,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     bool refined = refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
     if (!refined)
     {
-        std::cout << "   Nothing was done!" << std::endl;
+        // std::cout << "   Nothing was done!" << std::endl;
         return;
     }
 
