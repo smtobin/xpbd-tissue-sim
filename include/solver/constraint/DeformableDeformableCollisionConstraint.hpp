@@ -18,10 +18,10 @@ class DeformableDeformableCollisionConstraint : public Constraint
     constexpr static int NUM_COORDINATES = 12;
 
     public:
-    DeformableDeformableCollisionConstraint(int v, Real* p, Real m,
-                                        int fv1, Real* fp1, Real fm1,
-                                        int fv2, Real* fp2, Real fm2,
-                                        int fv3, Real* fp3, Real fm3);
+    DeformableDeformableCollisionConstraint(int v, PositionReference::VecType* vec_ptr, Real m,
+                                        int fv1, PositionReference::VecType* fvec_ptr1, Real fm1,
+                                        int fv2, PositionReference::VecType* fvec_ptr2, Real fm2,
+                                        int fv3, PositionReference::VecType* fvec_ptr3, Real fm3);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

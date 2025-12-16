@@ -5,25 +5,25 @@
 
 namespace Solver
 {
-DeformableDeformableCollisionConstraint::DeformableDeformableCollisionConstraint(int v, Real* p, Real m,
-                                                                        int fv1, Real* fp1, Real fm1,
-                                                                        int fv2, Real* fp2, Real fm2,
-                                                                        int fv3, Real* fp3, Real fm3)
+DeformableDeformableCollisionConstraint::DeformableDeformableCollisionConstraint(int v, PositionReference::VecType* vec_ptr, Real m,
+                                                                        int fv1, PositionReference::VecType* fvec_ptr1, Real fm1,
+                                                                        int fv2, PositionReference::VecType* fvec_ptr2, Real fm2,
+                                                                        int fv3, PositionReference::VecType* fvec_ptr3, Real fm3)
     : Constraint(std::vector<PositionReference>({
-    PositionReference(v, p, m),
-    PositionReference(fv1, fp1, fm1),
-    PositionReference(fv2, fp2, fm2),
-    PositionReference(fv3, fp3, fm3)}), 1e-8)
+    PositionReference(v, vec_ptr, m),
+    PositionReference(fv1, fvec_ptr1, fm1),
+    PositionReference(fv2, fvec_ptr2, fm2),
+    PositionReference(fv3, fvec_ptr3, fm3)}), 1e-8)
 {
 
 }
 
 void DeformableDeformableCollisionConstraint::evaluate(Real* C) const
 {
-    Eigen::Map<const Vec3r> q(_positions[0].position_ptr);
-    Eigen::Map<const Vec3r> p1(_positions[1].position_ptr);
-    Eigen::Map<const Vec3r> p2(_positions[2].position_ptr);
-    Eigen::Map<const Vec3r> p3(_positions[3].position_ptr);
+    const Vec3r& q = _positions[0].position();
+    const Vec3r& p1= _positions[1].position();
+    const Vec3r& p2= _positions[2].position();
+    const Vec3r& p3= _positions[3].position();
 
     const Vec3r a = (p2 - p1).cross(p3 - p1);
     Real a_norm = a.norm();
@@ -34,10 +34,10 @@ void DeformableDeformableCollisionConstraint::evaluate(Real* C) const
 
 void DeformableDeformableCollisionConstraint::gradient(Real* delC) const
 {
-    Eigen::Map<const Vec3r> q(_positions[0].position_ptr);
-    Eigen::Map<const Vec3r> p1(_positions[1].position_ptr);
-    Eigen::Map<const Vec3r> p2(_positions[2].position_ptr);
-    Eigen::Map<const Vec3r> p3(_positions[3].position_ptr);
+    const Vec3r& q  = _positions[0].position();
+    const Vec3r& p1 = _positions[1].position();
+    const Vec3r& p2 = _positions[2].position();
+    const Vec3r& p3 = _positions[3].position();
 
     const Vec3r a = (p2 - p1).cross(p3 - p1);
     Real a_norm = a.norm();

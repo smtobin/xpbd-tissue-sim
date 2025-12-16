@@ -3,12 +3,12 @@
 namespace Solver
 {
 
-DeviatoricConstraint::DeviatoricConstraint(int v1, Real* p1, Real m1,
-                        int v2, Real* p2, Real m2,
-                        int v3, Real* p3, Real m3,
-                        int v4, Real* p4, Real m4,
+DeviatoricConstraint::DeviatoricConstraint(int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                        int v4, PositionReference::VecType* vec_ptr4, Real m4,
                         const ElasticMaterial& material)
-    : ElementConstraint(v1, p1, m1, v2, p2, m2, v3, p3, m3, v4, p4, m4)
+    : ElementConstraint(v1, vec_ptr1, m1, v2, vec_ptr2, m2, v3, vec_ptr3, m3, v4, vec_ptr4, m4)
 {
     _alpha = 1/(material.mu() * _volume); // set alpha after the ElementConstraint constructor because we need the element volume
 }

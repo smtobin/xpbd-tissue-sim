@@ -233,9 +233,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     int v2 = face[1];
     int v3 = face[2];
 
-    Real* v1_ptr = _mesh->vertexPointer(v1);
-    Real* v2_ptr = _mesh->vertexPointer(v2);
-    Real* v3_ptr = _mesh->vertexPointer(v3);
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     Real m1 = vertexConstraintInertia(v1);
     Real m2 = vertexConstraintInertia(v2);
@@ -245,7 +243,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     // OTHERWISE, VECTOR MIGHT EXCEED ITS CAPACITY AND POINTERS TO CONSTRAINTS IN CONSTRAINT PROJECTORS WILL BECOME INVALID
     // TODO: is there a better way?
     std::vector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
-    constraint_vec.emplace_back(sdf, p, n, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, u, v, w, face_ind);
+    constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, face_ind);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -261,16 +259,14 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addRigi
     int v2 = face[1];
     int v3 = face[2];
     
-    Real* v1_ptr = _mesh->vertexPointer(v1);
-    Real* v2_ptr = _mesh->vertexPointer(v2);
-    Real* v3_ptr = _mesh->vertexPointer(v3);
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     Real m1 = vertexConstraintInertia(v1);
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
 
     std::vector<Solver::RigidDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::RigidDeformableCollisionConstraint>();
-    constraint_vec.emplace_back(sdf, rigid_obj, rigid_body_point, collision_normal, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, u, v, w);
+    constraint_vec.emplace_back(sdf, rigid_obj, rigid_body_point, collision_normal, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::RigidDeformableCollisionConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -300,11 +296,12 @@ template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>> 
 XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
 {
-    Real* v_ptr = _mesh->vertexPointer(v_ind);
     Real mass = vertexConstraintInertia(v_ind);
 
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
     std::vector<Solver::AttachmentConstraint>& constraint_vec = _constraints.template get<Solver::AttachmentConstraint>();
-    constraint_vec.emplace_back(v_ind, v_ptr, mass, attach_pos_ptr, attachment_offset);
+    constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -418,10 +415,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         const int v2 = element[2];
         const int v3 = element[3];
 
-        Real* v0_ptr = _mesh->vertexPointer(v0);
-        Real* v1_ptr = _mesh->vertexPointer(v1);
-        Real* v2_ptr = _mesh->vertexPointer(v2);
-        Real* v3_ptr = _mesh->vertexPointer(v3);
+        // Real* v0_ptr = _mesh->vertexPointer(v0);
+        // Real* v1_ptr = _mesh->vertexPointer(v1);
+        // Real* v2_ptr = _mesh->vertexPointer(v2);
+        // Real* v3_ptr = _mesh->vertexPointer(v3);
+
+        Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
         Real m0 = vertexConstraintInertia(v0);
         Real m1 = vertexConstraintInertia(v1);
@@ -433,8 +432,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
             std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
-            hyd_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
-            dev_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
+            hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
+            dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
             
             using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
             using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
@@ -448,8 +447,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
             std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
-            hyd_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
-            dev_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
+            hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
+            dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
 
             using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
             using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
@@ -838,10 +837,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
             const Eigen::Vector3i& face = _mesh->face(face_index);
 
-            Real* q_ptr = _mesh->vertexPointer(i);
-            Real* p1_ptr = _mesh->vertexPointer(face[0]);
-            Real* p2_ptr = _mesh->vertexPointer(face[1]);
-            Real* p3_ptr = _mesh->vertexPointer(face[2]);
+            // Real* q_ptr = _mesh->vertexPointer(i);
+            // Real* p1_ptr = _mesh->vertexPointer(face[0]);
+            // Real* p2_ptr = _mesh->vertexPointer(face[1]);
+            // Real* p3_ptr = _mesh->vertexPointer(face[2]);
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
             Real qm = vertexConstraintInertia(i);
             Real p1m = vertexConstraintInertia(face[0]);
@@ -855,7 +856,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
             // std::cout << "  Vertex: " << _mesh->vertex(i).transpose() << 
             //     "  Face:\n\t" << _mesh->vertex(face[0]).transpose() << ",\n\t" << _mesh->vertex(face[1]).transpose()  << ",\n\t" << _mesh->vertex(face[2]).transpose() << std::endl;
             std::vector<Solver::DeformableDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::DeformableDeformableCollisionConstraint>();
-            constraint_vec.emplace_back(i, q_ptr, qm, face[0], p1_ptr, p1m, face[1], p2_ptr, p2m, face[2], p3_ptr, p3m);
+            constraint_vec.emplace_back(i, vec_ptr, qm, face[0], vec_ptr, p1m, face[1], vec_ptr, p2m, face[2], vec_ptr, p3m);
 
             using ConstraintRefType = Solver::ConstraintReference<Solver::DeformableDeformableCollisionConstraint>;
             _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));

@@ -20,9 +20,9 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
 
     public:
     StaticDeformableCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
-                                        int v1, Real* p1, Real m1,
-                                        int v2, Real* p2, Real m2,
-                                        int v3, Real* p3, Real m3,
+                                        int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                         Real u, Real v, Real w,
                                         int face_index=-1);
 

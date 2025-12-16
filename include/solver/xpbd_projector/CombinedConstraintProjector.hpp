@@ -212,11 +212,11 @@ class CombinedConstraintProjector
             Real update_y = _constraint1->positions()[i].inv_mass * (delC[3*i+1] * dlam[0] + delC_c2[3*i+1] * dlam[1]);
             Real update_z = _constraint1->positions()[i].inv_mass * (delC[3*i+2] * dlam[0] + delC_c2[3*i+2] * dlam[1]);
             
-            coordinate_updates_ptr[3*i].ptr = _constraint1->positions()[i].position_ptr;
+            coordinate_updates_ptr[3*i].ptr = _constraint1->positions()[i].positionPtr();
             coordinate_updates_ptr[3*i].update = update_x;
-            coordinate_updates_ptr[3*i+1].ptr = _constraint1->positions()[i].position_ptr+1;
+            coordinate_updates_ptr[3*i+1].ptr = _constraint1->positions()[i].positionPtr()+1;
             coordinate_updates_ptr[3*i+1].update = update_y;
-            coordinate_updates_ptr[3*i+2].ptr = _constraint1->positions()[i].position_ptr+2;
+            coordinate_updates_ptr[3*i+2].ptr = _constraint1->positions()[i].positionPtr()+2;
             coordinate_updates_ptr[3*i+2].update = update_z;
         }
     }

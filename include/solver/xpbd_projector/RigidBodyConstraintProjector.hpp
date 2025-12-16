@@ -138,11 +138,11 @@ class RigidBodyConstraintProjector
             Real update_y = positions[i].inv_mass * delC[3*i+1] * dlam;
             Real update_z = positions[i].inv_mass * delC[3*i+2] * dlam;
             
-            coordinate_updates_ptr[3*i].ptr = positions[i].position_ptr;
+            coordinate_updates_ptr[3*i].ptr = positions[i].positionPtr();
             coordinate_updates_ptr[3*i].update = update_x;
-            coordinate_updates_ptr[3*i+1].ptr = positions[i].position_ptr+1;
+            coordinate_updates_ptr[3*i+1].ptr = positions[i].positionPtr()+1;
             coordinate_updates_ptr[3*i+1].update = update_y;
-            coordinate_updates_ptr[3*i+2].ptr = positions[i].position_ptr+2;
+            coordinate_updates_ptr[3*i+2].ptr = positions[i].positionPtr()+2;
             coordinate_updates_ptr[3*i+2].update = update_z;
         }
 
