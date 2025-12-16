@@ -185,6 +185,11 @@ Real TetMesh::elementVolume(int index) const
     const Vec3r& v3 = vertex(elem[2]);
     const Vec3r& v4 = vertex(elem[3]);
 
+    return elementVolume(v1, v2, v3, v4);
+}
+
+Real TetMesh::elementVolume(const Vec3r& v1, const Vec3r& v2, const Vec3r& v3, const Vec3r& v4) const
+{
     Mat3r X;
     X.col(0) = (v1 - v4);
     X.col(1) = (v2 - v4);
@@ -402,6 +407,17 @@ void TetMesh::_updateFaceElementMapForRemovedElement(int element_index)
 void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
 {
     _element_to_surface_faces_map.erase(element_index);
+}
+
+int TetMesh::_addElement(const Vec4i& new_elem)
+{
+    int new_index = _elements.push_back(new_elem);
+
+    _element_properties.for_each_element([&](auto& prop) {
+        prop.resize(_elements.totalSize());
+    });
+
+    return new_index;
 }
 
 void TetMesh::removeElementWithFace(int face_index)

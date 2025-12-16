@@ -392,6 +392,18 @@ protected:
      */
     virtual void _computeAdjacentVertices();
 
+    /** Adds a new vertex to the mesh. Resizes vertex properties accordingly.
+     * @returns the new vertex index
+     */
+    int _addVertex(const Vec3r& new_vertex);
+
+    /** Adds a new face to the mesh. Resizes face properties accordingly.
+     * Note: DOES NOT update adjacent vertices list
+     * 
+     * @returns the new face index
+     */
+    int _addFace(const Vec3i& new_face);
+
 protected:
     vertices_vec_type _vertices; // the vertices of the mesh
     faces_vec_type _faces;       // the faces of the mesh

@@ -180,6 +180,42 @@ public:
         {
         }
     };
+
+    /** Simple struct to store information about an element that was removed. */
+    struct RemovedElement
+    {
+        int index;
+        const Vec4i vertices;
+
+        RemovedElement(int index_, const Vec4i& vertices_)
+            : index(index_), vertices(vertices_)
+        {}
+    };
+
+    /** Simple struct to store information about a vertex that was added. */
+    struct NewVertex
+    {
+        int index;
+        int parent1;
+        int parent2;
+
+        NewVertex(int index_, int parent1_, int parent2_)
+            : index(index_), parent1(parent1_), parent2(parent2_)
+        {}
+    };
+
+    /** Simple struct to store information about a vertex that was removed. */
+    struct RemovedVertex
+    {
+        int index;
+        int parent1;
+        int parent2;
+
+        RemovedVertex(int index_, int parent1_, int parent2_)
+            : index(index_), parent1(parent1_), parent2(parent2_)
+        {}
+    };
+
     
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
      */
@@ -200,7 +236,7 @@ public:
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
     */
-    void refineElement(int element_index, int refinement_level, bool absolute=false);
+    bool refineElement(int element_index, int refinement_level, bool absolute=false);
 
     /** Recursively coarsens the specified element coarsening_level times.
      * This function assumes that the element was created from hiearchical subdivision. (i.e. from the refineElement function)
@@ -211,7 +247,7 @@ public:
      * 
      * If the specified element was not created with mesh refinement, this function does nothing.
      */
-    int coarsenElement(int element_index, int coarsening_level, bool absolute=false);
+    bool coarsenElement(int element_index, int coarsening_level, bool absolute=false);
 
     /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
     const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
@@ -223,6 +259,13 @@ public:
 
     /** Removes an element from the mesh. */
     virtual void removeElement(int elem_index) override;
+
+    /** Accessors for querying info about last refine/coarsen operation. */
+    const std::vector<NewVertex>& latestAddedVertices() const { return _latest_new_vertices; }
+    const std::vector<RemovedVertex>& latestRemovedVertices() const { return _latest_removed_vertices; }
+    const std::vector<int>& latestAddedFaces() const { return _latest_new_faces; }
+    const std::vector<int>& latestAddedElements() const { return _latest_new_elements; }
+    const std::vector<RemovedElement>& latestRemovedElements() const { return _latest_removed_elements; }
 
 protected:
     /** Updates the vertex -> element map when we are removing an element with index element_index.
@@ -309,6 +352,17 @@ protected:
 
     /** Map faces -> index in the face node vector */
     std::unordered_map<Face, int, FaceHash> _face_to_face_node_map;
+
+    /** Stores the most recently added vertices (from a refineElement or coarsenElement call) */
+    std::vector<NewVertex> _latest_new_vertices;
+    std::vector<RemovedVertex> _latest_removed_vertices;
+
+    /** Stores the most recently added faces (from a refineElement or coarsenElement call) */
+    std::vector<int> _latest_new_faces;
+
+    /** Stores the most recently added elements (from a refineElement or coarsenElement call) */
+    std::vector<int> _latest_new_elements;
+    std::vector<RemovedElement> _latest_removed_elements;
 
 };
 

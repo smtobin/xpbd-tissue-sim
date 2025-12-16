@@ -159,9 +159,18 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     _solver.setup();
 
     // initialize the previous vertices matrix once we've loaded the mesh
-    _previous_vertices = _mesh->vertices();
+    _previous_vertices.resize(_mesh->vertices().totalSize());
+    
+    for (const auto& vert_ind : _mesh->vertices().validIndices())
+    {
+        _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
+    }
 
-    _vertex_velocities = _mesh->vertices();
+    // initialize the initial vertices
+    _initial_vertices = _previous_vertices;
+    
+    // initialize each vertex's velocity with the specified bulk initial velocity
+    _vertex_velocities.resize(_mesh->vertices().totalSize());
     for (auto& vel : _vertex_velocities)
         vel = _initial_velocity;
 
@@ -472,7 +481,10 @@ template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::update()
 {
     // set _x_prev to be ready for the next substep
-    _previous_vertices = _mesh->vertices();
+    for (const auto& vert_ind : _mesh->vertices().validIndices())
+    {
+        _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
+    }
 
     _movePositionsInertially();
     _projectConstraints();
@@ -616,11 +628,151 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
      * 
      */
 
+    Geometry::MeshProperty<int>& class_elem_prop = tetMesh()->template getElementProperty<int>("class");
+
+    const Vec4i refined_element = tetMesh()->element(elem_index);
+    Real refined_element_rest_volume = tetMesh()->elementRestVolume(elem_index);
+    int refined_element_class = class_elem_prop.get(elem_index);
+
     std::cout << "Initial location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
 
-    refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
+    bool refined = refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
+    if (!refined)
+        return;
 
     std::cout << "New location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
+
+    /** Resize per-vertex vectors */
+    size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
+    _vertex_masses.resize(new_size);
+    _vertex_volumes.resize(new_size);
+    _vertex_velocities.resize(new_size);
+    _previous_vertices.resize(new_size);
+    _initial_vertices.resize(new_size);
+
+    if constexpr(IsFirstOrder)
+    {
+        _vertex_B.resize(new_size);
+    }
+
+    /** Get the newest added/removed vertices/elements */
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();
+    const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
+    const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
+
+
+    /** Update initial values for new vertices */
+    // first, iterate through newly added vertices and set their masses and volumes to be 0
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        // initial new vertex mass, volume, and damping (if first order) to 0
+        // this will be updated later
+        _vertex_masses[new_vert.index] = 0;
+        _vertex_volumes[new_vert.index] = 0;
+
+        if constexpr (IsFirstOrder)
+        {
+            _vertex_B[new_vert.index] = 0;
+        }
+
+        // interpolate velocity, previous position, and initial position - new vertex is halfway between parents
+        _vertex_velocities[new_vert.index] = 0.5*(_vertex_velocities[new_vert.parent1] + _vertex_velocities[new_vert.parent2]);
+        _previous_vertices[new_vert.index] = 0.5*(_previous_vertices[new_vert.parent1] + _previous_vertices[new_vert.parent2]);
+        _initial_vertices[new_vert.index] = 0.5*(_initial_vertices[new_vert.parent1] + _initial_vertices[new_vert.parent2]);
+    }
+
+    /** Update the 'class' property for new vertices, elements, and faces */
+    Geometry::MeshProperty<int>& class_vert_prop = _mesh->template getVertexProperty<int>("class");
+    Geometry::MeshProperty<int>& class_face_prop = _mesh->template getFaceProperty<int>("class");
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        class_vert_prop.set(new_vert.index, refined_element_class);
+    }
+    for (const auto& new_face : latest_added_faces)
+    {
+        class_face_prop.set(new_face, refined_element_class);
+    }
+    for (const auto& new_elem : latest_added_elements)
+    {
+        class_elem_prop.set(new_elem, refined_element_class);
+    }
+
+
+    /** Update mass and volumes */
+    // first, for the element that was refined, subtract 1/4 the nominal element volume from the vertices it touches
+    // calculate rest mass for the removed tet
+    const ElasticMaterial& material = _materials[refined_element_class];
+    Real refined_element_mass = refined_element_rest_volume * material.density();
+
+    for (const auto& elem_vert : refined_element)
+    {
+        // update volume for each vertex
+        _vertex_volumes[elem_vert] -= 0.25*refined_element_rest_volume;
+        
+        // update mass for each vertex
+        _vertex_masses[elem_vert] -= 0.25*refined_element_mass;
+    }
+
+    // then, iterate through new elements, and add 1/4 the nominal element volume/mass to the vertices it touches
+    for (const auto& new_elem : latest_added_elements)
+    {
+        const Vec4i& elem_vertices = tetMesh()->element(new_elem);
+        // calculate rest volume for the new tet
+        const Vec3r& iv1 = _initial_vertices[elem_vertices[0]];
+        const Vec3r& iv2 = _initial_vertices[elem_vertices[1]];
+        const Vec3r& iv3 = _initial_vertices[elem_vertices[2]];
+        const Vec3r& iv4 = _initial_vertices[elem_vertices[3]];
+        Real rest_volume = tetMesh()->elementVolume(iv1, iv2, iv3, iv4);
+
+        // calculate rest mass for the new tet
+        const ElasticMaterial& material = _materials[refined_element_class];
+        Real element_mass = rest_volume * material.density();
+
+        for (const auto& elem_vert : elem_vertices)
+        {
+            // update volume for each vertex
+            _vertex_volumes[elem_vert] += 0.25*rest_volume;
+
+            // update mass for each vertex
+            _vertex_masses[elem_vert] += 0.25*element_mass;
+        }
+    }
+
+
+    // for 1st-order objects, calculate per-vertex damping
+    /** TODO: Think about this a bit more...
+     * 
+     * For now, just assign per-vertex damping to the new vertices
+     */
+    if constexpr (IsFirstOrder)
+    {
+        // // if adjust_b_to_material is used, we must calculate the appropriate E and nu at each vertex in the old element
+        // // the new vertices will all have E and nu corresponding to the element that was refined
+        // for (const auto& removed_elem : latest_removed_elements)
+        // {
+        //     Vec4r vertex_E = Vec4r::Zero();
+        //     Vec4r vertex_nu = Vec4r::Zero();
+
+        //     for (int i = 0; i < 4; i++)
+        //     {
+        //         vertex_E[i] 
+        //     }
+        // }
+        for (const auto& new_vert : latest_added_vertices)
+        {
+            if (_adjust_b_to_material)
+            {
+                // we know that all new vertices will have material properties associated with the element that was split (i.e. the element that was removed)
+                const ElasticMaterial& material = _materials[refined_element_class];
+                _vertex_B[new_vert.index] = _vertex_volumes[new_vert.index] * _damping_multiplier * material.E() / material.nu();
+            }
+            else
+            {
+                _vertex_B[new_vert.index] = _vertex_volumes[new_vert.index] * _damping_multiplier;
+            }
+        }
+    }
+
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

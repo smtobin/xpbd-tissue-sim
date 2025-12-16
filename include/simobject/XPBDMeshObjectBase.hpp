@@ -271,9 +271,11 @@ public:
 protected:
     /** TODO: does _previous_vertices and _vertex_velocities need to be vertices_vec_type? Or can they just be plain old std::vector? */
     /** Stores the vertices from the end of the previous time step */
-    Geometry::Mesh::vertices_vec_type _previous_vertices;
+    std::vector<Vec3r> _previous_vertices;
     /** Stores the current velocities of each vertex */
-    Geometry::Mesh::vertices_vec_type _vertex_velocities;
+    std::vector<Vec3r> _vertex_velocities;
+    /** Stores the initial vertices. Useful for calculating nominal element volumes when mesh is refined. */
+    std::vector<Vec3r> _initial_vertices;
 
     /** The initial bulk velocity of the mesh. Set by the config. TODO: is this needed? */
     Vec3r _initial_velocity;

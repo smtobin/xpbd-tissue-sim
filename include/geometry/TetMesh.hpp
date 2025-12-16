@@ -49,6 +49,7 @@ class TetMesh : public Mesh
 
     /** Returns the current volume of the specified element. */
     Real elementVolume(int index) const;
+    Real elementVolume(const Vec3r& v1, const Vec3r& v2, const Vec3r& v3, const Vec3r& v4) const;
 
     /** Returns the rest volume of the specified element. */
     Real elementRestVolume(int index) const { return _element_rest_volumes[index]; }
@@ -185,6 +186,13 @@ class TetMesh : public Mesh
     void _updateFaceElementMapForRemovedElement(int element_index);
     /** Updates the element -> surface face map when we are removing an element. */
     void _updateElementSurfaceFaceMapForRemovedElement(int element_index);
+
+    /** Adds a new element to the mesh. Resizes element properties accordingly.
+     * Note: DOES NOT edit maps or adjacent vertices, though it probably should.
+     * 
+     * @returns the index of the new element
+     */
+    int _addElement(const Vec4i& new_elem);
 
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */

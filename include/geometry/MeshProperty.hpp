@@ -33,6 +33,8 @@ class MeshProperty
 
     void set(int index, const T& new_val) { _properties[index] = new_val; }
 
+    void resize(size_t new_size) { _properties.resize(new_size); }
+
     const std::vector<T>& properties() const { return _properties; }
     std::vector<T>& properties() { return _properties; }
 

@@ -437,4 +437,26 @@ void Mesh::createGPUResource()
 }
 #endif
 
+int Mesh::_addVertex(const Vec3r& new_vert)
+{
+    int new_index = _vertices.push_back(new_vert);
+
+    _vertex_properties.for_each_element([&](auto& prop) {
+        prop.resize(_vertices.totalSize());
+    });
+
+    return new_index;
+}
+
+int Mesh::_addFace(const Vec3i& new_face)
+{
+    int new_index = _faces.push_back(new_face);
+
+    _face_properties.for_each_element([&](auto& prop) {
+        prop.resize(_faces.totalSize());
+    });
+
+    return new_index;
+}
+
 } // namespace Geometry

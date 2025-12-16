@@ -179,6 +179,8 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
             // std::cout "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
             _vertices.erase(elem_to_remove[k]);
             _hanging_vertices.erase(elem_to_remove[k]);
+
+            _latest_removed_vertices.emplace_back(elem_to_remove[k], -1, -1);
         }
     }
 }
@@ -207,7 +209,8 @@ int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surface, bool f013_on_surface, bool f023_on_surface, bool f123_on_surface)
 {
     // add the new element to the elements vector
-    int new_elem_index = _elements.push_back(new_element);
+    // int new_elem_index = _elements.push_back(new_element);
+    int new_elem_index = _addElement(new_element);
 
     // update vertex -> element, edge -> element, face -> element maps
     _updateElementMapsForNewElement(new_elem_index);
@@ -215,13 +218,16 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surfac
     // helper lambda that adds a new face to the mesh and updates the maps associated with that surface face
     auto add_new_face = [&](const Vec3i& new_face) -> void
     {
-        int new_face_index = _faces.push_back(new_face);
+        // int new_face_index = _faces.push_back(new_face);
+        int new_face_index = _addFace(new_face);
 
         _element_to_surface_faces_map.insert({new_elem_index, new_face_index});
 
         // ensure that the surface face -> element vector has enough space for the new face
         if (new_face_index >= static_cast<int>(_surface_face_to_element_map.size()))     _surface_face_to_element_map.resize(new_face_index+1);
         _surface_face_to_element_map[new_face_index] = new_elem_index;
+
+        _latest_new_faces.push_back(new_face_index);
     };
 
     // add surface faces and update element -> surface face and surface face -> element maps
@@ -249,6 +255,8 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surfac
         Vec3i new_face(new_element[1], new_element[2], new_element[3]);
         add_new_face(new_face);
     }
+
+    _latest_new_elements.emplace_back(new_elem_index);
     
     return new_elem_index;
 }
@@ -417,8 +425,11 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             }
             else
             {
-                int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
+                // int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
+                int new_vert_index = _addVertex((_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
                 midpoint_vertices[edge_index] = new_vert_index;
+
+                _latest_new_vertices.emplace_back(new_vert_index, parent_node.vertices[vi], parent_node.vertices[vj]);
 
                 // std::cout "=== Created new vertex " << new_vert_index << " === " << std::endl;
                 // std::cout " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
@@ -629,7 +640,7 @@ std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices
     return {ind1, ind2, ind3, ind4};
 }
 
-void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute)
+bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute)
 {
     
     assert(elementValid(element_index));
@@ -639,6 +650,13 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
     const Vec4i base_element = element(element_index);  // don't use a ref here since the element will soon be removed
 
+
+    // clear the latest added vertices and elements
+    _latest_new_vertices.clear();
+    _latest_removed_vertices.clear();
+    _latest_new_faces.clear();
+    _latest_new_elements.clear();
+    _latest_removed_elements.clear();
 
     // find the ElementTreeNode associated with the specified element to refine, and 
     // create a new ElementTreeNode if one doesn't already exist for the element
@@ -749,7 +767,7 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     {   
         rel_refinement_level = refinement_level - _element_tree_nodes[base_node_index].level;
         if (rel_refinement_level <= 0)
-            return;
+            return false;
     }
 
 
@@ -771,6 +789,10 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
     // update the feature hierarchy (i.e. whether or not a feature has an ancestor feature in the mesh or not)
     _prepareFeatureTreeForRefinedElement(base_node_index, refinement_level);
+
+    // add the removed parent element to the latest removed elements
+    _latest_removed_elements.emplace_back(element_index, base_element);
+
 
     /** === Step 4: Refine the element. === */
 
@@ -953,25 +975,35 @@ void RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     // remove the element
     _updateVertexElementMapForRemovedElement(element_index);
     _elements.erase(element_index);
+
+    return true;
 }
 
-int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute)
+bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute)
 {
+    // clear the latest added vertices and elements
+    _latest_new_vertices.clear();
+    _latest_removed_vertices.clear();
+    _latest_new_faces.clear();
+    _latest_new_elements.clear();
+    _latest_removed_elements.clear();
+
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);
 
     // if the element is not a result of refinement, return
     if (search == _element_to_tree_node_map.end())
-        return -1;
+        return false;
 
     const ElementTreeNode& leaf_node = _element_tree_nodes[search->second];
 
     // if the element doesn't have a parent (for some reason), remove it and do nothing
     if (leaf_node.parent == ElementTreeNode::INVALID_INDEX)
     {
+        assert(0);  // this shouldn't happen
         _element_tree_nodes.erase(search->second);
         _element_to_tree_node_map.erase(element_index);
-        return -1;
+        return true;
     }
 
     // if absolute = true, we are only coarsening up to an absolute coarsening level
@@ -982,7 +1014,7 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool
     {
         rel_coarsening_level = leaf_node.level - coarsening_level;
         if (rel_coarsening_level <= 0)
-            return element_index;
+            return false;
     }
 
     // get the root of the tree branch that we are going to replace this element (and its relatives) with
@@ -1000,7 +1032,6 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool
         root_index = parent_index;
         cur_level--;
     }
-    
 
     // add the element associated with root_node to the mesh
     // do this before we remove child elements so that the vertices associated with the root element don't get deleted
@@ -1052,6 +1083,8 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool
                 _updateElementMapsForRemovedElement(node.element_index);
                 _elements.erase(node.element_index);
                 _element_to_tree_node_map.erase(node.element_index);
+
+                _latest_removed_elements.emplace_back(node.element_index, node.vertices);
             }
             else
             {
@@ -1067,6 +1100,9 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool
                         // std::cout "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
                         _vertices.erase(node.vertices[k]);
                         _hanging_vertices.erase(node.vertices[k]);
+
+                        /** TODO: somehow get the parent vertices of this removed vertex? Is this necessary? */
+                        _latest_removed_vertices.emplace_back(node.vertices[k], -1, -1);
                     }
                 }
                 
@@ -1093,7 +1129,7 @@ int RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool
         // edge_node.in_mesh = true;
     }
 
-    return new_node_index;
+    return true;
 }
 
 std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
