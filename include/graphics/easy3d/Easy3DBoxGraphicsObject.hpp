@@ -15,7 +15,7 @@ class Easy3DBoxGraphicsObject : public BoxGraphicsObject, public easy3d::Model
     public:
     explicit Easy3DBoxGraphicsObject(const std::string& name, const Sim::RigidBox* box);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

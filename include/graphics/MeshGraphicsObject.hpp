@@ -21,6 +21,14 @@ namespace Graphics
 class MeshGraphicsObject : public GraphicsObject
 {
     public:
+
+    /** A struct for storing just the information needed for rendering a mesh. */
+    struct RenderInfo
+    {
+        Geometry::Mesh::vertices_vec_type vertices;
+        Geometry::Mesh::faces_vec_type faces;
+    };
+
     /** Creates a MeshGraphicsObject with a given name and for a given MeshObject
      * @param name : the name of the new MeshGraphicsObject
      * @param mesh_object : the simulation MeshObject to get mesh information from
@@ -37,6 +45,9 @@ class MeshGraphicsObject : public GraphicsObject
 
     virtual ~MeshGraphicsObject();
 
+    /** Updates the snapshot of the mesh that should be rendered. */
+    void update() override;
+
     /** Returns the underlying simulation MeshObject
      * @returns the underlying simulation MeshObject
      */
@@ -45,6 +56,13 @@ class MeshGraphicsObject : public GraphicsObject
     protected:
     /** The underlying simulation MeshObject */
     const Geometry::Mesh* _mesh;
+
+    /** Double-buffered render meshes. Updated via the update() function. */
+    RenderInfo _rmesh1;
+    RenderInfo _rmesh2;
+
+    /** Atomic variable to synchronize double buffer */
+    std::atomic<RenderInfo*> _latest_rmesh;
 
     /** Whether or not to draw mesh vertices on screen */
     bool _draw_points;

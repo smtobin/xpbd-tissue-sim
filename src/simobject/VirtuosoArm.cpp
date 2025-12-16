@@ -192,8 +192,12 @@ void VirtuosoArm::velocityUpdate()
             elements_to_refine.insert(elem_index_to_refine);
         }
 
+        if (elements_to_refine.size() > 0)
+            std::cout << "\nREFINING ELEMENTS..." << std::endl;
+
         for (const auto& elem_index : elements_to_refine)
         {
+            std::cout << "  Refining element " << elem_index << std::endl;
             _tool_manipulated_object.refineElement(elem_index, 1, true);
         }
     }

@@ -617,7 +617,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
      * 
      */
 
+    std::cout << "Initial location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
+
     refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
+
+    std::cout << "New location of _mesh->vertices[0]: " << &(_mesh->vertices()[0]) << std::endl;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

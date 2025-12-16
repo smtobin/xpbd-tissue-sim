@@ -15,6 +15,7 @@
 
 #include <map>
 #include <atomic>
+#include <functional>
 
 namespace Graphics
 {
@@ -31,6 +32,8 @@ class VTKViewer : public Viewer
     vtkSmartPointer<vtkOpenGLRenderer> renderer() { return _renderer; }
     void displayWindow() { _render_window->Render(); }
     void interactorStart() { _interactor->Start(); }
+
+    void setPreRenderCallback(std::function<void()> cb) { _prerender_callback = std::move(cb); }
 
     explicit VTKViewer(const std::string& title, const Config::SimulationRenderConfig& render_config);
 
@@ -108,6 +111,8 @@ class VTKViewer : public Viewer
     std::map<std::string, vtkSmartPointer<vtkTextActor>> _text_actor_map;
 
     std::atomic<bool> _should_render = false;
+
+    std::function<void()> _prerender_callback;
 
     /** Store current camera frame.
      * For some reason, repeated calling _vtk_viewer->renderer()->GetActiveCamera()->GetDirectionOfProjection() and things similar

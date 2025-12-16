@@ -80,7 +80,7 @@ Easy3DMeshGraphicsObject::~Easy3DMeshGraphicsObject()
 }
 
 
-void Easy3DMeshGraphicsObject::update()
+void Easy3DMeshGraphicsObject::updateGraphicsBuffers()
 {
     // update the vertex cache, which is what the renderer uses to update the vertex positions
     _updateVertexCache();

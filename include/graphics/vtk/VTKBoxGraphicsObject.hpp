@@ -17,7 +17,7 @@ class VTKBoxGraphicsObject : public BoxGraphicsObject
     public:
     explicit VTKBoxGraphicsObject(const std::string& name, const Sim::RigidBox* box, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> actor() { return _box_actor; }
 

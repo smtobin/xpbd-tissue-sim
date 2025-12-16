@@ -14,7 +14,7 @@ class Easy3DSphereGraphicsObject : public SphereGraphicsObject, public easy3d::M
     public:
     explicit Easy3DSphereGraphicsObject(const std::string& name, const Sim::RigidSphere* sphere);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

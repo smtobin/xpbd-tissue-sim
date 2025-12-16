@@ -25,7 +25,7 @@ Easy3DCylinderGraphicsObject::Easy3DCylinderGraphicsObject(const std::string& na
     set_renderer(renderer);
 }
 
-void Easy3DCylinderGraphicsObject::update() 
+void Easy3DCylinderGraphicsObject::updateGraphicsBuffers() 
 {
     _transformPoints();
     renderer()->update();

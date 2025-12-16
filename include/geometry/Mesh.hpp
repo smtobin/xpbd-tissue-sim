@@ -82,35 +82,6 @@ struct FaceHash
     }
 };
 
-enum class TetVert
-{
-    V1 = 0,
-    V2,
-    V3,
-    V4,
-    NONE
-};
-
-enum class TetEdge
-{
-    E12 = 0,
-    E13,
-    E14,
-    E23,
-    E24,
-    E34,
-    NONE
-};
-
-enum class TetFace
-{
-    F123 = 0,
-    F124,
-    F134,
-    F234,
-    NONE 
-};
-
 /** A class for a surface mesh which consists of a set of vertices and a set of faces connecting those vertices.
  * The vertices are specified as 3-vectors of vertex coordinates.
  * The faces are specified as 3-vectors of vertex indices.

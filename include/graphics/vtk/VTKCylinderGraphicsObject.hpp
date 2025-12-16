@@ -17,7 +17,7 @@ class VTKCylinderGraphicsObject : public CylinderGraphicsObject
     public:
     explicit VTKCylinderGraphicsObject(const std::string& name, const Sim::RigidCylinder* cylinder, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> actor() { return _cyl_actor; }
 

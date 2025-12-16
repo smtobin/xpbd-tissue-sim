@@ -17,7 +17,7 @@ class VTKSphereGraphicsObject : public SphereGraphicsObject
     public:
     explicit VTKSphereGraphicsObject(const std::string& name, const Sim::RigidSphere* sphere, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> actor() { return _sphere_actor; }
 

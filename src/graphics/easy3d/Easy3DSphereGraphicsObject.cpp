@@ -22,7 +22,7 @@ Easy3DSphereGraphicsObject::Easy3DSphereGraphicsObject(const std::string& name, 
     set_renderer(renderer);
 }
 
-void Easy3DSphereGraphicsObject::update() 
+void Easy3DSphereGraphicsObject::updateGraphicsBuffers() 
 {
     if (_last_radius != _sphere->radius())
     {

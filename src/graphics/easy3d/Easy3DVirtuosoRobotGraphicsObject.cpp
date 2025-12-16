@@ -59,7 +59,7 @@ Easy3DVirtuosoRobotGraphicsObject::Easy3DVirtuosoRobotGraphicsObject(const std::
     }
 }
 
-void Easy3DVirtuosoRobotGraphicsObject::update()
+void Easy3DVirtuosoRobotGraphicsObject::updateGraphicsBuffers()
 {
 
 }

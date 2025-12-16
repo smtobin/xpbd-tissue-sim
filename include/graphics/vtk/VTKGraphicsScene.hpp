@@ -32,6 +32,8 @@ class VTKGraphicsScene : public GraphicsScene
 
     virtual void update() override;
 
+    void updateGraphicsBuffers();
+
     virtual int run() override;
 
     /** Creates a MeshGraphicsObject from a supplied MeshObject and adds it to the GraphicsScene

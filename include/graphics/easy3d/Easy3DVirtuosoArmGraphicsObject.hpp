@@ -14,7 +14,7 @@ class Easy3DVirtuosoArmGraphicsObject : public VirtuosoArmGraphicsObject, public
     public:
     explicit Easy3DVirtuosoArmGraphicsObject(const std::string& name, const Sim::VirtuosoArm* virtuoso_arm);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

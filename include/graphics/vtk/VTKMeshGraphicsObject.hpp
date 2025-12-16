@@ -19,19 +19,23 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     public:
     explicit VTKMeshGraphicsObject(const std::string& name, const Geometry::Mesh* mesh, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> facesActor() { return _faces_vtk_actor; }
     vtkSmartPointer<vtkActor> edgesActor() { return _edges_vtk_actor; }
 
     private:
-    void _setVertices();
-    void _setFaces();
+    void _setVertices(const RenderInfo* rmesh);
+    void _setFaces(const RenderInfo* rmesh);
     void _setColors();
 
     void _rebuildPolyData();
 
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
+
+    vtkSmartPointer<vtkPolyData> _front_poly_data;
+    vtkSmartPointer<vtkPolyData> _back_poly_data;
+    
     vtkSmartPointer<vtkActor> _faces_vtk_actor;
     vtkSmartPointer<vtkActor> _edges_vtk_actor;
 
