@@ -49,9 +49,14 @@ int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
     // update vertex adjacency lists
     _vertex_adjacent_vertices.resize(_vertices.totalSize());
     _vertex_adjacent_vertices[new_index].clear();
-    // when an edge is split, the parent nodes are no longer adjacent
-    _vertex_adjacent_vertices[parent1_index].erase(parent2_index);
-    _vertex_adjacent_vertices[parent2_index].erase(parent1_index);
+    // when an edge is split, the parent nodes are no longer adjacent if the parent edge is not in the mesh
+    Edge parent_edge(parent1_index, parent2_index);
+    if (_edge_to_elements_map.count(parent_edge) == 0)
+    {
+        _vertex_adjacent_vertices[parent1_index].erase(parent2_index);
+        _vertex_adjacent_vertices[parent2_index].erase(parent1_index);
+    }
+    
     // and the parent nodes are now adjacent to the new node
     _vertex_adjacent_vertices[new_index].insert(parent1_index);
     _vertex_adjacent_vertices[new_index].insert(parent2_index);
@@ -86,6 +91,9 @@ int RefinedTetMesh::_addFace(const Vec3i& new_face)
 
 void RefinedTetMesh::removeElement(int elem_index)
 {
+    // do this first - this will update the vertex, edge, and face maps for removing this element
+    TetMesh::removeElement(elem_index);
+
     // before we remove the element, we need to update the tree structure (when applicable)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
     {
@@ -120,8 +128,6 @@ void RefinedTetMesh::removeElement(int elem_index)
         // remove the element from the element -> tree node map
         _element_to_tree_node_map.erase(elem_index);
     }
-
-    TetMesh::removeElement(elem_index);
 }
 
 void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index)
@@ -315,6 +321,11 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surfac
     Q = Q/(6*rest_volume);
     _element_inv_undeformed_basis[new_elem_index] = Q;
 
+    // update adjacency lists - this may be slightly redundant
+    _vertex_adjacent_vertices[new_element[0]].insert({new_element[1], new_element[2], new_element[3]});
+    _vertex_adjacent_vertices[new_element[1]].insert({new_element[0], new_element[2], new_element[3]});
+    _vertex_adjacent_vertices[new_element[2]].insert({new_element[0], new_element[1], new_element[3]});
+    _vertex_adjacent_vertices[new_element[3]].insert({new_element[0], new_element[1], new_element[2]});
 
     // update vertex -> element, edge -> element, face -> element maps
     _updateElementMapsForNewElement(new_elem_index);
@@ -926,6 +937,9 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
             // create the edge node associated with this edge
             int e67_node_index = _edge_nodes.emplace_back(mid_verts[2], mid_verts[3]);
             _edge_nodes[e67_node_index].in_mesh = level == rel_refinement_level-1;
+            // update the vertex adjacency lists
+            _vertex_adjacent_vertices[mid_verts[2]].insert(mid_verts[3]);
+            _vertex_adjacent_vertices[mid_verts[3]].insert(mid_verts[2]);
 
 
             /** Create the child element tree nodes */
@@ -1204,7 +1218,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         {
             _hanging_vertices.insert(edge_node.child_vertex);
         }
-        // edge_node.in_mesh = true;
+        edge_node.in_mesh = true;
     }
 
     return true;

@@ -17,7 +17,7 @@ int main()
         Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/single.msh");
 
         Geometry::RefinedTetMesh refined_mesh(mesh);
-        // refined_mesh.setCurrentStateAsUndeformedState();
+        refined_mesh.setCurrentStateAsUndeformedState();
 
         auto t1 = std::chrono::high_resolution_clock::now();
         refined_mesh.refineElement(0, 1, true);
@@ -27,7 +27,7 @@ int main()
         refined_mesh.removeElement(4);
         refined_mesh.refineElement(5, 2);
         refined_mesh.coarsenElement(20, 1);
-        refined_mesh.refineElement(3, 3, true);
+        refined_mesh.refineElement(3, 3);
         // refined_mesh.refineElement(4, 2);
         // refined_mesh.refineElement(9, 1);
         // refined_mesh.refineElement(10, 1);
@@ -97,21 +97,30 @@ int main()
 
         std::cout << "Number of hanging vertices (manual computation): " << refined_mesh.verifyHangingVertices().size() << std::endl;
 
-        for (const auto& face : refined_mesh.faces())
+        std::vector<std::unordered_set<int>> vertex_adjacent_vertices(refined_mesh.vertices().totalSize());
+        for (const auto& ind : refined_mesh.vertices().validIndices())
         {
-            const Vec3r& v1 = refined_mesh.vertex(face[0]);
-            const Vec3r& v2 = refined_mesh.vertex(face[1]);
-            const Vec3r& v3 = refined_mesh.vertex(face[2]);
-
-            Real v1v2 = (v2-v1).norm();
-            Real v1v3 = (v3-v1).norm();
-            Real v2v3 = (v3-v2).norm();
-
-            if (v1v2/v1v3 < 0.5 || v1v2/v1v3 > 2 || v1v2/v2v3 < 0.5 || v1v2/v2v3 > 2 || v1v3/v2v3 < 0.5 || v1v3/v2v3 > 2)
+            vertex_adjacent_vertices[ind] = refined_mesh.vertexAdjacentVertices(ind);
+        }
+        
+        refined_mesh.setCurrentStateAsUndeformedState(); // this will recompute the vertex adjacency information
+        std::cout << "Checking vertex adjacency lists..." << std::endl;
+        for (const auto& ind : refined_mesh.vertices().validIndices())
+        {
+            const std::unordered_set<int>& new_adj_verts = refined_mesh.vertexAdjacentVertices(ind);
+            if (new_adj_verts.size() != vertex_adjacent_vertices[ind].size())
             {
-                std::cout << "Face " << face.transpose() << " is misshapen!" << std::endl;
+                std::cout << " Different number of adjacent verts for vertex " << ind << std::endl;
+                std::cout << " Computed adjacent verts: (";
+                for (const auto& v : vertex_adjacent_vertices[ind])
+                    std::cout << v << ", ";
+                std::cout << ")\n Correct adjacent verts: (";
+                for (const auto& v : new_adj_verts)
+                    std::cout << v << ", ";
+                std::cout << ")" << std::endl;
             }
         }
+
 
         // visualize mesh with VTK
         Config::ObjectRenderConfig render_config(

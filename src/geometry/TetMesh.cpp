@@ -52,19 +52,19 @@ TetMesh::TetMesh(TetMesh&& other)
 
 void TetMesh::_computeAdjacentVertices()
 {
-    _vertex_adjacent_vertices.resize(numVertices());
+    _vertex_adjacent_vertices.resize(_vertices.totalSize());
     
     // clear all the adjacency lists
-    for (int i = 0; i < numVertices(); i++)
+    for (unsigned i = 0; i < _vertices.totalSize(); i++)
     {
         _vertex_adjacent_vertices[i].clear();
     }
 
     // go through each of the faces and add adjacent vertices for each vertex in the face
     // even though std::vector is slow for this, we only do this once
-    for (int i = 0; i < numElements(); i++)
+    for (const auto& elem_ind : _elements.validIndices())
     {
-        const Eigen::Vector4i& cur_element = element(i);
+        const Eigen::Vector4i& cur_element = element(elem_ind);
 
         std::unordered_set<int>& adj_verts0 = _vertex_adjacent_vertices[cur_element[0]];
         std::unordered_set<int>& adj_verts1 = _vertex_adjacent_vertices[cur_element[1]];
@@ -90,33 +90,33 @@ void TetMesh::setCurrentStateAsUndeformedState()
     Mesh::setCurrentStateAsUndeformedState();
 
     // update maps for vertices -> elements, edges -> elements, faces -> elements
-    _vertex_to_elements_map.resize(numVertices());
+    _vertex_to_elements_map.resize(_vertices.totalSize());
     _edge_to_elements_map.clear();
     _face_to_elements_map.clear();
-    for (int i = 0; i < numElements(); i++)
+    for (const auto& elem_ind : _elements.validIndices())
     {
-        const Eigen::Vector4i& elem = element(i);
+        const Eigen::Vector4i& elem = element(elem_ind);
         // vertex -> elements map
         for (int k = 0; k < 4; k++)
-            _vertex_to_elements_map[elem[k]].push_back(i);
+            _vertex_to_elements_map[elem[k]].push_back(elem_ind);
 
         // edge -> elements map
         for (int k1 = 0; k1 < 4; k1++)
             for (int k2 = k1+1; k2 < 4; k2++)
-                _edge_to_elements_map.insert({Edge(elem[k1], elem[k2]), i});
+                _edge_to_elements_map.insert({Edge(elem[k1], elem[k2]), elem_ind});
 
         // face -> elements map
-        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[2]), i});
-        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[3]), i});
-        _face_to_elements_map.insert({Face(elem[0], elem[2], elem[3]), i});
-        _face_to_elements_map.insert({Face(elem[1], elem[2], elem[3]), i});
+        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[2]), elem_ind});
+        _face_to_elements_map.insert({Face(elem[0], elem[1], elem[3]), elem_ind});
+        _face_to_elements_map.insert({Face(elem[0], elem[2], elem[3]), elem_ind});
+        _face_to_elements_map.insert({Face(elem[1], elem[2], elem[3]), elem_ind});
     }
 
     // inverse undeformed basis for each element
-    _element_inv_undeformed_basis.resize(numElements());
-    for (int i = 0; i < numElements(); i++)
+    _element_inv_undeformed_basis.resize(_elements.totalSize());
+    for (const auto& elem_ind : _elements.validIndices())
     {
-        const Eigen::Vector4i& elem = element(i);
+        const Eigen::Vector4i& elem = element(elem_ind);
         const Vec3r& v1 = vertex(elem[0]);
         const Vec3r& v2 = vertex(elem[1]);
         const Vec3r& v3 = vertex(elem[2]);
@@ -127,33 +127,33 @@ void TetMesh::setCurrentStateAsUndeformedState()
         X.col(1) = (v2 - v4);
         X.col(2) = (v3 - v4);
 
-        _element_inv_undeformed_basis[i] = X.inverse();
+        _element_inv_undeformed_basis[elem_ind] = X.inverse();
     }
 
     // element rest volumes
-    _element_rest_volumes.resize(numElements());
-    for (int i = 0; i < numElements(); i++)
+    _element_rest_volumes.resize(_elements.totalSize());
+    for (const auto& elem_ind : _elements.validIndices())
     {
-        _element_rest_volumes[i] = elementVolume(i);
+        _element_rest_volumes[elem_ind] = elementVolume(elem_ind);
     }
     
     // find surface elements
     // for now, just do a dumb O(n^2) search
     _surface_face_to_element_map.clear();
     _element_to_surface_faces_map.clear();
-    for (int i = 0; i < numFaces(); i++)
+    for (const auto& face_ind : _faces.validIndices())
     {
-        const Vec3i& f = face(i);
+        const Vec3i& f = face(face_ind);
         // find the element that has this face
-        for (int j = 0; j < numElements(); j++)
+        for (const auto& elem_ind : _elements.validIndices())
         {
-            const Eigen::Vector4i& elem = element(j);
+            const Eigen::Vector4i& elem = element(elem_ind);
             if (    (f[0] == elem[0] || f[0] == elem[1] || f[0] == elem[2] || f[0] == elem[3]) &&
                     (f[1] == elem[0] || f[1] == elem[1] || f[1] == elem[2] || f[1] == elem[3]) &&
                     (f[2] == elem[0] || f[2] == elem[1] || f[2] == elem[2] || f[2] == elem[3]) )
             {
-                _surface_face_to_element_map.push_back(j);
-                _element_to_surface_faces_map.insert({j, i});
+                _surface_face_to_element_map.push_back(elem_ind);
+                _element_to_surface_faces_map.insert({elem_ind, face_ind});
                 break;
             }
         }
