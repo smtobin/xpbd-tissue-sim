@@ -324,6 +324,9 @@ void TetMesh::_updateVertexElementMapForRemovedElement(int element_index)
         if (vk_map.size() == 0)
         {
             _vertices.erase(elem_to_remove[k]);
+
+            // vertex no longer in mesh, so clear its adjacent vertices list
+            _vertex_adjacent_vertices[elem_to_remove[k]].clear();
         }
     }
 }
