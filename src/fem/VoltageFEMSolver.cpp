@@ -30,7 +30,7 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::TetMesh* mesh, Real k)
     nnz.reserve(_mesh->numVertices());
     for (const auto& vertex_index : _mesh->vertices().validIndices())
     {
-        const std::vector<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
+        const std::unordered_set<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
         nnz.push_back(adj_verts.size() + 1);
     }
     // create PETSc global stiffness matrix

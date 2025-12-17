@@ -274,8 +274,6 @@ protected:
     std::vector<Vec3r> _previous_vertices;
     /** Stores the current velocities of each vertex */
     std::vector<Vec3r> _vertex_velocities;
-    /** Stores the initial vertices. Useful for calculating nominal element volumes when mesh is refined. */
-    std::vector<Vec3r> _initial_vertices;
 
     /** The initial bulk velocity of the mesh. Set by the config. TODO: is this needed? */
     Vec3r _initial_velocity;

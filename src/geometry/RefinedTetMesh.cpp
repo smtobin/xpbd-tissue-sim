@@ -17,6 +17,61 @@ RefinedTetMesh::RefinedTetMesh(const TetMesh& tet_mesh)
 
 }
 
+void RefinedTetMesh::setCurrentStateAsUndeformedState()
+{
+    TetMesh::setCurrentStateAsUndeformedState();
+
+    // set the initial vertices
+    _initial_vertices.resize(_vertices.totalSize());
+    for (int i = 0; i < _vertices.totalSize(); i++)
+    {
+        _initial_vertices[i] = _vertices[i];
+    }
+}
+
+int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
+{
+    const Vec3r& parent1 = _vertices[parent1_index];
+    const Vec3r& parent2 = _vertices[parent2_index];
+
+    // new vertex is just the midpoint of the parents
+    Vec3r new_vert = (parent1 + parent2) / 2.0;
+    int new_index = _vertices.push_back(new_vert);
+
+    // interpolate the parent vertices to find the initial vertex
+    const Vec3r& initial_parent1 = _initial_vertices[parent1_index];
+    const Vec3r& initial_parent2 = _initial_vertices[parent2_index];
+    Vec3r initial_new_vert = (initial_parent1 + initial_parent2) / 2.0;
+    _initial_vertices.resize(_vertices.totalSize());
+    _initial_vertices[new_index] = initial_new_vert;
+
+
+    // resize all vertex properties
+    _vertex_properties.for_each_element([&](auto& prop) {
+        prop.resize(_vertices.totalSize());
+    });
+
+    // add the vertex to the list of newly created vertices
+    _latest_new_vertices.emplace_back(new_index, parent1_index, parent2_index);
+
+    return new_index;
+}
+
+int RefinedTetMesh::_addFace(const Vec3i& new_face)
+{
+    // add the new face
+    int new_index = _faces.push_back(new_face);
+
+    // resize all face properties
+    _face_properties.for_each_element([&](auto& prop) {
+        prop.resize(_faces.totalSize());
+    });
+
+    return new_index;
+}
+
+
+
 void RefinedTetMesh::removeElement(int elem_index)
 {
     // before we remove the element, we need to update the tree structure (when applicable)
@@ -209,8 +264,37 @@ int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surface, bool f013_on_surface, bool f023_on_surface, bool f123_on_surface)
 {
     // add the new element to the elements vector
-    // int new_elem_index = _elements.push_back(new_element);
-    int new_elem_index = _addElement(new_element);
+    int new_elem_index = _elements.push_back(new_element);
+
+    // resize all element properties
+    _element_properties.for_each_element([&](auto& prop) {
+        prop.resize(_elements.totalSize());
+    });
+
+    // compute rest volume using initial vertices
+    _element_rest_volumes.resize(_elements.totalSize());
+    // get initial vertices
+    const Vec3r& iv1 = _initial_vertices[new_element[0]];
+    const Vec3r& iv2 = _initial_vertices[new_element[1]];
+    const Vec3r& iv3 = _initial_vertices[new_element[2]];
+    const Vec3r& iv4 = _initial_vertices[new_element[3]];
+    // compute initial edge vectors
+    const Vec3r ie1 = iv1 - iv4;
+    const Vec3r ie2 = iv2 - iv4;
+    const Vec3r ie3 = iv3 - iv4;
+    // volume
+    Real rest_volume = ie1.dot(ie2.cross(ie3)) / 6.0;
+    _element_rest_volumes[new_elem_index] = std::abs(rest_volume);
+
+    // compute inverse of undeformed element basis (for deformation gradient computation later)
+    _element_inv_undeformed_basis.resize(_elements.totalSize());
+    Mat3r Q;
+    Q.row(0) = ie2.cross(ie3);
+    Q.row(1) = ie3.cross(ie1);
+    Q.row(2) = ie1.cross(ie2);
+    Q = Q/(6*rest_volume);
+    _element_inv_undeformed_basis[new_elem_index] = Q;
+
 
     // update vertex -> element, edge -> element, face -> element maps
     _updateElementMapsForNewElement(new_elem_index);
@@ -403,39 +487,17 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
 
             // get the EdgeNode for the parent edge
             int parent_edge_node_index = parent_node.edge_nodes[edge_index];
-            Edge parent_edge = _edge_nodes[parent_edge_node_index].edge;
-
-            Edge vertices_edge = Edge(parent_node.vertices[vi], parent_node.vertices[vj]);
-            if (!(parent_edge == vertices_edge))
-            {
-                // std::cout "\n\nMAJOR PROBLEM! edge from parent vertices: " << vertices_edge.index1 << ", " << vertices_edge.index2 <<
-                // "  edge from parent edge node: " << parent_edge.index1 << ", " << parent_edge.index2 << std::endl;
-                // std::cout " vi: " << vi << "  vj: " << vj << std::endl;
-                // std::cout " parent edge node_index: " << parent_edge_node_index << std::endl;
-                // std::cout " element: " << parent_node.vertices.transpose() << std::endl;
-            }
 
             // add vertex at midpoint
             if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
             {
-                // std::cout "=== vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " already exists! === " << std::endl;
-                // std::cout "  is vertex " << _edge_nodes[parent_edge_node_index].child_vertex << " valid? " << vertexValid(_edge_nodes[parent_edge_node_index].child_vertex ) << std::endl;
-                // std::cout "  parent_edge_node_index: " << parent_edge_node_index << std::endl;
                 midpoint_vertices[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
             }
             else
             {
                 // int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
-                int new_vert_index = _addVertex((_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );
+                int new_vert_index = _addVertex(parent_node.vertices[vi], parent_node.vertices[vj]);
                 midpoint_vertices[edge_index] = new_vert_index;
-
-                _latest_new_vertices.emplace_back(new_vert_index, parent_node.vertices[vi], parent_node.vertices[vj]);
-
-                // std::cout "=== Created new vertex " << new_vert_index << " === " << std::endl;
-                // std::cout " parent1: " << parent_node.vertices[vi] << ", parent2: " << parent_node.vertices[vj] << std::endl;
-
-                // _parent_edge_to_child_vertex_map.insert({parent_edge, new_vert_index});
-                // _child_vertex_to_parent_edge_map.insert({new_vert_index, parent_edge});
 
                 // create EdgeNodes for the child edges
                 EdgeNode child1(parent_node.vertices[vi], midpoint_vertices[edge_index]);
@@ -449,13 +511,6 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
                 _edge_nodes[parent_edge_node_index].child_edge_node1 = _edge_nodes.push_back(std::move(child1));
                 _edge_nodes[parent_edge_node_index].child_edge_node2 = _edge_nodes.push_back(std::move(child2));
 
-                // std::cout "  created children edge nodes - index1: " << _edge_nodes[parent_edge_node_index].child_edge_node1 <<
-                //  "  edge: " << _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index1 << ", " << 
-                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node1].edge.index2 << "    " << " index2: " <<
-                    // _edge_nodes[parent_edge_node_index].child_edge_node2 << "  edge: " << 
-                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index1 << ", " << 
-                    // _edge_nodes[_edge_nodes[parent_edge_node_index].child_edge_node2].edge.index2 << std::endl;
-
                 _edge_nodes[parent_edge_node_index].is_leaf = false;
                 _edge_nodes[parent_edge_node_index].child_vertex = new_vert_index;
             }
@@ -463,16 +518,7 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             // the midpoint vertex is hanging if the parent edge is "in" the mesh
             if (_edge_nodes[parent_edge_node_index].in_mesh)
             {
-                // std::cout "  vertex " << mid_verts[edge_index] << " is hanging because the edge (" << 
-                // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                // _edge_nodes[parent_edge_node_index].edge.index2 << ") is itself in the mesh or has an ancestor feature in the mesh!" << std::endl;
                 _hanging_vertices.insert(midpoint_vertices[edge_index]);
-            }
-            else
-            {
-                // std::cout "  vertex " << mid_verts[edge_index] << " is NOT hanging because the edge (" << 
-                // _edge_nodes[parent_edge_node_index].edge.index1 << ", " << 
-                // _edge_nodes[parent_edge_node_index].edge.index2 << ") is not in the mesh (and does not have an ancestor in the mesh)!" << std::endl;
             }
         }
         

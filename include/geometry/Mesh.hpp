@@ -9,6 +9,7 @@
 #include "geometry/MeshProperty.hpp"
 
 #include <optional>
+#include <unordered_set>
 
 #ifdef HAVE_CUDA
 #include <memory>
@@ -157,7 +158,7 @@ public:
 
     void displaceVertex(int index, const Vec3r &offset) { _vertices.at(index) += offset; }
 
-    const std::vector<int>& vertexAdjacentVertices(int index) { return _vertex_adjacent_vertices[index]; }
+    const std::unordered_set<int>& vertexAdjacentVertices(int index) { return _vertex_adjacent_vertices[index]; }
 
     /** Returns a single face as an Eigen 3-vector, given the vertex index.
      * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).
@@ -392,24 +393,12 @@ protected:
      */
     virtual void _computeAdjacentVertices();
 
-    /** Adds a new vertex to the mesh. Resizes vertex properties accordingly.
-     * @returns the new vertex index
-     */
-    int _addVertex(const Vec3r& new_vertex);
-
-    /** Adds a new face to the mesh. Resizes face properties accordingly.
-     * Note: DOES NOT update adjacent vertices list
-     * 
-     * @returns the new face index
-     */
-    int _addFace(const Vec3i& new_face);
-
 protected:
     vertices_vec_type _vertices; // the vertices of the mesh
     faces_vec_type _faces;       // the faces of the mesh
     vertices_vec_type _vertex_normals; // vertex normals of the mesh
 
-    std::vector<std::vector<int>> _vertex_adjacent_vertices;
+    std::vector<std::unordered_set<int>> _vertex_adjacent_vertices;
 
     Vec3r _unrotated_size_xyz; // the size of the mesh in each dimension in its unrotated state
 

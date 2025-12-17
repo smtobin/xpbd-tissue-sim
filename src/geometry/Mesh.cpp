@@ -67,21 +67,21 @@ void Mesh::_computeAdjacentVertices()
     // go through each of the faces and add adjacent vertices for each vertex in the face
     for (const auto& cur_face : _faces)
     {
-        std::vector<int>& adj_verts0 = _vertex_adjacent_vertices[cur_face[0]];
-        std::vector<int>& adj_verts1 = _vertex_adjacent_vertices[cur_face[1]];
-        std::vector<int>& adj_verts2 = _vertex_adjacent_vertices[cur_face[2]];
+        std::unordered_set<int>& adj_verts0 = _vertex_adjacent_vertices[cur_face[0]];
+        std::unordered_set<int>& adj_verts1 = _vertex_adjacent_vertices[cur_face[1]];
+        std::unordered_set<int>& adj_verts2 = _vertex_adjacent_vertices[cur_face[2]];
 
         // for v0
-        if (std::find(adj_verts0.begin(), adj_verts0.end(), cur_face[1]) == adj_verts0.end())   adj_verts0.push_back(cur_face[1]);
-        if (std::find(adj_verts0.begin(), adj_verts0.end(), cur_face[2]) == adj_verts0.end())   adj_verts0.push_back(cur_face[2]);
+        adj_verts0.insert(cur_face[1]);
+        adj_verts0.insert(cur_face[2]);
 
         // for v1
-        if (std::find(adj_verts1.begin(), adj_verts1.end(), cur_face[0]) == adj_verts1.end())   adj_verts1.push_back(cur_face[0]);
-        if (std::find(adj_verts1.begin(), adj_verts1.end(), cur_face[2]) == adj_verts1.end())   adj_verts1.push_back(cur_face[2]);
+        adj_verts1.insert(cur_face[0]);
+        adj_verts1.insert(cur_face[2]);
 
         // for v2
-        if (std::find(adj_verts2.begin(), adj_verts2.end(), cur_face[0]) == adj_verts2.end())   adj_verts2.push_back(cur_face[0]);
-        if (std::find(adj_verts2.begin(), adj_verts2.end(), cur_face[1]) == adj_verts2.end())   adj_verts2.push_back(cur_face[1]);
+        adj_verts2.insert(cur_face[0]);
+        adj_verts2.insert(cur_face[1]);
     }
 }
 
@@ -436,27 +436,5 @@ void Mesh::createGPUResource()
     _gpu_resource->allocate();
 }
 #endif
-
-int Mesh::_addVertex(const Vec3r& new_vert)
-{
-    int new_index = _vertices.push_back(new_vert);
-
-    _vertex_properties.for_each_element([&](auto& prop) {
-        prop.resize(_vertices.totalSize());
-    });
-
-    return new_index;
-}
-
-int Mesh::_addFace(const Vec3i& new_face)
-{
-    int new_index = _faces.push_back(new_face);
-
-    _face_properties.for_each_element([&](auto& prop) {
-        prop.resize(_faces.totalSize());
-    });
-
-    return new_index;
-}
 
 } // namespace Geometry

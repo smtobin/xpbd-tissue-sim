@@ -66,30 +66,22 @@ void TetMesh::_computeAdjacentVertices()
     {
         const Eigen::Vector4i& cur_element = element(i);
 
-        std::vector<int>& adj_verts0 = _vertex_adjacent_vertices[cur_element[0]];
-        std::vector<int>& adj_verts1 = _vertex_adjacent_vertices[cur_element[1]];
-        std::vector<int>& adj_verts2 = _vertex_adjacent_vertices[cur_element[2]];
-        std::vector<int>& adj_verts3 = _vertex_adjacent_vertices[cur_element[3]];
+        std::unordered_set<int>& adj_verts0 = _vertex_adjacent_vertices[cur_element[0]];
+        std::unordered_set<int>& adj_verts1 = _vertex_adjacent_vertices[cur_element[1]];
+        std::unordered_set<int>& adj_verts2 = _vertex_adjacent_vertices[cur_element[2]];
+        std::unordered_set<int>& adj_verts3 = _vertex_adjacent_vertices[cur_element[3]];
 
         // for v0
-        if (std::find(adj_verts0.begin(), adj_verts0.end(), cur_element[1]) == adj_verts0.end())    adj_verts0.push_back(cur_element[1]);
-        if (std::find(adj_verts0.begin(), adj_verts0.end(), cur_element[2]) == adj_verts0.end())    adj_verts0.push_back(cur_element[2]);
-        if (std::find(adj_verts0.begin(), adj_verts0.end(), cur_element[3]) == adj_verts0.end())    adj_verts0.push_back(cur_element[3]);
+        adj_verts0.insert({cur_element[1], cur_element[2], cur_element[3]});
 
         // for v1
-        if (std::find(adj_verts1.begin(), adj_verts1.end(), cur_element[0]) == adj_verts1.end())   adj_verts1.push_back(cur_element[0]);
-        if (std::find(adj_verts1.begin(), adj_verts1.end(), cur_element[2]) == adj_verts1.end())   adj_verts1.push_back(cur_element[2]);
-        if (std::find(adj_verts1.begin(), adj_verts1.end(), cur_element[3]) == adj_verts1.end())   adj_verts1.push_back(cur_element[3]);
+        adj_verts1.insert({cur_element[0], cur_element[2], cur_element[3]});
 
         // for v2
-        if (std::find(adj_verts2.begin(), adj_verts2.end(), cur_element[0]) == adj_verts2.end())   adj_verts2.push_back(cur_element[0]);
-        if (std::find(adj_verts2.begin(), adj_verts2.end(), cur_element[1]) == adj_verts2.end())   adj_verts2.push_back(cur_element[1]);
-        if (std::find(adj_verts2.begin(), adj_verts2.end(), cur_element[3]) == adj_verts2.end())   adj_verts2.push_back(cur_element[3]);
+        adj_verts2.insert({cur_element[0], cur_element[1], cur_element[3]});
 
         // for v3
-        if (std::find(adj_verts3.begin(), adj_verts3.end(), cur_element[0]) == adj_verts3.end())   adj_verts3.push_back(cur_element[0]);
-        if (std::find(adj_verts3.begin(), adj_verts3.end(), cur_element[1]) == adj_verts3.end())   adj_verts3.push_back(cur_element[1]);
-        if (std::find(adj_verts3.begin(), adj_verts3.end(), cur_element[2]) == adj_verts3.end())   adj_verts3.push_back(cur_element[2]);
+        adj_verts3.insert({cur_element[0], cur_element[1], cur_element[2]});
     }
 }
 
@@ -407,17 +399,6 @@ void TetMesh::_updateFaceElementMapForRemovedElement(int element_index)
 void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
 {
     _element_to_surface_faces_map.erase(element_index);
-}
-
-int TetMesh::_addElement(const Vec4i& new_elem)
-{
-    int new_index = _elements.push_back(new_elem);
-
-    _element_properties.for_each_element([&](auto& prop) {
-        prop.resize(_elements.totalSize());
-    });
-
-    return new_index;
 }
 
 void TetMesh::removeElementWithFace(int face_index)

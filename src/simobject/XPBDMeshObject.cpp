@@ -165,9 +165,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     {
         _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
     }
-
-    // initialize the initial vertices
-    _initial_vertices = _previous_vertices;
     
     // initialize each vertex's velocity with the specified bulk initial velocity
     _vertex_velocities.resize(_mesh->vertices().totalSize());
@@ -647,7 +644,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     _vertex_volumes.resize(new_size);
     _vertex_velocities.resize(new_size);
     _previous_vertices.resize(new_size);
-    _initial_vertices.resize(new_size);
 
     if constexpr(IsFirstOrder)
     {
@@ -677,7 +673,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         // interpolate velocity, previous position, and initial position - new vertex is halfway between parents
         _vertex_velocities[new_vert.index] = 0.5*(_vertex_velocities[new_vert.parent1] + _vertex_velocities[new_vert.parent2]);
         _previous_vertices[new_vert.index] = 0.5*(_previous_vertices[new_vert.parent1] + _previous_vertices[new_vert.parent2]);
-        _initial_vertices[new_vert.index] = 0.5*(_initial_vertices[new_vert.parent1] + _initial_vertices[new_vert.parent2]);
     }
 
     /** Update the 'class' property for new vertices, elements, and faces */
@@ -717,10 +712,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     {
         const Vec4i& elem_vertices = tetMesh()->element(new_elem);
         // calculate rest volume for the new tet
-        const Vec3r& iv1 = _initial_vertices[elem_vertices[0]];
-        const Vec3r& iv2 = _initial_vertices[elem_vertices[1]];
-        const Vec3r& iv3 = _initial_vertices[elem_vertices[2]];
-        const Vec3r& iv4 = _initial_vertices[elem_vertices[3]];
+        const Vec3r& iv1 = refinedTetMesh()->initialVertex(elem_vertices[0]);
+        const Vec3r& iv2 = refinedTetMesh()->initialVertex(elem_vertices[1]);
+        const Vec3r& iv3 = refinedTetMesh()->initialVertex(elem_vertices[2]);
+        const Vec3r& iv4 = refinedTetMesh()->initialVertex(elem_vertices[3]);
         Real rest_volume = tetMesh()->elementVolume(iv1, iv2, iv3, iv4);
 
         // calculate rest mass for the new tet

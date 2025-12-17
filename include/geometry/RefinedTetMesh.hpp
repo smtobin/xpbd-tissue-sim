@@ -232,6 +232,13 @@ public:
 
     virtual ~RefinedTetMesh() = default;
 
+    /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
+     * This should be called after performing the initial translations and rotations setting up the mesh.
+     */
+    virtual void setCurrentStateAsUndeformedState() override;
+
+    Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
+
     /** Recursively subdivides the specified element refinement_level times.
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
@@ -268,6 +275,7 @@ public:
     const std::vector<RemovedElement>& latestRemovedElements() const { return _latest_removed_elements; }
 
 protected:
+    
     /** Updates the vertex -> element map when we are removing an element with index element_index.
      * This implements additional logic to update the parent edge -> child vertex map when a vertex is removed from the mesh.
      */
@@ -289,12 +297,27 @@ private:
      */
     int _addNewElementFromElementTreeNode(int tree_node_index);
 
-    /** Adds a new element to the mesh.
+    /** Adds a new element to the mesh. Resizes element properties accordingly.
+     * Calculates the rest volume and inverse undeformed basis for the element, using the initial vertex positions.
+     * Updates element maps.
+     * Does NOT update adjacent vertices. This happens where the edge nodes are created.
      * @param new_element : the vertices of the new element
      * @param f012_on_surface, f013_on_surface, f023_on_surface, f123_on_surface : whether a given face is on the outer surface of the mesh. If it is, we need to add a new surface face to the mesh appropriately.
      */
     int _addNewElement(const Vec4i& new_element, bool f012_on_surface, bool f013_on_surface, bool f023_on_surface, bool f123_on_surface);
 
+
+    /** Adds a new vertex to the mesh at the midpoint between the two specified parents. Resizes vertex properties accordingly.
+     * Adds an entry to the _initial_vertices vector by interpolating the initial positions of the parents.
+     * @returns the new vertex index
+     */
+    int _addVertex(int parent1, int parent2);
+
+    /** Adds a new face to the mesh. Resizes face properties accordingly.
+     * 
+     * @returns the new face index
+     */
+    int _addFace(const Vec3i& new_face);
 
     /** Helper functions for element refinement */
 
@@ -322,6 +345,12 @@ private:
 
 protected:
     
+    /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
+     * This is useful for calculating the inverse undeformed basis (Q in XPBD) for each new element. (used in deformation gradient computation)
+     * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
+     */
+    std::vector<Vec3r> _initial_vertices;
+
     /** Stores the recursive refinement tree structure. This enables us to coarsen the mesh (i.e. undo refinement). */
     TombstoneVector<ElementTreeNode> _element_tree_nodes;
 

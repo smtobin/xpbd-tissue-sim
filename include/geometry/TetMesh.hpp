@@ -187,14 +187,6 @@ class TetMesh : public Mesh
     /** Updates the element -> surface face map when we are removing an element. */
     void _updateElementSurfaceFaceMapForRemovedElement(int element_index);
 
-    /** Adds a new element to the mesh. Resizes element properties accordingly.
-     * Note: DOES NOT edit maps or adjacent vertices, though it probably should.
-     * 
-     * @returns the index of the new element
-     */
-    int _addElement(const Vec4i& new_elem);
-
-
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
     elements_vec_type _elements;
 
