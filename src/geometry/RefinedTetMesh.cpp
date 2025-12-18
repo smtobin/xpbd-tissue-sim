@@ -826,6 +826,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
                 {
                     // the edge node does not exist, create a new one
                     int new_edge_node_index = _edge_nodes.emplace_back(edge);
+                    _edge_nodes[new_edge_node_index].in_mesh = true;
                     base_node.edge_nodes[edge_index] = new_edge_node_index;
                     _edge_to_edge_node_map.insert({edge, new_edge_node_index});
                 }

@@ -13,6 +13,8 @@ class MidpointConstraint : public Constraint
     constexpr static int NUM_COORDINATES = 9;
     
     public:
+    MidpointConstraint();
+
     /** Constructor for the midpoint constraint.
      * v1 is constrained to be the midpoint between v2 and v3
      */

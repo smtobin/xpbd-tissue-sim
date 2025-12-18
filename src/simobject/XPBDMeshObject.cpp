@@ -873,14 +873,53 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
      * we need to remove them. Maybe should use a Tombstone vector?
      */
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
-    // const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
+    const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
-    std::vector<Solver::MidpointConstraint>& mid_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
-    for (const auto& new_hanging_vertex : latest_added_hanging_vertices)
+    std::cout << "Number of hanging vertices: " << refinedTetMesh()->hangingVertices().size() << std::endl;
+
+    // std::cout << "Added hanging vertices: ";
+    // for (const auto& new_vert : latest_added_hanging_vertices)
+    // {
+    //     std::cout << new_vert.index << ", ";
+    // }
+    // std::cout << std::endl;
+
+    // remove hanging vertices from its vector and remove the associated MidpointConstraint
+    for (const auto& removed_hanging_vert : latest_removed_hanging_vertices)
     {
-        const int v1 = new_hanging_vertex.index;
-        const int v2 = new_hanging_vertex.parent1;
-        const int v3 = new_hanging_vertex.parent2;
+        int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
+
+        // remove from the hanging vertices vector
+        _hanging_vertices_vec.erase(vector_index);
+
+        // remove from the vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.erase(removed_hanging_vert);
+
+        // set the projector as invalid
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template setProjectorValidity<MidProjector>(vector_index, false);
+
+        // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
+    }
+
+    // add new hanging vertices
+    std::vector<Solver::MidpointConstraint>& midpoint_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
+    for (const auto& new_hanging_vert : latest_added_hanging_vertices)
+    {
+        int new_vector_index = _hanging_vertices_vec.push_back(new_hanging_vert.index);
+
+        // add entry in vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.insert({new_hanging_vert.index, new_vector_index});
+
+        // resize the constraint vector (do we really have to do this every loop iteration?)
+        midpoint_constraint_vec.resize(_hanging_vertices_vec.totalSize());
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template resizeProjectorsOfType<MidProjector>(_hanging_vertices_vec.totalSize());
+
+        // create constraint and constraint projector
+        const int v1 = new_hanging_vert.index;
+        const int v2 = new_hanging_vert.parent1;
+        const int v3 = new_hanging_vert.parent2;
 
         Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
@@ -888,10 +927,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         Real m2 = vertexConstraintInertia(v2);
         Real m3 = vertexConstraintInertia(v3);
 
-        mid_constraint_vec.emplace_back(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
+        // midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
 
-        using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
-        _solver.addConstraintProjector(_sim->dt(), MidConstraintRefType(mid_constraint_vec, mid_constraint_vec.size()-1));
+        // using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
+        // _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, midpoint_constraint_vec.size()-1));
     }
 
 }

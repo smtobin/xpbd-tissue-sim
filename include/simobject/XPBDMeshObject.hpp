@@ -270,6 +270,18 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     VariadicVectorContainer<ConstraintTypes...> _constraints;
 
+    /** Stores the indices of hanging vertices in a contiguous array. (as opposed to the unordered_set used by RefinedTetMesh)
+     * This is useful for associating hanging vertices with a MidpointConstraint in the std::vector storing the MidpointCosntraints.
+     * which is necessary for quickly adding and removing MidpointConstraints as hanging vertices are created/destroyed by refinement/coarsening.
+     */
+    TombstoneVector<int> _hanging_vertices_vec;
+
+    /** Maps a hanging vertex (index in the _vertices vector) to an index in the _hanging_vertices_vec.
+     * Necessary to avoid an O(n) search over the _hanging_vertices_vec when we need to remove a hanging vertex (and its associated midpoint constraint).
+     */
+    std::unordered_map<int,int> _vertex_to_hanging_index;
+
+
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled
      * and re-projected multiple times, which helps propagate the deformation imposed by collision constraints to the rest of the mesh.
