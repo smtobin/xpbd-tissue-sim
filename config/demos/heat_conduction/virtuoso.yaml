@@ -56,7 +56,7 @@ objects:
     # filename: "../resource/general/stanford_bunny_lowpoly.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/general/single.msh"
-    # filename: "../resource/cube/cube2.msh"
+    filename: "../resource/cube/cube2.msh"
     # filename: "../resource/cube/cube4.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/cube/cube16.msh"
@@ -64,9 +64,9 @@ objects:
     # filename: "../resource/tissue/Prostate.msh"
     # filename: "../resource/tissue/Trachea_processed.stl"
     # filename: "../resource/tissue/tracheal_tumor.msh"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-    ground-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    # filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    # fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    # ground-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 

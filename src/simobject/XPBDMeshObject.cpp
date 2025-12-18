@@ -927,10 +927,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         Real m2 = vertexConstraintInertia(v2);
         Real m3 = vertexConstraintInertia(v3);
 
-        // midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
+        midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
 
-        // using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
-        // _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, midpoint_constraint_vec.size()-1));
+        using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
+        _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, midpoint_constraint_vec.size()-1));
     }
 
 }

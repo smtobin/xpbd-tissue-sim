@@ -3,6 +3,8 @@
 
 #include "solver/constraint/Constraint.hpp"
 
+#include <iostream>
+
 namespace Solver
 {
 
@@ -79,6 +81,7 @@ class MidpointConstraint : public Constraint
         const Vec3r diff = _positions[0].position() - 0.5*(_positions[1].position() + _positions[2].position());
         *C = diff.norm();
 
+        std::cout << "Midpoint constraint: " << *C << std::endl;
         if (*C < Real(1e-12))
         {
             for (int i = 0; i < NUM_COORDINATES; i++)
