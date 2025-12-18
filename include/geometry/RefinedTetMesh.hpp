@@ -273,6 +273,8 @@ public:
     const std::vector<int>& latestAddedFaces() const { return _latest_new_faces; }
     const std::vector<int>& latestAddedElements() const { return _latest_new_elements; }
     const std::vector<RemovedElement>& latestRemovedElements() const { return _latest_removed_elements; }
+    const std::vector<NewVertex>& latestAddedHangingVertices() const { return _latest_new_hanging_vertices; }
+    const std::vector<int>& latestRemovedHangingVertices() const { return _latest_removed_hanging_vertices; }
 
 protected:
     
@@ -392,6 +394,10 @@ protected:
     /** Stores the most recently added elements (from a refineElement or coarsenElement call) */
     std::vector<int> _latest_new_elements;
     std::vector<RemovedElement> _latest_removed_elements;
+
+    /** Stores the most recently added hanging vertices (from a refineElement or coarsenElement call) */
+    std::vector<NewVertex> _latest_new_hanging_vertices;
+    std::vector<int> _latest_removed_hanging_vertices;
 
 };
 

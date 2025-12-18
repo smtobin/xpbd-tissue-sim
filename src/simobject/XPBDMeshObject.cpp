@@ -866,6 +866,34 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         }
     }
 
+    // add the midpoint constraints for hanging vertices
+    /** TODO: update the constraint for when hanging vertices inevitably get removed (as we refine other elements)
+     * 
+     * Right now, hanging vertices are stored with an unordered_set, making it hard to remember where constraints are in the constraint vector when
+     * we need to remove them. Maybe should use a Tombstone vector?
+     */
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
+    // const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
+
+    std::vector<Solver::MidpointConstraint>& mid_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
+    for (const auto& new_hanging_vertex : latest_added_hanging_vertices)
+    {
+        const int v1 = new_hanging_vertex.index;
+        const int v2 = new_hanging_vertex.parent1;
+        const int v3 = new_hanging_vertex.parent2;
+
+        Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+        Real m1 = vertexConstraintInertia(v1);
+        Real m2 = vertexConstraintInertia(v2);
+        Real m3 = vertexConstraintInertia(v3);
+
+        mid_constraint_vec.emplace_back(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
+
+        using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
+        _solver.addConstraintProjector(_sim->dt(), MidConstraintRefType(mid_constraint_vec, mid_constraint_vec.size()-1));
+    }
+
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -1116,6 +1144,20 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
 {
     // create a container to store all the constraint projectors that we should re-project
     typename SolverType::projector_reference_container_type proj_to_reproject;
+
+    // add all midpoint constraints to be re-projected - midpoint constraints (i.e. hanging nodes) are really only generated in collision areas
+    /** TODO: be more selective about which midpoint constraints get reprojected
+     * 
+     * 
+     * 
+     */
+    using MidProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+    using MidProjectorTypeRef = Solver::ConstraintProjectorReference<MidProjectorType>;
+    std::vector<MidProjectorType>& midpoint_projectors = _solver.template getConstraintProjectorsOfType<MidProjectorType>();
+    for (unsigned i = 0; i < midpoint_projectors.size(); i++)
+    {
+        proj_to_reproject.template emplace_back<MidProjectorTypeRef>(midpoint_projectors, i);
+    }
 
     // go through each collision constraint and find the ones that were actually projected (lambda != 0)
     using StaticCollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;

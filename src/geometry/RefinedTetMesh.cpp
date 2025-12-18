@@ -154,6 +154,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
             assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
             edge_node.in_mesh = true;
             _hanging_vertices.insert(edge_node.child_vertex);
+            _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
             continue;
         }
             
@@ -257,6 +258,7 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
             // std::cout "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
             _vertices.erase(elem_to_remove[k]);
             _hanging_vertices.erase(elem_to_remove[k]);
+            _latest_removed_hanging_vertices.push_back(elem_to_remove[k]);
             
             // vertex no longer in mesh, so clear its adjacent vertices list
             _vertex_adjacent_vertices[elem_to_remove[k]].clear();
@@ -490,6 +492,7 @@ void RefinedTetMesh::_prepareFeatureTreeForRefinedElement(int element_tree_node_
             {
                 // std::cout "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
                 _hanging_vertices.erase(edge_node.child_vertex);
+                _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
             }
 
             // push the child edges to be updated if they exist, and they do not belong to another element in the mesh
@@ -552,6 +555,7 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             if (_edge_nodes[parent_edge_node_index].in_mesh)
             {
                 _hanging_vertices.insert(midpoint_vertices[edge_index]);
+                _latest_new_hanging_vertices.emplace_back(midpoint_vertices[edge_index], parent_node.vertices[vi], parent_node.vertices[vj]);
             }
         }
         
@@ -741,6 +745,8 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     _latest_new_faces.clear();
     _latest_new_elements.clear();
     _latest_removed_elements.clear();
+    _latest_new_hanging_vertices.clear();
+    _latest_removed_hanging_vertices.clear();
 
 
     // what we really care about is the RELATIVE refinement level
@@ -1079,6 +1085,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     _latest_new_faces.clear();
     _latest_new_elements.clear();
     _latest_removed_elements.clear();
+    _latest_new_hanging_vertices.clear();
+    _latest_removed_hanging_vertices.clear();
 
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);
@@ -1192,6 +1200,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                         // std::cout "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
                         _vertices.erase(node.vertices[k]);
                         _hanging_vertices.erase(node.vertices[k]);
+                        _latest_removed_hanging_vertices.push_back(node.vertices[k]);
 
                         /** TODO: somehow get the parent vertices of this removed vertex? Is this necessary? */
                         _latest_removed_vertices.emplace_back(node.vertices[k], -1, -1);
@@ -1217,6 +1226,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         if (!edge_node.is_leaf)
         {
             _hanging_vertices.insert(edge_node.child_vertex);
+            _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
         }
         edge_node.in_mesh = true;
     }
