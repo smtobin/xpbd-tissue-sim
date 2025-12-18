@@ -248,7 +248,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     // IN ORDER FOR THIS TO WORK, COLLISION CONSTRAINTS MUST BE RECENTLY CLEARED
     // OTHERWISE, VECTOR MIGHT EXCEED ITS CAPACITY AND POINTERS TO CONSTRAINTS IN CONSTRAINT PROJECTORS WILL BECOME INVALID
     // TODO: is there a better way?
-    TombstoneVector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
+    std::vector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
     constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, face_ind);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
@@ -271,7 +271,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addRigi
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
 
-    TombstoneVector<Solver::RigidDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::RigidDeformableCollisionConstraint>();
+    std::vector<Solver::RigidDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::RigidDeformableCollisionConstraint>();
     constraint_vec.emplace_back(sdf, rigid_obj, rigid_body_point, collision_normal, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::RigidDeformableCollisionConstraint>;
@@ -306,7 +306,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAtta
 
     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
-    TombstoneVector<Solver::AttachmentConstraint>& constraint_vec = _constraints.template get<Solver::AttachmentConstraint>();
+    std::vector<Solver::AttachmentConstraint>& constraint_vec = _constraints.template get<Solver::AttachmentConstraint>();
     constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
@@ -436,8 +436,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
         if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookean::projector_type_list>)
         {
-            TombstoneVector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
-            TombstoneVector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+            std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+            std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
             hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
             dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
             
@@ -451,8 +451,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         // if the constraint configuration is StableNeohookeanCombined, add a combined constraint projector for the hydrostatic and deviatoric constraints
         if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
         {
-            TombstoneVector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
-            TombstoneVector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+            std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+            std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
             hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
             dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
 
@@ -788,8 +788,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         _solver.template setProjectorValidity<HydProjectorType>(elem_index, false);
 
         // add constraints and constraint projectors for new elements
-        TombstoneVector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
-        TombstoneVector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
         hyd_constraint_vec.resize(total_num_elements);
         dev_constraint_vec.resize(total_num_elements);
         for (const auto& new_elem_index : latest_added_elements)
@@ -832,8 +832,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         _solver.template setProjectorValidity<ProjectorType>(elem_index, false);
 
         // add constraints and constraint projectors for new elements
-        TombstoneVector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
-        TombstoneVector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
         hyd_constraint_vec.resize(total_num_elements);
         dev_constraint_vec.resize(total_num_elements);
         for (const auto& new_elem_index : latest_added_elements)
@@ -875,7 +875,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     // const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
-    TombstoneVector<Solver::MidpointConstraint>& mid_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
+    std::vector<Solver::MidpointConstraint>& mid_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
     for (const auto& new_hanging_vertex : latest_added_hanging_vertices)
     {
         const int v1 = new_hanging_vertex.index;
@@ -1128,7 +1128,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
             // std::cout << "  Face indices: " << face.transpose() << std::endl;
             // std::cout << "  Vertex: " << _mesh->vertex(i).transpose() << 
             //     "  Face:\n\t" << _mesh->vertex(face[0]).transpose() << ",\n\t" << _mesh->vertex(face[1]).transpose()  << ",\n\t" << _mesh->vertex(face[2]).transpose() << std::endl;
-            TombstoneVector<Solver::DeformableDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::DeformableDeformableCollisionConstraint>();
+            std::vector<Solver::DeformableDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::DeformableDeformableCollisionConstraint>();
             constraint_vec.emplace_back(i, vec_ptr, qm, face[0], vec_ptr, p1m, face[1], vec_ptr, p2m, face[2], vec_ptr, p3m);
 
             using ConstraintRefType = Solver::ConstraintReference<Solver::DeformableDeformableCollisionConstraint>;
