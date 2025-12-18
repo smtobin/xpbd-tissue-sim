@@ -268,7 +268,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
 
     /** A heterogeneous container of all the constraints.
      */
-    VariadicVectorContainer<ConstraintTypes...> _constraints;
+    VariadicTombstoneVectorContainer<ConstraintTypes...> _constraints;
 
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled

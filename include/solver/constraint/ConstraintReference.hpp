@@ -1,6 +1,8 @@
 #ifndef __CONSTRAINT_REFERENCE_HPP
 #define __CONSTRAINT_REFERENCE_HPP
 
+#include "common/TombstoneVector.hpp"
+
 #include <iostream>
 
 namespace Solver
@@ -26,7 +28,7 @@ class ConstraintReference
 {
 public:
     using constraint_type = Constraint;
-    using vector_type = std::vector<constraint_type>;
+    using vector_type = TombstoneVector<constraint_type>;//std::vector<constraint_type>;
     
     ConstraintReference(vector_type& vec, int index)
         : _vec(&vec), _index(index)

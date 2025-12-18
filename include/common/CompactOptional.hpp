@@ -3,6 +3,8 @@
 
 #include <type_traits>
 #include <optional>
+#include <limits>
+#include <stdexcept>
 
 template <typename T, T Empty_>
 class CompactOptional_Impl
