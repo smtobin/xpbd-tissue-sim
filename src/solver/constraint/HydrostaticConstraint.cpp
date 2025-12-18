@@ -5,12 +5,27 @@
 namespace Solver
 {
 
+HydrostaticConstraint::HydrostaticConstraint()
+    : ElementConstraint(), _gamma(0)
+{}
+
 HydrostaticConstraint::HydrostaticConstraint(int v1, PositionReference::VecType* vec_ptr1, Real m1,
                                             int v2, PositionReference::VecType* vec_ptr2, Real m2,
                                             int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                             int v4, PositionReference::VecType* vec_ptr4, Real m4,
                                             const ElasticMaterial& material)
     : ElementConstraint(v1, vec_ptr1, m1, v2, vec_ptr2, m2, v3, vec_ptr3, m3, v4, vec_ptr4, m4)
+{
+    _alpha = 1/(material.lambda() * _volume);            // set alpha after the ElementConstraint constructor because we need the element volume
+    _gamma = material.mu() / material.lambda();  
+}
+
+HydrostaticConstraint::HydrostaticConstraint(int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                                            int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                                            int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                                            int v4, PositionReference::VecType* vec_ptr4, Real m4,
+                                            const ElasticMaterial& material, const Mat3r& Q, Real volume)
+    : ElementConstraint(v1, vec_ptr1, m1, v2, vec_ptr2, m2, v3, vec_ptr3, m3, v4, vec_ptr4, m4, Q, volume)
 {
     _alpha = 1/(material.lambda() * _volume);            // set alpha after the ElementConstraint constructor because we need the element volume
     _gamma = material.mu() / material.lambda();  

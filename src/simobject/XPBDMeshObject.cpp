@@ -767,6 +767,100 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         }
     }
 
+    /** Update constraints and constraint projectors. */
+    // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookean::projector_type_list>)
+    {
+        // resize the constraint projectors in the Solver
+        size_t total_num_elements = tetMesh()->elements().totalSize();
+        using DevProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint>;
+        using HydProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::HydrostaticConstraint>;
+        _solver.template resizeProjectorsOfType<DevProjectorType>(total_num_elements);
+        _solver.template resizeProjectorsOfType<HydProjectorType>(total_num_elements);
+
+        // invalidate constraint projectors associated with the element that was refined (removed)
+        _solver.template setProjectorValidity<DevProjectorType>(elem_index, false);
+        _solver.template setProjectorValidity<HydProjectorType>(elem_index, false);
+
+        // add constraints and constraint projectors for new elements
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        hyd_constraint_vec.resize(total_num_elements);
+        dev_constraint_vec.resize(total_num_elements);
+        for (const auto& new_elem_index : latest_added_elements)
+        {
+            // get the vertices for the element
+            const Vec4i& element = tetMesh()->element(new_elem_index);
+            const int v0 = element[0];
+            const int v1 = element[1];
+            const int v2 = element[2];
+            const int v3 = element[3];
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+            Real m0 = vertexConstraintInertia(v0);
+            Real m1 = vertexConstraintInertia(v1);
+            Real m2 = vertexConstraintInertia(v2);
+            Real m3 = vertexConstraintInertia(v3);
+            
+            const Mat3r& Q = tetMesh()->elementInvUndeformedBasis(new_elem_index);
+            Real rest_volume = tetMesh()->elementRestVolume(new_elem_index);
+            hyd_constraint_vec[new_elem_index] = Solver::HydrostaticConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material, Q, rest_volume);
+            dev_constraint_vec[new_elem_index] = Solver::DeviatoricConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material, Q, rest_volume);
+        
+            using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
+            using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(), HydConstraintRefType(hyd_constraint_vec, new_elem_index));
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(), DevConstraintRefType(dev_constraint_vec, new_elem_index));
+        }
+        
+    }
+    // if the constraint configuration is StableNeohookeanCombined, add a combined constraint projector for the hydrostatic and deviatoric constraints
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    {
+        // resize the constraint projectors in the Solver
+        size_t total_num_elements = tetMesh()->elements().totalSize();
+        using ProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+        _solver.template resizeProjectorsOfType<ProjectorType>(total_num_elements);
+
+        // invalidate constraint projectors associated with the element that was refined (removed)
+        _solver.template setProjectorValidity<ProjectorType>(elem_index, false);
+
+        // add constraints and constraint projectors for new elements
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        hyd_constraint_vec.resize(total_num_elements);
+        dev_constraint_vec.resize(total_num_elements);
+        for (const auto& new_elem_index : latest_added_elements)
+        {
+            // get the vertices for the element
+            const Vec4i& element = tetMesh()->element(new_elem_index);
+            const int v0 = element[0];
+            const int v1 = element[1];
+            const int v2 = element[2];
+            const int v3 = element[3];
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+            Real m0 = vertexConstraintInertia(v0);
+            Real m1 = vertexConstraintInertia(v1);
+            Real m2 = vertexConstraintInertia(v2);
+            Real m3 = vertexConstraintInertia(v3);
+            
+            const Mat3r& Q = tetMesh()->elementInvUndeformedBasis(new_elem_index);
+            Real rest_volume = tetMesh()->elementRestVolume(new_elem_index);
+            hyd_constraint_vec[new_elem_index] = Solver::HydrostaticConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material, Q, rest_volume);
+            dev_constraint_vec[new_elem_index] = Solver::DeviatoricConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material, Q, rest_volume);
+        
+            using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
+            using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(),  
+                DevConstraintRefType(dev_constraint_vec, new_elem_index),
+                HydConstraintRefType(hyd_constraint_vec, new_elem_index)
+            );
+        }
+    }
+
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

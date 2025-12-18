@@ -39,6 +39,14 @@ class HydrostaticConstraint : public ElementConstraint
                           int v4, PositionReference::VecType* vec_ptr4, Real m4,
                           const ElasticMaterial& material);
 
+    HydrostaticConstraint(int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                          int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                          int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                          int v4, PositionReference::VecType* vec_ptr4, Real m4,
+                          const ElasticMaterial& material, const Mat3r& Q, Real rest_volume);
+
+    HydrostaticConstraint();
+
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
     bool isInequality() const override { return false; }

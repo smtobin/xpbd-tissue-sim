@@ -54,6 +54,8 @@ class TetMesh : public Mesh
     /** Returns the rest volume of the specified element. */
     Real elementRestVolume(int index) const { return _element_rest_volumes[index]; }
 
+    const Mat3r& elementInvUndeformedBasis(int index) const { return _element_inv_undeformed_basis[index]; }
+
     /** Returns deformation gradient for the specified element.
      * Assumes linear shape functions (deformation gradient is constant throughout the element)
      */

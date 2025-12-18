@@ -53,16 +53,6 @@ class CombinedConstraintProjector
     {
     }
 
-    /** Special constructor enabled for 1st-Order constraint projectors.
-     * Accepts an additional argument, the B^-1 for the coordinates involved in this constraint projection.
-     */
-    template<bool B = IsFirstOrder, std::enable_if_t<B, int> = 0>
-    CombinedConstraintProjector(Real dt, ConstraintReference<Constraint1>&& constraint1, ConstraintReference<Constraint2>&& constraint2,
-        const Eigen::Matrix<Real, Constraint1::NUM_COORDINATES, Constraint1::NUM_COORDINATES>& B_e_inv)
-        : _dt(dt), _constraint1(constraint1), _constraint2(constraint2), _valid(true), _B_e_inv(B_e_inv)
-    {
-    }
-
     /** Default constructor - projector marked invalid */
     explicit CombinedConstraintProjector()
         : _valid(false)
@@ -237,9 +227,6 @@ class CombinedConstraintProjector
     ConstraintReference<Constraint1> _constraint1;
     ConstraintReference<Constraint2> _constraint2;
     bool _valid;
-
-    /** The dense B^-1 matrix associated with the coordinates projected by this projector */
-    typename std::conditional<IsFirstOrder, Eigen::Matrix<Real, Constraint1::NUM_COORDINATES, Constraint1::NUM_COORDINATES>, std::monostate>::type _B_e_inv;
 };
 
 

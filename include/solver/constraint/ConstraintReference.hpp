@@ -29,35 +29,41 @@ public:
     using vector_type = std::vector<constraint_type>;
     
     ConstraintReference(vector_type& vec, int index)
-        : _vec(vec), _index(index)
+        : _vec(&vec), _index(index)
     {
         // _ptr = &_vec.at(_index);
+    }
+
+    ConstraintReference()
+        : _vec(0), _index(0)
+    {
+
     }
 
     const constraint_type* operator->() const
     {
         // return _ptr;
-        return &_vec.at(_index);
+        return &(*_vec).at(_index);
     }
 
     constraint_type* operator->()
     {
         // return _ptr;
-        return &_vec.at(_index);
+        return &(*_vec).at(_index);
     }
 
     const constraint_type& get() const
     {
-        return _vec.at(_index);
+        return (*_vec).at(_index);
     }
 
     constraint_type& get()
     {
-        return _vec.at(_index);
+        return (*_vec).at(_index);
     }
 
     private:
-    vector_type& _vec;
+    vector_type* _vec;
     int _index;
     // constraint_type* _ptr;
 };

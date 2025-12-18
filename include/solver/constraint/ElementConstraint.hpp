@@ -50,6 +50,33 @@ class ElementConstraint : public Constraint
         _volume = std::abs(X.determinant()/6);
     }
 
+    /** Creates a constraint from a reference to the MeshObject and the four vertices that make up the tetrahedral element that this constraint is applied to.
+     * @param obj - a pointer to the XPBDMeshObject that this constraint belongs to
+     * @param v1 - the 1st vertex of the tetrahedral element
+     * @param v2 - the 2nd vertex of the tetrahedral element
+     * @param v3 - the 3rd vertex of the tetrahedral element
+     * @param v4 - the 4th vertex of the tetrahedral element
+     */
+    ElementConstraint(  int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                        int v4, PositionReference::VecType* vec_ptr4, Real m4,
+                        const Mat3r& Q, Real volume)
+        : Constraint(std::vector<PositionReference>({
+            PositionReference(v1, vec_ptr1, m1),
+            PositionReference(v2, vec_ptr2, m2),
+            PositionReference(v3, vec_ptr3, m3),
+            PositionReference(v4, vec_ptr4, m4)})),
+            _Q(Q), _volume(volume)
+    {
+    }
+
+    /** Empty constructor */
+    ElementConstraint()
+        : Constraint(), _Q(Mat3r::Zero()), _volume(0)
+    {
+    }
+
     Real restVolume() const { return _volume; }
 
     /** Compute the deformation gradient and return it, using the 4 positions referenced by this constraint.

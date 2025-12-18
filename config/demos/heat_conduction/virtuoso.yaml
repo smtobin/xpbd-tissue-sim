@@ -91,6 +91,7 @@ objects:
 
     ## XPBD-specific options
     num-solver-iters: 1   # number of solver loop iterations per time step 
+    num-local-collision-iters: 10
     
     solver-type: "Gauss-Seidel"   # use Gauss-Seidel solver (i.e. update mesh after every constraint projection)
     # solver-type: "Jacobi"       # use Jacobi solver (i.e. update mesh only after going through every constraint projection)
