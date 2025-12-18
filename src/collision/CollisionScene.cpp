@@ -133,7 +133,7 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 
         // check if centroid of face is close
         const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
-        if (centroid_dist < 5e-3)
+        if (centroid_dist < 2e-3)
         {
             elems_to_refine.insert(xpbd_mesh_obj->tetMesh()->elementWithFace(i));
         }
@@ -178,7 +178,7 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         for (const auto& elem : elems_to_refine)
         {
             // std::cout << "  Refining element " << elem << std::endl;
-            xpbd_mesh_obj->refineElement(elem, 2, true);
+            xpbd_mesh_obj->refineElement(elem, 1, true);
         }
     }
 }

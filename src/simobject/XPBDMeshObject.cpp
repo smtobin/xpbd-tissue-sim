@@ -638,12 +638,15 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         return;
     }
 
+    std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
+
     /** Resize per-vertex vectors */
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
     _vertex_masses.resize(new_size);
     _vertex_volumes.resize(new_size);
     _vertex_velocities.resize(new_size);
     _previous_vertices.resize(new_size);
+    _is_fixed_vertex.resize(new_size);
 
     if constexpr(IsFirstOrder)
     {
@@ -673,6 +676,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         // interpolate velocity, previous position, and initial position - new vertex is halfway between parents
         _vertex_velocities[new_vert.index] = 0.5*(_vertex_velocities[new_vert.parent1] + _vertex_velocities[new_vert.parent2]);
         _previous_vertices[new_vert.index] = 0.5*(_previous_vertices[new_vert.parent1] + _previous_vertices[new_vert.parent2]);
+
+        _is_fixed_vertex[new_vert.index] = (_is_fixed_vertex[new_vert.parent1] && _is_fixed_vertex[new_vert.parent2]);
     }
 
     /** Update the 'class' property for new vertices, elements, and faces */
