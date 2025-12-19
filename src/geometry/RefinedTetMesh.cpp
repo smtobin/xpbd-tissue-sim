@@ -27,6 +27,9 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
     {
         _initial_vertices[i] = _vertices[i];
     }
+
+    // set the initial refinement levels
+    _element_refinement_level.resize(_elements.totalSize(), 0);
 }
 
 int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
@@ -282,6 +285,10 @@ int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
     int elem_index = _addNewElement(node.vertices, f012_on_surface, f013_on_surface, f023_on_surface, f123_on_surface);
     // set the index of the ElementTreeNode to point to that new element we just created
     node.element_index = elem_index;
+
+    // store the refinement level of the element we just created
+    _element_refinement_level.resize(_elements.totalSize());
+    _element_refinement_level[elem_index] = node.level;
 
     // update the element -> tree node map
     _element_to_tree_node_map.insert({elem_index, tree_node_index});

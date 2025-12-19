@@ -126,6 +126,71 @@ void Simulation::setup()
     {
         this->_addObjectFromConfig(&config);
     });
+
+    /** Setup callbacks for adaptive mesh refinement.
+     * TODO: should this go somewhere else? I.e. not at the Simulation level but in XPBDMeshObject?
+     */
+    _objects.for_each_element<std::unique_ptr<VirtuosoRobot>>([&](auto& robot) {
+        _objects.for_each_element<std::unique_ptr<XPBDMeshObject_Base>, std::unique_ptr<FirstOrderXPBDMeshObject_Base>>([&](auto& xpbd_obj) {
+            if (!xpbd_obj->adaptiveMeshRefinement())
+                return;
+
+            this->addCallback(0.1, [&xpbd_obj, &robot]() {
+                auto t1 = std::chrono::high_resolution_clock::now();
+
+                const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
+                const typename Sim::VirtuosoArm::SDFType* sdf2 = nullptr;
+                if (robot->hasArm1())   sdf1 = robot->arm1()->SDF();
+                if (robot->hasArm2())   sdf2 = robot->arm2()->SDF();
+                const Geometry::Mesh* mesh = xpbd_obj->mesh();
+                std::unordered_set<int> elems_to_refine;
+                for (const auto& i : mesh->faces().validIndices())
+                {
+                    const Vec3i& f = mesh->face(i);
+                    const Vec3r& p1 = mesh->vertex(f[0]);
+                    const Vec3r& p2 = mesh->vertex(f[1]);
+                    const Vec3r& p3 = mesh->vertex(f[2]);
+
+                    // check if centroid of face is close
+                    if (sdf1)
+                    {
+                        const Real centroid_dist = sdf1->evaluate((p1+p2+p3)/3);
+                        if (centroid_dist < 2e-3)
+                        {
+                            int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
+                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                                elems_to_refine.insert(element_with_face);
+                        }
+                    }
+                    if (sdf2)
+                    {
+                        const Real centroid_dist = sdf2->evaluate((p1+p2+p3)/3);
+                        if (centroid_dist < 2e-3)
+                        {
+                            int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
+                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                                elems_to_refine.insert(element_with_face);
+                        }
+                    }
+                }
+
+                auto t2 = std::chrono::high_resolution_clock::now();
+
+                for (const auto& elem : elems_to_refine)
+                {
+                    xpbd_obj->refineElement(elem, 1, true);
+                }
+
+                auto t3 = std::chrono::high_resolution_clock::now();
+                double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+                double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
+                std::cout << "Time for searching over faces: " << search_ms << " ms" << std::endl;
+                std::cout << "Time for refining " << elems_to_refine.size() << " elements: " << refine_ms << " ms" << std::endl;
+                
+
+            }, true);
+        });
+    });
         
     /** Configure the logger */
     if (_logger)
@@ -199,7 +264,7 @@ void Simulation::update()
 void Simulation::_timeStep()
 {
     // std::cout << "\n===Time step===" << std::endl;
-    // auto t1 = std::chrono::steady_clock::now();
+    auto t1 = std::chrono::steady_clock::now();
 
     if (_time - _last_collision_detection_time > _time_between_collision_checks)
     {
@@ -237,7 +302,7 @@ void Simulation::_timeStep()
 
         _collision_scene->collideObjects();
         auto t2 = std::chrono::steady_clock::now();
-        // std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
+        std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
 
         
     }

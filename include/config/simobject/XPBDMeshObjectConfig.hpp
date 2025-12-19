@@ -65,6 +65,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
         _extractParameter("fixed-faces-filename", node, _fixed_faces_filename);
 
         _extractParameter("compute-heat-conduction", node, _compute_heat_conduction);
+        _extractParameter("adaptive-mesh-refinement", node, _adaptive_mesh_refinement);
 
         // extract parameters
         _extractParameter("self-collisions", node, _self_collisions);
@@ -120,6 +121,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     std::optional<std::string> groundFacesFilename() const { return _ground_faces_filename.value; }
     std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
     bool computeHeatConduction() const { return _compute_heat_conduction.value; }
+    bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement.value; }
 
     protected:
     // Parameters
@@ -135,6 +137,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     ConfigParameter<std::optional<std::string>> _ground_faces_filename;
     ConfigParameter<std::optional<std::string>> _fixed_faces_filename;
     ConfigParameter<bool> _compute_heat_conduction = ConfigParameter<bool>(false);
+    ConfigParameter<bool> _adaptive_mesh_refinement = ConfigParameter<bool>(false);
 };
 
 } // namespace Config

@@ -87,6 +87,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // whether or not to compute heat conduction
     _compute_heat_conduction = config->computeHeatConduction();
 
+    // whether or not to adaptively refine the mesh
+    _adaptive_mesh_refinement = config->adaptiveMeshRefinement();
+
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
     {
@@ -875,7 +878,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
-    std::cout << "Number of hanging vertices: " << refinedTetMesh()->hangingVertices().size() << std::endl;
+    // std::cout << "Number of hanging vertices: " << refinedTetMesh()->hangingVertices().size() << std::endl;
+    // std::cout << "Number of verified hanging vertices: " << refinedTetMesh()->verifyHangingVertices().size() << std::endl;
 
     // std::cout << "Added hanging vertices: ";
     // for (const auto& new_vert : latest_added_hanging_vertices)

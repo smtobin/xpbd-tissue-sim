@@ -238,6 +238,8 @@ public:
     FEM::HeatConductionFEMSolver& heatSolver() { return *_heat_solver; }
     const FEM::HeatConductionFEMSolver& heatSolver() const { return *_heat_solver; }
 
+    bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement; }
+
 
     /** === Miscellaneous useful methods === */
 
@@ -296,6 +298,9 @@ protected:
 
     /** Heat conduction solver for computing thermal effects. This is optional, and specified in the config file to be created. */
     std::optional<FEM::HeatConductionFEMSolver> _heat_solver;
+
+    /** Whether or not to adaptively refine the mesh. Set by the config. */
+    bool _adaptive_mesh_refinement;
 
 
     /** === Class members specific to when the object is 1st-order === */

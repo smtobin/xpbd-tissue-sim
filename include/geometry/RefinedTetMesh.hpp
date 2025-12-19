@@ -239,6 +239,8 @@ public:
 
     Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
 
+    int elementRefinementLevel(int index) const { return _element_refinement_level[index]; }
+
     /** Recursively subdivides the specified element refinement_level times.
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
@@ -352,6 +354,9 @@ protected:
      * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
      */
     std::vector<Vec3r> _initial_vertices;
+
+    /** Stores the refinement level of each element. Unreefined elements in the base tet mesh have refinement level = 0. */
+    std::vector<int> _element_refinement_level;
 
     /** Stores the recursive refinement tree structure. This enables us to coarsen the mesh (i.e. undo refinement). */
     TombstoneVector<ElementTreeNode> _element_tree_nodes;

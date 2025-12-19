@@ -137,14 +137,15 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         {
             elems_to_refine.insert(xpbd_mesh_obj->tetMesh()->elementWithFace(i));
         }
-        if (centroid_dist > 2e-3)
-            continue;
 
         const Real p1p2 = (p2-p1).norm();
         const Real p1p3 = (p3-p1).norm();
         const Real p2p3 = (p3-p2).norm();
 
         const Real max_edge = std::max({p1p2, p1p3, p2p3});
+        if (centroid_dist > max_edge)
+            continue;
+
         const int num_samples = (int)(5*max_edge / 0.5e-3);
 
         // const int num_samples = 4;
@@ -169,16 +170,6 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
                     
                 }
             }
-        }
-    }
-
-    if (elems_to_refine.size() > 0)
-    {
-        // std::cout << "REFINING ELEMENTS..." << std::endl;
-        for (const auto& elem : elems_to_refine)
-        {
-            // std::cout << "  Refining element " << elem << std::endl;
-            xpbd_mesh_obj->refineElement(elem, 1, true);
         }
     }
 }
