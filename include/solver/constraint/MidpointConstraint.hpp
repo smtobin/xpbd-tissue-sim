@@ -52,8 +52,9 @@ class MidpointConstraint : public Constraint
 
         if (C < Real(1e-12))
         {
-            for (int i = 0; i < NUM_COORDINATES; i++)
-                grad[i] = Real(1e-12);
+            grad[0] = 1; grad[2] = 0; grad[3] = 0;
+            grad[3] = 0.5; grad[4] = 0; grad[5] = 0;
+            grad[6] = 0.5; grad[7] = 0; grad[8] = 0;
         }
         else
         {
@@ -81,11 +82,11 @@ class MidpointConstraint : public Constraint
         const Vec3r diff = _positions[0].position() - 0.5*(_positions[1].position() + _positions[2].position());
         *C = diff.norm();
 
-        std::cout << "Midpoint constraint: " << *C << std::endl;
         if (*C < Real(1e-12))
         {
-            for (int i = 0; i < NUM_COORDINATES; i++)
-                grad[i] = Real(1e-12);
+            grad[0] = 1; grad[2] = 0; grad[3] = 0;
+            grad[3] = -0.5; grad[4] = 0; grad[5] = 0;
+            grad[6] = -0.5; grad[7] = 0; grad[8] = 0;
         }
         else
         {

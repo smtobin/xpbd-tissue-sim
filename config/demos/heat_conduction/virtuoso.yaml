@@ -4,7 +4,7 @@ name: "Heat Conduction"  # name of the simulation
 description: "Example simulation" # description of the simulation
 
 visualization: "VTK" # what graphics to use ('Easy3D' for Easy3D graphics or 'None' for no graphics)
-show-tip-cursor: false
+show-tip-cursor: true
 
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 
@@ -56,7 +56,7 @@ objects:
     # filename: "../resource/general/stanford_bunny_lowpoly.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/general/single.msh"
-    filename: "../resource/cube/cube2.msh"
+    # filename: "../resource/cube/cube2.msh"
     # filename: "../resource/cube/cube4.msh"
     # filename: "../resource/cube/cube8.msh"
     # filename: "../resource/cube/cube16.msh"
@@ -64,9 +64,9 @@ objects:
     # filename: "../resource/tissue/Prostate.msh"
     # filename: "../resource/tissue/Trachea_processed.stl"
     # filename: "../resource/tissue/tracheal_tumor.msh"
-    # filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    # fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-    # ground-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    ground-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
 
     materials: ["Soft Tissue 1"] # the elastic material (must match with the name of a material defined above)
 
@@ -104,7 +104,7 @@ objects:
     residual-policy: "Never"              # don't compute the residuals
 
     ## 1st-Order XPBD options (has no effect on XPBDMeshObject)
-    damping-multiplier: 2e5   # 'b' from the 1st-Order XPBD paper
+    damping-multiplier: 5e5   # 'b' from the 1st-Order XPBD paper
     adjust-damping-to-material: true
 
     compute-heat-conduction: false
@@ -136,4 +136,4 @@ objects:
       outer-tube-rotation: 1030
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 3.0e-3
+      inner-tube-translation: 7.0e-3

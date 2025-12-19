@@ -46,9 +46,9 @@ class AttachmentConstraint : public Constraint
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         if (dist < Real(1e-12))
         {
-            grad[0] = Real(1e-12);
-            grad[1] = Real(1e-12);
-            grad[2] = Real(1e-12);
+            grad[0] = 1;
+            grad[1] = 0;
+            grad[2] = 0;
         }
         else
         {
@@ -75,9 +75,9 @@ class AttachmentConstraint : public Constraint
 
         if (dist < Real(1e-12))
         {
-            grad[0] = Real(1e-12);
-            grad[1] = Real(1e-12);
-            grad[2] = Real(1e-12);
+            grad[0] = 1;
+            grad[1] = 0;
+            grad[2] = 0;
         }
         else
         {
