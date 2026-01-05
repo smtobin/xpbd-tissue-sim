@@ -54,9 +54,13 @@ int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
     _vertex_adjacent_vertices[new_index].clear();
     // when an edge is split, the parent nodes are no longer adjacent if the parent edge is not in the mesh
     Edge parent_edge(parent1_index, parent2_index);
+    // std::cout << " Parent edge being split: (" << parent_edge.index1 << ", " << parent_edge.index2 << ") " << std::endl;
     if (_edge_to_elements_map.count(parent_edge) == 0)
     {
+        // std::cout << "  Edge is split and parent edge not in the mesh anymore!" << std::endl;
+        // std::cout << "  Removing vertex " << parent2_index << " from " << parent1_index << "'s adjacent vertices list!" << std::endl;
         _vertex_adjacent_vertices[parent1_index].erase(parent2_index);
+        // std::cout << "  Removing vertex " << parent1_index << " from " << parent2_index << "'s adjacent vertices list!" << std::endl;
         _vertex_adjacent_vertices[parent2_index].erase(parent1_index);
     }
     
@@ -529,11 +533,25 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             // get the EdgeNode for the parent edge
             int parent_edge_node_index = parent_node.edge_nodes[edge_index];
 
-            // add vertex at midpoint
+            // vertex already exists at midpoint (i.e. an adjacent element was already refined)
             if (_edge_nodes[parent_edge_node_index].child_vertex != ElementTreeNode::INVALID_INDEX)
             {
                 midpoint_vertices[edge_index] = _edge_nodes[parent_edge_node_index].child_vertex;
+
+                // if the parent edge is no longer in the mesh, update the vertex adjacency lists
+                const Edge& parent_edge = _edge_nodes[parent_edge_node_index].edge;
+                // std::cout << " Parent edge being split: (" << parent_edge.index1 << ", " << parent_edge.index2 << ") " << std::endl;
+                if (_edge_to_elements_map.count(parent_edge) == 0)
+                {
+                    // std::cout << "  Edge is split and parent edge not in the mesh anymore!" << std::endl;
+                    // std::cout << "  Removing vertex " << parent_edge.index2 << " from " << parent_edge.index1 << "'s adjacent vertices list!" << std::endl;
+                    _vertex_adjacent_vertices[parent_edge.index1].erase(parent_edge.index2);
+                    // std::cout << "  Removing vertex " << parent_edge.index1 << " from " << parent_edge.index2 << "'s adjacent vertices list!" << std::endl;
+                    _vertex_adjacent_vertices[parent_edge.index2].erase(parent_edge.index1);
+                }
+
             }
+            // create new vertex at midpoint
             else
             {
                 // int new_vert_index = _vertices.push_back( (_vertices.at(parent_node.vertices[vi]) + _vertices.at(parent_node.vertices[vj])) / 2.0 );

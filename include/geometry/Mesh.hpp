@@ -158,7 +158,7 @@ public:
 
     void displaceVertex(int index, const Vec3r &offset) { _vertices.at(index) += offset; }
 
-    const std::unordered_set<int>& vertexAdjacentVertices(int index) { return _vertex_adjacent_vertices[index]; }
+    const std::unordered_set<int>& vertexAdjacentVertices(int index) const { return _vertex_adjacent_vertices[index]; }
 
     /** Returns a single face as an Eigen 3-vector, given the vertex index.
      * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).

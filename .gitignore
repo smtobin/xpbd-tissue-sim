@@ -3,6 +3,7 @@ gmsh/
 eigen-3.4.0/
 Easy3D/
 yaml-cpp/
+dependencies/
 
 # ignore build files
 build/
