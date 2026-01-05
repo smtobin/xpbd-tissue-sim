@@ -158,7 +158,7 @@ std::pair<bool, Geometry::RefinedTetMesh> test3()
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
 
-/** Test refinement on a mesh with multiple initial tets */
+/** Test uniform level=1 refinement on a mesh with multiple initial tets */
 std::pair<bool, Geometry::RefinedTetMesh> test4()
 {
     Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube2.msh");
@@ -166,12 +166,29 @@ std::pair<bool, Geometry::RefinedTetMesh> test4()
     Geometry::RefinedTetMesh refined_mesh(mesh);
     refined_mesh.setCurrentStateAsUndeformedState();
 
-    // int num_initial_faces = refined_mesh.numFaces();
-    // for (int i = 0; i < num_initial_faces; i++)
-    // {
-    //     int elem_to_refine = refined_mesh.elementWithFace(i);
-    //     refined_mesh.refineElement(elem_to_refine, 2, true);
-    // }
+    int num_initial_faces = refined_mesh.numFaces();
+    for (int i = 0; i < num_initial_faces; i++)
+    {
+        int elem_to_refine = refined_mesh.elementWithFace(i);
+        refined_mesh.refineElement(elem_to_refine, 1, true);
+    }
+
+    // std::cout << "Element with face 1: " << refined_mesh.element(refined_mesh.elementWithFace(1)).transpose() << std::endl;
+    // std::cout << "Element with face 4: " << refined_mesh.element(refined_mesh.elementWithFace(4)).transpose() << std::endl;
+
+    // refined_mesh.refineElement(refined_mesh.elementWithFace(1), 2, true);
+    // refined_mesh.refineElement(refined_mesh.elementWithFace(4), 2, true);
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+}
+
+/** Test level=2 refinement on a mesh with multiple initial tets */
+std::pair<bool, Geometry::RefinedTetMesh> test5()
+{
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/double.msh");
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    Geometry::RefinedTetMesh refined_mesh(mesh);
+    refined_mesh.setCurrentStateAsUndeformedState();
 
     // std::cout << "Element with face 1: " << refined_mesh.element(refined_mesh.elementWithFace(1)).transpose() << std::endl;
     // std::cout << "Element with face 4: " << refined_mesh.element(refined_mesh.elementWithFace(4)).transpose() << std::endl;
@@ -223,7 +240,7 @@ int main()
     gmsh::initialize();
 
     using TestFuncType = std::function<std::pair<bool, Geometry::RefinedTetMesh> ()>;
-    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4};
+    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5};
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
