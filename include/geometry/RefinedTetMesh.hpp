@@ -156,7 +156,7 @@ public:
         int parent_face_node = ElementTreeNode::INVALID_INDEX;
         // the actual face
         Face face;
-        // if this face is not splie (i.e. has no children)
+        // if this face is not split (i.e. has no children)
         bool is_leaf = true;
         // if this face, or any of its ancestor faces are "in" the mesh (i.e. if this face is part of an active tet in the mesh)
         // this ultimately dictates whether vertices on the midpoint of descendant edges are hanging or not

@@ -30,6 +30,61 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
 
     // set the initial refinement levels
     _element_refinement_level.resize(_elements.totalSize(), 0);
+
+    // add edge nodes and face nodes for the features in the mesh
+    // _edge_nodes.clear();
+    // _face_nodes.clear();
+    // _edge_to_edge_node_map.clear();
+    // _face_to_face_node_map.clear();
+
+    // for (const auto& element_index : _elements.validIndices())
+    // {
+    //     const Vec4i& element = _elements[element_index];
+
+    //     // create edge nodes
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         for (int j = i+1; j < 4; j++)
+    //         {
+    //             Edge edge(element[i], element[j]);
+    //             EdgeNode edge_node(edge);
+    //             edge_node.in_mesh = true;
+
+    //             // if this edge isn't already accounted for, add it the appropriate maps
+    //             if (_edge_to_edge_node_map.count(edge) == 0)
+    //             {
+    //                 int edge_node_index = _edge_nodes.push_back(std::move(edge_node));
+    //                 _edge_to_edge_node_map.insert({edge, edge_node_index});
+    //             }
+    //         }
+    //     }
+
+    //     // create face nodes
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         for (int j = i+1; j < 4; j++)
+    //         {
+    //             for (int k = j+1; k < 4; k++)
+    //             {
+    //                 Face cur_face(element[i], element[j], element[k]);
+    //                 FaceNode face_node(cur_face);
+    //                 face_node.in_mesh = true;
+
+    //                 auto surface_faces_range = _element_to_surface_faces_map.equal_range(element_index);    // iterators for the surface faces associated with the element - useful later
+    //                 for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
+    //                 {
+    //                     const Vec3i& face_vec = face(it->second);
+    //                     Face surface_face(face_vec[0], face_vec[1], face_vec[2]);
+    //                     if (cur_face == surface_face)
+    //                     {
+    //                         face_node.on_surface = true;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    // }
 }
 
 int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
@@ -54,13 +109,9 @@ int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
     _vertex_adjacent_vertices[new_index].clear();
     // when an edge is split, the parent nodes are no longer adjacent if the parent edge is not in the mesh
     Edge parent_edge(parent1_index, parent2_index);
-    // std::cout << " Parent edge being split: (" << parent_edge.index1 << ", " << parent_edge.index2 << ") " << std::endl;
     if (_edge_to_elements_map.count(parent_edge) == 0)
     {
-        // std::cout << "  Edge is split and parent edge not in the mesh anymore!" << std::endl;
-        // std::cout << "  Removing vertex " << parent2_index << " from " << parent1_index << "'s adjacent vertices list!" << std::endl;
         _vertex_adjacent_vertices[parent1_index].erase(parent2_index);
-        // std::cout << "  Removing vertex " << parent1_index << " from " << parent2_index << "'s adjacent vertices list!" << std::endl;
         _vertex_adjacent_vertices[parent2_index].erase(parent1_index);
     }
     
@@ -851,7 +902,12 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
                 {
                     // the edge node does not exist, create a new one
                     int new_edge_node_index = _edge_nodes.emplace_back(edge);
-                    _edge_nodes[new_edge_node_index].in_mesh = true;
+                    // if the edge has more than one element associated with it (i.e. the element we're refining + another)
+                    // then the edge node is "in" the mesh
+                    if (_edge_to_elements_map.count(edge) > 1)
+                    {
+                        _edge_nodes[new_edge_node_index].in_mesh = true;
+                    }
                     base_node.edge_nodes[edge_index] = new_edge_node_index;
                     _edge_to_edge_node_map.insert({edge, new_edge_node_index});
                 }
@@ -877,6 +933,13 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
                 // the face node does not exist, create a new one
                 int new_face_node_index = _face_nodes.emplace_back(face);
                 _face_nodes[new_face_node_index].on_surface = surface;
+
+                // if the face has more than one element associated with it (i.e. the element we're refining + another)
+                // then the face node is "in" the mesh
+                if (_face_to_elements_map.count(face) > 1)
+                {
+                    _face_nodes[new_face_node_index].in_mesh = true;
+                }
 
                 base_node.face_nodes[fi] = new_face_node_index;
                 _face_to_face_node_map.insert({face, new_face_node_index});

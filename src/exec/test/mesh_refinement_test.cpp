@@ -176,8 +176,8 @@ std::pair<bool, Geometry::RefinedTetMesh> test4()
     // std::cout << "Element with face 1: " << refined_mesh.element(refined_mesh.elementWithFace(1)).transpose() << std::endl;
     // std::cout << "Element with face 4: " << refined_mesh.element(refined_mesh.elementWithFace(4)).transpose() << std::endl;
 
-    // refined_mesh.refineElement(refined_mesh.elementWithFace(1), 2, true);
-    // refined_mesh.refineElement(refined_mesh.elementWithFace(4), 2, true);
+    refined_mesh.refineElement(refined_mesh.elementWithFace(1), 2, true);
+    refined_mesh.refineElement(refined_mesh.elementWithFace(4), 2, true);
 
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
