@@ -989,53 +989,73 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     /** Update the midpoint constraints for hanging vertices */
 
     // remove hanging vertices from its vector and remove the associated MidpointConstraint
-    // for (const auto& removed_hanging_vert : removed_hanging_vertices)
-    // {
-    //     int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
+    for (const auto& removed_hanging_vert : removed_hanging_vertices)
+    {
+        std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
+        int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
 
-    //     // remove from the hanging vertices vector
-    //     _hanging_vertices_vec.erase(vector_index);
+        // remove from the hanging vertices vector
+        _hanging_vertices_vec.erase(vector_index);
 
-    //     // remove from the vertex index -> hanging vertex index map
-    //     _vertex_to_hanging_index.erase(removed_hanging_vert);
+        // remove from the vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.erase(removed_hanging_vert);
 
-    //     // set the projector as invalid
-    //     using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
-    //     _solver.template setProjectorValidity<MidProjector>(vector_index, false);
+        // set the projector as invalid
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template setProjectorValidity<MidProjector>(vector_index, false);
 
-    //     // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
-    // }
+        // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
+    }
 
-    // // add new hanging vertices
-    // std::vector<Solver::MidpointConstraint>& midpoint_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
-    // for (const auto& new_hanging_vert : added_hanging_vertices)
-    // {
-    //     int new_vector_index = _hanging_vertices_vec.push_back(new_hanging_vert.index);
+    // add new hanging vertices
+    std::vector<Solver::MidpointConstraint>& midpoint_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
+    for (const auto& new_hanging_vert : added_hanging_vertices)
+    {
+        int new_vector_index = _hanging_vertices_vec.push_back(new_hanging_vert.index);
 
-    //     // add entry in vertex index -> hanging vertex index map
-    //     _vertex_to_hanging_index.insert({new_hanging_vert.index, new_vector_index});
+        std::cout << "   Added hanging vert " << new_hanging_vert.index << " at index " << new_vector_index << std::endl;
+        // add entry in vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.insert({new_hanging_vert.index, new_vector_index});
 
-    //     // resize the constraint vector (do we really have to do this every loop iteration?)
-    //     midpoint_constraint_vec.resize(_hanging_vertices_vec.totalSize());
-    //     using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
-    //     _solver.template resizeProjectorsOfType<MidProjector>(_hanging_vertices_vec.totalSize());
+        // resize the constraint vector (do we really have to do this every loop iteration?)
+        midpoint_constraint_vec.resize(_hanging_vertices_vec.totalSize());
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template resizeProjectorsOfType<MidProjector>(_hanging_vertices_vec.totalSize());
 
-    //     // create constraint and constraint projector
-    //     const int v1 = new_hanging_vert.index;
-    //     const int v2 = new_hanging_vert.parent1;
-    //     const int v3 = new_hanging_vert.parent2;
+        // create constraint and constraint projector
+        const int v1 = new_hanging_vert.index;
+        const int v2 = new_hanging_vert.parent1;
+        const int v3 = new_hanging_vert.parent2;
 
-    //     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+        Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
-    //     Real m1 = vertexConstraintInertia(v1);
-    //     Real m2 = vertexConstraintInertia(v2);
-    //     Real m3 = vertexConstraintInertia(v3);
+        Real m1 = vertexConstraintInertia(v1);
+        Real m2 = vertexConstraintInertia(v2);
+        Real m3 = vertexConstraintInertia(v3);
 
-    //     midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
+        midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
 
-    //     using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
-    //     _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, midpoint_constraint_vec.size()-1));
-    // }
+        using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
+        _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, midpoint_constraint_vec.size()-1));
+    }
+
+    std::cout << "\nHanging vertices from refinedTetMesh: (";
+    for (const auto& v : refinedTetMesh()->hangingVertices())
+    {
+        std::cout << v << ", ";
+    }
+    std::cout << ")" << std::endl;
+
+    int num_hanging = 0;
+    std::cout << "Hanging vertices vector: (";
+    for (const auto& v : _hanging_vertices_vec)
+    {
+        std::cout << v << ", ";
+        num_hanging++;
+    }
+    std::cout << ")" << std::endl;
+
+    std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
 }
 
 

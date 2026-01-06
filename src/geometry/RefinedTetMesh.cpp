@@ -211,8 +211,9 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
         {
             assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
             edge_node.in_mesh = true;
-            _hanging_vertices.insert(edge_node.child_vertex);
-            _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
+            const auto [it, success] = _hanging_vertices.insert(edge_node.child_vertex);
+            if (success)
+                _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
             continue;
         }
             
@@ -315,13 +316,16 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
         {
             // std::cout "\nRemoving vertex " << elem_to_remove[k] << "! No longer in the mesh." << std::endl;
             _vertices.erase(elem_to_remove[k]);
-            _hanging_vertices.erase(elem_to_remove[k]);
-            _latest_removed_hanging_vertices.push_back(elem_to_remove[k]);
+            _latest_removed_vertices.emplace_back(elem_to_remove[k], -1, -1);
+
+            int hanging_vert_removed = _hanging_vertices.erase(elem_to_remove[k]);
+            if (hanging_vert_removed)
+                _latest_removed_hanging_vertices.push_back(elem_to_remove[k]);
             
             // vertex no longer in mesh, so clear its adjacent vertices list
             _vertex_adjacent_vertices[elem_to_remove[k]].clear();
 
-            _latest_removed_vertices.emplace_back(elem_to_remove[k], -1, -1);
+            
         }
     }
 }
@@ -630,8 +634,9 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             // the midpoint vertex is hanging if the parent edge is "in" the mesh
             if (_edge_nodes[parent_edge_node_index].in_mesh)
             {
-                _hanging_vertices.insert(midpoint_vertices[edge_index]);
-                _latest_new_hanging_vertices.emplace_back(midpoint_vertices[edge_index], parent_node.vertices[vi], parent_node.vertices[vj]);
+                const auto [it, success] = _hanging_vertices.insert(midpoint_vertices[edge_index]);
+                if (success)
+                    _latest_new_hanging_vertices.emplace_back(midpoint_vertices[edge_index], parent_node.vertices[vi], parent_node.vertices[vj]);
             }
         }
         
@@ -1176,6 +1181,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     _latest_new_hanging_vertices.clear();
     _latest_removed_hanging_vertices.clear();
 
+    std::cout << "Coarsening element " << element_index << "..." << std::endl;
+
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);
 
@@ -1188,6 +1195,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     // if the element doesn't have a parent (for some reason), remove it and do nothing
     if (leaf_node.parent == ElementTreeNode::INVALID_INDEX)
     {
+        std::cout << "Leaf element tree node does not have a parent!!" << std::endl;
+        std::cout << "Leaf node level: " << leaf_node.level << std::endl;
         assert(0);  // this shouldn't happen
         _element_tree_nodes.erase(search->second);
         _element_to_tree_node_map.erase(element_index);
@@ -1204,6 +1213,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         if (rel_coarsening_level <= 0)
             return false;
     }
+
+    std::cout << " Coarsening..." << std::endl;
 
     // get the root of the tree branch that we are going to replace this element (and its relatives) with
     int root_index = leaf_node.parent;
@@ -1316,8 +1327,9 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         EdgeNode& edge_node = _edge_nodes[edge_node_vertex];
         if (!edge_node.is_leaf)
         {
-            _hanging_vertices.insert(edge_node.child_vertex);
-            _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
+            const auto [it, success] = _hanging_vertices.insert(edge_node.child_vertex);
+            if (success)
+                _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
         }
         edge_node.in_mesh = true;
     }
@@ -1396,7 +1408,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
             
             
             // Check coplanarity
-            if (std::abs((p - A).dot(normal)) > 1e-10)
+            if (std::abs((p - A).dot(normal)) > 1e-8)
                 continue;
             
             // Compute barycentric coordinates
@@ -1407,7 +1419,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
             Real dot12 = v1.dot(v2);
             
             Real denom = dot00 * dot11 - dot01 * dot01;
-            if (std::abs(denom) < 1e-10)
+            if (std::abs(denom) < 1e-8)
                 continue;
             
             Real inv_denom = 1.0 / denom;
@@ -1415,7 +1427,7 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
             Real v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
             
             // Check if point is in triangle (with small tolerance for numerical error)
-            if ( (u >= 1e-10) && (v >= 1e-10) && (u + v <= 1 - 1e-10) )
+            if ( (u >= 1e-8) && (v >= 1e-8) && (u + v <= 1 - 1e-8) )
             {
                 // // std::cout "\tvertex " << v_ind << " on face! " << std::endl; 
                 hanging_verts.insert(v_ind);

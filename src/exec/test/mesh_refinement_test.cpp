@@ -199,6 +199,42 @@ std::pair<bool, Geometry::RefinedTetMesh> test5()
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
 
+/** Test refinement and coarsening on a mesh with multiple initial tets */
+std::pair<bool, Geometry::RefinedTetMesh> test6()
+{
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube2.msh");
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    Geometry::RefinedTetMesh refined_mesh(mesh);
+    refined_mesh.setCurrentStateAsUndeformedState();
+
+    std::vector<int> initially_refined_elements = {
+        453, 199, 49, 176, 774, 1257, 764, 1258, 1403, 355, 245, 494, 1323, 1400, 503, 750, 1266
+    };
+    for (const auto& index : initially_refined_elements)
+    {
+        refined_mesh.refineElement(index, 2, true);
+    }
+    
+    // coarsen 10 of the elements at random
+    int num_coarsened = 0;
+    while (num_coarsened < 10)
+    {
+        for (const auto& index : refined_mesh.elements().validIndices())
+        {
+            if (refined_mesh.elementRefinementLevel(index) > 0)
+            {
+                refined_mesh.coarsenElement(index, 1, false);
+                num_coarsened++;
+                break;
+            }
+        }
+    }
+
+
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+}
+
 
 void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
 {
@@ -240,7 +276,7 @@ int main()
     gmsh::initialize();
 
     using TestFuncType = std::function<std::pair<bool, Geometry::RefinedTetMesh> ()>;
-    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5};
+    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6};
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
