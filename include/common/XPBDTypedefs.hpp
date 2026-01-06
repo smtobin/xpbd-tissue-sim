@@ -54,8 +54,8 @@ struct XPBDMeshObjectConstraintConfigurations
 
     // public typedefs represent XPBDMeshObject constraint configurations
     public:
-    using StableNeohookean = XPBDMeshObjectConstraintConfiguration<DevProjector, HydProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector, MidProjector>;
-    using StableNeohookeanCombined = XPBDMeshObjectConstraintConfiguration<DevHydProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector, MidProjector>;
+    using StableNeohookean = XPBDMeshObjectConstraintConfiguration<DevProjector, HydProjector, MidProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
+    using StableNeohookeanCombined = XPBDMeshObjectConstraintConfiguration<DevHydProjector, MidProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
 
     using type_list = TypeList<StableNeohookean, StableNeohookeanCombined>;
     using variant_type = std::variant<StableNeohookean, StableNeohookeanCombined>;

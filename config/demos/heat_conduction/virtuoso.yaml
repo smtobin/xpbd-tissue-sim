@@ -8,7 +8,7 @@ show-tip-cursor: true
 
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 
 ## different simulation "modes"
 # sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
@@ -128,7 +128,7 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "cautery"
+      # tool-type: "cautery"
       tool-tube-length: 5e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2

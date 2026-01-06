@@ -393,7 +393,7 @@ void VirtuosoSimulation::_timeStep()
                 Real frac = 0.3;
                 const Vec3r new_force = frac*haptic_force + (1-frac)*cur_force;
                 
-                std::cout << "i = " << i << ": Setting haptic force to " << new_force.transpose() << std::endl;
+                // std::cout << "i = " << i << ": Setting haptic force to " << new_force.transpose() << std::endl;
                 _haptic_device_manager->setForce(handle, new_force);
             }
             

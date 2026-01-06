@@ -184,8 +184,8 @@ void Simulation::setup()
                 auto t3 = std::chrono::high_resolution_clock::now();
                 double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
                 double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
-                std::cout << "Time for searching over faces: " << search_ms << " ms" << std::endl;
-                std::cout << "Time for refining " << elems_to_refine.size() << " elements: " << refine_ms << " ms" << std::endl;
+                // std::cout << "Time for searching over faces: " << search_ms << " ms" << std::endl;
+                // std::cout << "Time for refining " << elems_to_refine.size() << " elements: " << refine_ms << " ms" << std::endl;
                 
 
             }, true);
@@ -302,7 +302,7 @@ void Simulation::_timeStep()
 
         _collision_scene->collideObjects();
         auto t2 = std::chrono::steady_clock::now();
-        std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
+        // std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
 
         
     }
