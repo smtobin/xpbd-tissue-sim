@@ -180,8 +180,18 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     // if we are modeling heat conduction, set up the solver
     if (_compute_heat_conduction)
     {
-            /** TODO: only using first material right now. Extend to handle multiple materials in the same mesh? */
-            _heat_solver.emplace(tetMesh(), _materials[0], 0, 23);
+            /** 
+             * 
+             * 
+             * 
+             * TODO: only using first material right now. Extend to handle multiple materials in the same mesh?
+             * 
+             * 
+             * 
+             * 
+             * 
+             */
+            _heat_solver.emplace(refinedTetMesh(), _materials[0], 0, 23);
 
             if (_ground_faces_filename.has_value())
             {

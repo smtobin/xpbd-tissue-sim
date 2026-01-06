@@ -45,7 +45,7 @@ bool testCorrectness(Geometry::RefinedTetMesh& refined_mesh)
         correct = false;
     }
 
-    for (const auto& v : hanging_verts)
+    for (const auto& [v,edge] : hanging_verts)
     {
         if (verified_hanging_verts.count(v) == 0)
         {

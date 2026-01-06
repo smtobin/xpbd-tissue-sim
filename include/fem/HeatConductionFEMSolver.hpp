@@ -2,7 +2,7 @@
 #define __HEAT_CONDUCTION_FEM_SOLVER_HPP
 
 
-#include "geometry/TetMesh.hpp"
+#include "geometry/RefinedTetMesh.hpp"
 #include "fem/FEMTetMesh.hpp"
 #include "fem/VoltageFEMSolver.hpp"
 
@@ -30,7 +30,7 @@ namespace FEM
 class HeatConductionFEMSolver
 {
 public:
-    HeatConductionFEMSolver(Geometry::TetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a);
+    HeatConductionFEMSolver(Geometry::RefinedTetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a);
 
     /** Adds a new essential boundary condition for temperature at the specified index. */
     void setTemperatureAtBoundary(int vertex_index, Real value);
@@ -67,7 +67,7 @@ private:
 
 private:
     /** The tetrahedral mesh */
-    Geometry::TetMesh* _mesh;
+    Geometry::RefinedTetMesh* _mesh;
     /** Wrapper around the tet mesh for doing FEM calculations */
     FEMTetMesh _fem_mesh;
     /** Laplace equation solver used to solve for the voltage potential and its gradient. */

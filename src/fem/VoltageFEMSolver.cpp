@@ -3,27 +3,44 @@
 namespace FEM
 {
 
-VoltageFEMSolver::VoltageFEMSolver(Geometry::TetMesh* mesh, Real k)
+VoltageFEMSolver::VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k)
     : _mesh(mesh), _fem_mesh(mesh), _k(k)
 {
+    // create voltage property for the mesh
+    _mesh->addVertexProperty<Real>("voltage", 0);
+
     PetscInitialize(NULL, NULL, NULL, NULL);
 
+    _allocateMemory();
+
+    _prev_num_vertices = _mesh->numVertices();
+    _prev_num_elements = _mesh->numElements();
+
+    // create PETSc linear system solver
+    KSPCreate(PETSC_COMM_WORLD, &_ksp);
+    KSPSetInitialGuessNonzero(_ksp, true);  // we have Dirichlet boundary conditions, so we know part of the solution already!
+    KSPSetOperators(_ksp, _A, _A);
+    KSPSetFromOptions(_ksp);
+
+    
+}
+
+void VoltageFEMSolver::_allocateMemory()
+{
+    // allocate memory for voltage mesh property
+    _mesh->getVertexProperty<Real>("voltage").resize(_mesh->numVertices());
+
+    // allocate memory for the voltage std::vector
     _V.resize(_mesh->numVertices(), 0);
     _V_prev = _V;
 
-    // compute electrical "masses" for each vertex
-    _M.resize(_mesh->numVertices(), 0);
-    for (const auto& element_index : _mesh->elements().validIndices())
-    {
-        const Vec4i& elem = _mesh->element(element_index);
-        Real volume = _mesh->elementVolume(element_index);
-        for (int i = 0; i < 4; i++)
-        {
-            _M[elem[i]] += 0.25 * volume * 100; // some number
-        }
-    }
-
+    // allocate memory for the essential boundary
     _on_essential_boundary.resize(_mesh->numVertices(), false);
+
+    // if A, b, x already exist, delete them
+    if (_A) MatDestroy(&_A);
+    if (_b) VecDestroy(&_b);
+    if (_x) VecDestroy(&_x);
 
     // allocate memory per row based on mesh connectivity
     std::vector<int> nnz;
@@ -43,15 +60,15 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::TetMesh* mesh, Real k)
 
     VecDuplicate(_b, &_x);
 
-    // create PETSc linear system solver
-    KSPCreate(PETSC_COMM_WORLD, &_ksp);
-    KSPSetInitialGuessNonzero(_ksp, true);  // we have Dirichlet boundary conditions, so we know part of the solution already!
-    KSPSetOperators(_ksp, _A, _A);
-    KSPSetFromOptions(_ksp);
+    if (_ksp)
+    {
+        KSPSetOperators(_ksp, _A, _A);
+    }
 
-    // create voltage property for the mesh
-    _mesh->addVertexProperty<Real>("voltage", 0);
+    MatSetOption(_A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_TRUE);
+
 }
+
 
 void VoltageFEMSolver::setVoltageAtBoundary(int vertex_index, Real value, bool permanent)
 {
@@ -73,11 +90,17 @@ void VoltageFEMSolver::clearVoltageBoundary()
 
 void VoltageFEMSolver::step(Real /* dt */)
 {
+    // check if the number of elements or vertices has changed since we last solved
+    if (_mesh->numVertices() != _prev_num_vertices || _mesh->numElements() != _prev_num_elements)
+    {
+        // if it has, reallocate the stiffness matrix, RHS vector, and solution vector
+        _allocateMemory();
+    }
+
     // assemble global system
     _assembly();
 
     // solve the linear system
-    // VecXr x = _system_matrix.llt().solve(_RHS_vec);
     KSPSolve(_ksp, _b, _x);
 
     // copy into mesh property
@@ -104,8 +127,6 @@ VoltageFEMSolver::ElementStiffnessMatrixType VoltageFEMSolver::_elementStiffness
 
 void VoltageFEMSolver::_assembly()
 {
-    /** TODO: adapt for changes in number of vertices */
-
     MatZeroEntries(_A);
     VecZeroEntries(_b);
 
@@ -144,7 +165,20 @@ void VoltageFEMSolver::_assembly()
     PetscErrorCode ierr = MatZeroRowsColumns(_A, boundary_row_indices.size(), boundary_row_indices.data(), 1.0, _x, _b);
     assert(ierr == 0);
 
-    
+    // apply hanging node constraints
+    const std::unordered_map<int, Geometry::Edge>& hanging_vertices = _mesh->hangingVertices();
+    for (const auto [v, edge] : hanging_vertices)
+    {
+        // row v is now: V_v - 0.5*V_edge1 - 0.5*V_edge2 = 0
+        int cols[] = {v, edge.index1, edge.index2};
+        Real vals[] = {1.0, -0.5, -0.5};
+        MatSetValues(_A, 1, &v, 3, cols, vals, INSERT_VALUES);
+        VecSetValue(_b, v, 0.0, INSERT_VALUES); 
+    }
+
+    MatAssemblyBegin(_A, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(_A, MAT_FINAL_ASSEMBLY);
+
     VecAssemblyBegin(_b);
     VecAssemblyEnd(_b);
 }

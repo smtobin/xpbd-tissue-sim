@@ -1,7 +1,7 @@
 #ifndef __VOLTAGE_FEM_SOLVER_HPP
 #define __VOLTAGE_FEM_SOLVER_HPP
 
-#include "geometry/TetMesh.hpp"
+#include "geometry/RefinedTetMesh.hpp"
 #include "fem/FEMTetMesh.hpp"
 
 #include <petscksp.h>
@@ -29,7 +29,7 @@ public:
     // default in Eigen is column-major
     using ElementStiffnessMatrixType = Eigen::Matrix<Real, 4, 4, Eigen::RowMajor>;
 
-    VoltageFEMSolver(Geometry::TetMesh* mesh, Real k);
+    VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k);
 
     /** Adds a new essential boundary condition at the specified index.
      *   i.e. RHS[index] = value
@@ -50,6 +50,9 @@ public:
     const std::vector<Real>& voltage() const { return _V; }
 
 private:
+    /** Allocates the appropriate amount of memory for the FEM system. */
+    void _allocateMemory();
+
     /** Computes the elemental stiffness matrix using a 1-point Gauss quadrature (the centroid of the tet) */
     ElementStiffnessMatrixType _elementStiffnessMatrix(int element_index) const;
 
@@ -57,7 +60,7 @@ private:
     void _assembly();
 
 private:
-    Geometry::TetMesh* _mesh;
+    Geometry::RefinedTetMesh* _mesh;
     FEMTetMesh _fem_mesh;
 
     /** The constant in the Laplace equation. */
@@ -81,12 +84,10 @@ private:
     std::vector<Real> _V;
     std::vector<Real> _V_prev;
 
-    std::vector<Real> _M;
-
     /** The global system matrix. */
-    MatXr _system_matrix;
+    // MatXr _system_matrix;
     /** The global RHS vector. */
-    VecXr _RHS_vec;
+    // VecXr _RHS_vec;
 
     /** PETSc global system matrix. */
     Mat _A;
@@ -96,6 +97,14 @@ private:
     Vec _x;
     /** PETSc linear solver context. */
     KSP _ksp;
+
+    /** Track the number of vertices and elements in the mesh.
+     * When these change, we need to reallocate memory.
+     * 
+     * TODO: Is this a reliable way to detect if we need to reallocate memory?
+     */
+    int _prev_num_vertices;
+    int _prev_num_elements;
 };
 
 } // namespace FEM

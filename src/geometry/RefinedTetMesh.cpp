@@ -211,7 +211,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
         {
             assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
             edge_node.in_mesh = true;
-            const auto [it, success] = _hanging_vertices.insert(edge_node.child_vertex);
+            const auto [it, success] = _hanging_vertices.insert({edge_node.child_vertex, edge_node.edge});
             if (success)
                 _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
             continue;
@@ -635,7 +635,7 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
             // the midpoint vertex is hanging if the parent edge is "in" the mesh
             if (_edge_nodes[parent_edge_node_index].in_mesh)
             {
-                const auto [it, success] = _hanging_vertices.insert(midpoint_vertices[edge_index]);
+                const auto [it, success] = _hanging_vertices.insert({midpoint_vertices[edge_index], _edge_nodes[parent_edge_node_index].edge});
                 if (success)
                     _latest_new_hanging_vertices.emplace_back(midpoint_vertices[edge_index], parent_node.vertices[vi], parent_node.vertices[vj]);
             }
@@ -1333,7 +1333,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         EdgeNode& edge_node = _edge_nodes[edge_node_vertex];
         if (!edge_node.is_leaf)
         {
-            const auto [it, success] = _hanging_vertices.insert(edge_node.child_vertex);
+            const auto [it, success] = _hanging_vertices.insert({edge_node.child_vertex, edge_node.edge});
             if (success)
                 _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
         }

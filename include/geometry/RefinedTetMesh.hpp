@@ -260,7 +260,7 @@ public:
     bool coarsenElement(int element_index, int coarsening_level, bool absolute=false);
 
     /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
-    const std::unordered_set<int>& hangingVertices() const { return _hanging_vertices; }
+    const std::unordered_map<int, Edge>& hangingVertices() const { return _hanging_vertices; }
 
     /** Goes through the entire mesh and finds all hanging vertices.
      * Useful for verifying that we are marking the hanging vertices correctly.
@@ -367,7 +367,9 @@ protected:
      */
     std::unordered_map<int, int> _element_to_tree_node_map;
 
-    /** Stores the indices of vertices that are "hanging".
+    /** Stores the indices of vertices that are "hanging", and maps that to their parent edge.
+     *  (the parent edge is needed to constrain the hanging node in XPBD and in FEM)
+     * 
      * A hanging vertex is one that is in the middle of an edge.
      * 
      *  *---*
@@ -378,7 +380,7 @@ protected:
      * 
      * This can happen when we refine one element but the adjacent element is unrefined, or not refined to the same level.
      */
-    std::unordered_set<int> _hanging_vertices;
+    std::unordered_map<int, Edge> _hanging_vertices;
 
     /** Store feature hierarchy */
     TombstoneVector<EdgeNode> _edge_nodes;

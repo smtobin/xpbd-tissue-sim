@@ -5,7 +5,7 @@
 namespace FEM
 {
 
-HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::TetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a)
+HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::RefinedTetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a)
     : _mesh(mesh), _fem_mesh(mesh), _voltage_solver(mesh, material.electricalConductivity()),
      _material(material), _h(h), _T_a(T_a)
 {
