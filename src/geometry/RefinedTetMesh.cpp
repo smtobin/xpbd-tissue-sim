@@ -1197,10 +1197,19 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     {
         std::cout << "Leaf element tree node does not have a parent!!" << std::endl;
         std::cout << "Leaf node level: " << leaf_node.level << std::endl;
-        assert(0);  // this shouldn't happen
-        _element_tree_nodes.erase(search->second);
-        _element_to_tree_node_map.erase(element_index);
-        return true;
+        // assert(0);  // this shouldn't happen
+        if (leaf_node.isLeaf())
+        {
+            _element_tree_nodes.erase(search->second);
+            _element_to_tree_node_map.erase(element_index);
+        }
+        else
+        {
+            std::cout << "Element tree node does not have a parent AND is not a leaf! What?" << std::endl;
+            assert(0);  // this really shouldn't happen
+        }
+        
+        return false;
     }
 
     // if absolute = true, we are only coarsening up to an absolute coarsening level

@@ -157,31 +157,37 @@ void Simulation::setup()
                     {
                         int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                         const Real centroid_dist = sdf1->evaluate((p1+p2+p3)/3);
-                        if (centroid_dist < 4e-3)
+                        if (centroid_dist < 2e-3)
                         {
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
                         }
-                        else if (centroid_dist > 6e-3)
+                        else if (centroid_dist > 3e-3)
                         {
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
+                            {
+                                std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
                                 elems_to_coarsen.insert(element_with_face);
+                            }
                         }
                     }
                     if (sdf2)
                     {
                         int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                         const Real centroid_dist = sdf2->evaluate((p1+p2+p3)/3);
-                        if (centroid_dist < 4e-3)
+                        if (centroid_dist < 2e-3)
                         {
                             
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
                         }
-                        else if (centroid_dist > 6e-3)
+                        else if (centroid_dist > 3e-3)
                         {
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
+                            {
+                                std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
                                 elems_to_coarsen.insert(element_with_face);
+                            }
                         }
                     }
                 }
