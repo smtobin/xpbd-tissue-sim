@@ -988,26 +988,25 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
 
     /** Update the midpoint constraints for hanging vertices */
 
-    // remove hanging vertices from its vector and remove the associated MidpointConstraint
-    for (const auto& removed_hanging_vert : removed_hanging_vertices)
+    std::cout << "   Added hanging verts: (";
+    for (const auto& v : added_hanging_vertices)
     {
-        std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
-        int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
-
-        // remove from the hanging vertices vector
-        _hanging_vertices_vec.erase(vector_index);
-
-        // remove from the vertex index -> hanging vertex index map
-        _vertex_to_hanging_index.erase(removed_hanging_vert);
-
-        // set the projector as invalid
-        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
-        _solver.template setProjectorValidity<MidProjector>(vector_index, false);
-
-        // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
+        std::cout << v.index << ", ";
     }
+    std::cout << ")" << std::endl;
+
+    std::cout << "   Removed hanging verts: (";
+    for (const auto& v : removed_hanging_vertices)
+    {
+        std::cout << v << ", ";
+    }
+    std::cout << ")" << std::endl;
 
     // add new hanging vertices
+    // IMPORTANT: do this before removing the latest removed hanging vertices
+    //  Sometimes when coarsening, the same hanging vertex is added and removed within the same coarsening operation
+    //  So if we remove the latest removed hanging vertices first, the hanging vertex may not exist causing an error
+    //  It does create a little bit of redundant work, but as of right now that's just the nature of the algorithm :)
     std::vector<Solver::MidpointConstraint>& midpoint_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
     for (const auto& new_hanging_vert : added_hanging_vertices)
     {
@@ -1037,6 +1036,25 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
 
         using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
         _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, new_vector_index));
+    }
+
+    // remove hanging vertices from its vector and remove the associated MidpointConstraint
+    for (const auto& removed_hanging_vert : removed_hanging_vertices)
+    {
+        std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
+        int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
+
+        // remove from the hanging vertices vector
+        _hanging_vertices_vec.erase(vector_index);
+
+        // remove from the vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.erase(removed_hanging_vert);
+
+        // set the projector as invalid
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template setProjectorValidity<MidProjector>(vector_index, false);
+
+        // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
     }
 
     std::cout << "\nHanging vertices from refinedTetMesh: (";

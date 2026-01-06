@@ -557,8 +557,9 @@ void RefinedTetMesh::_prepareFeatureTreeForRefinedElement(int element_tree_node_
             if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
             {
                 // std::cout "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
-                _hanging_vertices.erase(edge_node.child_vertex);
-                _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
+                int hanging_vert_removed = _hanging_vertices.erase(edge_node.child_vertex);
+                if (hanging_vert_removed)
+                    _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
             }
 
             // push the child edges to be updated if they exist, and they do not belong to another element in the mesh

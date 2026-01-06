@@ -162,7 +162,7 @@ void Simulation::setup()
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
                         }
-                        else if (centroid_dist > 3e-3)
+                        else if (centroid_dist > 4e-3)
                         {
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                             {
@@ -181,7 +181,7 @@ void Simulation::setup()
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
                         }
-                        else if (centroid_dist > 3e-3)
+                        else if (centroid_dist > 4e-3)
                         {
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                             {
@@ -198,12 +198,12 @@ void Simulation::setup()
                 for (const auto& elem : elems_to_refine)
                 {
                     std::cout << "Refining element " << elem << "..." << std::endl;
-                    xpbd_obj->refineElement(elem, 1, true);
+                    xpbd_obj->refineElement(elem, 2, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
                     std::cout << "Coarsening element " << elem << "..." << std::endl;
-                    xpbd_obj->coarsenElement(elem, 1, false);
+                    xpbd_obj->coarsenElement(elem, 2, false);
                 }
 
                 auto t3 = std::chrono::high_resolution_clock::now();
