@@ -1182,8 +1182,6 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     _latest_new_hanging_vertices.clear();
     _latest_removed_hanging_vertices.clear();
 
-    std::cout << "Coarsening element " << element_index << "..." << std::endl;
-
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);
 
@@ -1223,8 +1221,6 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         if (rel_coarsening_level <= 0)
             return false;
     }
-
-    std::cout << " Coarsening..." << std::endl;
 
     // get the root of the tree branch that we are going to replace this element (and its relatives) with
     int root_index = leaf_node.parent;

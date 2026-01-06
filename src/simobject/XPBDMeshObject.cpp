@@ -988,19 +988,19 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
 
     /** Update the midpoint constraints for hanging vertices */
 
-    std::cout << "   Added hanging verts: (";
-    for (const auto& v : added_hanging_vertices)
-    {
-        std::cout << v.index << ", ";
-    }
-    std::cout << ")" << std::endl;
+    // std::cout << "   Added hanging verts: (";
+    // for (const auto& v : added_hanging_vertices)
+    // {
+    //     std::cout << v.index << ", ";
+    // }
+    // std::cout << ")" << std::endl;
 
-    std::cout << "   Removed hanging verts: (";
-    for (const auto& v : removed_hanging_vertices)
-    {
-        std::cout << v << ", ";
-    }
-    std::cout << ")" << std::endl;
+    // std::cout << "   Removed hanging verts: (";
+    // for (const auto& v : removed_hanging_vertices)
+    // {
+    //     std::cout << v << ", ";
+    // }
+    // std::cout << ")" << std::endl;
 
     // add new hanging vertices
     // IMPORTANT: do this before removing the latest removed hanging vertices
@@ -1012,7 +1012,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     {
         int new_vector_index = _hanging_vertices_vec.push_back(new_hanging_vert.index);
 
-        std::cout << "   Added hanging vert " << new_hanging_vert.index << " at index " << new_vector_index << std::endl;
+        // std::cout << "   Added hanging vert " << new_hanging_vert.index << " at index " << new_vector_index << std::endl;
         // add entry in vertex index -> hanging vertex index map
         _vertex_to_hanging_index.insert({new_hanging_vert.index, new_vector_index});
 
@@ -1041,7 +1041,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     // remove hanging vertices from its vector and remove the associated MidpointConstraint
     for (const auto& removed_hanging_vert : removed_hanging_vertices)
     {
-        std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
+        // std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
         int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
 
         // remove from the hanging vertices vector
@@ -1057,23 +1057,23 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
     }
 
-    std::cout << "\nHanging vertices from refinedTetMesh: (";
-    for (const auto& v : refinedTetMesh()->hangingVertices())
-    {
-        std::cout << v << ", ";
-    }
-    std::cout << ")" << std::endl;
+    // std::cout << "\nHanging vertices from refinedTetMesh: (";
+    // for (const auto& v : refinedTetMesh()->hangingVertices())
+    // {
+    //     std::cout << v << ", ";
+    // }
+    // std::cout << ")" << std::endl;
 
-    int num_hanging = 0;
-    std::cout << "Hanging vertices vector: (";
-    for (const auto& v : _hanging_vertices_vec)
-    {
-        std::cout << v << ", ";
-        num_hanging++;
-    }
-    std::cout << ")" << std::endl;
+    // int num_hanging = 0;
+    // std::cout << "Hanging vertices vector: (";
+    // for (const auto& v : _hanging_vertices_vec)
+    // {
+    //     std::cout << v << ", ";
+    //     num_hanging++;
+    // }
+    // std::cout << ")" << std::endl;
 
-    std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
+    // std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
 }
 
 

@@ -152,42 +152,28 @@ void Simulation::setup()
                     const Vec3r& p2 = mesh->vertex(f[1]);
                     const Vec3r& p3 = mesh->vertex(f[2]);
 
-                    // check if centroid of face is close
+                    // check if face centroid is close to either arm by querying each SDF
+                    Real sdf_dist1 = std::numeric_limits<Real>::max();
+                    Real sdf_dist2 = std::numeric_limits<Real>::max();
+
+                    int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                     if (sdf1)
-                    {
-                        int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
-                        const Real centroid_dist = sdf1->evaluate((p1+p2+p3)/3);
-                        if (centroid_dist < 2e-3)
-                        {
-                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
-                                elems_to_refine.insert(element_with_face);
-                        }
-                        else if (centroid_dist > 4e-3)
-                        {
-                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
-                            {
-                                std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
-                                elems_to_coarsen.insert(element_with_face);
-                            }
-                        }
-                    }
+                        sdf_dist1 = sdf1->evaluate((p1+p2+p3)/3);
                     if (sdf2)
+                        sdf_dist2 = sdf2->evaluate((p1+p2+p3)/3);
+
+                    Real min_dist = std::min(sdf_dist1, sdf_dist2);
+                    if (min_dist < 2e-3)
                     {
-                        int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
-                        const Real centroid_dist = sdf2->evaluate((p1+p2+p3)/3);
-                        if (centroid_dist < 2e-3)
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                            elems_to_refine.insert(element_with_face);
+                    }
+                    else if (min_dist > 4e-3)
+                    {
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                         {
-                            
-                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
-                                elems_to_refine.insert(element_with_face);
-                        }
-                        else if (centroid_dist > 4e-3)
-                        {
-                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
-                            {
-                                std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
-                                elems_to_coarsen.insert(element_with_face);
-                            }
+                            std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
+                            elems_to_coarsen.insert(element_with_face);
                         }
                     }
                 }
