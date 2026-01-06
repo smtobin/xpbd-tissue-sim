@@ -965,6 +965,9 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
         // note: we do not need to update the surface face -> element map since that will just be overwritten by whatever new faces are added
     }
 
+    // add the removed parent element to the latest removed elements
+    _latest_removed_elements.emplace_back(element_index, base_element, elementRestVolume(element_index));
+
     // update the edge -> element, face -> element, and element -> surface face maps
     // we need to wait to update the vertex -> element map, because if we do it now, we might accidentally remove some of the original tet's vertices!
     _updateEdgeElementMapForRemovedElement(element_index);
@@ -973,10 +976,6 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
     // update the feature hierarchy (i.e. whether or not a feature has an ancestor feature in the mesh or not)
     _prepareFeatureTreeForRefinedElement(base_node_index, rel_refinement_level);
-
-    // add the removed parent element to the latest removed elements
-    _latest_removed_elements.emplace_back(element_index, base_element);
-
 
     /** === Step 4: Refine the element. === */
 
@@ -1269,11 +1268,11 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                     // note: we do not need to update the surface face -> element map since that will just be overwritten by whatever new faces are added
                 }
 
+                _latest_removed_elements.emplace_back(node.element_index, node.vertices, elementRestVolume(node.element_index));
+
                 _updateElementMapsForRemovedElement(node.element_index);
                 _elements.erase(node.element_index);
                 _element_to_tree_node_map.erase(node.element_index);
-
-                _latest_removed_elements.emplace_back(node.element_index, node.vertices);
             }
             else
             {
@@ -1288,11 +1287,14 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                     {
                         // std::cout "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
                         _vertices.erase(node.vertices[k]);
-                        _hanging_vertices.erase(node.vertices[k]);
-                        _latest_removed_hanging_vertices.push_back(node.vertices[k]);
-
                         /** TODO: somehow get the parent vertices of this removed vertex? Is this necessary? */
                         _latest_removed_vertices.emplace_back(node.vertices[k], -1, -1);
+
+                        int hanging_vert_removed = _hanging_vertices.erase(node.vertices[k]);
+                        if (hanging_vert_removed)
+                            _latest_removed_hanging_vertices.push_back(node.vertices[k]);
+
+                        
                     }
                 }
                 

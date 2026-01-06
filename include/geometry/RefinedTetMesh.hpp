@@ -186,9 +186,10 @@ public:
     {
         int index;
         const Vec4i vertices;
+        Real rest_volume;
 
-        RemovedElement(int index_, const Vec4i& vertices_)
-            : index(index_), vertices(vertices_)
+        RemovedElement(int index_, const Vec4i& vertices_, Real rest_volume_)
+            : index(index_), vertices(vertices_), rest_volume(rest_volume_)
         {}
     };
 

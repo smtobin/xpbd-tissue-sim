@@ -144,6 +144,7 @@ void Simulation::setup()
                 if (robot->hasArm2())   sdf2 = robot->arm2()->SDF();
                 const Geometry::Mesh* mesh = xpbd_obj->mesh();
                 std::unordered_set<int> elems_to_refine;
+                std::unordered_set<int> elems_to_coarsen;
                 for (const auto& i : mesh->faces().validIndices())
                 {
                     const Vec3i& f = mesh->face(i);
@@ -154,31 +155,49 @@ void Simulation::setup()
                     // check if centroid of face is close
                     if (sdf1)
                     {
+                        int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                         const Real centroid_dist = sdf1->evaluate((p1+p2+p3)/3);
                         if (centroid_dist < 2e-3)
                         {
-                            int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
+                        }
+                        else if (centroid_dist > 4e-3)
+                        {
+                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
+                                elems_to_coarsen.insert(element_with_face);
                         }
                     }
                     if (sdf2)
                     {
+                        int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
                         const Real centroid_dist = sdf2->evaluate((p1+p2+p3)/3);
                         if (centroid_dist < 2e-3)
                         {
-                            int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
+                            
                             if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                                 elems_to_refine.insert(element_with_face);
+                        }
+                        else if (centroid_dist > 4e-3)
+                        {
+                            if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
+                                elems_to_coarsen.insert(element_with_face);
                         }
                     }
                 }
 
                 auto t2 = std::chrono::high_resolution_clock::now();
 
+                std::cout << "\nRefining + Coarsening..." << std::endl;
                 for (const auto& elem : elems_to_refine)
                 {
+                    std::cout << "Refining element " << elem << "..." << std::endl;
                     xpbd_obj->refineElement(elem, 1, true);
+                }
+                for (const auto& elem : elems_to_coarsen)
+                {
+                    std::cout << "Coarsening element " << elem << "..." << std::endl;
+                    xpbd_obj->coarsenElement(elem, 1, false);
                 }
 
                 auto t3 = std::chrono::high_resolution_clock::now();

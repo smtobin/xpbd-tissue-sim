@@ -255,6 +255,27 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     typename SolverType::projector_reference_container_type _gatherProjectorsForLocalCollisionIterations();
 
+    /** Makes updates based on a list of added/removed vertices, added faces, and added/removed elements.
+     * Useful when doing adaptive mesh refinement/coarsening (i.e. calls to refineElement or coarsenElement)
+     *  
+     *  - Updates vertex information (masses, volumes, velocities, previous positions, etc.)
+     * 
+     *  - Adds/removes constraints appropriately:
+     *     - Adds elastic constraints for new elements
+     *     - Removes elastic constraints for removed elements
+     *     - Adds/removes MidpointConstraints for new/removed hanging vertices
+     * 
+     *  Most notably does NOT update the properties (i.e. the class) for vertices, faces, elements.
+     *  How the properties get updated depend on the specific topology change:
+     *    - e.g. for refinement, all new elements have the same class as the parent element
+     *    - e.g. for coarsening, the new element has the same class as one of its children 
+     */
+    void _updateAfterMeshTopologyChange(    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& removed_vertices,
+                                            const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
+                                            const std::vector<int>& added_faces,
+                                            const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
+                                            const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes);
+
     protected:
     /** The specific constraint configuration used to define internal constraints for the XPBD mesh. Set by the Config object
      * TODO: is this necessary? Should XPBDMeshObjectConstraintConfiguration be a struct that can create the elastic constraints for the mesh?
