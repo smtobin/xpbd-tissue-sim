@@ -90,13 +90,13 @@ private:
     // VecXr _RHS_vec;
 
     /** PETSc global system matrix. */
-    Mat _A;
+    Mat _A = nullptr;
     /** PETSc global RHS vector. */
-    Vec _b;
+    Vec _b = nullptr;
     /** PETSc global solution vector. */
-    Vec _x;
+    Vec _x = nullptr;
     /** PETSc linear solver context. */
-    KSP _ksp;
+    KSP _ksp = nullptr;
 
     /** Track the number of vertices and elements in the mesh.
      * When these change, we need to reallocate memory.

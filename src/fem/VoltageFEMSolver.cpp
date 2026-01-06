@@ -27,6 +27,7 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k)
 
 void VoltageFEMSolver::_allocateMemory()
 {
+    std::cout << "Mesh topology changed! Re-allocating memory!"  << std::endl;
     // allocate memory for voltage mesh property
     _mesh->getVertexProperty<Real>("voltage").resize(_mesh->numVertices());
 
@@ -50,6 +51,10 @@ void VoltageFEMSolver::_allocateMemory()
         const std::unordered_set<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
         nnz.push_back(adj_verts.size() + 1);
     }
+    // for (const auto [v, edge] : _mesh->hangingVertices())
+    // {
+    //     nnz[v] += 3;
+    // }
     // create PETSc global stiffness matrix
     MatCreateSeqAIJ(PETSC_COMM_WORLD, _mesh->numVertices(), _mesh->numVertices(), 0, nnz.data(), &_A);
 
@@ -95,6 +100,9 @@ void VoltageFEMSolver::step(Real /* dt */)
     {
         // if it has, reallocate the stiffness matrix, RHS vector, and solution vector
         _allocateMemory();
+
+        _prev_num_elements = _mesh->numElements();
+        _prev_num_vertices = _mesh->numVertices();
     }
 
     // assemble global system
@@ -169,6 +177,8 @@ void VoltageFEMSolver::_assembly()
     const std::unordered_map<int, Geometry::Edge>& hanging_vertices = _mesh->hangingVertices();
     for (const auto [v, edge] : hanging_vertices)
     {
+        MatZeroRows(_A, 1, &v, 1.0, nullptr, nullptr);
+
         // row v is now: V_v - 0.5*V_edge1 - 0.5*V_edge2 = 0
         int cols[] = {v, edge.index1, edge.index2};
         Real vals[] = {1.0, -0.5, -0.5};

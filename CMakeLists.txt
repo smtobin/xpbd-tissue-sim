@@ -205,6 +205,9 @@ target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)
 add_executable(MeshRefinementTest src/exec/test/mesh_refinement_test.cpp)
 target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
 
+add_executable(RefinedFEMTest src/exec/test/refined_fem_test.cpp)
+target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils ${PETSC_LIB})
+
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
 target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
 
