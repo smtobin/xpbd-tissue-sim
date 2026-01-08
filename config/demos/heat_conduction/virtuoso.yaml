@@ -107,7 +107,7 @@ objects:
     damping-multiplier: 2e5   # 'b' from the 1st-Order XPBD paper
     adjust-damping-to-material: true
 
-    compute-heat-conduction: false
+    compute-heat-conduction: true
     adaptive-mesh-refinement: true
 
 

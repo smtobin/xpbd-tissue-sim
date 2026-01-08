@@ -25,7 +25,7 @@ void VoltageFEMSolver::_allocateMemory()
 
     // allocate memory for the voltage std::vector
     _V.resize(total_num_vertices, 0);
-    _V_prev = _V;
+    _V_prev.resize(total_num_vertices, 0);
 
     // allocate memory for the essential boundary
     _on_essential_boundary.resize(total_num_vertices, false);

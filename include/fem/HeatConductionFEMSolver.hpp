@@ -53,6 +53,9 @@ public:
     void step(Real dt);
 
 private:
+    /** Allocates the appropriate amount of memory for the FEM system. */
+    void _allocateMemory();
+
     /** Computes the elemental stiffness matrix using a 1-point Gauss quadrature (the centroid of the tet) */
     Mat4r _elementStiffnessMatrix(int element_index) const;
 
@@ -88,13 +91,6 @@ private:
      */
     std::unordered_map<int, Real> _essential_boundary;
 
-    /** The voltage potential at each vertex (from Laplace solver) */
-    VecXr _V;
-    /** The global system matrix. */
-    MatXr _system_matrix;
-    /** The global RHS vector. */
-    VecXr _RHS_vec;
-
     /** Tempuratures */
     std::vector<Real> _T;
     std::vector<Real> _T_prev;
@@ -104,6 +100,9 @@ private:
 
     /** Lumped thermal masses - approximate this as constant throughout the sim. */
     std::vector<Real> _M;
+
+    /** Track the latest topology version of the mesh. Allows us to detect topology changes and reallocate accordingly. */
+    unsigned long _latest_topology_version;
 };
 
 } // namespace FEM
