@@ -313,6 +313,8 @@ public:
         return false;
     }
 
+    const PropertyContainer<MeshPropertyTypeList>& vertexProperties() const { return _vertex_properties; }
+
     /** Creates a face property with the specified name, and optional default value. */
     template <typename T>
     void addFaceProperty(const std::string &name, std::optional<T> default_value = std::nullopt)

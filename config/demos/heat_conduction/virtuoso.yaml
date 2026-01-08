@@ -4,11 +4,12 @@ name: "Heat Conduction"  # name of the simulation
 description: "Example simulation" # description of the simulation
 
 visualization: "VTK" # what graphics to use ('Easy3D' for Easy3D graphics or 'None' for no graphics)
-show-tip-cursor: true
+show-tip-cursor: false
 
 g-accel: 0 # downward acceleration due to gravity (in the z-direction) [m/s2]
 
 input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+haptic-force-scaling: 0
 
 ## different simulation "modes"
 # sim-mode: "Frame-by-frame"  # "Frame-by-frame" lets you advance the simulation one frame at a time by pressing any key
@@ -128,7 +129,7 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      # tool-type: "cautery"
+      tool-type: "cautery"
       tool-tube-length: 5e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2

@@ -18,10 +18,10 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k)
 
 void VoltageFEMSolver::_allocateMemory()
 {
-    // allocate memory for voltage mesh property
-    _mesh->getVertexProperty<Real>("voltage").resize(_mesh->numVertices());
-
     int total_num_vertices = _mesh->vertices().totalSize();
+
+    // allocate memory for voltage mesh property
+    _mesh->getVertexProperty<Real>("voltage").resize(total_num_vertices);
 
     // allocate memory for the voltage std::vector
     _V.resize(total_num_vertices, 0);
@@ -125,8 +125,9 @@ void VoltageFEMSolver::step(Real /* dt */)
     Real* data;
     VecGetArray(_x, &data);
     // copy memory
-    memcpy(_V.data(), data, sizeof(Real)*_mesh->numVertices());
-    memcpy(prop_data.data(), data, sizeof(Real)*_mesh->numVertices());
+    int total_num_vertices = _mesh->vertices().totalSize();
+    memcpy(_V.data(), data, sizeof(Real)*total_num_vertices);
+    memcpy(prop_data.data(), data, sizeof(Real)*total_num_vertices);
     VecRestoreArray(_x, &data);
 }
 

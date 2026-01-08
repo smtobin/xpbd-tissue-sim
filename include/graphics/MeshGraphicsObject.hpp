@@ -27,6 +27,35 @@ class MeshGraphicsObject : public GraphicsObject
     {
         Geometry::Mesh::vertices_vec_type vertices;
         Geometry::Mesh::faces_vec_type faces;
+        Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> vertex_properties;
+
+        template <typename T>
+        const Geometry::MeshProperty<T>& getVertexProperty(const std::string& name) const
+        {
+            static_assert(type_list_contains_v<T, Geometry::MeshPropertyTypeList> && "Mesh property type not supported!");
+
+            for (const auto& vprop : vertex_properties.template get<Geometry::MeshProperty<T>>())
+            {
+                if (name == vprop.name())
+                    return vprop;
+            }
+        
+            assert(0 && "Vertex property not found!");
+        }
+
+        template <typename T>
+        bool hasVertexProperty(const std::string& name) const
+        {
+            static_assert(type_list_contains_v<T, Geometry::MeshPropertyTypeList> && "Mesh property type not supported!");
+
+            for (auto& vprop : vertex_properties.template get<Geometry::MeshProperty<T>>())
+            {
+                if (name == vprop.name())
+                    return true;
+            }
+
+            return false;
+        }
     };
 
     /** Creates a MeshGraphicsObject with a given name and for a given MeshObject

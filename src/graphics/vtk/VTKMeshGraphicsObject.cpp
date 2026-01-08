@@ -188,7 +188,7 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 
     _setVertices(rmesh);
     
-    // _setColors();
+    _setColors(rmesh);
 
     if (topology_changed)
     {
@@ -219,9 +219,9 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     // }
 }
 
-void VTKMeshGraphicsObject::_setColors()
+void VTKMeshGraphicsObject::_setColors(const RenderInfo* rmesh)
 {
-    if (!_mesh->hasVertexProperty<Real>("voltage"))
+    if (!rmesh->hasVertexProperty<Real>("voltage"))
         return;
 
     // set colors for each section of the mesh
@@ -229,13 +229,14 @@ void VTKMeshGraphicsObject::_setColors()
     colors->SetNumberOfComponents(3);
     colors->SetName("Colors");
 
-    const Geometry::MeshProperty<Real>& temp_prop = _mesh->getVertexProperty<Real>("voltage");
-    for (const auto& vert_index : _mesh->vertices().validIndices())
+    const Geometry::MeshProperty<Real>& temp_prop = rmesh->getVertexProperty<Real>("voltage");
+    for (unsigned vert_index = 0; vert_index < _mesh->vertices().totalSize(); vert_index++)
     {
+        unsigned char color[3];
         Real temp = temp_prop.get(vert_index);
 
         // for now, 0 = blue and 100 = red
-        unsigned char color[3];
+        // std::cout << temp << std::endl;
         if (temp <= 0)
         {
             color[0] = 0u;
@@ -258,6 +259,7 @@ void VTKMeshGraphicsObject::_setColors()
 
         colors->InsertNextTypedTuple(color);
     }
+    // std::cout << "\n\n\n\n\n\n" << std::endl;
 
     _front_poly_data->GetPointData()->SetScalars(colors);
         

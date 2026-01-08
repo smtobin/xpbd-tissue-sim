@@ -28,7 +28,7 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     private:
     void _setVertices(const RenderInfo* rmesh);
     void _setFaces(const RenderInfo* rmesh);
-    void _setColors();
+    void _setColors(const RenderInfo* rmesh);
 
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
 
