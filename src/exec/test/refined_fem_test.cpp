@@ -32,7 +32,6 @@ int main()
     for (const auto& index : initially_refined_elements)
     {
         refined_mesh.refineElement(index, 2, true);
-        break;
     }
 
     auto t1 = std::chrono::high_resolution_clock::now();

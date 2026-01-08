@@ -51,10 +51,10 @@ void VoltageFEMSolver::_allocateMemory()
         const std::unordered_set<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
         nnz.push_back(adj_verts.size() + 1);
     }
-    // for (const auto [v, edge] : _mesh->hangingVertices())
-    // {
-    //     nnz[v] += 3;
-    // }
+    for (const auto [v, edge] : _mesh->hangingVertices())
+    {
+        nnz[v] += 2;
+    }
     // create PETSc global stiffness matrix
     MatCreateSeqAIJ(PETSC_COMM_WORLD, _mesh->numVertices(), _mesh->numVertices(), 0, nnz.data(), &_A);
 
@@ -138,6 +138,8 @@ void VoltageFEMSolver::_assembly()
     MatZeroEntries(_A);
     VecZeroEntries(_b);
 
+    const std::unordered_map<int, Geometry::Edge>& hanging_vertices = _mesh->hangingVertices();
+
     // assemble stiffness matrix
     for (const auto& element_index : _mesh->elements().validIndices())
     {
@@ -146,6 +148,18 @@ void VoltageFEMSolver::_assembly()
         const Vec4i& elem = _mesh->element(element_index);
         PetscErrorCode ierr = MatSetValues(_A, 4, elem.data(), 4, elem.data(), K_e.data(), ADD_VALUES);
         assert(ierr == 0); 
+    }
+
+    // MUST DO THIS!
+    // for each of the hanging vertices, we need to add some dummy value to the parent edge columns
+    // so that when we assemble, PETSc recognizes that these columns are part of the sparsity pattern
+    // this matters when the hanging vertex has parent vertices that aren't in the adjacency graph
+    // without this, we get re-allocation errors
+    for (const auto [v,edge] : hanging_vertices)
+    {
+        int cols[] = {edge.index1, edge.index2};
+        Real vals[] = {1.0, 1.0};   // some dummy value, doesn't matter
+        MatSetValues(_A, 1, &v, 2, cols, vals, ADD_VALUES);
     }
 
     MatAssemblyBegin(_A, MAT_FINAL_ASSEMBLY);
@@ -174,11 +188,23 @@ void VoltageFEMSolver::_assembly()
     assert(ierr == 0);
 
     // apply hanging node constraints
-    const std::unordered_map<int, Geometry::Edge>& hanging_vertices = _mesh->hangingVertices();
-    for (const auto [v, edge] : hanging_vertices)
+    // get hanging vertices as a vector (for MatZeroRows)
+    std::vector<int> hanging_vertices_vec;
+    hanging_vertices_vec.reserve(hanging_vertices.size());
+    for (const auto& [v, edge] : hanging_vertices)
     {
-        MatZeroRows(_A, 1, &v, 1.0, nullptr, nullptr);
+        hanging_vertices_vec.push_back(v);
+    }
 
+    // have to reassemble after the call to MatZeroRowsColumns
+    MatAssemblyBegin(_A, MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(_A, MAT_FINAL_ASSEMBLY);
+
+    MatSetOption(_A, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE);
+    MatZeroRows(_A, hanging_vertices_vec.size(), hanging_vertices_vec.data(), 1.0, nullptr, nullptr);
+
+    for (const auto [v,edge] : hanging_vertices)
+    {
         // row v is now: V_v - 0.5*V_edge1 - 0.5*V_edge2 = 0
         int cols[] = {v, edge.index1, edge.index2};
         Real vals[] = {1.0, -0.5, -0.5};
