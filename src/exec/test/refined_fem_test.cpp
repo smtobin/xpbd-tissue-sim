@@ -44,6 +44,64 @@ void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
     interactor->Start();
 }
 
+void voltageSolveAndGradientTest(FEM::VoltageFEMSolver& voltage_solver, const Geometry::RefinedTetMesh& refined_mesh)
+{
+    auto t1 = std::chrono::high_resolution_clock::now();
+    voltage_solver.step(1e-3);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    voltage_solver.step(1e-3);
+    auto t3 = std::chrono::high_resolution_clock::now();
+    const std::vector<Real>& voltage = voltage_solver.voltage();
+
+    // calculate the max voltage gradient in the mesh
+    Real max_gradient_mag = 0;
+    int max_gradient_elem = -1;
+    for (const auto& elem_index : refined_mesh.elements().validIndices())
+    {
+        Vec3r voltage_gradient = voltage_solver.elementVoltageGradient(elem_index);
+        Real voltage_gradient_mag = voltage_gradient.norm();
+        if (voltage_gradient_mag > max_gradient_mag)
+        {
+            max_gradient_mag = voltage_gradient_mag;
+            max_gradient_elem = elem_index;
+        }
+    }
+
+    const Vec4i& max_gradient_elem_vertices = refined_mesh.element(max_gradient_elem);
+    std::cout << "Max voltage gradient element vertices: " << max_gradient_elem_vertices.transpose() << std::endl;
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = i+1; j < 4; j++)
+        {
+            int v1 = max_gradient_elem_vertices[i];
+            int v2 = max_gradient_elem_vertices[j];
+            Real edge_dist = (refined_mesh.vertex(v1) - refined_mesh.vertex(v2)).norm();
+            std::cout << " Edge " << i << j << " distance: " << edge_dist*1000 << " mm" << std::endl;
+        }
+    }
+    
+    std::cout << "----------------------------------------------------------------------" << std::endl;
+    std::cout << "Max voltage gradient magnitude: " << max_gradient_mag << std::endl;
+
+    // calculate approximate time to 100 C
+    Real sigma = 0.5; // electrical conductivity [S/m]
+    Real density = 1000; // density [kg/m^3]
+    Real c = 4000; // specific heat [J/kg-K]
+    Real dT_dt = sigma * max_gradient_mag * max_gradient_mag / (density * c);
+    Real t_to_100 = 80 / dT_dt; // ~80 deg to get from room temp to 100 C
+    std::cout << "Approximate time to 100 C: " << t_to_100*1000 << " ms" << std::endl;
+    std::cout << "----------------------------------------------------------------------" << std::endl;
+
+
+    
+
+    double elapsed_ms1 = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+    double elapsed_ms2 = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
+    // std::cout << "Solution:\n" << Eigen::Map<const VecXr>(voltage.data(), voltage.size()).transpose() << std::endl;
+    std::cout << "1st Assembly and solve took " << elapsed_ms1 << " ms " << std::endl;
+    std::cout << "2nd Assembly and solve took " << elapsed_ms2 << " ms " << std::endl;
+}
+
 int main()
 {
     gmsh::initialize();
@@ -55,6 +113,8 @@ int main()
     mesh.resize(bbox.size()/1000);
     Geometry::RefinedTetMesh refined_mesh(mesh);
     refined_mesh.setCurrentStateAsUndeformedState();
+
+    std::cout << "Number of elements before refinement: " << refined_mesh.numElements() << std::endl;
 
     // get ground faces
     std::set<int> fixed_vertices;
@@ -86,83 +146,51 @@ int main()
     }
     assert(surface_vertex >= 0);
 
-    // get all attached elements to that vertex and refine them
-    auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
-    for (const auto& elem_index : attached_elements)
-    {
-        std::cout << "Refining element " << elem_index << "..." << std::endl;
-        refined_mesh.refineElement(elem_index, 2, true);
-    }
-
-    // std::vector<int> initially_refined_elements = {
-    //     453, 199, 49, 176, 774, 1257, 764, 1258, 1403, 355, 245, 494, 1323, 1400, 503, 750, 1266
-    // };
-    // for (const auto& index : initially_refined_elements)
-    // {
-    //     refined_mesh.refineElement(index, 3, true);
-    // }
-    // for(unsigned i = 0; i < refined_mesh.numElements(); i++)
-    // {
-    //     refined_mesh.refineElement(i, 0, true);
-    // }
-
     // set voltage at the surface vertex
     voltage_solver.setVoltageAtBoundary(surface_vertex, 100, false);
-    
-
-    auto t1 = std::chrono::high_resolution_clock::now();
-    voltage_solver.step(1e-3);
-    auto t2 = std::chrono::high_resolution_clock::now();
-    voltage_solver.step(1e-3);
-    auto t3 = std::chrono::high_resolution_clock::now();
-    const std::vector<Real>& voltage = voltage_solver.voltage();
-
-    // calculate the max voltage gradient in the mesh
-    Real max_gradient_mag = 0;
-    int max_gradient_elem = -1;
-    for (const auto& elem_index : refined_mesh.elements().validIndices())
-    {
-        Vec3r voltage_gradient = voltage_solver.elementVoltageGradient(elem_index);
-        Real voltage_gradient_mag = voltage_gradient.norm();
-        if (voltage_gradient_mag > max_gradient_mag)
-        {
-            max_gradient_mag = voltage_gradient_mag;
-            max_gradient_elem = elem_index;
-        }
-    }
 
     std::cout << "Center surface vertex: " << surface_vertex << std::endl;
-    const Vec4i& max_gradient_elem_vertices = refined_mesh.element(max_gradient_elem);
-    std::cout << "Max voltage gradient element vertices: " << max_gradient_elem_vertices.transpose() << std::endl;
-    for (int i = 0; i < 4; i++)
+
+    std::cout << "\n============================================" << std::endl;
+    std::cout << "Refinement" << std::endl;
+    std::cout << "============================================" << std::endl;
+
+    std::cout << "\n=== 0 Levels of Local Refinement ===" << std::endl;
+    voltageSolveAndGradientTest(voltage_solver, refined_mesh);
+
+    // get all attached elements to that vertex and refine them
+    int num_refinements = 4;
+    for (int i = 0; i < num_refinements; i++)
     {
-        for (int j = i+1; j < 4; j++)
+        auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
+        for (const auto& elem_index : attached_elements)
         {
-            int v1 = max_gradient_elem_vertices[i];
-            int v2 = max_gradient_elem_vertices[j];
-            Real edge_dist = (refined_mesh.vertex(v1) - refined_mesh.vertex(v2)).norm();
-            std::cout << " Edge " << i << j << " distance: " << edge_dist*1000 << " mm" << std::endl;
+            refined_mesh.refineElement(elem_index, 1, false);
         }
+        std::cout << "\n=== " << i+1 << " Levels of Local Refinement ===" << std::endl;
+        std::cout << "Number of elements after refinement: " << refined_mesh.numElements() << std::endl;
+        voltageSolveAndGradientTest(voltage_solver, refined_mesh);
+    }
+
+    // now coarsen and check that we get the same thing
+
+    std::cout << "\n\n============================================" << std::endl;
+    std::cout << "Coarsening" << std::endl;
+    std::cout << "============================================" << std::endl;
+
+    auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);
+    for (int i = 0; i < num_refinements; i++)
+    {
+        auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
+        for (const auto& elem_index : attached_elements)
+        {
+            refined_mesh.coarsenElement(elem_index, 1, false);
+        }
+        std::cout << "\n=== " << num_refinements - (i+1) << " Levels of Local Refinement ===" << std::endl;
+        std::cout << "Number of elements after coarsening: " << refined_mesh.numElements() << std::endl;
+        voltageSolveAndGradientTest(voltage_solver, refined_mesh);
     }
     
-    std::cout << "Max voltage gradient magnitude: " << max_gradient_mag << std::endl;
-
-    // calculate approximate time to 100 C
-    Real sigma = 0.5; // electrical conductivity [S/m]
-    Real density = 1000; // density [kg/m^3]
-    Real c = 4000; // specific heat [J/kg-K]
-    Real dT_dt = sigma * max_gradient_mag * max_gradient_mag / (density * c);
-    Real t_to_100 = 80 / dT_dt; // ~80 deg to get from room temp to 100 C
-    std::cout << "Approximate time to 100 C: " << t_to_100*1000 << " ms" << std::endl;
-
-
-    
-
-    double elapsed_ms1 = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-    double elapsed_ms2 = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
-    // std::cout << "Solution:\n" << Eigen::Map<const VecXr>(voltage.data(), voltage.size()).transpose() << std::endl;
-    std::cout << "1st Assembly and solve took " << elapsed_ms1 << " ms " << std::endl;
-    std::cout << "2nd Assembly and solve took " << elapsed_ms2 << " ms " << std::endl;
 
     visualizeMesh(refined_mesh);
     

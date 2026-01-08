@@ -13,57 +13,66 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k)
 
     _allocateMemory();
 
-    _prev_num_vertices = _mesh->numVertices();
-    _prev_num_elements = _mesh->numElements();
+    _latest_topology_version = _mesh->topologyVersion();
+}
+
+void VoltageFEMSolver::_allocateMemory()
+{
+    // allocate memory for voltage mesh property
+    _mesh->getVertexProperty<Real>("voltage").resize(_mesh->numVertices());
+
+    int total_num_vertices = _mesh->vertices().totalSize();
+
+    // allocate memory for the voltage std::vector
+    _V.resize(total_num_vertices, 0);
+    _V_prev = _V;
+
+    // allocate memory for the essential boundary
+    _on_essential_boundary.resize(total_num_vertices, false);
+
+    // if A, b, x already exist, delete them
+    if (_A) MatDestroy(&_A);
+    if (_b) VecDestroy(&_b);
+    if (_x) VecDestroy(&_x);
+    if (_ksp) KSPDestroy(&_ksp);
+
+    // allocate memory per row based on mesh connectivity
+    std::vector<int> nnz(total_num_vertices);
+    for (int vertex_index = 0; vertex_index < total_num_vertices; vertex_index++)
+    {
+        if (_mesh->vertexValid(vertex_index))
+        {
+            // if the vertex is valid, allocate space in its row for all its adjacent vertices and itself
+            const std::unordered_set<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
+            nnz[vertex_index] = adj_verts.size() + 1;
+        }
+        else
+        {
+            // if the vertex is not valid, only allocate space for the diagonal
+            nnz[vertex_index] = 1;
+        }
+    }
+    // allocate an extra 2 spots for the hanging vertices
+    for (const auto [v, edge] : _mesh->hangingVertices())
+    {
+        nnz[v] += 2;
+    }
+
+    // create PETSc global stiffness matrix
+    MatCreateSeqAIJ(PETSC_COMM_WORLD, total_num_vertices, total_num_vertices, 0, nnz.data(), &_A);
+
+    // create PETSc global RHS vector
+    VecCreate(PETSC_COMM_WORLD, &_b);
+    VecSetSizes(_b, total_num_vertices, total_num_vertices);
+    VecSetFromOptions(_b);
+
+    VecDuplicate(_b, &_x);
 
     // create PETSc linear system solver
     KSPCreate(PETSC_COMM_WORLD, &_ksp);
     KSPSetInitialGuessNonzero(_ksp, true);  // we have Dirichlet boundary conditions, so we know part of the solution already!
     KSPSetOperators(_ksp, _A, _A);
     KSPSetFromOptions(_ksp);
-
-    
-}
-
-void VoltageFEMSolver::_allocateMemory()
-{
-    std::cout << "Mesh topology changed! Re-allocating memory!"  << std::endl;
-    // allocate memory for voltage mesh property
-    _mesh->getVertexProperty<Real>("voltage").resize(_mesh->numVertices());
-
-    // allocate memory for the voltage std::vector
-    _V.resize(_mesh->numVertices(), 0);
-    _V_prev = _V;
-
-    // allocate memory for the essential boundary
-    _on_essential_boundary.resize(_mesh->numVertices(), false);
-
-    // if A, b, x already exist, delete them
-    if (_A) MatDestroy(&_A);
-    if (_b) VecDestroy(&_b);
-    if (_x) VecDestroy(&_x);
-
-    // allocate memory per row based on mesh connectivity
-    std::vector<int> nnz;
-    nnz.reserve(_mesh->numVertices());
-    for (const auto& vertex_index : _mesh->vertices().validIndices())
-    {
-        const std::unordered_set<int>& adj_verts = _mesh->vertexAdjacentVertices(vertex_index);
-        nnz.push_back(adj_verts.size() + 1);
-    }
-    for (const auto [v, edge] : _mesh->hangingVertices())
-    {
-        nnz[v] += 2;
-    }
-    // create PETSc global stiffness matrix
-    MatCreateSeqAIJ(PETSC_COMM_WORLD, _mesh->numVertices(), _mesh->numVertices(), 0, nnz.data(), &_A);
-
-    // create PETSc global RHS vector
-    VecCreate(PETSC_COMM_WORLD, &_b);
-    VecSetSizes(_b, _mesh->numVertices(), _mesh->numVertices());
-    VecSetFromOptions(_b);
-
-    VecDuplicate(_b, &_x);
 
     if (_ksp)
     {
@@ -96,13 +105,12 @@ void VoltageFEMSolver::clearVoltageBoundary()
 void VoltageFEMSolver::step(Real /* dt */)
 {
     // check if the number of elements or vertices has changed since we last solved
-    if (_mesh->numVertices() != _prev_num_vertices || _mesh->numElements() != _prev_num_elements)
+    if (_mesh->topologyVersion() != _latest_topology_version)
     {
         // if it has, reallocate the stiffness matrix, RHS vector, and solution vector
         _allocateMemory();
 
-        _prev_num_elements = _mesh->numElements();
-        _prev_num_vertices = _mesh->numVertices();
+        _latest_topology_version = _mesh->topologyVersion();
     }
 
     // assemble global system
@@ -148,6 +156,18 @@ void VoltageFEMSolver::_assembly()
         const Vec4i& elem = _mesh->element(element_index);
         PetscErrorCode ierr = MatSetValues(_A, 4, elem.data(), 4, elem.data(), K_e.data(), ADD_VALUES);
         assert(ierr == 0); 
+    }
+
+    // for each of the invalid vertices, just put a 1 on the diagonal
+    // the RHS for this row will be 0 (not that it matters, the result won't be used anyway, just for spacing)
+    for (unsigned i = 0; i < _mesh->vertices().totalSize(); i++)
+    {
+        if (!_mesh->vertexValid(i))
+        {
+            int index = static_cast<int>(i);
+            Real val = 1.0; 
+            MatSetValues(_A, 1, &index, 1, &index, &val, ADD_VALUES);
+        }
     }
 
     // MUST DO THIS!

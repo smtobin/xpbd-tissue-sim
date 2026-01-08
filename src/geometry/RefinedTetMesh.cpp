@@ -963,6 +963,9 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
     /** === Step 3: Remove the element from the mesh === */
 
+    // increment the topology version
+    _topology_version++;
+
     // remove surface faces associated with the element
     for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
     {
@@ -1237,6 +1240,9 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         root_index = parent_index;
         cur_level--;
     }
+
+    // increment the topology version
+    _topology_version++;
 
     // add the element associated with root_node to the mesh
     // do this before we remove child elements so that the vertices associated with the root element don't get deleted

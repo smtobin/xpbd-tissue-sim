@@ -100,13 +100,8 @@ private:
     /** PETSc linear solver context. */
     KSP _ksp = nullptr;
 
-    /** Track the number of vertices and elements in the mesh.
-     * When these change, we need to reallocate memory.
-     * 
-     * TODO: Is this a reliable way to detect if we need to reallocate memory?
-     */
-    int _prev_num_vertices;
-    int _prev_num_elements;
+    /** Track the latest topology version of the mesh. Allows us to detect topology changes and reallocate accordingly. */
+    unsigned long _latest_topology_version;
 };
 
 } // namespace FEM

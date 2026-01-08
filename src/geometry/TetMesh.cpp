@@ -414,6 +414,9 @@ void TetMesh::removeElementWithFace(int face_index)
 
 void TetMesh::removeElement(int elem_index)
 {
+    // increment topology version since the topology is changing
+    _topology_version++;
+    
     // get adjacent elements
     const std::vector<int>& adjacent_elements = faceAdjacentElements(elem_index);
 
