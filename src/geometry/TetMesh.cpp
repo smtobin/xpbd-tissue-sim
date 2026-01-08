@@ -90,6 +90,7 @@ void TetMesh::setCurrentStateAsUndeformedState()
     Mesh::setCurrentStateAsUndeformedState();
 
     // update maps for vertices -> elements, edges -> elements, faces -> elements
+    _vertex_to_elements_map.clear();
     _vertex_to_elements_map.resize(_vertices.totalSize());
     _edge_to_elements_map.clear();
     _face_to_elements_map.clear();

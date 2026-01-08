@@ -219,4 +219,14 @@ void VoltageFEMSolver::_assembly()
     VecAssemblyEnd(_b);
 }
 
+Vec3r VoltageFEMSolver::elementVoltageGradient(int elem_index) const
+{
+    const Vec4i& elem = _mesh->element(elem_index);
+    const typename FEMTetMesh::ElementShapeFunctionGradientsMat delN = _fem_mesh.elementShapeFunctionGradients(elem_index);
+    Vec4r V_e(_V[elem[0]], _V[elem[1]], _V[elem[2]], _V[elem[3]]);
+    Vec3r delV = delN * V_e;
+
+    return delV;
+}
+
 } // namespace FEM

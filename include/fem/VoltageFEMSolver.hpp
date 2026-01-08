@@ -49,6 +49,8 @@ public:
 
     const std::vector<Real>& voltage() const { return _V; }
 
+    Vec3r elementVoltageGradient(int elem_index) const;
+
 private:
     /** Allocates the appropriate amount of memory for the FEM system. */
     void _allocateMemory();

@@ -206,13 +206,13 @@ add_executable(MeshRefinementTest src/exec/test/mesh_refinement_test.cpp)
 target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
 
 add_executable(RefinedFEMTest src/exec/test/refined_fem_test.cpp)
-target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils ${PETSC_LIB})
+target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils Graphics ${PETSC_LIB} ${VTK_LIBRARIES})
 
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
 target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
 
 vtk_module_autoinit(
-  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest MeshRefinementTest
+  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest MeshRefinementTest RefinedFEMTest
   MODULES ${VTK_LIBRARIES}
 )
 
