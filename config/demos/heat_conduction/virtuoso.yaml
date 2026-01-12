@@ -108,7 +108,7 @@ objects:
     damping-multiplier: 2e5   # 'b' from the 1st-Order XPBD paper
     adjust-damping-to-material: true
 
-    compute-heat-conduction: true
+    compute-heat-conduction: false
     adaptive-mesh-refinement: true
 
 
@@ -138,4 +138,4 @@ objects:
       outer-tube-rotation: 1030
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 7.0e-3
+      inner-tube-translation: 4.0e-3

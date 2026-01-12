@@ -31,6 +31,18 @@ class VirtuosoArmConfig : public ObjectConfig
         };
         return tool_type_options;
     }
+    /** Static predefined options for the cutting model. Maps strings to the CuttingModel enum. */
+    static std::map<std::string, Sim::VirtuosoArm::CuttingModel> CUTTING_MODEL_OPTIONS()
+    {
+        static std::map<std::string, Sim::VirtuosoArm::CuttingModel> cutting_model_options{
+            {"none", Sim::VirtuosoArm::CuttingModel::NONE},
+            {"instant", Sim::VirtuosoArm::CuttingModel::INSTANT},
+            {"timer", Sim::VirtuosoArm::CuttingModel::TIMER},
+            {"thermal", Sim::VirtuosoArm::CuttingModel::THERMAL}
+        };  
+
+        return cutting_model_options;
+    }
 
     explicit VirtuosoArmConfig()
         : ObjectConfig()
@@ -52,6 +64,7 @@ class VirtuosoArmConfig : public ObjectConfig
         _extractParameter("outer-tube-distal-straight-length", node, _ot_distal_straight_length);
 
         _extractParameterWithOptions("tool-type", node, _tool_type, TOOL_TYPE_OPTIONS());
+        _extractParameterWithOptions("cutting-model", node, _cutting_model, CUTTING_MODEL_OPTIONS());
         _extractParameter("tool-tube-length", node, _tool_tube_length);
 
         _extractParameter("base-position", node, _base_initial_position);
@@ -62,7 +75,7 @@ class VirtuosoArmConfig : public ObjectConfig
         const Vec3r& initial_pos, const Vec3r& initial_rot, const Vec3r& initial_velocity, bool collisions, bool graphics_only,
         Real ot_outer_dia, Real ot_inner_dia, Real ot_r_curve, Real ot_d_s_length, Real it_outer_dia, Real it_inner_dia,
         Real ot_rot, Real ot_trans, Real it_rot, Real it_trans,
-        Sim::VirtuosoArm::ToolType tool_type, Real tool_tube_length,
+        Sim::VirtuosoArm::ToolType tool_type, Sim::VirtuosoArm::CuttingModel cutting_model, Real tool_tube_length,
         const ObjectRenderConfig& render_config
     )
         : ObjectConfig(name, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config)
@@ -80,6 +93,7 @@ class VirtuosoArmConfig : public ObjectConfig
         _it_initial_translation.value = it_trans;
 
         _tool_type.value = tool_type;
+        _cutting_model.value = cutting_model;
         _tool_tube_length.value = tool_tube_length; 
 
         _base_initial_position.value = initial_pos;
@@ -101,6 +115,7 @@ class VirtuosoArmConfig : public ObjectConfig
     Real outerTubeDistalStraightLength() const { return _ot_distal_straight_length.value; }
 
     Sim::VirtuosoArm::ToolType toolType() const { return _tool_type.value; }
+    Sim::VirtuosoArm::CuttingModel cuttingModel() const { return _cutting_model.value; }
     Real toolTubeLength() const { return _tool_tube_length.value; }
 
     Vec3r baseInitialPosition() const { return _base_initial_position.value; }
@@ -120,6 +135,7 @@ class VirtuosoArmConfig : public ObjectConfig
     ConfigParameter<Real> _ot_initial_rotation = ConfigParameter<Real>(0);
 
     ConfigParameter<Sim::VirtuosoArm::ToolType> _tool_type = ConfigParameter<Sim::VirtuosoArm::ToolType>(Sim::VirtuosoArm::ToolType::NONE);
+    ConfigParameter<Sim::VirtuosoArm::CuttingModel> _cutting_model = ConfigParameter<Sim::VirtuosoArm::CuttingModel>(Sim::VirtuosoArm::CuttingModel::INSTANT);
     ConfigParameter<Real> _tool_tube_length = ConfigParameter<Real>(5e-3);
 
     ConfigParameter<Vec3r> _base_initial_position = ConfigParameter<Vec3r>(Vec3r(0,0,0));

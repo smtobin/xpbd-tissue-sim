@@ -129,6 +129,20 @@ void VoltageFEMSolver::step(Real /* dt */)
     memcpy(_V.data(), data, sizeof(Real)*total_num_vertices);
     memcpy(prop_data.data(), data, sizeof(Real)*total_num_vertices);
     VecRestoreArray(_x, &data);
+
+    // TEMPORARY TEST
+    // calculate the max voltage gradient in the mesh
+    Real max_gradient_mag = 0;
+    for (const auto& elem_index : _mesh->elements().validIndices())
+    {
+        Vec3r voltage_gradient = elementVoltageGradient(elem_index);
+        Real voltage_gradient_mag = voltage_gradient.norm();
+        if (voltage_gradient_mag > max_gradient_mag)
+        {
+            max_gradient_mag = voltage_gradient_mag;
+        }
+    }
+    std::cout << "Max gradient magnitude: " << max_gradient_mag << std::endl;
 }
 
 VoltageFEMSolver::ElementStiffnessMatrixType VoltageFEMSolver::_elementStiffnessMatrix(int element_index) const

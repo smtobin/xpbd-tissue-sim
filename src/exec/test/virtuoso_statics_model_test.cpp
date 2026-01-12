@@ -24,7 +24,7 @@ int main()
         Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
         1.56e-3, 1.14e-3, 1.5383e-2, 5e-3, 1.04e-3, 0.82e-3,
         0, 7e-3, 0, 10e-3,
-        Sim::VirtuosoArm::ToolType::PALPATION, 15e-3, Config::ObjectRenderConfig());
+        Sim::VirtuosoArm::ToolType::PALPATION, Sim::VirtuosoArm::CuttingModel::NONE, 15e-3, Config::ObjectRenderConfig());
 
     std::unique_ptr<Sim::VirtuosoArm> arm = config.createObject(nullptr);
     arm->setup();

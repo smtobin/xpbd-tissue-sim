@@ -145,6 +145,8 @@ void Simulation::setup()
                 const Geometry::Mesh* mesh = xpbd_obj->mesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
+                // std::unordered_set<int> verts_to_refine;
+                // std::unordered_set<int> verts_to_coarsen;
                 for (const auto& i : mesh->faces().validIndices())
                 {
                     const Vec3i& f = mesh->face(i);
@@ -165,16 +167,30 @@ void Simulation::setup()
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);
                     if (min_dist < 2e-3)
                     {
+                        /** TODO: account for sdf2 as well */
+                        // Real dist1 = sdf1->evaluate(p1);
+                        // Real dist2 = sdf1->evaluate(p2);
+                        // Real dist3 = sdf1->evaluate(p3);
+                        // if (dist1 <= dist2 && dist1 <= dist3)
+                        //     verts_to_refine.insert(f[0]);
+                        // else if (dist2 <= dist1 && dist2 <= dist3)
+                        //     verts_to_refine.insert(f[1]);
+                        // else
+                        //     verts_to_refine.insert(f[2]);
+
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
                             elems_to_refine.insert(element_with_face);
                     }
-                    else if (min_dist > 4e-3)
+                    else if (min_dist > 5e-3)
                     {
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                         {
-                            std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
+                            // std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
                             elems_to_coarsen.insert(element_with_face);
                         }
+                        // verts_to_coarsen.insert(f[0]);
+                        // verts_to_coarsen.insert(f[1]);
+                        // verts_to_coarsen.insert(f[2]);
                     }
                 }
 
@@ -191,6 +207,23 @@ void Simulation::setup()
                     std::cout << "Coarsening element " << elem << "..." << std::endl;
                     xpbd_obj->coarsenElement(elem, 2, false);
                 }
+
+                // for (const auto& vert : verts_to_refine)
+                // {
+                //     auto attached_elems = xpbd_obj->tetMesh()->vertexAttachedElements(vert);
+                //     for (const auto& elem : attached_elems)
+                //     {
+                //         xpbd_obj->refineElement(elem, 2, true);
+                //     }
+                // }
+                // for (const auto& vert : verts_to_coarsen)
+                // {
+                //     auto attached_elems = xpbd_obj->tetMesh()->vertexAttachedElements(vert);
+                //     for (const auto& elem : attached_elems)
+                //     {
+                //         xpbd_obj->coarsenElement(elem, 2, false);
+                //     }
+                // }
 
                 auto t3 = std::chrono::high_resolution_clock::now();
                 double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;

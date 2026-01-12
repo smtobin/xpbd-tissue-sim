@@ -24,6 +24,8 @@ void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
         false
     );
     Graphics::VTKMeshGraphicsObject mesh_graphics_obj("mesh1", &refined_mesh, render_config);
+    mesh_graphics_obj.update();
+    mesh_graphics_obj.updateGraphicsBuffers();
 
     vtkNew<vtkOpenGLRenderer> renderer;
     renderer->SetBackground(0.0, 1.0, 1.0);
@@ -156,10 +158,11 @@ int main()
     std::cout << "============================================" << std::endl;
 
     std::cout << "\n=== 0 Levels of Local Refinement ===" << std::endl;
+    std::cout << "Number of elements: " << refined_mesh.numElements() << std::endl;
     voltageSolveAndGradientTest(voltage_solver, refined_mesh);
 
     // get all attached elements to that vertex and refine them
-    int num_refinements = 4;
+    int num_refinements = 12;
     for (int i = 0; i < num_refinements; i++)
     {
         auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
@@ -171,25 +174,30 @@ int main()
         std::cout << "Number of elements after refinement: " << refined_mesh.numElements() << std::endl;
         voltageSolveAndGradientTest(voltage_solver, refined_mesh);
     }
+    // for (unsigned i = 0; i < refined_mesh.numElements(); i++)
+    // {
+    //     refined_mesh.refineElement(i, 3, true);
+    // }
+    // std::cout << "Number of elements: " << refined_mesh.numElements() << std::endl;
 
     // now coarsen and check that we get the same thing
 
-    std::cout << "\n\n============================================" << std::endl;
-    std::cout << "Coarsening" << std::endl;
-    std::cout << "============================================" << std::endl;
+    // std::cout << "\n\n============================================" << std::endl;
+    // std::cout << "Coarsening" << std::endl;
+    // std::cout << "============================================" << std::endl;
 
-    auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);
-    for (int i = 0; i < num_refinements; i++)
-    {
-        auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
-        for (const auto& elem_index : attached_elements)
-        {
-            refined_mesh.coarsenElement(elem_index, 1, false);
-        }
-        std::cout << "\n=== " << num_refinements - (i+1) << " Levels of Local Refinement ===" << std::endl;
-        std::cout << "Number of elements after coarsening: " << refined_mesh.numElements() << std::endl;
-        voltageSolveAndGradientTest(voltage_solver, refined_mesh);
-    }
+    // auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);
+    // for (int i = 0; i < num_refinements; i++)
+    // {
+    //     auto attached_elements = refined_mesh.vertexAttachedElements(surface_vertex);   // make a copy
+    //     for (const auto& elem_index : attached_elements)
+    //     {
+    //         refined_mesh.coarsenElement(elem_index, 1, false);
+    //     }
+    //     std::cout << "\n=== " << num_refinements - (i+1) << " Levels of Local Refinement ===" << std::endl;
+    //     std::cout << "Number of elements after coarsening: " << refined_mesh.numElements() << std::endl;
+    //     voltageSolveAndGradientTest(voltage_solver, refined_mesh);
+    // }
     
 
     visualizeMesh(refined_mesh);

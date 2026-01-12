@@ -221,7 +221,7 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 
 void VTKMeshGraphicsObject::_setColors(const RenderInfo* rmesh)
 {
-    if (!rmesh->hasVertexProperty<Real>("voltage"))
+    if (!rmesh->hasVertexProperty<Real>("temperature"))
         return;
 
     // set colors for each section of the mesh
@@ -229,7 +229,7 @@ void VTKMeshGraphicsObject::_setColors(const RenderInfo* rmesh)
     colors->SetNumberOfComponents(3);
     colors->SetName("Colors");
 
-    const Geometry::MeshProperty<Real>& temp_prop = rmesh->getVertexProperty<Real>("voltage");
+    const Geometry::MeshProperty<Real>& temp_prop = rmesh->getVertexProperty<Real>("temperature");
     for (unsigned vert_index = 0; vert_index < _mesh->vertices().totalSize(); vert_index++)
     {
         unsigned char color[3];
