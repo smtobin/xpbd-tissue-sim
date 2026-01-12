@@ -103,6 +103,16 @@ int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
     _initial_vertices.resize(_vertices.totalSize());
     _initial_vertices[new_index] = initial_new_vert;
 
+    // resize vertex properties, and interpolate the field variables (e.g. voltage and temperature)
+    _vertex_properties.for_each_element([&](auto& vprop) {
+        vprop.resize(_vertices.totalSize());
+        if (vprop.isField())
+        {
+            auto p1 = vprop.get(parent1_index);
+            auto p2 = vprop.get(parent2_index);
+            vprop.set(new_index, (p1+p2)/2);
+        }
+    });
 
     // update vertex adjacency lists
     _vertex_adjacent_vertices.resize(_vertices.totalSize());
@@ -360,9 +370,9 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surfac
     // add the new element to the elements vector
     int new_elem_index = _elements.push_back(new_element);
 
-    // resize all element properties
-    _element_properties.for_each_element([&](auto& prop) {
-        prop.resize(_elements.totalSize());
+    // resize all element properties, interpolating if the property is a field
+    _element_properties.for_each_element([&](auto& eprop) {
+        eprop.resize(_elements.totalSize());
     });
 
     // compute rest volume using initial vertices
@@ -1146,14 +1156,27 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
                 // we are at the lowest level
                 // so add the new elements to the global elements list
                 // we also update the element -> tree node map
-                _addNewElementFromElementTreeNode(enode1);
-                _addNewElementFromElementTreeNode(enode2);
-                _addNewElementFromElementTreeNode(enode3);
-                _addNewElementFromElementTreeNode(enode4);
-                _addNewElementFromElementTreeNode(enode5);
-                _addNewElementFromElementTreeNode(enode6);
-                _addNewElementFromElementTreeNode(enode7);
-                _addNewElementFromElementTreeNode(enode8);
+                int e1 = _addNewElementFromElementTreeNode(enode1);
+                int e2 = _addNewElementFromElementTreeNode(enode2);
+                int e3 = _addNewElementFromElementTreeNode(enode3);
+                int e4 = _addNewElementFromElementTreeNode(enode4);
+                int e5 = _addNewElementFromElementTreeNode(enode5);
+                int e6 = _addNewElementFromElementTreeNode(enode6);
+                int e7 = _addNewElementFromElementTreeNode(enode7);
+                int e8 = _addNewElementFromElementTreeNode(enode8);
+
+                // set element properties
+                _element_properties.for_each_element([&](auto& eprop) {
+                    auto parent_prop = eprop.get(element_index);    // still valid, since we haven't actually removed the parent element yet
+                    eprop.set(e1, parent_prop);
+                    eprop.set(e2, parent_prop);
+                    eprop.set(e3, parent_prop);
+                    eprop.set(e4, parent_prop);
+                    eprop.set(e5, parent_prop);
+                    eprop.set(e6, parent_prop);
+                    eprop.set(e7, parent_prop);
+                    eprop.set(e8, parent_prop);
+                });
             }
             else
             {
@@ -1249,6 +1272,11 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     ElementTreeNode& root_node = _element_tree_nodes[root_index];
     int new_node_index = _addNewElementFromElementTreeNode(root_index);
 
+    // the number of descendant children that are leaves
+    // we will increment this for every element in the mesh that we remove
+    // used to calculate element properties
+    int num_leaf_children = 0;
+
     // Stack holds pairs of (node index, processing_stage)
     // Stage 0: Push children
     // Stage 1: Delete node
@@ -1296,6 +1324,18 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                 _updateElementMapsForRemovedElement(node.element_index);
                 _elements.erase(node.element_index);
                 _element_to_tree_node_map.erase(node.element_index);
+
+                // add this leaf's element properties to the new element's properties for field properties (we will divide by the number of leaves later)
+                _element_properties.for_each_element([&](auto& eprop) {
+                    if (eprop.isField())
+                    {
+                        auto cur = eprop.get(new_node_index);
+                        auto leaf = eprop.get(node.element_index);
+                        eprop.set(new_node_index, cur+leaf);
+                    }
+                });
+
+                num_leaf_children++;
             }
             else
             {
@@ -1345,6 +1385,15 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
         }
         edge_node.in_mesh = true;
     }
+
+    // for field-type element properties, divide by the number of leaf elements (we are averaging the leaf elements)
+    _element_properties.for_each_element([&](auto& eprop) {
+        if (eprop.isField())
+        {
+            auto cur = eprop.get(new_node_index);
+            eprop.set(new_node_index, cur/num_leaf_children);
+        }
+    });
 
     return true;
 }

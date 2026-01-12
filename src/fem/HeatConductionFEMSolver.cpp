@@ -10,7 +10,7 @@ HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::RefinedTetMesh* mesh,
      _material(material), _h(h), _T_a(T_a)
 {
     // create temperature property for the mesh
-    _mesh->addVertexProperty<Real>("temperature", 0);
+    _mesh->addVertexProperty<Real>("temperature", _T_a, true);
 
     _allocateMemory();
 
@@ -23,10 +23,18 @@ void HeatConductionFEMSolver::_allocateMemory()
     // get the total number of vertices, to account for gaps in the TombstonVector
     int total_num_vertices = _mesh->vertices().totalSize();
 
-    _mesh->getVertexProperty<Real>("temperature").resize(total_num_vertices);
-
     _T.resize(total_num_vertices, _T_a);
     _T_prev.resize(total_num_vertices, _T_a);
+
+    // the RefinedTetMesh has resized the vertex properties, so we don't need to worry about that here
+    // it has also interpolated the temperature, so we should copy the info from the property into _T and _T_
+    Geometry::MeshProperty<Real>& temperature_prop = _mesh->getVertexProperty<Real>("temperature");
+    for (int i = 0; i < total_num_vertices; i++)
+    {
+        _T[i] = temperature_prop.get(i);
+        _T_prev[i] = temperature_prop.get(i);
+    }
+    
 
     // compute thermal masses for each vertex
     /** TODO: track rest volume for each vertex in TetMesh?? */
@@ -89,7 +97,7 @@ void HeatConductionFEMSolver::step(Real dt)
     _voltage_solver.step(dt);
     auto t2 = std::chrono::high_resolution_clock::now();
     double elapsed_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-    std::cout << "Voltage solve took " << elapsed_ms << " ms" << std::endl;
+    // std::cout << "Voltage solve took " << elapsed_ms << " ms" << std::endl;
 
     if (_mesh->topologyVersion() != _latest_topology_version)
     {

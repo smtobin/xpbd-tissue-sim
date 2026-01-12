@@ -7,7 +7,7 @@ VoltageFEMSolver::VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k)
     : _mesh(mesh), _fem_mesh(mesh), _k(k)
 {
     // create voltage property for the mesh
-    _mesh->addVertexProperty<Real>("voltage", 0);
+    _mesh->addVertexProperty<Real>("voltage", 0, false);
 
     PetscInitialize(NULL, NULL, NULL, NULL);
 
@@ -20,12 +20,17 @@ void VoltageFEMSolver::_allocateMemory()
 {
     int total_num_vertices = _mesh->vertices().totalSize();
 
-    // allocate memory for voltage mesh property
-    _mesh->getVertexProperty<Real>("voltage").resize(total_num_vertices);
-
-    // allocate memory for the voltage std::vector
     _V.resize(total_num_vertices, 0);
     _V_prev.resize(total_num_vertices, 0);
+
+    // the RefinedTetMesh has resized the vertex properties, so we don't need to worry about that here
+    // it has also interpolated the temperature, so we should copy the info from the property into _T and _T_
+    Geometry::MeshProperty<Real>& voltage_prop = _mesh->getVertexProperty<Real>("voltage");
+    for (int i = 0; i < total_num_vertices; i++)
+    {
+        _V[i] = voltage_prop.get(i);
+        _V_prev[i] = voltage_prop.get(i);
+    }
 
     // allocate memory for the essential boundary
     _on_essential_boundary.resize(total_num_vertices, false);
@@ -142,7 +147,7 @@ void VoltageFEMSolver::step(Real /* dt */)
             max_gradient_mag = voltage_gradient_mag;
         }
     }
-    std::cout << "Max gradient magnitude: " << max_gradient_mag << std::endl;
+    // std::cout << "Max gradient magnitude: " << max_gradient_mag << std::endl;
 }
 
 VoltageFEMSolver::ElementStiffnessMatrixType VoltageFEMSolver::_elementStiffnessMatrix(int element_index) const

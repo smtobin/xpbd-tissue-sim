@@ -392,7 +392,7 @@ void VirtuosoArm::_cauteryToolAction()
             Geometry::TetMesh* obj_mesh = _tool_manipulated_object.tetMesh();
             if (!obj_mesh->template hasElementProperty<Real>("time-in-contact"))
             {
-                obj_mesh->template addElementProperty<Real>("time-in-contact", 0);
+                obj_mesh->template addElementProperty<Real>("time-in-contact", 0, true);
             }
 
             Geometry::MeshProperty<Real>& time_prop = obj_mesh->template getElementProperty<Real>("time-in-contact");

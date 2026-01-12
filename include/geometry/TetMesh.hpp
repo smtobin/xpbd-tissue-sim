@@ -96,7 +96,7 @@ class TetMesh : public Mesh
 
     /** Creates an element property with the specified name, and optional default value. */
     template <typename T>
-    void addElementProperty(const std::string &name, std::optional<T> default_value = std::nullopt)
+    void addElementProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
     {
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
@@ -108,11 +108,11 @@ class TetMesh : public Mesh
     
         if (default_value.has_value())
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), default_value.value());
+            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), default_value.value(), is_field);
         }
         else
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements());
+            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), is_field);
         }
     }
 

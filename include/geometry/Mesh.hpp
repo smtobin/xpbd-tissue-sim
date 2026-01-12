@@ -250,7 +250,7 @@ public:
 
     /** Creates a vertex property with the specified name, and optional default value. */
     template <typename T>
-    void addVertexProperty(const std::string &name, std::optional<T> default_value = std::nullopt)
+    void addVertexProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
     {
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
@@ -262,11 +262,11 @@ public:
     
         if (default_value.has_value())
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), default_value.value());
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), default_value.value(), is_field);
         }
         else
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices());
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), is_field);
         }
     }
 
@@ -317,7 +317,7 @@ public:
 
     /** Creates a face property with the specified name, and optional default value. */
     template <typename T>
-    void addFaceProperty(const std::string &name, std::optional<T> default_value = std::nullopt)
+    void addFaceProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
     {
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
@@ -329,11 +329,11 @@ public:
     
         if (default_value.has_value())
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), default_value.value());
+            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), default_value.value(), is_field);
         }
         else
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces());
+            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), is_field);
         }
     }
 
