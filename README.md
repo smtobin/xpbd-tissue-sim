@@ -1,122 +1,144 @@
-# XPBD_Sandbox
-A place to prototype and test algorithms and approaches for simulation of highly deformable elastic materials.
+# Description
+Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with ROS integration. 
+
+# Authors
+**Maintainer**: Sam Tobin (stobin2@vols.utk.edu)
 
 ## Table of Contents
-* [Building and running a first simulation](#building-and-running-a-first-simulation)
-  * [Linux](#linux)
-  * [Linux (without Docker)](#linux-without-docker)
-  * [Windows](#windows)
-* [Changing simulation parameters](#changing-simulation-parameters)
-  * [Config files](#config-files)
-  * [Changing the mesh](#changing-the-mesh)
-  * [Creating a new derived `Simulation` class (advanced)](#creating-a-new-derived-simulation-class-advanced)
-* [Demos](#demos)
-  * [Virtuoso trachea demo](#virtuoso-trachea-demo)
-  * [Simple grasping demo](#simple-grasping-demo)
-  * [Fixed object demo](#fixed-object-demo)
-* [ROS interface](#ros-interface)
-  * [Building](#building)
-  * [Launch files, arguments, parameters](#launch-files-arguments-parameters)
-  * [Example usage](#example-usage)
-  * [`sim_bridge` with VirtuosoSimulation](#sim_bridge-with-virtuososimulation)
-  * [`sim_bridge` in general](#sim_bridge-in-general)
-* [Modifying the code](#modifying-the-code)
+* [API](#api)
+  * [Nodes](#nodes)
+    * [Any Simulation](#any-simulation)
+    * [`VirtuosoSimulation`](#virtuososimulation)
+    * [`FixedObjectSimulation`](#fixedobjectsimulation)
+  * [API Changes](#api-changes)
+* [Installation](#installation)
+  * [Hardware Dependencies](#hardware-dependencies)
+  * [OS Requirements](#os-requirements)
+  * [ALISS Dependencies](#aliss-dependencies)
+  * [External Dependencies](#external-dependencies)
+  * [Compilation](#compilation)
+* [Use](#use)
+  * [ROS Launch](#ros-launch)
+    * [Launch Files](#launch-files)
+    * [Example Usage](#example-usage)
+  * [Demos](#demos)
+    * [Virtuoso Trachea Demo](#virtuoso-trachea-demo)
+    * [Simple grasping demo](#simple-grasping-demo)
+    * [Fixed object demo](#fixed-object-demo)
+  * [Changing simulation parameters](#changing-simulation-parameters)
+    * [Config files](#config-files)
+    * [Changing the mesh](#changing-the-mesh)
 * [Code structure](#code-structure)
   * [Simulation](#simulation)
   * [Simobject](#simobject)
   * [Solver](#solver)
   * [Config](#config)
 
-## Building and running a first simulation
-Different `Dockerfile`s and Docker compose files have been provided that will set up an interactive Docker container in which to run the code. It will handle the download and installation of the 3rd party libraries required to build and run the code.
+# API
+## Nodes
+`sim_bridge` `sim_bridge`: The ROS interface to the sim. This node, upon startup, will launch a simulation and communicate with it via ROS. The topics subscribed/published to will vary depending on the **type** of simulation that is launched. The types of simulations that can be launched (with examples) can be found here (TODO: link). `sim_bridge` has a general ROS interface that exists regardless of the specific type of simulation.
 
-Currently there are 3 configurations:
-* **CPU only** - `Dockerfile.CPU` and `docker-compose-cpu.yml`. This creates a Docker container for running the simulation purely on the CPU, and without ROS.
-* **GPU** (GPU VERSION NOT FUNCTIONAL) - `Dockerfile.GPU` and `docker-compose-gpu.yml`. This creates a Docker container for running the simulation with the GPU, and without ROS.
-* **ROS** - `Dockerfile.ROS` and `docker-compose-ros.yml`. This creates a Docker container for running the simulation purely on the CPU with a ROS bridge.
+### Any Simulation
+**Publishers:**
+In general, the `sim_bridge` node publishes the vertices for any deformable mesh in the simulation. The list of topics can be found below:
+| Topic        | Mapped To | Description | Frame | Type | Notes |
+|--------------|-----------|-------------|-------|------|-------|
+| `/output/mesh_vertices_pc_<i>` | N/A | Vertices of the ith deformable mesh in the simulation, as a point cloud. This is primarily for visualization purposes in RViz or Foxglove. | `/sim/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
+| `/output/stiffness_mat_<i>` | N/A | Stiffness matrix for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. Computing the stiffness matrix (right now) is very slow. Should only be enabled for small meshes and when integrating with factor graph. |
+| `/output/vertices_mat_<i>` | N/A | Nx3 matrix of current vertex positions for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
+| `/output/faces_mat_<i>` | N/A | Nx3 matrix of the current **surface** faces for the ith deformable mesh in the simulation. The faces are specified as 3-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
+|`/output/elements_mat_<i>` | N/A | Nx4 matrix of current elements for the ith deformable mesh in the simulation. The elements are specified as 4-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true. |
 
-### Linux
-First, install the Docker engine (instructions for Ubuntu [here](https://docs.docker.com/engine/install/ubuntu/)).
+**Node parameters:**
+Every simulation has the following parameters
+| Parameter    | Type | Default | Description |
+|--------------|------|---------|-------------|
+| `publish_rate_hz` | `double` | 30 | The publishing rate (in Hz) of every topic in `sim_bridge` |
+| `publish_matrices` | `bool` | `false` | Whether or not to publish the stiffness matrix, vertices matrix, faces matrix, and elements matrix for each deformable mesh in the simulation. |
+| `use_wall_time_for_publishing` | `bool` | `false` | When the simulator ROS node publishes topics, it has two options for the time scale used for publishing: simulated time or wall time. When using simulated time, a 1 Hz publish rate will correspond to publishing once per **simulated** second. This may be faster of slower than 1 Hz wall clock time. Generally, messages should be published using wall clock time for consistent intervals. However, for some messages that are extremely slow to compute (i.e. stiffness matrices), you might prefer that the simulated time is used. |
 
-Then, install the [Docker compose plugin](https://docs.docker.com/compose/install/linux/#install-using-the-repository).
+### `VirtuosoSimulation`
+**Publishers:**
+Any simulation that involves a Virtuoso robot publishes the following additional topics:
+| Topic        | Mapped To | Description | Frame | Type | Notes |
+|--------------|-----------|-------------|-------|------|-------|
+| `/output/arm1_tip_frame` | `/ves/left/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/left/joint/measured_cp`. |
+| `/output/arm2_tip_frame` | `/ves/right/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/right/joint/measured_cp`. |
+| `/output/arm1_commanded_tip_frame` | `/ves/left/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso left arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/left/joint/setpoint_cp`. |
+| `/output/arm1_commanded_tip_frame` | `/ves/right/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso right arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/right/joint/setpoint_cp`. |
+| `/output/arm1_joint_state` | N/A | The current (simulated) joint state of the Virtuoso left arm. | N/A | `sensor_msgs/JointState` | |
+| `/output/arm2_joint_state` | N/A | The current (simulated) joint state of the Virtuoso right arm. | N/A | `sensor_msgs/JointState` | |
+| `/output/arm1_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/PoseArray` | The frames are those at the integration points used in statics model of the Virtuoso arm. |
+| `/output/arm2_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/PoseArray` | |
+| `/output/arm1_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This is only publishes when there is actually a tool tube in use (i.e. the palpation tube) that extends past the inner tube. |
+| `/output/arm2_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | | 
+| `/output/arm1_net_force` | N/A | The current (simulated) net force on the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` | The net force is determined by summing all of the forces from individual collisions between the Virtuoso arm and the tissue. |
+| `/output/arm2_net_force` | N/A | The current (simulated) net force on the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` |  |
+| `/output/trachea_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the trachea. | `ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Enabled by setting the `partial_view_pc` parameter to `true`. Requires some computation time, since the Embree ray collision scene must be updated. Also requires that a tissue mesh be in the scene that has labels for trachea and tumor parts. |
+| `/output/tumor_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the tumor. | `/ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Same as above. |
 
-If using a NVIDIA GPU, install the NVIDIA Container Toolkit (instructions for Linux [here](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)). Be sure to restart the Docker daemon after installing. (NO NEED TO DO THIS AS THE GPU IMPLEMENTATION IS NOT CURRENTLY FUNCTIONAL)
+**Subscriptions:**
+Any simulation that involves a Virtuoso robot subscribes to the following topics for inputting commandes to the robot. The interface was designed to try to be identical to that of `ves_ros_interface`. (i.e. controlling the simulated Virtuoso arm over ROS should be the same as controlling the real Virtuoso arm over ROS).
+| Topic        | Mapped To | Description | Frame | Type | Notes |
+|--------------|-----------|-------------|-------|------|-------|
+| `/input/arm1_joint_state` | `/ves/left/joint/servo_jp` | Input joint state for the simulated Virtuoso left arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
+| `/input/arm2_joint_state` | `/ves/right/joint/servo_jp` | Input joint state for the simualted Virtuoso right arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
+| `/input/arm1_tip_pos` | `/ves/left/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso left arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
+| `/input/arm2_tip_pos` | `/ves/right/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso right arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
+| `/input/arm1_tool_state` | `/ves/left/set_tool` | Input tool state for the simulated Virtuoso left arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
+| `/input/arm2_tool_state` | `/ves/right/set_tool` | Input tool state for the simualte Virtuoso right arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 
-Then, run 
+**Node parameters:**
+The `VirtuosoSimulation` has the following extra parameters, mostly for configuring the partial view point clouds:
+| Parameter    | Type | Default | Description |
+|--------------|------|---------|-------------|
+| `partial_view_pc` | `bool` | `true` | Whether or not to publish the partial view point clouds from the endoscope camera view. |
+| `partial_view_pc_hfov` | `double` | 80 | The horizontal field-of-view (in degrees) of the rays cast for computing the point cloud. I.e. for 80 degrees, rays will be cast between [-40, +40] degrees in angle left to right. |
+| `partial_view_pc_vfov` | `double` | 30 | The vertical field-of-view (in degrees) of the rays cast for computing the point cloud. |
+| `partial_view_pc_sample_density` | `double` | 1 | The density of rays (per degree) cast when computing the point cloud. Higher number = denser point cloud. Note: this doesn't really correspond to anything physical (like sensor parameters), it's just a way to get a denser point cloud if you want it. |
 
+**`tf` transforms:**
+`VirtuosoSimulation` also broadcasts the following `tf` transforms:
+| Frame | Child Frame | Description |
+|-------|-------------|-------------|
+| `sim/world` | `ves/left/base` | The VB frame w.r.t. the simulation's world frame. |
+
+### `FixedObjectSimulation`
+**TODO**
+
+
+## API Changes
+None.
+
+# Installation
+## Hardware Dependencies
+None.
+
+## OS Requirements
+As of right now, I have only tested installation, compilation and execution on Ubuntu 24.04. I'm sure other Linux distros would work, it just might take some effort in finding the right packages.
+
+## ALISS Dependencies
+None.
+
+## External Dependencies
+This repository relies on a few external dependencies, namely:
+- [yaml-cpp](https://github.com/jbeder/yaml-cpp) for processing input YAML files
+- [Eigen](https://gitlab.com/libeigen/eigen) for matrix/vector operations
+- [Easy3D](https://github.com/LiangliangNan/Easy3D) as a visualization option
+- [GMSH](https://gitlab.onelab.info/gmsh/gmsh) for creating tetrahedral meshes from .obj or .stl files
+- [Mesh2SDF](https://github.com/smtobin/Mesh2SDF) for creating SDFs from arbitrary surface meshes
+- [embree](https://github.com/RenderKit/embree) for BVH building and ray/closest point queries
+- [VTK](https://gitlab.kitware.com/vtk/vtk) as a visualization option
+- OpenHaptics drivers for interfacing with Geomagic Touch haptic devices
+
+The dependency installation and environment variables setup is done with the script located in `scripts/install.sh`. Example usage:
 ```
-xhost +Local:docker
+bash scripts/install.sh
 ```
-in your terminal. This will allow Docker to display graphics using X11 forwarding.
+`sudo` may be needed to install the required `apt` packages. A directory `dependencies/` is created at the root level of the repository to store the external dependencies. The script clones the latest version of all dependencies, putting the code in the `dependencies/src` directory. Each library is built (in `Release` mode) and installed **locally** in the `dependencies/install` directory.
 
-Finally, we are ready to spin up the Docker container. Navigate to the root directory of the repo (where the `Dockerfile.*` and `docker-compose-*.yml` files are). To build the container using Docker compose, run:
-
-```
-docker compose -f docker-compose-*.yml up -d --build
-```
-replacing `docker-compose-*.yml` with one of the Docker compose files provided (i.e. `docker-compose-cpu.yml`, `docker-compose-gpu.yml`, or `docker-compose-ros.yml`).
-
-This may take a while as it downloads and installs the necessary packages and pieces of code. When it has finished building, run:
-
-```
-docker ps
-```
-
-to ensure that the container is up and running. The output should be something like the following:
-![image](https://github.com/user-attachments/assets/dd54e341-ec57-4f8a-a0b6-a82e6ecb475b)
-Note the name of the container in the right-most column -- we'll need this to attach to the container to run the code.
-
-To attach to the container, run:
-
-```
-docker exec -it sim-*-dev-1 /bin/bash
-```
-
-Where `sim-*-dev-1` is the name of the container (this will vary depending on the compose file used, or just use `Tab` to autocomplete the name). Your terminal should switch to a `/workspace` directory, and you're inside the Docker container!
-
-To build the code, navigate to the `/workspace/build` directory. Then run:
-
-```
-cmake ..
-make -j 8
-```
-
-This will create a `Test` binary that we can run with:
-
-```
-./Test ../config/config.yaml
-```
-
-If all goes well, an Easy3D graphics window should pop up!
-
-To exit out of the container, simply use
-
-```
-exit
-```
-However, the container will still be running at this point. You can `docker ps` to verify this fact. To kill the container, you can use:
-```
-docker kill sim-dev-1
-```
-
-When spinning up and attaching to the container again, you **do not need to rebuild the container** (unless dependencies or the `Dockerfile` have changed). Simply use:
-```
-docker compose up -d
-docker exec -it sim-*-dev-1 /bin/bash
-```
-### Linux (without Docker)
-With Ubuntu 24.04 (and possibly earlier versions of Ubuntu), the repository can also be set up to run without Docker. This process basically just mimics what is done to set up the Docker container.
-
-The dependency installation and environment variables setup is done with the script located in `scripts/install.sh`. The script installs all required external Github repositories and drivers in a directory specified by the user. Example usage:
-```
-bash scripts/install.sh ../ThirdParty
-```
-where `../ThirdParty` is the directory where external Github repositories will be cloned and built from source.
-
-Part of `scripts/install.sh` is an environment setup script `scripts/set_env.sh`, which sets a couple of environment variables that are necessary for CMake to find some of the installed repositories. **This does not get added to `~/.bashrc` (though you can manually add it there), so every time the terminal closes and reopens, you will have to rerun `scripts/set_env.sh`.** Like with `scripts/install.sh`, the third-party directory is a required input, and should match the directory given to `scripts/install.sh`. For the example above:
-```
-bash scripts/set_env.sh ../ThirdParty
-```
+## Compilation
+**Building the simulator:**
 
 Once the dependencies are installed, building should be as simple as
 ```
@@ -130,11 +152,11 @@ You can run a first test with
 ```
 ./Test ../config/config.yaml
 ```
-
 See [Demos](#demos) for other demos to test out.
 
 
-#### ROS
+**To initially build the ROS nodes:**
+
 If wanting to use ROS, it is assumed that is already installed on your system. Installation instructions for Ubuntu 24.04 can be found [here](https://docs.ros.org/en/rolling/Installation/Alternatives/Ubuntu-Development-Setup.html).
 
 Some of the launch files simulatenously launch a Rosbridge server for connecting to Foxglove for visualization. This can be installed with
@@ -142,23 +164,38 @@ Some of the launch files simulatenously launch a Rosbridge server for connecting
 sudo apt-get install ros-jazzy-rosbridge-server -y
 ```
 
-### Windows
-Using WSL, the process should be similar, though there might be some extra stuff to do with the X11 forwarding.
+When you build the simulator from the `build/` directory, CMake config files are automatically generated each time (inside the `build/` directory) that point CMake to the appropriate library files that are also inside the `build/` directory. The CMake file for the ROS node automatically knows where these files are, so all that is needed is to run
+```
+colcon build
+```
+from the `ros_workspace/` directory.
 
+**IMPORTANT:** Whenever you rebuild anything in the simulator (i.e. you pulled new changes or made edits yourself and needed to run `make`) and you want the most recent changes to be reflected in the ROS node, **you must**:
+- remove the `build/` folder in `ros_workspace`
+- run `colcon build`
 
-## Changing simulation parameters
-This section described how to change simulation parameters to suit your needs.
+# Use
+## ROS Launch
+### Launch Files
 
-### Config files
-This is the first place you should go to play with simulation parameters. Config files are `.yaml` files that are parsed on simulation launch and used to set parameters of the simulation and all the objects in the simulation. This means that we can change parameters in a config file (e.g. the time step or the size of an object) **without having to rebuild**.
+Two launch files are provided:
+* `ros_workspace/launch/sim_bridge.launch.py` - launches the `SimBridge` ROS node by itself.
+* `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - launches the `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
 
-Provided config files are found in the `config/` directory. A commented example config file that should cover most of the options available in config files can be found [here](https://github.com/smtobin/XPBD_Sandbox/blob/1952ffcee7a9623914602a4baf0c7eccfefcebf0/config/example_config.yaml).
+The launch files provide a few launch arguments:
+* Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
+* Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoTissueGraspingSimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
 
-### Changing the mesh
-The mesh of a simulated deformable object can be changed by simply changing the `filename` parameter. For deformable objects, a volumetric mesh is required (common mesh formats like `.stl` and `.obj` are for surface meshes). Internally, the simulation uses GMSH's mesh format (`.msh`). The simulation is able to take input `.stl` and `.obj` surface mesh files and use GMSH to generate a volumetric `.msh` mesh file from that. A `.msh` file with the same filepath as the input `.stl` or `.obj` file.
+### Example usage
 
-### Creating a new derived `Simulation` class (advanced)
-If there are specific capabilities not captured by the current simulation types, it is pretty easy to create a new `Simulation` class that provides specific functionality. For an example of how this is done, look at `VirtuosoSimulation`, which extends the base `Simulation` class to add keyboard, mouse, and haptic device control for the Virtuoso robot that is in the simulation.
+Launching the Virtuoso robot + trachea demo:
+```
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml simulation_type:=VirtuosoTissueGraspingSimulation
+```
+Launching the simple grasping demo:
+```
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
+```
 
 ## Demos
 Below describes various off-the-shelf demos that demonstrate some of the simulator capabilities.
@@ -187,6 +224,11 @@ Collisions between the tissue and the Virtuoso arm can be enabled by running
 ```
 ./VirtuosoTracheaDemo ../config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml
 ```
+
+**Screenshots:**
+
+<img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/2a1d9b68-c79e-40c7-8379-1f263de73069"/>
+
 
 ### Simple grasping demo
 This demo is basically a simpler version of the above demo, without the Virtuoso arm. The yellow sphere at the tip of the robot represents the grasping radius -- when grasping is toggled to be active, all tissue mesh nodes inside the sphere will be "grasped" and move around with the tip of the robot. When grasping is toggled to be inactive, any grasped mesh nodes are released. The bottom face of the mesh is optionally fixed to better see the effects of deformation.
@@ -235,92 +277,18 @@ Now `fixed_faces.txt` should only have faces that are fixed with the following f
 ```
 This is precisely the format that the simulator is expecting the text file under `fixed-faces-filename` to have.
 
-**Launching with ROS interface:**
+## Changing simulation parameters
+This section described how to change simulation parameters to suit your needs.
 
-From the `ros_workspace` folder (after building the `SimBridge` node - see [ROS interface](#ros-interface)), run
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/fixed_object/fixed_cube.yaml simulation_type:=FixedObjectSimulation
-```
-There are parameters in the launch file which should be changed, namely `publish_matrices` should be set to `True` (enables publishing of vertices, faces, elements, and stiffness matrix) and `partial_view_pc` should also be set to `True` (enables publishing of partial-view point cloud). Other parameters exist for setting the publish rate and partial-view point cloud parameters (horizontal and vertical FOV, sampling density).
+### Config files
+This is the first place you should go to play with simulation parameters. Config files are `.yaml` files that are parsed on simulation launch and used to set parameters of the simulation and all the objects in the simulation. This means that we can change parameters in a config file (e.g. the time step or the size of an object) **without having to rebuild**.
 
-The output topics for the vertices, faces, elements, and stiffness matrix are `/output/vertices_mat_0`, `/output/faces_mat_0`, `/output/elements_mat_0`, and `/output/stiffness_mat_0`. The output topic `/output/mesh_vertices_pc_0` corresponds to the mesh vertices as a point cloud, which is useful for visualization in Foxglove.
+Provided config files are found in the `config/` directory. A commented example config file that should cover most of the options available in config files can be found [here](https://github.com/smtobin/XPBD_Sandbox/blob/1952ffcee7a9623914602a4baf0c7eccfefcebf0/config/example_config.yaml).
 
+### Changing the mesh
+The mesh of a simulated deformable object can be changed by simply changing the `filename` parameter. For deformable objects, a volumetric mesh is required (common mesh formats like `.stl` and `.obj` are for surface meshes). Internally, the simulation uses GMSH's mesh format (`.msh`). The simulation is able to take input `.stl` and `.obj` surface mesh files and use GMSH to generate a volumetric `.msh` mesh file from that. A `.msh` file with the same filepath as the input `.stl` or `.obj` file will be generated.
 
-## ROS interface
-`sim_bridge` is a provided ROS node that will publish parts of the simulation state over ROS for visualization or integration with other pieces of code.
-
-When `docker-compose-ros.yml` is used to build the Docker container, ROS2 Jazzy is installed inside the container. If you are not using Docker, ROS2 Jazzy is assumed to be installed on your system already. The folder `ros_workspace/` is the ROS workspace folder.
-
-### Building
-**To initially build the ROS nodes:**
-* _Install libraries._ Run `sudo make install` from the `build/` directory. This will put the compiled static library files and headers in a place where the ROS node can see them and link against them. Make sure to use `sudo` as these files will be installed in `/usr/local/` which requires elevated permissions.
-* _Run environment setup._ Assuming you're in `ros_workspace/`, run `source ../scripts/set_env.sh ../../ThirdParty` to properly set environment variables. (replace `../../ThirdParty` with the path to the folder used to hold all the 3rd-party Github repos from installation).
-* _Build._ Run
-```
-colcon build --cmake-args -DXPBD_SIM_EASY3D_CMAKE_PREFIX_PATH=$XPBD_SIM_EASY3D_CMAKE_PREFIX_PATH -DXPBD_SIM_BASE_DIR=$XPBD_SIM_BASE_DIR
-```
-The `--cmake-args` part is necessary to pass along the environment variables from your current shell to the `colcon build` process (this is annoying, but unfortunately very necessary). Instead of this, you may instead opt to hardcode the paths in the `sim_bridge/CMakeLists.txt` file where these envrionment variables appear.
-
-**IMPORTANT:** Whenever you rebuild anything in the simulator (i.e. you pulled new changes or made edits yourself and needed to run `make`) and you want the most recent changes to be reflected in the ROS node, **you must**:
-- run `sudo make install` from the `build/` directory
-- remove the `build/` `install/` and `log/` folders in `ros_workspace`
-- run the `colcon build` command above
-
-### Launch files, arguments, parameters
-
-Two launch files are provided:
-* `ros_workspace/launch/sim_bridge.launch.py` - launches the `SimBridge` ROS node by itself.
-* `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - launches the `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
-
-The launch files provide a few launch arguments/parameters:
-* Parameter `publish_rate_hz` - the publish rate (in Hz) of the output topics of the `SimBridge` node. Default: 10.0 Hz.
-* Parameter `publish_marices` - whether or not to publish matrices (vertices, faces, elements, stiffness) for each deformable object in the sim. Default `False`.
-* Parameter `partial_view_pc` - whether or not to publish a partial view point cloud, when applicable. Default `True`.
-* Parameter `partial_view_pc_hfov` - the horizontal FOV (in degrees) of the partial-view point cloud. Default 80 deg.
-* Parameter `partial_view_pc_vfov` - the vertical FOV (in degrees) of the partial-view point cloud. Default 50 deg.
-* Parameter `partial_view_pc_sample_density` - the sample density of the partial-view point cloud. Higher numbers = more dense point clouds. Default 1.0.
-* Parameter `use_wall_time_for_publishgin` - if `True`, the rate of publishing will be in terms of the wall time (which may not align with simulated time). If `False`, simulation time is used (i.e. a publish rate of 10 Hz corresponds to publishing 10 messages for every 1 second of simulated time). Normally you probably want this to be `True`, unless the act of publishing takes a very long time (as in the case for the stiffness matrix). Default `True`.
-* Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
-* Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoTissueGraspingSimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
-
-### Example usage
-
-Launching the Virtuoso robot + trachea demo:
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea.yaml simulation_type:=VirtuosoTissueGraspingSimulation
-```
-Launching the simple grasping demo:
-```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
-```
-### `sim_bridge` with VirtuosoSimulation
-**OUTDATED**
-
-When `simulation_type` is `VirtuosoTissueGraspingSimulation` or `VirtuosoSimulation`, the `sim_bridge` node subscribes to input Virtuoso joint states and relays those to the simulation, and outputs coordinate frames along each Virtuoso arm, as well as the tissue mesh. The list of topics can be found below:
-
-| Topic        | Mapped To | Description | Frame | Type | Notes |
-|--------------|-----------|-------------|-------|------|-------|
-| `/input/arm1_joint_state` | `/ves/left/joint_servo_jp` | Input joint state for the left Virtuoso arm. | N/A | `sensor_msgs/JointState` |   |
-| `/input/arm2_joint_state` | `/ves/right/joint_servo_jp`| Input joint state for the right Virtuoso arm. | N/A | `sensor_msgs/JointState` |  |
-| `/output/arm1_frames` | `/sim/arm1_frames` | Coordinate frames along left Virtuoso arm. | `/world` | `geometry_msgs/PoseArray` |  |
-| `/output/arm2_frames` | `/sim/arm2_frames` | Coordinate frames along backbone of right Virtuoso arm. | `/world` | `geometry_msgs/PoseArray` |  |
-| `/output/tissue_mesh` | `/sim/tissue_mesh` | Output surface mesh (vertices, surface faces) of the deformable tissue mesh. | `/world` | `shape_msgs/Mesh` | This message is not timestamped. All vertices are sent, but only surface faces sent.  |
-| `/output/tissue_mesh_vertices` | `/sim/tissue_mesh_vertices` | Vertices of the deformable tissue mesh. | `/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
-| `/output/partial_view_pc` | `/sim/partial_view_pc` | A "partial-view" point cloud from the current camera view. | `/world` | `sensor_msgs/PointCloud2` | Generated by casting rays emanating from the current camera position. Use ROS2 parameters `partial_view_pc_hfov`, `partial_view_pc_vfov`, and `partial_view_pc_sample_density` to change horizontal FOV (in degrees), vertical FOV (in degrees), and sample density (rays cast per degree) of the partial view point cloud. Use ROS2 parameter `partial_view_pc` to toggle publishing of the partial-view point cloud on or off (there is some overhead associated with generating the partial-view point cloud). |
-
-### `sim_bridge` in general
-**OUTDATED**
-
-In general, the `sim_bridge` node publishes any deformable meshes in the simulation. The list of topics can be found below:
-| Topic        | Mapped To | Description | Frame | Type | Notes |
-|--------------|-----------|-------------|-------|------|-------|
-| `/output/mesh_vertices_<i>` | N/A | Vertices of the ith deformable mesh in the simulation. | `/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
-| `/output/mesh_<i>` | N/A | Output surface mesh (vertices, surface faces) of the ith deformable mesh in the simulation. | `/world` | `shape_msgs/Mesh` | This message is not timestamped. All vertices are sent, but only surface faces sent. |
-
-## Modifying the code
-The Docker container is set up to share the repo files outside of the container. That means that you can make edits to files **outside** the container and have those changes be reflected **inside** the container! This is nice because then your code editor does not need to be launched from inside the Docker container.
-
-## Code Structure
+# Code Structure
 This section will briefly go over how the repository is organized, and generally how the code is structured.
 
 ### Simulation
@@ -346,9 +314,3 @@ The `XPBDSolver` class solves the constraints with its `solve()` class method. I
 The `include/config/` folder contains the `Config` class and its derived classes that parse YAML config files and make the parameters available for object instantiation. The base `Config` class provides the machinery needed (with the help of the [yaml-cpp](https://github.com/jbeder/yaml-cpp) library) to parse a YAML node/subnode and extract expected parameters from it using the `_extractParameter()` templated function. Static default values can be set and used if the YAML parameter is not found. If the extracted parameter is limited to a set of options (i.e. it should be a choice from an enum), `_extractParameterWithOptions()` can be used instead, and we pass in a static map that maps user-specified text to the appropriate value (e.g. from "Gauss-Seidel" to `XPBDObjectSolverType::GAUSS_SEIDEL`).
 
 Classes derived from `Config` correspond to specific objects and have extract additional parameters that correspond specifically to the options of that type of object. For example, `MeshObjectConfig` extract information from the YAML file that is used to set up a `MeshObject`, such as the size, initial position, initial velocity, color, etc.
-
-
-
-
-
-

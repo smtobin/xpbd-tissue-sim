@@ -12,6 +12,8 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 
+#include "sim_bridge/msg/sparse_matrix.hpp"
+
 #include "geometry/Mesh.hpp"
 #include "simobject/XPBDMeshObjectBase.hpp"
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
@@ -92,23 +94,26 @@ private:
         // set header
         sensor_msgs::msg::PointCloud2& mesh_pcl_message = _mesh_pcl_messages[index];
         mesh_pcl_message.header.stamp = this->now();
-        mesh_pcl_message.header.frame_id = "/world";
+        mesh_pcl_message.header.frame_id = "sim/world";
 
         // add point fields
         mesh_pcl_message.fields.resize(3);
         mesh_pcl_message.fields[0].name = "x";
         mesh_pcl_message.fields[0].offset = 0;
-        mesh_pcl_message.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        // mesh_pcl_message.fields[0].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[0].count = 1;
 
         mesh_pcl_message.fields[1].name = "y";
-        mesh_pcl_message.fields[1].offset = sizeof(Real);
-        mesh_pcl_message.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[1].offset = sizeof(float);
+        // mesh_pcl_message.fields[1].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[1].count = 1;
 
         mesh_pcl_message.fields[2].name = "z";
-        mesh_pcl_message.fields[2].offset = 2*sizeof(Real);
-        mesh_pcl_message.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[2].offset = 2*sizeof(float);
+        // mesh_pcl_message.fields[2].datatype = (typeid(Real) == typeid(double)) ? sensor_msgs::msg::PointField::FLOAT64 : sensor_msgs::msg::PointField::FLOAT32;
+        mesh_pcl_message.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
         mesh_pcl_message.fields[2].count = 1;
 
         mesh_pcl_message.height = 1;
@@ -116,7 +121,7 @@ private:
         mesh_pcl_message.is_dense = true;
         mesh_pcl_message.is_bigendian = false;
 
-        mesh_pcl_message.point_step = 3*sizeof(Real);
+        mesh_pcl_message.point_step = 3*sizeof(float);
         mesh_pcl_message.row_step = mesh_pcl_message.point_step * mesh_pcl_message.width;
 
         mesh_pcl_message.data.resize(mesh_pcl_message.row_step);
@@ -124,7 +129,17 @@ private:
         auto mesh_pcl_callback = 
             [this, index, deformable_mesh]() -> void {
                 // update vertices
-                memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+                // memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+
+                float* pc_data = (float*)this->_mesh_pcl_messages[index].data.data();
+                for (int i = 0; i < deformable_mesh->numVertices(); i++)
+                {
+                    // memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
+                    const Vec3r& vertex = deformable_mesh->vertex(i);
+                    *(pc_data + 3*i) = static_cast<float>(vertex[0]);
+                    *(pc_data + 3*i+1) = static_cast<float>(vertex[1]);
+                    *(pc_data + 3*i+2) = static_cast<float>(vertex[2]);
+                }
 
                 this->_mesh_pcl_publishers[index]->publish(this->_mesh_pcl_messages[index]);
             };
@@ -136,29 +151,47 @@ private:
     void _setupStiffnessMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
         std::string topic_name = "/output/stiffness_mat_" + std::to_string(index);
-        _stiffness_mat_publishers[index] = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 3);
+        _stiffness_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
 
-        std_msgs::msg::Float64MultiArray& mat_msg = _stiffness_mat_messages[index];
-        mat_msg.layout.dim.resize(2);
-        mat_msg.layout.dim[0].label = "rows";
-        mat_msg.layout.dim[1].label = "cols";
-        mat_msg.layout.data_offset = 0;
+        // std_msgs::msg::Float64MultiArray& mat_msg = _stiffness_mat_messages[index];
+        // mat_msg.layout.dim.resize(2);
+        // mat_msg.layout.dim[0].label = "rows";
+        // mat_msg.layout.dim[1].label = "cols";
+        // mat_msg.layout.data_offset = 0;
         
         auto mat_callback = 
             [this, index, xpbd_obj]() -> void {
-                MatXr stiffness_mat = xpbd_obj->stiffnessMatrix();
+                sim_bridge::msg::SparseMatrix msg;
+                msg.header.stamp = this->now();
+                msg.header.frame_id = "/sim/world";
+                
+                Eigen::SparseMatrix<Real> stiffness_mat = xpbd_obj->stiffnessMatrix();
+                msg.rows = stiffness_mat.rows();
+                msg.cols = stiffness_mat.cols();
+                msg.row_indices.reserve(stiffness_mat.nonZeros());
+                msg.col_indices.reserve(stiffness_mat.nonZeros());
+                msg.values.reserve(stiffness_mat.nonZeros());
+                for (int k = 0; k < stiffness_mat.outerSize(); ++k) 
+                {
+                    for (Eigen::SparseMatrix<Real>::InnerIterator it(stiffness_mat, k); it; ++it) 
+                    {
+                        msg.row_indices.push_back(it.row());
+                        msg.col_indices.push_back(it.col());
+                        msg.values.push_back(it.value());
+                    }
+                }
 
                 // make sure size is correct based on number of vertices
-                _stiffness_mat_messages[index].layout.dim[0].size = stiffness_mat.rows();
-                _stiffness_mat_messages[index].layout.dim[0].stride = stiffness_mat.size();
-                _stiffness_mat_messages[index].layout.dim[1].size = stiffness_mat.cols();
-                _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
+                // _stiffness_mat_messages[index].layout.dim[0].size = stiffness_mat.rows();
+                // _stiffness_mat_messages[index].layout.dim[0].stride = stiffness_mat.size();
+                // _stiffness_mat_messages[index].layout.dim[1].size = stiffness_mat.cols();
+                // _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
 
-                _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
-                // update vertices
-                memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
+                // _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
+                // // update vertices
+                // memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
 
-                this->_stiffness_mat_publishers[index]->publish(this->_stiffness_mat_messages[index]);
+                this->_stiffness_mat_publishers[index]->publish(msg);
             };
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
@@ -295,8 +328,8 @@ protected:
     std::vector<sensor_msgs::msg::PointCloud2> _mesh_pcl_messages;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 
-    std::vector<std_msgs::msg::Float64MultiArray> _stiffness_mat_messages;
-    std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _stiffness_mat_publishers;
+    std::vector<sim_bridge::msg::SparseMatrix> _stiffness_mat_messages;
+    std::vector<rclcpp::Publisher<sim_bridge::msg::SparseMatrix>::SharedPtr> _stiffness_mat_publishers;
 
     std::vector<std_msgs::msg::Float64MultiArray> _vertices_mat_messages;
     std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _vertices_mat_publishers;

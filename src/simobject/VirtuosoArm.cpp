@@ -205,7 +205,8 @@ void VirtuosoArm::velocityUpdate()
 
     // apply forces from collision constraints
     std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
-    _net_collision_force = Vec3r::Zero();
+    _unfiltered_collision_force = Vec3r::Zero();
+    _filtered_collision_force = Vec3r::Zero();
     for (const auto& collision : _collision_constraints)
     {
         // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
@@ -214,7 +215,7 @@ void VirtuosoArm::velocityUpdate()
         new_forces[collision.node_index] += net_force*(1-collision.interp);
         new_forces[collision.node_index+1] += net_force*collision.interp;
 
-        _net_collision_force += net_force;
+        _unfiltered_collision_force += net_force;
     }
 
     
@@ -229,6 +230,7 @@ void VirtuosoArm::velocityUpdate()
         else
             new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[i];
 
+        _filtered_collision_force += new_force;
         setOuterTubeNodalForce(i, new_force);
     }
     for (int i = 0; i < NUM_IT_FRAMES; i++)
@@ -239,6 +241,8 @@ void VirtuosoArm::velocityUpdate()
             new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + i];
         else
             new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + i];
+
+        _filtered_collision_force += new_force;
         setInnerTubeNodalForce(i, new_force);
     }
     if (hasTool())
@@ -251,6 +255,8 @@ void VirtuosoArm::velocityUpdate()
                 new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
             else
                 new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
+
+            _filtered_collision_force += new_force;
             setToolTubeNodalForce(i, new_force);
         }
     }

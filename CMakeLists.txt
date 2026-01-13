@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
+
+# === CUDA-related stuff ===
+
+# look for CUDA on the user's machine
 if(EXISTS /usr/local/cuda)
     set(HAVE_CUDA true)
 else()
@@ -7,28 +11,79 @@ else()
 endif()
 
 if (HAVE_CUDA AND NOT NO_GPU)
+    # if CUDA is found and the NO_GPU var is false or not set,
+    # tell CMake to use the CUDA compiler
     message("\n-- WE HAVE CUDA! -- \n")
     set(CMAKE_CUDA_ARCHITECTURES "native")
     set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
     project(XPBDSim LANGUAGES CXX CUDA)
 else ()
+    # otherwise project is just vanilla C++
     project(XPBDSim LANGUAGES CXX)
 endif()
 
 
-set(CMAKE_CXX_STANDARD 17)                       # specify C++ standard
+
+# === Project Options ===
+
+# specify C++ standard - C++17 is used mainly for template metaprogramming stuff
+set(CMAKE_CXX_STANDARD 17)
+# use 03 optimizer, turn on all warnings
 set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
-set(CMAKE_BUILD_TYPE Debug)
+# by default, use Debug build so we can use gdb easily
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-list(APPEND CMAKE_PREFIX_PATH "$ENV{XPBD_SIM_EASY3D_CMAKE_PREFIX_PATH}") # needed in order to find Easy3D
 
+# === Find External Dependencies ===
+
+# the paths to the CMake config files for each of the external dependencies
+set(yaml-cpp_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/yaml-cpp/lib/cmake")
+set(gmsh_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/gmsh/share/gmsh")
+set(Easy3D_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/Easy3D/build")
+set(Eigen3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/eigen/share/eigen3/cmake")
+set(VTK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/vtk/lib/cmake")
+set(embree_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/embree/lib/cmake")
+
+# find yaml-cpp
+message(STATUS "\nFinding yaml-cpp...")
+find_package(yaml-cpp REQUIRED
+    PATHS ${yaml-cpp_DIR}
+    NO_DEFAULT_PATH)
+message(STATUS "yaml-cpp found at: ${yaml-cpp_DIR}")
+
+# find gmsh
+message(STATUS "\nFinding gmsh...")
+find_package(gmsh REQUIRED
+    PATHS ${gmsh_DIR}
+    NO_DEFAULT_PATH)
+message(STATUS "gmsh found at: ${gmsh_DIR}")
+
+# find Easy3D
+message(STATUS "\nFinding Easy3D...")
 find_package(Easy3D COMPONENTS viewer fileio renderer core util REQUIRED)  # request Easy3D (recommended to request only needed components)
-find_package(assimp REQUIRED)   # find assimp (for mesh loading/conversion)
-find_package(Eigen3 3.3 REQUIRED)   # find Eigen
-find_package(embree 4 REQUIRED)
+message(STATUS "Easy3D found at: ${Easy3D_DIR}")
+message(STATUS "Easy3D include: ${Easy3D_INCLUDE_DIRS}")
+
+# find Eigen
+message(STATUS "\nFinding Eigen3...")
+find_package(Eigen3 REQUIRED
+    PATHS ${Eigen3_DIR}
+    NO_DEFAULT_PATH)   # find Eigen
+message(STATUS "Eigen3 found at: ${Eigen3_DIR}")
+
+# find embree
+message(STATUS "\nFinding embree...")
+find_package(embree 4 REQUIRED
+    PATHS ${embree_DIR}
+    NO_DEFAULT_PATH)
+message(STATUS "embree found at: ${embree_DIR}")
 
 # find VTK
-find_package(VTK 9.5 REQUIRED COMPONENTS
+message(STATUS "\nFinding VTK...")
+find_package(VTK 9.5 REQUIRED
+    PATHS ${VTK_DIR}
+    NO_DEFAULT_PATH
+    COMPONENTS
     CommonColor
     CommonCore
     FiltersSources
@@ -42,14 +97,18 @@ find_package(VTK 9.5 REQUIRED COMPONENTS
     RenderingAnnotation
     InteractionWidgets
 )
+message(STATUS "VTK_VERSION: ${VTK_VERSION}")
+message(STATUS "VTK found at: ${VTK_DIR}")
 
 if (NOT VTK_FOUND)
   message(FATAL_ERROR "Unable to find the VTK build folder.")
 endif()
-message(STATUS "VTK_VERSION: ${VTK_VERSION}")
-message(STATUS "VTK_LIBRARIES: ${VTK_LIBRARIES}")
-message(STATUS "VTK_INCLUDE_DIRS: ${VTK_INCLUDE_DIRS}")
 
+# find assimp
+find_package(assimp REQUIRED)
+
+
+# === Include Directories ===
 
 include_directories("./include")
 
@@ -62,6 +121,12 @@ set(PETSC_LIB "$ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/lib/libpetsc.so")
 if (HAVE_CUDA AND NOT NO_GPU)
     include_directories("/usr/local/cuda/include")
 endif()
+
+# Add Mesh2SDF library install directory to the library search path
+link_directories("${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/Mesh2SDF/lib")
+
+
+# === Add Child CMake Libraries ===
 
 # Collision library
 add_library(Collision)
@@ -97,7 +162,6 @@ endif()
 add_library(Haptics)
 add_subdirectory("src/haptics")
 
-
 # Solver library
 add_library(Solver)
 add_subdirectory("src/solver")
@@ -111,7 +175,9 @@ add_library(MeshUtils)
 add_library(GeometryUtils)
 add_subdirectory("src/utils")
 
-# link in necessary libraries
+
+
+# === Link Libraries ===
 target_link_libraries(Collision Eigen3::Eigen mesh2sdf Geometry GeometryUtils)
 target_link_libraries(Config Eigen3::Eigen SimObject)
 target_link_libraries(Graphics Eigen3::Eigen easy3d::core easy3d::util easy3d::renderer easy3d::viewer ${VTK_LIBRARIES}) # link Easy3D for Graphics library
@@ -119,32 +185,36 @@ target_link_libraries(Geometry Eigen3::Eigen mesh2sdf SimObject GeometryUtils em
 target_link_libraries(Haptics Eigen3::Eigen HD HDU)   # link OpenHaptics API libraries for Haptics library
 target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config FEM)   # link MeshUtils and Solver libraries
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
-target_link_libraries(MeshUtils gmsh assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
+target_link_libraries(MeshUtils gmsh::shared assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)
 target_link_libraries(FEM Eigen3::Eigen Geometry ${PETSC_LIB})
 
-### Simulation libraries - each has its own executable
+
+
+# === Create Simulation Libraries ===
 add_library(Simulation)
 add_library(BeamSimulation)
 add_library(GraspingSimulation)
 add_library(VirtuosoSimulation)
 add_library(PalpationSimulation)
-# add_library(BeamStretchSimulation)
-# add_library(TissueGraspingSimulation)
 add_library(InitialDeformationSimulation)
 add_library(FixedObjectSimulation)
 add_subdirectory("src/simulation")
 
-target_link_libraries(Simulation Collision Graphics SimObject Geometry SimObject Solver yaml-cpp ${VTK_LIBRARIES})
+
+
+# === Link Simulation Libraries ===
+target_link_libraries(Simulation Collision Graphics SimObject Geometry SimObject Solver yaml-cpp::yaml-cpp ${VTK_LIBRARIES})
 target_link_libraries(BeamSimulation Simulation)
 target_link_libraries(GraspingSimulation Simulation)
 target_link_libraries(VirtuosoSimulation Simulation Haptics)
 target_link_libraries(PalpationSimulation VirtuosoSimulation)
-# target_link_libraries(BeamStretchSimulation Simulation)
 target_link_libraries(InitialDeformationSimulation Config Simulation)
 target_link_libraries(FixedObjectSimulation Config Simulation)
 
-### Create executables
+
+
+# === Create Executables ===
 add_executable(Test src/exec/main.cpp)
 target_link_libraries(Test Simulation ${VTK_LIBRARIES})
 
@@ -166,17 +236,8 @@ target_link_libraries(PalpationDemo PalpationSimulation)
 add_executable(FixedObjectSim src/exec/fixed_object_main.cpp)
 target_link_libraries(FixedObjectSim FixedObjectSimulation)
 
-# add_executable(TissueGraspingTest src/exec/tissue_grasping_test_main.cpp)
-# target_link_libraries(TissueGraspingTest TissueGraspingSimulation)
-
-# add_executable(BeamStretchTest src/exec/beam_stretch_test_main.cpp)
-# target_link_libraries(BeamStretchTest BeamStretchSimulation)
-
 add_executable(InitialDeformationTest src/exec/initial_deformation_test_main.cpp)
 target_link_libraries(InitialDeformationTest InitialDeformationSimulation)
-
-# add_executable(StaticLoadingTest src/exec/static_loading_test_main.cpp)
-# target_link_libraries(StaticLoadingTest XPBD easy3d::viewer gmsh)
 
 add_executable(VariadicVectorContainerTest src/exec/test/variadic_vector_container_test.cpp)
 target_link_libraries(VariadicVectorContainerTest Eigen3::Eigen)
@@ -216,6 +277,8 @@ vtk_module_autoinit(
   MODULES ${VTK_LIBRARIES}
 )
 
+
+# === Configure Libraries for CUDA, when applicable ===
 if (HAVE_CUDA AND NOT NO_GPU)
     target_link_libraries(GPU Geometry SimObject Solver)
     target_link_libraries(SimObject GPU)
@@ -241,11 +304,6 @@ if (HAVE_CUDA AND NOT NO_GPU)
     target_compile_definitions(VirtuosoTest PRIVATE HAVE_CUDA)
     target_compile_definitions(VirtuosoTracheaDemo PRIVATE HAVE_CUDA)
 
-    # target_compile_options(GPU PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-    #                    -G
-    #                    -g
-    #                    >)
-
     add_executable(CudaTest src/exec/cuda_test.cu)
     target_link_libraries(CudaTest Eigen3::Eigen Geometry SimObject)
     target_compile_definitions(CudaTest PRIVATE HAVE_CUDA)
@@ -257,11 +315,45 @@ if (HAVE_CUDA AND NOT NO_GPU)
     add_executable(XPBDCudaTest src/exec/xpbd_cuda_test.cu)
     target_link_libraries(XPBDCudaTest Eigen3::Eigen Geometry SimObject)
     target_compile_definitions(XPBDCudaTest PRIVATE HAVE_CUDA)
-    # target_compile_options(XPBDCudaTest PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--keep>)
-
-    # add_executable(XPBDConstraintCudaTest src/exec/constraints_cuda_test.cu)
-    # target_link_libraries(XPBDConstraintCudaTest Eigen3::Eigen Geometry SimObject GPU Simulation)
-    # target_compile_definitions(XPBDConstraintCudaTest PRIVATE HAVE_CUDA)
 endif()
 
 
+
+include(CMakePackageConfigHelpers)
+
+export(EXPORT XPBDSim-targets
+    FILE ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimTargets.cmake
+    NAMESPACE XPBDSim::
+)
+
+install(EXPORT XPBDSim-targets
+    FILE XPBDSimTargets.cmake
+    NAMESPACE XPBDSim::
+    DESTINATION lib/cmake/XPBDSim
+)
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfig.cmake.in
+"include(\"\${CMAKE_CURRENT_LIST_DIR}/XPBDSimTargets.cmake\")
+"
+)
+
+# Generate the config file
+configure_package_config_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfig.cmake
+    INSTALL_DESTINATION lib/cmake/XPBDSim
+)
+
+# Generate version file
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfigVersion.cmake
+    VERSION 1.0.0
+    COMPATIBILITY AnyNewerVersion
+)
+
+# Install the config files
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/XPBDSimConfigVersion.cmake
+    DESTINATION lib/cmake/XPBDSim
+)

@@ -257,7 +257,7 @@ public:
     /** Computes the current global stiffness matrix of the mesh. This is done with a first-order approximation of delC^T * alpha * delC.
      * @returns the global stiffness matrix
      */
-    virtual MatXr stiffnessMatrix() const = 0;
+    virtual Eigen::SparseMatrix<Real> stiffnessMatrix() const = 0;
 
 
     /** === Methods specific to 1st-Order algorithm === */

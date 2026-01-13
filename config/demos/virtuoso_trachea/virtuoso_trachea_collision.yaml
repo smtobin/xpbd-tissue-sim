@@ -120,7 +120,6 @@ objects:
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 15e-3
-
     -
       name: "Arm2"
       type: "VirtuosoArm"
@@ -128,9 +127,9 @@ objects:
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 6e-3
+      outer-tube-translation: 5e-3
       outer-tube-rotation: 0
-      inner-tube-rotation: 0
+      inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 10e-3
 

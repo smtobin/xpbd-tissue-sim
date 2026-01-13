@@ -10,6 +10,7 @@
 
 #include <optional>
 #include <unordered_set>
+#include <cassert>
 
 #ifdef HAVE_CUDA
 #include <memory>
@@ -170,6 +171,11 @@ public:
 
     /** Returns the axis-aligned bounding-box (AABB) for the mesh. */
     AABB boundingBox() const;
+
+    /** Returns the coordinates of the mesh origin.
+     * i.e. where the "origin" of the mesh (the (0,0,0) point when the mesh is first loaded) is currently at
+     */
+    Vec3r meshOrigin() const { return _mesh_origin; }
 
     /** Returns the unrotated size of the mesh.
      * This does not change when the mesh rotates - only when the mesh is resized.
@@ -403,6 +409,8 @@ protected:
     std::vector<std::unordered_set<int>> _vertex_adjacent_vertices;
 
     Vec3r _unrotated_size_xyz; // the size of the mesh in each dimension in its unrotated state
+
+    Vec3r _mesh_origin; // the (0,0,0) point in the mesh
 
     // mesh properties
     PropertyContainer<MeshPropertyTypeList> _vertex_properties;

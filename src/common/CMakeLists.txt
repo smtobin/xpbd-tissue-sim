@@ -27,7 +27,7 @@ target_sources(Common
         ${COMMON_SOURCES}       
 )
 
-install(TARGETS Common EXPORT Common-targets
+install(TARGETS Common EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${COMMON_HEADERS}

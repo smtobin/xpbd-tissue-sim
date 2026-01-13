@@ -38,14 +38,14 @@ materials:
   -
     name: "Soft Tissue"
     density: 1000   # density [kg/m^3]
-    E: 6e4    # Young's modulus [Pa]
+    E: 3e5    # Young's modulus [Pa]
     nu: 0.45  # Poisson's ratio [-]
     mu-s: 0.0 # coefficient of static friction [-]
     mu-k: 0.0 # coefficient of kinetic friction [-]
   -
     name: "Stiffer Tissue"
     density: 1030
-    E: 3e5
+    E: 3e6
     # E: 0.5e6
     nu: 0.49
   -
@@ -69,9 +69,9 @@ objects:
     ## filename to load from (.msh is GMSH's volumetric mesh format, but if .obj or .stl is provided, will automatically turn surface mesh to volume mesh)
     filename: "../resource/demos/palpation/2x1x1_block16.msh"
     # filename: "../resource/cube/cube8.msh"
-    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes_spheres.txt"
+    element-classes-filename: "../resource/demos/palpation/2x1x1_block16_element_classes_spheres_paper.txt"
 
-    materials: ["Soft Tissue", "Stiffer Tissue"] # the elastic material(s) (must match with the name of a material defined above)
+    materials: ["Soft Tissue", "Stiffer Tissue", "Stiffer Tissue"] # the elastic material(s) (must match with the name of a material defined above)
 
     ## initial configuration
     max-size: 0.025   # size of largest model dimension (preserves aspect ratio)
@@ -104,6 +104,7 @@ objects:
     # rendering settings
     colors: [
       [1.0, 0.3, 0.2],    # color of the bulk tissue
+      [1.0, 0.15, 0.05],   # color of the hard tissue
       [1.0, 0.15, 0.05]   # color of the hard tissue
     ]
     render-type: "PBR"
@@ -118,7 +119,7 @@ objects:
     name: "Robot"
     type: "VirtuosoRobot"
     # position: [0, -0.035, -0.0015] #"close position"
-    position: [0, 0.01, 0.03]
+    position: [0, 0.014, 0.03]
     rotation: [0, 180, 0]
     # rotation: [0,0,0]
     collisions: true

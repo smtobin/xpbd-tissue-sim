@@ -36,6 +36,8 @@ class RigidMeshObject : public RigidObject, public MeshObject
 
     virtual void setOrientation(const Vec4r& orientation) override;
 
+    void rotateAboutOrigin(const Mat3r& rot_mat);
+
     /** TODO: propogate the config object somehow so that we can pass on the SDF filename */
     virtual void createSDF() override 
     { 

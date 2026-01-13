@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
     Vec3r combined_mesh_cm = combined_mesh.massCenter();
 
     // load combined mesh from file
-    Config::MeshObjectConfig config(combined_mesh_filename, std::nullopt, std::nullopt, false, false, false, Vec4r(0,0,0,0));
+    Config::MeshObjectConfig config(combined_mesh_filename, std::nullopt, std::nullopt, std::nullopt, false, false, false, Vec4r(0,0,0,0));
     Config::ObjectConfig obj_config("combined", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
 
     

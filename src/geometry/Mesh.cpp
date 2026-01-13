@@ -24,6 +24,8 @@ Mesh::Mesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces)
         surface_property.set(f[2], true);
     }
 
+    _mesh_origin = Vec3r::Zero();
+
     setCurrentStateAsUndeformedState();
 }
 
@@ -32,6 +34,7 @@ Mesh::Mesh(const Mesh& other)
     _vertices = other._vertices;
     _faces = other._faces;
     _unrotated_size_xyz = other._unrotated_size_xyz;
+    _mesh_origin = other._mesh_origin;
     _vertex_properties = other._vertex_properties;
     _face_properties = other._face_properties;
     _vertex_adjacent_vertices = other._vertex_adjacent_vertices;
@@ -45,6 +48,7 @@ Mesh::Mesh(Mesh&& other)
     _vertices = std::move(other._vertices);
     _faces = std::move(other._faces);
     _unrotated_size_xyz = std::move(other._unrotated_size_xyz);
+    _mesh_origin = std::move(other._mesh_origin);
     _vertex_properties = std::move(other._vertex_properties);
     _face_properties = std::move(other._face_properties);
     _vertex_adjacent_vertices = std::move(other._vertex_adjacent_vertices);
@@ -239,6 +243,8 @@ void Mesh::resize(const Real size_of_max_dim)
     // moveTogether(-aabb.center());    /** TODO: why is this commented out? */
     for (auto& v : _vertices)
         v *= scaling_factor;
+
+    _mesh_origin *= scaling_factor;
     // moveTogether(aabb.center());
 
     // scale the unrotated size
@@ -264,6 +270,10 @@ void Mesh::resize(const Vec3r& new_size)
         v[1] *= scaling_factor_y;
         v[2] *= scaling_factor_z;
     }
+
+    _mesh_origin[0] *= scaling_factor_x;
+    _mesh_origin[1] *= scaling_factor_y;
+    _mesh_origin[2] *= scaling_factor_z;
     // moveTogether(aabb.center());
 
     // scale the unrotated size
@@ -276,6 +286,8 @@ void Mesh::moveTogether(const Vec3r& delta)
 {
     for (auto& v : _vertices)
         v += delta;
+        
+    _mesh_origin += delta;
 }
 
 // void Mesh::moveSeparate(const VerticesMat& delta)
@@ -321,6 +333,8 @@ void Mesh::rotateAbout(const Vec3r& p, const Mat3r& rot_mat)
     moveTogether(-p);
     for (auto& v : _vertices)
         v = rot_mat * v;
+
+    _mesh_origin = rot_mat * _mesh_origin;
     moveTogether(p);
 }
 

@@ -47,6 +47,9 @@ void RigidMeshObject::setup()
 
 void RigidMeshObject::update()
 {
+    if(_fixed)
+        return;
+
     RigidObject::update();
 
     // TODO: make this work without the need for _initial_mesh
@@ -69,8 +72,11 @@ void RigidMeshObject::update()
 
 void RigidMeshObject::setPosition(const Vec3r& position)
 {
-    if (_fixed)
-        return;
+    // 12/5/25 TODO: do we need this check?
+    // I commented it out so that we can change the position of the trachea to be in the VB frame
+
+    // if (_fixed)
+    //     return;
 
     
 
@@ -86,8 +92,9 @@ void RigidMeshObject::setPosition(const Vec3r& position)
 
 void RigidMeshObject::setOrientation(const Vec4r& orientation)
 {
-    if (_fixed)
-        return;
+    // 12/5/25 TODO: do we need this check?
+    // if (_fixed)
+    //     return;
         
     // TODO: make this work without the need for _initial_mesh
     // move the mesh accordingly
@@ -98,6 +105,16 @@ void RigidMeshObject::setOrientation(const Vec4r& orientation)
     _mesh->rotateAbout(_p, rot_mat);
 
     _q = orientation;
+}
+
+void RigidMeshObject::rotateAboutOrigin(const Mat3r& rot_mat)
+{
+    // 12/5/25 TODO: do we need this check?
+    // if (_fixed)
+    //     return;
+
+    _mesh->rotateAbout(Vec3r::Zero(), rot_mat);
+    _q = GeometryUtils::quatMult(_q, GeometryUtils::matToQuat(rot_mat));
 }
 
 } // namespace Simulation

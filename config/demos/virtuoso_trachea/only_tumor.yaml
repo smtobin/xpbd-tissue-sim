@@ -7,6 +7,8 @@ show-tip-cursor: true
 enable-mouse-interaction: true
 haptic-force-scaling: 0
 
+express-meshes-in-vb-frame: true
+
 # device-name1: "LeftOmni"
 # device-name2: "RightOmni"
 # device-name1: "Omni"
@@ -45,19 +47,20 @@ window-height: 1000
 objects:
 
   -
-    name: "Cube1"
+    name: "Tumor"
     # type: "XPBDMeshObject"
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
     fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
     # element-classes-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_element_classes.txt"
     materials: ["Raw Chicken Breast"]
-    max-size: 0.017
-    position: [0, -0.015, -0.005]
+    # max-size: 0.017
+    scaling: [1e-3, 1e-3, 1e-3]
+    position: [0.110, 0.141, 0.07]
     velocity: [0, 0, 0]
-    rotation: [90, 0, 0]
+    rotation: [0, 0, 0]
     num-solver-iters: 1
-    num-local-collision-iters: 5
+    num-local-collision-iters: 10
     residual-policy: "Never"
     solver-type: "Gauss-Seidel"
     # solver-type: "Jacobi"
@@ -81,19 +84,20 @@ objects:
     draw-edges: true
     draw-faces: true
 
-  # -
-  #   name: "Trachea"
-  #   # type: "RigidMeshObject"
-  #   type: "FirstOrderXPBDMeshObject"
-  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-  #   materials: ["Raw Chicken Breast"]
-  #   max-size: 0.095
-  #   position: [0.003, 0, -0.005]
-  #   velocity: [0, 0, 0]
-  #   rotation: [90, 0, 0]
+  -
+    name: "Trachea"
+    type: "RigidMeshObject"
+    # type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+    materials: ["Raw Chicken Breast"]
+    # max-size: 0.095
+    scaling: [1e-3, 1e-3, 1e-3]
+    position: [0.110, 0.141, 0.07]
+    velocity: [0, 0, 0]
+    rotation: [0, 0, 0]
 
-  #   collisions: false
-  #   fixed: true
+    collisions: true
+    fixed: true
 
   #   damping-multiplier: 2e5
   #   # damping-multiplier: 6000000000
@@ -114,8 +118,8 @@ objects:
     name: "Robot"
     type: "VirtuosoRobot"
     # position: [0, -0.035, -0.0015] #"close position"
-    position: [0, -0.04, -0.0015]
-    rotation: [-90, 180, 0]
+    position: [0, 0, 0]
+    rotation: [0, 0, 0] # TODO: fix bug where changing VB orientation causes misalignment. 12/5
     collisions: true
     # rendering settings
     color: [0.7, 0.7, 0.7]

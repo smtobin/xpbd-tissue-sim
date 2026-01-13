@@ -196,25 +196,49 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         if (centroid_dist*centroid_dist > max_edge)
             continue;
 
-        const Vec3r x = _frankWolfe(sdf, p1, p2, p3);
-        const double distance = sdf->evaluate(x);
-        if (distance <= 1e-4)
-        {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
-            // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
-            const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-            const Vec3r grad = sdf->gradient(x);
-            const Vec3r surface_x = x - grad*distance;
-            
-            if (rigid_obj->isFixed())
+        const int num_samples = 1;
+        for (int si = 0; si <= num_samples; si++)
+        {
+            for (int sj = 0; sj <= num_samples - si; sj++)
             {
-                xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
+                const Real u = (Real)(si+1) / (num_samples+2);
+                const Real v = (Real)(sj+1) / (num_samples+2);
+                const Real w = 1 - u - v;
+                const Vec3r x = u*p1 + v*p2 + w*p3;
+                const Real dist = sdf->evaluate(x);
+                if (dist <= 1e-4)
+                {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
+                    // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
+                    const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
+                    const Vec3r grad = sdf->gradient(x);
+                    const Vec3r surface_x = x - grad*dist;
+                    // Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+                    xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
+                    
+                    // virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
+                    
+                }
             }
-            else
-            {
-                xpbd_mesh_obj->addRigidDeformableCollisionConstraint(sdf, rigid_obj, surface_x, grad, i, u, v, w);
-            }
-            
         }
+        // const Vec3r x = _frankWolfe(sdf, p1, p2, p3);
+        // const double distance = sdf->evaluate(x);
+        // if (distance <= 1e-4)
+        // {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
+        //     // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
+        //     const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
+        //     const Vec3r grad = sdf->gradient(x);
+        //     const Vec3r surface_x = x - grad*distance;
+            
+        //     if (rigid_obj->isFixed())
+        //     {
+        //         xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
+        //     }
+        //     else
+        //     {
+        //         xpbd_mesh_obj->addRigidDeformableCollisionConstraint(sdf, rigid_obj, surface_x, grad, i, u, v, w);
+        //     }
+            
+        // }
     }
 }
 

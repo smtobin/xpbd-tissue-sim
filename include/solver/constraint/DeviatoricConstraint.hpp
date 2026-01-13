@@ -4,6 +4,8 @@
 #include "solver/constraint/ElementConstraint.hpp"
 #include "simobject/ElasticMaterial.hpp"
 
+#include <cassert>
+
 #ifdef HAVE_CUDA
 #include "gpu/constraint/GPUDeviatoricConstraint.cuh"
 #endif
@@ -27,6 +29,8 @@ class DeviatoricConstraint : public ElementConstraint
     public:
     constexpr static int NUM_POSITIONS = 4;
     constexpr static int NUM_COORDINATES = 12;
+
+    using HessianMatType = Eigen::Matrix<Real, NUM_COORDINATES, NUM_COORDINATES>;
 
     public:
     DeviatoricConstraint();
@@ -62,6 +66,11 @@ class DeviatoricConstraint : public ElementConstraint
      * @param grad (OUTPUT) - the pointer to the (currently empty) constraint gradient vector. Expects it to be _gradient_vector_size x 1.
      */
     void gradient(Real* grad) const;
+
+    /** Computes the Hessian of this constraint.
+     * i.e. returns d/dx (delC(x))
+     */
+    HessianMatType hessian() const;
 
     /** Computes the value and gradient of this constraint with pre-allocated memory.
      * i.e. returns C(x) and delC(x) together.

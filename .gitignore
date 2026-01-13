@@ -7,6 +7,7 @@ dependencies/
 
 # ignore build files
 build/
+dependencies/
 CMakeFiles/
 .vscode/
 Makefile
@@ -19,6 +20,9 @@ log/
 # ignore .obj and .stl files
 *.obj
 *.stl
+
+# don't ignore these specific .stl or .obj files (used by the sims)
+!resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl
 
 # ignore output folder
 output/
