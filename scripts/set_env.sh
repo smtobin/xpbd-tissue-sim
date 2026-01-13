@@ -15,3 +15,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/easy3d-2.6.1/lib/
 
 # needed for OpenHaptics SDK
 export GTDD_HOME=/root/.3dsystems
+
+# set PETSc location
+export PETSC_DIR=$(realpath $THIRDPARY_FOLDER/petsc)
+export PETSC_ARCH=arch-linux-c-debug

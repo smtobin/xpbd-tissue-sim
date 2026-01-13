@@ -18,7 +18,7 @@ class AttachmentConstraint : public Constraint
     constexpr static int NUM_POSITIONS = 1;
     constexpr static int NUM_COORDINATES = 4;
 
-    explicit AttachmentConstraint(int v_ind, Real* v_ptr, Real m, const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
+    explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
@@ -32,7 +32,7 @@ class AttachmentConstraint : public Constraint
      */
     inline void evaluate(Real* C) const override
     {
-        *C = ( Eigen::Map<Vec3r>(_positions[0].position_ptr) - (*_attached_pos_ptr + _attachment_offset) ).norm();
+        *C = ( _positions[0].position() - (*_attached_pos_ptr + _attachment_offset) ).norm();
     }
 
     /** Computes the gradient of this constraint in vector form with pre-allocated memory.
@@ -43,18 +43,18 @@ class AttachmentConstraint : public Constraint
     inline void gradient(Real* grad) const override
     {
         const Vec3r& attach_pt = (*_attached_pos_ptr + _attachment_offset);
-        const Real dist = ( Eigen::Map<Vec3r>(_positions[0].position_ptr) - attach_pt ).norm();
+        const Real dist = ( _positions[0].position() - attach_pt ).norm();
         if (dist < Real(1e-12))
         {
-            grad[0] = Real(1e-12);
-            grad[1] = Real(1e-12);
-            grad[2] = Real(1e-12);
+            grad[0] = 1;
+            grad[1] = 0;
+            grad[2] = 0;
         }
         else
         {
-            grad[0] = (_positions[0].position_ptr[0] - attach_pt[0]) / dist;
-            grad[1] = (_positions[0].position_ptr[1] - attach_pt[1]) / dist;
-            grad[2] = (_positions[0].position_ptr[2] - attach_pt[2]) / dist;
+            grad[0] = (_positions[0].position()[0] - attach_pt[0]) / dist;
+            grad[1] = (_positions[0].position()[1] - attach_pt[1]) / dist;
+            grad[2] = (_positions[0].position()[2] - attach_pt[2]) / dist;
         }
     }
 
@@ -70,20 +70,20 @@ class AttachmentConstraint : public Constraint
     void evaluateWithGradient(Real* C, Real* grad) const override
     {
         const Vec3r& attach_pt = (*_attached_pos_ptr + _attachment_offset);
-        const Real dist = ( Eigen::Map<Vec3r>(_positions[0].position_ptr) - attach_pt ).norm();
+        const Real dist = ( _positions[0].position() - attach_pt ).norm();
         *C = dist;
 
         if (dist < Real(1e-12))
         {
-            grad[0] = Real(1e-12);
-            grad[1] = Real(1e-12);
-            grad[2] = Real(1e-12);
+            grad[0] = 1;
+            grad[1] = 0;
+            grad[2] = 0;
         }
         else
         {
-            grad[0] = (_positions[0].position_ptr[0] - attach_pt[0]) / dist;
-            grad[1] = (_positions[0].position_ptr[1] - attach_pt[1]) / dist;
-            grad[2] = (_positions[0].position_ptr[2] - attach_pt[2]) / dist;
+            grad[0] = (_positions[0].position()[0] - attach_pt[0]) / dist;
+            grad[1] = (_positions[0].position()[1] - attach_pt[1]) / dist;
+            grad[2] = (_positions[0].position()[2] - attach_pt[2]) / dist;
         }
         
     }

@@ -65,7 +65,8 @@ class XPBDSolver
      */
     void solve()
     {
-        _inertial_positions = _obj->mesh()->vertices();
+        /** TODO: uncomment this when ready */
+        // _inertial_positions = _obj->mesh()->vertices();
 
         // initialize all the constraints
         _constraint_projectors.for_each_element([&](auto& proj)
@@ -180,19 +181,18 @@ class XPBDSolver
         return ConstraintProjectorReference<ProjectorType>(proj_vec, proj_vec.size()-1);
     }
 
-    /** Creates a projector for the passed in constraints and adds it to the associated projector array.
+    /** Creates a projector for the passed in constraints and puts it at the specified index.
+     * @param index - the index of the new projector in the associated projector array
      * @param dt - the time step used by the constraint projector (i.e. the simulation time step)
-     * @param B_e_inv - inverse damping matrix for the element
      * @param constraints - variadic list of constraint pointers (right now, only 1 or 2 constraints are supported)
-     * @returns a reference to the added projector as a ConstraintProjectorReference
      */
     template<class... Constraints>
-    ConstraintProjectorReference<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type> 
-    addConstraintProjector(Real dt, const Eigen::Matrix<Real,12,12>& B_e_inv, ConstraintReference<Constraints>&&... constraints)
+    ConstraintProjectorReference<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>
+    setConstraintProjector(int index, Real dt, ConstraintReference<Constraints>&&... constraints)
     {
         using ProjectorType = typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type;
-        ProjectorType projector(dt, std::forward<ConstraintReference<Constraints>>(constraints)..., B_e_inv);
-    
+        ProjectorType projector(dt, std::forward<ConstraintReference<Constraints>>(constraints)...);
+            
         // make sure that the data buffer of the coordinate updates vector is large enough to accommodate the new projector
         if (static_cast<unsigned>(projector.numCoordinates()) > _coordinate_updates.size())
         {
@@ -204,28 +204,7 @@ class XPBDSolver
         {
             _rigid_body_updates.resize(ProjectorType::NUM_RIGID_BODIES);
         }
-    
-        // increase the total number of constraints (needed for the constraint residual size)
-        _num_constraints += ProjectorType::NUM_CONSTRAINTS;
-            
-        _constraint_projectors.template push_back<ProjectorType>(std::move(projector));
 
-        std::vector<ProjectorType>& proj_vec = _constraint_projectors.template get<ProjectorType>();
-        return ConstraintProjectorReference<ProjectorType>(proj_vec, proj_vec.size()-1);
-    }
-
-    /** Creates a projector for the passed in constraints and puts it at the specified index.
-     * @param index - the index of the new projector in the associated projector array
-     * @param dt - the time step used by the constraint projector (i.e. the simulation time step)
-     * @param constraints - variadic list of constraint pointers (right now, only 1 or 2 constraints are supported)
-     */
-    template<class... Constraints>
-    ConstraintProjectorReference<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>
-    setConstraintProjector(int index, Real dt, Constraints* ... constraints)
-    {
-        using ProjectorType = typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type;
-        ProjectorType projector(dt, constraints...);
-            
         // if current constraint projector at this index is invalid, increase total number of constraints
         if (!_constraint_projectors.template get<ProjectorType>()[index].isValid())
             _num_constraints += ProjectorType::NUM_CONSTRAINTS;
@@ -303,6 +282,13 @@ class XPBDSolver
         });
 
         _constraint_projectors.template clear<Projector>();
+    }
+
+    /** Resizes the vector of projectors of a given type. */
+    template<class Projector>
+    void resizeProjectorsOfType(size_t new_size)
+    {
+        _constraint_projectors.template resize<Projector>(new_size);
     }
 
     protected:
@@ -395,7 +381,7 @@ class XPBDSolver
 
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* _obj;                                 // pointer to the XPBDMeshObject that owns this Solver and is updated by the solver loop
     int _num_iter;                                         // number of solver iterations per solve() call
-    Geometry::Mesh::VerticesMat _inertial_positions;                // stores the positions after the inertial update - useful for primary residual calculation
+    Geometry::Mesh::vertices_vec_type _inertial_positions;                // stores the positions after the inertial update - useful for primary residual calculation
 
     XPBDSolverResidualPolicyEnum _residual_policy;                        // determines how often to calculate the residuals - this varies depending on the information needs of the user
 

@@ -22,11 +22,16 @@ int main()
     Vec3r p2(1,0,0);
     Vec3r p3(0,1,0);
     Vec3r p4(0,0,1);
-    Solver::HydrostaticConstraint hyd(0, p1.data(), 1, 1, p2.data(), 1, 2, p3.data(), 1, 3, p4.data(), 1, mat);
-    Solver::DeviatoricConstraint dev(0, p1.data(), 1, 1, p2.data(), 1, 2, p3.data(), 1, 3, p4.data(), 1, mat);
+    TombstoneVector<Vec3r> vertices_vec;
+    int v1 = vertices_vec.push_back(p1);
+    int v2 = vertices_vec.push_back(p2);
+    int v3 = vertices_vec.push_back(p3);
+    int v4 = vertices_vec.push_back(p4);
+    Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
+    Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
 
-    p1[0] = 0.2; p1[1] = 0.15;
-    p2[0] = 0.93; p2[1] = 0.1; p2[2] = 0.1;
+    vertices_vec[0][0] = 0.2; vertices_vec[0][1] = 0.15;
+    vertices_vec[1][0] = 0.93; vertices_vec[1][1] = 0.1; vertices_vec[1][2] = 0.1;
 
     typename Solver::HydrostaticConstraint::HessianMatType hyd_hessian_mat = hyd.hessian();
     typename Solver::DeviatoricConstraint::HessianMatType dev_hessian_mat = dev.hessian();
@@ -145,10 +150,12 @@ int main()
     
 
     std::ofstream elements_ss("elements.txt");
-    elements_ss << xpbd_mesh_obj->tetMesh()->elements().transpose();
+    for (const auto& e : xpbd_mesh_obj->tetMesh()->elements())
+        elements_ss << e.transpose()  << "\n";
     elements_ss.close();
     
     std::ofstream surface_faces_ss("surface_faces.txt");
-    surface_faces_ss << xpbd_mesh_obj->mesh()->faces().transpose();
+    for (const auto& f : xpbd_mesh_obj->mesh()->faces())
+        surface_faces_ss << f.transpose() << "\n";
     surface_faces_ss.close();
 }

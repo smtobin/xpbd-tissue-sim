@@ -7,6 +7,26 @@ HapticDeviceManager::HapticDeviceManager()
     initialized. */
     _initDeviceWithName(std::nullopt);
 
+    _startUpdateCallback();
+}
+
+HapticDeviceManager::HapticDeviceManager(const std::string& device_name)
+{
+    _initDeviceWithName(device_name);
+
+    _startUpdateCallback();
+}
+
+HapticDeviceManager::HapticDeviceManager(const std::string& device_name1, const std::string& device_name2)
+{
+    _initDeviceWithName(device_name1);
+    _initDeviceWithName(device_name2);
+
+    _startUpdateCallback();
+}
+
+void HapticDeviceManager::_startUpdateCallback()
+{
     HDSchedulerHandle update_callback_handle = hdScheduleAsynchronous(_updateCallback, this, HD_MAX_SCHEDULER_PRIORITY);
 
     hdStartScheduler();
@@ -19,28 +39,24 @@ HapticDeviceManager::HapticDeviceManager()
     }
 }
 
-HapticDeviceManager::HapticDeviceManager(const std::string& device_name)
-{
-    _initDeviceWithName(device_name);
-}
-
-HapticDeviceManager::HapticDeviceManager(const std::string& device_name1, const std::string& device_name2)
-{
-    _initDeviceWithName(device_name1);
-    _initDeviceWithName(device_name2);
-}
-
 void HapticDeviceManager::_initDeviceWithName(std::optional<std::string> device_name)
 {
+    
     HDErrorInfo error;
 
     HHD hHD;
     // if device name specified, use that
     // otherwise use HD_DEFAULT_DEVICE
     if (device_name.has_value())
+    {
+        std::cout << BOLD << " === Initializing haptic device with name " << device_name.value() << " ===" << RST << std::endl;
         hHD = hdInitDevice(device_name.value().c_str());
+    }
     else
+    {
+        std::cout << BOLD << " === Initializing default device ===" << RST << std::endl;
         hHD = hdInitDevice(HD_DEFAULT_DEVICE);
+    }
 
     if (HD_DEVICE_ERROR(error = hdGetError())) 
     {
@@ -54,6 +70,8 @@ void HapticDeviceManager::_initDeviceWithName(std::optional<std::string> device_
 
     hdMakeCurrentDevice(hHD);
     hdEnable(HD_FORCE_OUTPUT);
+
+    std::cout << "New handle: " << hHD << std::endl;
 
     _device_handles.push_back(hHD);
     _device_data[hHD] = HapticDeviceOutputData{};
@@ -140,6 +158,7 @@ void HapticDeviceManager::copyOutputState(HHD handle)
 
     CopiedHapticDeviceOutputData& copied_data = _copied_device_data.at(handle);
     const HapticDeviceOutputData& device_data = _device_data.at(handle);
+    copied_data.last_position = copied_data.position;
     copied_data.position[0] = device_data.device_position[0];
     copied_data.position[1] = device_data.device_position[1];
     copied_data.position[2] = device_data.device_position[2];
@@ -184,6 +203,16 @@ void HapticDeviceManager::setDeviceOutputData(HHD handle, const HDboolean& b1_st
     std::memcpy(device_data.device_transform, transform, sizeof(HDdouble)*16);
     
     _copied_device_data.at(handle).stale = true;
+}
+
+Vec3r HapticDeviceManager::lastPosition(HHD handle)
+{
+    if (_copied_device_data.at(handle).stale)
+    {
+        copyOutputState(handle);
+    }
+
+    return _copied_device_data.at(handle).last_position;
 }
 
 Vec3r HapticDeviceManager::position(HHD handle)

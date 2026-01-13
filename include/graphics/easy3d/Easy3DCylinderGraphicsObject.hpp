@@ -15,7 +15,7 @@ class Easy3DCylinderGraphicsObject : public CylinderGraphicsObject, public easy3
     public:
     explicit Easy3DCylinderGraphicsObject(const std::string& name, const Sim::RigidCylinder* cyl);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

@@ -17,7 +17,7 @@ class VTKVirtuosoArmGraphicsObject : public VirtuosoArmGraphicsObject
     public:
     explicit VTKVirtuosoArmGraphicsObject(const std::string& name, const Sim::VirtuosoArm* arm, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> actor() { return _vtk_actor; }
 

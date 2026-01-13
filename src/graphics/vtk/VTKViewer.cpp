@@ -238,6 +238,9 @@ void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_
     VTKViewer* viewer = static_cast<VTKViewer*>(client_data);
     if (viewer->_should_render.exchange(false))
     {
+        if (viewer->_prerender_callback)
+            viewer->_prerender_callback();
+            
         viewer->_render_window->Render();
     }
 }

@@ -5,6 +5,7 @@ visualization: "VTK"
 input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 show-tip-cursor: true
 enable-mouse-interaction: true
+haptic-force-scaling: 0
 
 express-meshes-in-vb-frame: true
 
@@ -78,6 +79,7 @@ objects:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
+    smooth-normals: false
     draw-points: false
     draw-edges: true
     draw-faces: true
@@ -97,20 +99,20 @@ objects:
     collisions: true
     fixed: true
 
-    damping-multiplier: 2e5
-    # damping-multiplier: 6000000000
-    # damping-multiplier: 40000000000
-    adjust-damping-to-material: True
+  #   damping-multiplier: 2e5
+  #   # damping-multiplier: 6000000000
+  #   # damping-multiplier: 40000000000
+  #   adjust-damping-to-material: True
 
-    # rendering settings
-    colors: [[1.0, 0.3, 0.2]]
-    render-type: "PBR"
-    metallic: 0.0
-    roughness: 0.3
-    smooth-normals: true
-    draw-points: false
-    draw-edges: false
-    draw-faces: true
+  #   # rendering settings
+  #   colors: [[1.0, 0.3, 0.2]]
+  #   render-type: "PBR"
+  #   metallic: 0.0
+  #   roughness: 0.3
+  #   smooth-normals: true
+  #   draw-points: false
+  #   draw-edges: false
+  #   draw-faces: true
 
   -
     name: "Robot"
@@ -129,7 +131,8 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "none"
+      tool-type: "cautery"
+      cutting-model: "timer"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

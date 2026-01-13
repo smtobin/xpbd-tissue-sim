@@ -80,7 +80,7 @@ Easy3DMeshGraphicsObject::~Easy3DMeshGraphicsObject()
 }
 
 
-void Easy3DMeshGraphicsObject::update()
+void Easy3DMeshGraphicsObject::updateGraphicsBuffers()
 {
     // update the vertex cache, which is what the renderer uses to update the vertex positions
     _updateVertexCache();
@@ -92,7 +92,6 @@ void Easy3DMeshGraphicsObject::update()
 std::vector<unsigned int> Easy3DMeshGraphicsObject::facesAsFlatList() const
 {
     // each face (triangle) has 3 vertices
-    const Geometry::Mesh::FacesMat& faces = _mesh->faces();
     std::vector<unsigned int> faces_flat_list;
     faces_flat_list.reserve(_mesh->numFaces()*3);
 
@@ -102,7 +101,7 @@ std::vector<unsigned int> Easy3DMeshGraphicsObject::facesAsFlatList() const
     {
         const std::vector<bool>& draw_face = _mesh->getFaceProperty<bool>("draw").properties();
         // iterate through faces and add them to 1D list
-        for (int i = 0; i < _mesh->numFaces(); i++)
+        for (const auto& i : _mesh->faces().validIndices())
         {
             if (!draw_face[i])
                 continue;
@@ -114,7 +113,7 @@ std::vector<unsigned int> Easy3DMeshGraphicsObject::facesAsFlatList() const
     else
     {
         // iterate through faces and add them to 1D list
-        for (const auto& face : faces.colwise())
+        for (const auto& face : _mesh->faces())
         {
             faces_flat_list.insert(faces_flat_list.end(), {static_cast<unsigned>(face(0)), static_cast<unsigned>(face(1)), static_cast<unsigned>(face(2))});
         }
@@ -128,7 +127,6 @@ std::vector<unsigned int> Easy3DMeshGraphicsObject::facesAsFlatList() const
 std::vector<unsigned int> Easy3DMeshGraphicsObject::edgesAsFlatList() const
 {
     // TODO: filter duplicate edges
-    const Geometry::Mesh::FacesMat& faces = _mesh->faces();
     std::vector<unsigned int> edges_flat_list;
     edges_flat_list.reserve(_mesh->numFaces()*6);
 
@@ -138,7 +136,7 @@ std::vector<unsigned int> Easy3DMeshGraphicsObject::edgesAsFlatList() const
     {
         const std::vector<bool>& draw_face = _mesh->getFaceProperty<bool>("draw").properties();
         // iterate through faces and add them to 1D list
-        for (int i = 0; i < _mesh->numFaces(); i++)
+        for (const auto& i : _mesh->faces().validIndices())
         {
             if (!draw_face[i])
                 continue;
@@ -152,7 +150,7 @@ std::vector<unsigned int> Easy3DMeshGraphicsObject::edgesAsFlatList() const
     else
     {
         // iterate through faces and add each edge to 1D list
-        for (const auto& face : faces.colwise())
+        for (const auto& face : _mesh->faces())
         {
             edges_flat_list.insert(edges_flat_list.end(), {static_cast<unsigned>(face(0)), static_cast<unsigned>(face(1)),
                 static_cast<unsigned>(face(1)), static_cast<unsigned>(face(2)),
@@ -175,13 +173,11 @@ void Easy3DMeshGraphicsObject::_updateVertexCache()
         _vertex_cache.resize(_mesh->numVertices());
     }
 
-    // get vertices from MeshObject
-    const Geometry::Mesh::VerticesMat& vertices = _mesh->vertices();
-
     // loop through and update each vertex in the cache
-    for (int i = 0; i < _mesh->numVertices(); i++)
+    for (const auto& i : _mesh->vertices().validIndices())
     {
-        _vertex_cache.at(i) = (easy3d::vec3(vertices(0,i), vertices(1,i), vertices(2,i)));
+        const Vec3r& v = _mesh->vertex(i);
+        _vertex_cache.at(i) = (easy3d::vec3(v[0], v[1], v[2]));
     }
 }
 

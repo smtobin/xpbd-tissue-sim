@@ -23,11 +23,16 @@ class VirtuosoSimulationConfig : public SimulationConfig
         _extractParameterWithOptions("input-device", node, _input_device, INPUT_DEVICE_OPTIONS());
         _extractParameter("show-tip-cursor", node, _show_tip_cursor);
         _extractParameter("haptic-force-scaling", node, _haptic_force_scaling);
+
+        _extractParameter("haptic-device-name1", node, _haptic_device_name1);
+        _extractParameter("haptic-device-name2", node, _haptic_device_name2);
     }
 
     SimulationInput::Device inputDevice() const { return _input_device.value; }
     bool showTipCursor() const { return _show_tip_cursor.value; }
     Real hapticForceScaling() const { return _haptic_force_scaling.value; }
+    std::optional<std::string> hapticDeviceName1() const { return _haptic_device_name1.value; }
+    std::optional<std::string> hapticDeviceName2() const { return _haptic_device_name2.value; }
 
     protected:
     ConfigParameter<SimulationInput::Device> _input_device = ConfigParameter<SimulationInput::Device>(SimulationInput::Device::MOUSE);
@@ -35,6 +40,9 @@ class VirtuosoSimulationConfig : public SimulationConfig
     ConfigParameter<bool> _show_tip_cursor = ConfigParameter<bool>(true);
 
     ConfigParameter<Real> _haptic_force_scaling = ConfigParameter<Real>(1.0);
+
+    ConfigParameter<std::optional<std::string>> _haptic_device_name1;
+    ConfigParameter<std::optional<std::string>> _haptic_device_name2;
 };
 
 } // namespace Config

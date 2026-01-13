@@ -41,7 +41,7 @@ class DeformableMeshSDF : public SDF
     // Vec3r _gradientStaticSDF(const Vec3r& X_m) const;
 
     const Sim::TetMeshObject* _mesh_obj;
-    const Geometry::Mesh::VerticesMat _initial_vertices;
+    const Geometry::Mesh::vertices_vec_type _initial_vertices;
     // mesh2sdf::MeshSDF _sdf;
     // bool _from_file;
 

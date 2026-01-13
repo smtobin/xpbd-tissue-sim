@@ -20,13 +20,22 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
 
     public:
     StaticDeformableCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
-                                        int v1, Real* p1, Real m1,
-                                        int v2, Real* p2, Real m2,
-                                        int v3, Real* p3, Real m3,
-                                        Real u, Real v, Real w);
+                                        int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                                        Real u, Real v, Real w,
+                                        int face_index=-1);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
+
+    /** Returns the index of the face in contact. */
+    int faceIndex() const { return _face_index; }
+
+    /** Returns the barycentric coordinates (u,v,w) of the face contact point.
+     * u corresponds to the first vertex, v the second, w the third.
+     */
+    Vec3r barycentricCoordinates() const { return Vec3r(_u,_v,_w); }
 
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)
@@ -152,6 +161,7 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
     Real _u;
     Real _v;
     Real _w;
+    int _face_index;
 
 };
 

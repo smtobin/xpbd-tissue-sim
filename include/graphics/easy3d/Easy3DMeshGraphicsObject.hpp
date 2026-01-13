@@ -32,7 +32,7 @@ class Easy3DMeshGraphicsObject : public MeshGraphicsObject, public easy3d::Model
     virtual ~Easy3DMeshGraphicsObject();
 
     /** Updates graphics buffers associated with this object */
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

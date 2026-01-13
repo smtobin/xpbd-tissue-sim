@@ -24,7 +24,7 @@ class EmbreeTetMeshGeometry : public EmbreeMeshGeometry
     void setTetScene(RTCScene scene) { _tet_scene = scene; }
 
     /** Returns a pointer to element indices (4 consecutive indices make up an element) */
-    const int* elementIndices() const { return _tet_mesh->elements().data(); }
+    // const int* elementIndices() const { return _tet_mesh->elements().data(); }
 
     static bool isPointInTetrahedron(const float p[3], const float *v0, const float *v1, const float *v2, const float *v3);
     static float squaredDistanceToTetrahedron(const float p[3], const float* v0, const float* v1, const float* v2, const float* v3);

@@ -29,6 +29,9 @@ void VTKGraphicsScene::init()
 {
     _viewer = std::make_unique<VTKViewer>(_name, _sim_render_config);
     _vtk_viewer = dynamic_cast<VTKViewer*>(_viewer.get());
+    _vtk_viewer->setPreRenderCallback([this]() {
+        this->updateGraphicsBuffers();
+    });
 }
 
 void VTKGraphicsScene::update()
@@ -41,6 +44,14 @@ void VTKGraphicsScene::update()
 
     // update the viewer (signal a redraw)
     _viewer->update();
+}
+
+void VTKGraphicsScene::updateGraphicsBuffers()
+{
+    for (auto& obj : _graphics_objects)
+    {
+        obj->updateGraphicsBuffers();
+    }
 }
 
 int VTKGraphicsScene::run()
@@ -72,7 +83,10 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
 
         // create a new MeshGraphicsObject for visualizing this MeshObject
         auto ptr = std::make_unique<VTKMeshGraphicsObject>(obj->name(), mo->mesh(), render_config);
-        _vtk_viewer->renderer()->AddActor(ptr->actor());
+        if (ptr->facesActor())
+            _vtk_viewer->renderer()->AddActor(ptr->facesActor());
+        if (ptr->edgesActor())
+            _vtk_viewer->renderer()->AddActor(ptr->edgesActor());
         new_graphics_obj = std::move(ptr);
     }
 

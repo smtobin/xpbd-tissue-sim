@@ -122,25 +122,31 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+
+    // std::unordered_set<int> elems_to_refine;
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Vec3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);
 
         // check if centroid of face is close
         const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
-        if (centroid_dist > 2e-3)
-            continue;
+        // if (centroid_dist < 2e-3)
+        // {
+        //     elems_to_refine.insert(xpbd_mesh_obj->tetMesh()->elementWithFace(i));
+        // }
 
         const Real p1p2 = (p2-p1).norm();
         const Real p1p3 = (p3-p1).norm();
         const Real p2p3 = (p3-p2).norm();
 
         const Real max_edge = std::max({p1p2, p1p3, p2p3});
-        const int num_samples = (int)(5*max_edge / 1e-3);
+        if (centroid_dist > max_edge)
+            continue;
+
+        const int num_samples = (int)(5*max_edge / 0.5e-3);
 
         // const int num_samples = 4;
         for (int si = 0; si <= num_samples; si++)
@@ -174,10 +180,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const Geometry::SDF* sdf = rigid_obj->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Eigen::Vector3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);
@@ -243,10 +248,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     // iterate through faces of mesh
     const Geometry::SDF* sdf = obj2->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    const Geometry::Mesh::FacesMat& faces = mesh->faces();
-    for (int i = 0; i < faces.cols(); i++)
+    for (const auto& i : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = faces.col(i);
+        const Eigen::Vector3i& f = mesh->face(i);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);

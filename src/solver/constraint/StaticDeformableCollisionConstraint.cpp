@@ -4,22 +4,23 @@
 namespace Solver
 {
 StaticDeformableCollisionConstraint::StaticDeformableCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
-                                                                        int v1, Real* p1, Real m1,
-                                                                        int v2, Real* p2, Real m2,
-                                                                        int v3, Real* p3, Real m3,
-                                                                        Real u, Real v, Real w)
+                                                                        int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                                                                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                                                                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                                                                        Real u, Real v, Real w,
+                                                                        int face_index)
     : CollisionConstraint(std::vector<PositionReference>({
-    PositionReference(v1, p1, m1),
-    PositionReference(v2, p2, m2),
-    PositionReference(v3, p3, m3)}), n),
-    _sdf(sdf), _p(p), _u(u), _v(v), _w(w)
+    PositionReference(v1, vec_ptr1, m1),
+    PositionReference(v2, vec_ptr2, m2),
+    PositionReference(v3, vec_ptr3, m3)}), n),
+    _sdf(sdf), _p(p), _u(u), _v(v), _w(w), _face_index(face_index)
 {
 
 }
 
 void StaticDeformableCollisionConstraint::evaluate(Real* C) const
 {
-    const Vec3r a = _u*Eigen::Map<Vec3r>(_positions[0].position_ptr) + _v*Eigen::Map<Vec3r>(_positions[1].position_ptr) + _w*Eigen::Map<Vec3r>(_positions[2].position_ptr);
+    const Vec3r a = _u*_positions[0].position() + _v*_positions[1].position() + _w*_positions[2].position();
     *C = _collision_normal.dot(a - _p);
 
     // if (_positions[0].index == 337 || _positions[1].index == 337 || _positions[2].index == 337)

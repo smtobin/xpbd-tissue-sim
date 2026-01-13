@@ -84,13 +84,22 @@ class VirtuosoArm : public Object
     using ToolTubeFramesArray = std::array<Geometry::CoordinateFrame, NUM_TT_FRAMES>;
 
     /** The type of tool attached to the tip of the arm */
-    enum ToolType
+    enum class ToolType
     {
-        NONE,
+        NONE=0,
         PALPATION,
         SPATULA,
         GRASPER,
         CAUTERY
+    };
+
+    /** The cutting model used when the cautery tool is used. */
+    enum class CuttingModel
+    {
+        NONE=0,       // elements are not removed
+        INSTANT,    // removes elements upon contact with the tool tip
+        TIMER,      // uses a timer and a threshold to approximate the time taken to cut
+        THERMAL     // applies heat input to the tissue according to power-resistance curve
     };
 
     /** Maps types in the ToolType enum to their corresponding structs with properties.
@@ -378,6 +387,7 @@ class VirtuosoArm : public Object
     int _tool_state; // state of the tool (i.e. 1=ON, 0=OFF)
     int _last_tool_state; // the previous state of the tool (needed so that we know when tool state has changed)
     ToolType _tool_type; // type of tool used on this arm
+    CuttingModel _cutting_model; // the type of cutting model to use (only applies when the cautery tool is equipped)
     Real _tool_tube_length; // exposed length of the tool tube, in m
     VirtuosoArmTool _tool_tube = VirtuosoArmTool_None; // stores the tool tube properties
     

@@ -54,10 +54,12 @@ VTKBoxGraphicsObject::VTKBoxGraphicsObject(const std::string& name, const Sim::R
     _box_actor->SetUserTransform(_vtk_transform);
 }
 
-void VTKBoxGraphicsObject::update()
+void VTKBoxGraphicsObject::updateGraphicsBuffers()
 {
+    RenderInfo* rinfo = _latest_rinfo.load(std::memory_order_acquire);
+
     // IMPORTANT: use row-major ordering since that is what VTKTransform expects (default for Eigen is col-major)
-    Eigen::Matrix<Real, 4, 4, Eigen::RowMajor> box_transform_mat = _box->transform().asMatrix();
+    Eigen::Matrix<Real, 4, 4, Eigen::RowMajor> box_transform_mat = rinfo->transform.asMatrix();
     _vtk_transform->SetMatrix(box_transform_mat.data());
 }
 

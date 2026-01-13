@@ -12,6 +12,7 @@
 #include "solver/constraint/RigidDeformableCollisionConstraint.hpp"
 #include "solver/constraint/DeformableDeformableCollisionConstraint.hpp"
 #include "solver/constraint/AttachmentConstraint.hpp"
+#include "solver/constraint/MidpointConstraint.hpp"
 
 #include "solver/xpbd_solver/XPBDGaussSeidelSolver.hpp"
 #include "solver/xpbd_solver/XPBDJacobiSolver.hpp"
@@ -49,11 +50,12 @@ struct XPBDMeshObjectConstraintConfigurations
     using DefCollProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::DeformableDeformableCollisionConstraint>;
     using RigiCollProjector = Solver::RigidBodyConstraintProjector<IsFirstOrder, Solver::RigidDeformableCollisionConstraint>;
     using AttProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
+    using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
 
     // public typedefs represent XPBDMeshObject constraint configurations
     public:
-    using StableNeohookean = XPBDMeshObjectConstraintConfiguration<DevProjector, HydProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
-    using StableNeohookeanCombined = XPBDMeshObjectConstraintConfiguration<DevHydProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
+    using StableNeohookean = XPBDMeshObjectConstraintConfiguration<DevProjector, HydProjector, MidProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
+    using StableNeohookeanCombined = XPBDMeshObjectConstraintConfiguration<DevHydProjector, MidProjector, StatCollProjector, DefCollProjector, RigiCollProjector, AttProjector>;
 
     using type_list = TypeList<StableNeohookean, StableNeohookeanCombined>;
     using variant_type = std::variant<StableNeohookean, StableNeohookeanCombined>;

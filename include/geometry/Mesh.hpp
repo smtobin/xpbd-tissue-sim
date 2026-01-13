@@ -4,10 +4,12 @@
 #include "geometry/AABB.hpp"
 #include "common/types.hpp"
 #include "common/VariadicVectorContainer.hpp"
+#include "common/TombstoneVector.hpp"
 
 #include "geometry/MeshProperty.hpp"
 
 #include <optional>
+#include <unordered_set>
 #include <cassert>
 
 #ifdef HAVE_CUDA
@@ -18,6 +20,70 @@
 namespace Geometry
 {
 
+struct Edge
+{
+    int index1;
+    int index2;
+
+    Edge(int i1, int i2)
+        : index1(std::min(i1,i2)), index2(std::max(i1,i2))
+    {}
+
+    Edge()
+        : index1(-1), index2(-1)
+    {}
+
+    bool operator==(const Edge& other) const
+    {
+        return index1 == other.index1 && index2 == other.index2;
+    }
+};
+struct EdgeHash
+{
+    size_t operator()(const Edge& e) const {
+        auto h1 = std::hash<int>{}(e.index1);
+        auto h2 = std::hash<int>{}(e.index2);
+        // Better mixing than simple XOR
+        return h1 ^ (h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2));
+    }
+};
+
+struct Face
+{
+    int index1, index2, index3;
+
+    Face(int i1, int i2, int i3)
+    {
+        index1 = std::min({i1, i2, i3});    // index1 is minimum index
+        index3 = std::max({i1, i2, i3});    // index3 is maximum index
+        index2 = i1 + i2 + i3 - index1 - index3;   // index2 is in the middle
+    }
+
+    Face()
+        : index1(-1), index2(-1), index3(-1)
+    {}
+
+    bool isValid() const { return (index1 != -1 && index2 != -1 && index3 != -1); }
+
+    bool operator==(const Face& other) const
+    {
+        return index1 == other.index1 && index2 == other.index2 && index3 == other.index3;
+    }
+};
+struct FaceHash
+{
+    size_t operator()(const Face& f) const {
+        auto h1 = std::hash<int>{}(f.index1);
+        auto h2 = std::hash<int>{}(f.index2);
+        auto h3 = std::hash<int>{}(f.index3);
+        // Better mixing than simple XOR
+        size_t seed = h1;
+        seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+};
+
 /** A class for a surface mesh which consists of a set of vertices and a set of faces connecting those vertices.
  * The vertices are specified as 3-vectors of vertex coordinates.
  * The faces are specified as 3-vectors of vertex indices.
@@ -27,15 +93,18 @@ class Mesh
 {
     // public typedefs
 public:
-    typedef Eigen::Matrix<Real, 3, -1, Eigen::ColMajor> VerticesMat; // vertex matrix type
-    typedef Eigen::Matrix<int, 3, -1, Eigen::ColMajor> FacesMat;     // faces matrix type
-    typedef Eigen::Matrix<int, 4, -1, Eigen::ColMajor> ElementsMat;  // elements matrix type (used by tetrahedral meshes)
+    // typedef Eigen::Matrix<Real, 3, -1, Eigen::ColMajor> VerticesMat; // vertex matrix type
+    // typedef Eigen::Matrix<int, 3, -1, Eigen::ColMajor> FacesMat;     // faces matrix type
+    // typedef Eigen::Matrix<int, 4, -1, Eigen::ColMajor> ElementsMat;  // elements matrix type (used by tetrahedral meshes)
+    using vertices_vec_type = TombstoneVector<Vec3r>;
+    using faces_vec_type = TombstoneVector<Vec3i>;
+    using elements_vec_type = TombstoneVector<Vec4i>;
 
 public:
     /** Constructs a mesh from a set of vertices and faces.
      * This is usually done using helper methods in the MeshUtils library.
      */
-    Mesh(const VerticesMat &vertices, const FacesMat &faces);
+    Mesh(const std::vector<Vec3r> &vertices, const std::vector<Vec3i> &faces);
 
     Mesh(const Mesh &other);
 
@@ -44,19 +113,19 @@ public:
     virtual ~Mesh() = default;
 
     /** Returns a const-reference to the vertices of the mesh. */
-    const VerticesMat &vertices() const { return _vertices; }
+    const vertices_vec_type &vertices() const { return _vertices; }
     /** Returns a const-reference to the faces of the mesh. */
-    const FacesMat &faces() const { return _faces; }
+    const faces_vec_type &faces() const { return _faces; }
 
     /** Returns a non-const-reference to the vertices of the mesh. */
-    VerticesMat &vertices() { return _vertices; }
+    vertices_vec_type &vertices() { return _vertices; }
     /** Returns a non-const-reference to the faces of the mesh. */
-    FacesMat &faces() { return _faces; }
+    faces_vec_type &faces() { return _faces; }
 
     /** Number of verticees in the mesh. */
-    int numVertices() const { return _vertices.cols(); }
+    int numVertices() const { return _vertices.size(); }
     /** Number of faces in the mesh. */
-    int numFaces() const { return _faces.cols(); }
+    int numFaces() const { return _faces.size(); }
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.
@@ -69,8 +138,13 @@ public:
     /** Returns the vertex normal at vertex i */
     Vec3r vertexNormal(int index);
 
-    /** Returns a single vertex as an Eigen 3-vector, given the vertex index. */
-    Vec3r vertex(const int index) const { return _vertices.col(index); }
+    /** Returns a single vertex as an Eigen 3-vector, given the vertex index.
+     * This assumes that the index used is a valid index (i.e. the vertex we are trying to access has not been removed).
+     */
+    Vec3r vertex(const int index) const { return _vertices[index]; }
+
+    /** Returns whether not the index corresponds to a valid vertex. */
+    bool vertexValid(int index) const { return _vertices.indexValid(index); }
 
     /** Returns whether or not the vertex is on the surface of the mesh. */
     bool vertexOnSurface(int index) const { const auto& prop = getVertexProperty<bool>("surface"); return prop.get(index); }
@@ -81,22 +155,19 @@ public:
     Real *vertexPointer(const int index) const;
 
     /** Sets the vertex at the specified to a new position. */
-    void setVertex(int index, const Vec3r &new_pos) { _vertices.col(index) = new_pos; }
+    void setVertex(int index, const Vec3r &new_pos) { _vertices.at(index) = new_pos; }
 
-    void displaceVertex(int index, const Vec3r &offset) { _vertices.col(index) += offset; }
+    void displaceVertex(int index, const Vec3r &offset) { _vertices.at(index) += offset; }
 
-    const std::vector<int>& vertexAdjacentVertices(int index) { return _vertex_adjacent_vertices[index]; }
+    const std::unordered_set<int>& vertexAdjacentVertices(int index) const { return _vertex_adjacent_vertices[index]; }
 
-    /** Displaces the vertex at the specified index by a certain amount. */
-    //  void displaceVertex(const int index, const Real dx, const Real dy, const Real dz)
-    //  {
-    //      _vertices(0, index) += dx;
-    //      _vertices(1, index) += dy;
-    //      _vertices(2, index) += dz;
-    //  }
+    /** Returns a single face as an Eigen 3-vector, given the vertex index.
+     * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).
+     */
+    Vec3i face(int index) const { return _faces.at(index); }
 
-    /** Returns a single face as an Eigen 3-vector, given the vertex index. */
-    Eigen::Vector3i face(const int index) const { return _faces.col(index); }
+    /** Returns whether or not the index corresponds to a valid face. */
+    bool faceValid(int index) const { return _faces.indexValid(index); }
 
     /** Returns the axis-aligned bounding-box (AABB) for the mesh. */
     AABB boundingBox() const;
@@ -122,13 +193,13 @@ public:
     int getClosestVertex(const Vec3r &p) const;
 
     /** Returns a list of vertex indices for vertices with the specified x-coordinate. */
-    std::vector<int> getVerticesWithX(const Real x) const;
+    std::vector<int> getVerticesWithX(Real x) const;
 
     /** Returns a list of vertex indices for vertices with the specified y-coordinate. */
-    std::vector<int> getVerticesWithY(const Real y) const;
+    std::vector<int> getVerticesWithY(Real y) const;
 
     /** Returns a list of vertex indices for vertices with the specified z-coordinate. */
-    std::vector<int> getVerticesWithZ(const Real z) const;
+    std::vector<int> getVerticesWithZ(Real z) const;
 
     /** Resizes the mesh such that its maximum dimension is no larger than the specified size.
      * @param size_of_max_dim : the new size of the largest dimension of the mesh
@@ -146,7 +217,7 @@ public:
     /** Moves each vertex in the mesh by a per-vertex amount.
      * Up to the caller to ensure that the per-vertex displacement matrix is the same dimensions as the mesh's vertices matrix.
      */
-    void moveSeparate(const VerticesMat &delta);
+    // void moveSeparate(const VerticesMat &delta);
 
     /** Moves the center of the AABB of the mesh to a specified position.
      * @param position : the position to move the center of the AABB mesh to
@@ -185,7 +256,7 @@ public:
 
     /** Creates a vertex property with the specified name, and optional default value. */
     template <typename T>
-    void addVertexProperty(const std::string &name, std::optional<T> default_value = std::nullopt)
+    void addVertexProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
     {
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
@@ -197,11 +268,11 @@ public:
     
         if (default_value.has_value())
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), default_value.value());
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), default_value.value(), is_field);
         }
         else
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices());
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), is_field);
         }
     }
 
@@ -248,9 +319,11 @@ public:
         return false;
     }
 
+    const PropertyContainer<MeshPropertyTypeList>& vertexProperties() const { return _vertex_properties; }
+
     /** Creates a face property with the specified name, and optional default value. */
     template <typename T>
-    void addFaceProperty(const std::string &name, std::optional<T> default_value = std::nullopt)
+    void addFaceProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
     {
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
@@ -262,11 +335,11 @@ public:
     
         if (default_value.has_value())
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), default_value.value());
+            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), default_value.value(), is_field);
         }
         else
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces());
+            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), is_field);
         }
     }
 
@@ -329,11 +402,11 @@ protected:
     virtual void _computeAdjacentVertices();
 
 protected:
-    VerticesMat _vertices; // the vertices of the mesh
-    FacesMat _faces;       // the faces of the mesh
-    VerticesMat _vertex_normals; // vertex normals of the mesh
+    vertices_vec_type _vertices; // the vertices of the mesh
+    faces_vec_type _faces;       // the faces of the mesh
+    vertices_vec_type _vertex_normals; // vertex normals of the mesh
 
-    std::vector<std::vector<int>> _vertex_adjacent_vertices;
+    std::vector<std::unordered_set<int>> _vertex_adjacent_vertices;
 
     Vec3r _unrotated_size_xyz; // the size of the mesh in each dimension in its unrotated state
 

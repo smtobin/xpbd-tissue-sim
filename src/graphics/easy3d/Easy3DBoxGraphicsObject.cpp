@@ -29,7 +29,7 @@ Easy3DBoxGraphicsObject::Easy3DBoxGraphicsObject(const std::string& name, const 
     set_renderer(renderer);
 }
 
-void Easy3DBoxGraphicsObject::update() 
+void Easy3DBoxGraphicsObject::updateGraphicsBuffers() 
 {
     _transformPoints();    
     renderer()->update();

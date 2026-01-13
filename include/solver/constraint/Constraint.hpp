@@ -30,6 +30,12 @@ class Constraint
     {
     }
 
+    /** Empty constructor */
+    Constraint()
+        : _alpha(0), _positions()
+    {
+    }
+
     virtual ~Constraint() = default;
 
 

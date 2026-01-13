@@ -54,10 +54,12 @@ VTKCylinderGraphicsObject::VTKCylinderGraphicsObject(const std::string& name, co
     _cyl_actor->SetUserTransform(_vtk_transform);
 }
 
-void VTKCylinderGraphicsObject::update()
+void VTKCylinderGraphicsObject::updateGraphicsBuffers()
 {
+    RenderInfo* rinfo = _latest_rinfo.load(std::memory_order_acquire);
+    
     // IMPORTANT: use row-major ordering since that is what VTKTransform expects (default for Eigen is col-major)
-    Eigen::Matrix<Real, 4, 4, Eigen::RowMajor> cyl_transform_mat = _cylinder->transform().asMatrix();
+    Eigen::Matrix<Real, 4, 4, Eigen::RowMajor> cyl_transform_mat = rinfo->transform.asMatrix();
     _vtk_transform->SetMatrix(cyl_transform_mat.data());
 
     // vtkCylinderSource creates a cylinder along the y-axis, but we expect the cylinder to be along the z-axis

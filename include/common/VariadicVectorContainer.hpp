@@ -2,10 +2,22 @@
 #define __VARIADIC_VECTOR_CONTAINER_HPP
 
 #include "common/TypeList.hpp"
+#include "common/TombstoneVector.hpp"
 
 #include <vector>
 #include <iostream>
 #include <memory>
+
+// helper to determine if the container type has the resize() method available
+// (TombstoneVector doesn't have the resize method because "size" is ambiguous)
+template<class T, typename = void>
+struct has_resize : std::false_type {};
+
+template<class T>
+struct has_resize<T, std::void_t<decltype(std::declval<T>().resize(0))>> 
+    : std::true_type {};
+
+
 
 // adapted from this StackOverflow answer: https://stackoverflow.com/a/53112843
 
@@ -14,18 +26,18 @@
  * 
  * Uses CRTP inheritance to recursively add a private member vector variable for each type.
  */
-template<class L, class... R> class VariadicVectorContainer;
+template<template<typename...> class Container, class L, class... R> class VariadicVectorContainer_;
 
-template<class L>
-class VariadicVectorContainer<L>
+template<template<typename...> class Container, class L>
+class VariadicVectorContainer_<Container, L>
 {
     protected:
-    const std::vector<L>& _get() const
+    const Container<L>& _get() const
     {
         return _vec;
     }
 
-    std::vector<L>& _get()
+    Container<L>& _get()
     {
         return _vec;
     }
@@ -35,7 +47,10 @@ class VariadicVectorContainer<L>
         return _vec.size();
     }
 
-    void _resize(int size)
+    // SFINAE to only enable resize when it's actually available
+    template<typename C = Container<L>>
+    std::enable_if_t<has_resize<C>::value, void>
+    _resize(int size)
     {
         _vec.resize(size);
     }
@@ -98,11 +113,11 @@ class VariadicVectorContainer<L>
     }
 
     private:
-    std::vector<L> _vec;
+    Container<L> _vec;
 };
 
-template<class L, class... R>
-class VariadicVectorContainer : public VariadicVectorContainer<L>, public VariadicVectorContainer<R...>
+template<template<typename...> class Container, class L, class... R>
+class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, public VariadicVectorContainer_<Container, R...>
 {
     public:
     size_t size() const
@@ -111,69 +126,70 @@ class VariadicVectorContainer : public VariadicVectorContainer<L>, public Variad
     }
 
     template<class T>
-    const std::vector<T>& get() const
+    const Container<T>& get() const
     {
-        return this->VariadicVectorContainer<T>::_get();
+        return this->VariadicVectorContainer_<Container, T>::_get();
     }
 
     template<class T>
-    std::vector<T>& get()
+    Container<T>& get()
     {
-        return this->VariadicVectorContainer<T>::_get();
+        return this->VariadicVectorContainer_<Container, T>::_get();
     }
 
     template<class T>
     void push_back(const T& elem)
     {
-        return this->VariadicVectorContainer<T>::_push_back(elem);
+        return this->VariadicVectorContainer_<Container, T>::_push_back(elem);
     }
 
     template<class T>
     void push_back(T&& elem)
     {
-        return this->VariadicVectorContainer<T>::_push_back(std::move(elem));
+        return this->VariadicVectorContainer_<Container, T>::_push_back(std::move(elem));
     }
 
     template<class T, class ...Args>
     T& emplace_back(Args&&... args)
     {
-        return this->VariadicVectorContainer<T>::_emplace_back(std::forward<Args>(args)...);
+        return this->VariadicVectorContainer_<Container, T>::_emplace_back(std::forward<Args>(args)...);
     }
 
     template<class T>
-    void resize(int size)
+    std::enable_if_t<has_resize<Container<T>>::value, void>
+    resize(int size)
     {
-        return this->VariadicVectorContainer<T>::_resize(size);
+        return this->VariadicVectorContainer_<Container, T>::_resize(size);
     }
 
     template<class T>
     void reserve(int size)
     {
-        return this->VariadicVectorContainer<T>::_reserve(size);
+        return this->VariadicVectorContainer_<Container, T>::_reserve(size);
     }
 
     template<class T>
     T& set(int index, const T& elem)
     {
-        return this->VariadicVectorContainer<T>::_set(index, elem);
+        return this->VariadicVectorContainer_<Container, T>::_set(index, elem);
     }
 
     template<class T>
     T& set(int index, T&& elem)
     {
-        return this->VariadicVectorContainer<T>::_set(index, std::move(elem));
+        return this->VariadicVectorContainer_<Container, T>::_set(index, std::move(elem));
     }
 
     template<class T>
     size_t size() const
     {
-        return this->VariadicVectorContainer<T>::_size();
+        return this->VariadicVectorContainer_<Container, T>::_size();
     }
 
     template<class T>
     void clear()
     {
-        return this->VariadicVectorContainer<T>::_clear();
+        return this->VariadicVectorContainer_<Container, T>::_clear();
     }
 
     // visit all elements in a subset of types - only enable this overload if sizeof(Ts) > 0
@@ -209,7 +225,7 @@ class VariadicVectorContainer : public VariadicVectorContainer<L>, public Variad
     template<typename T, typename... Ts, typename Visitor>
     void _visit_elements(Visitor&& visitor) const
     {
-        this->VariadicVectorContainer<T>::_for_each_element(visitor);
+        this->VariadicVectorContainer_<Container, T>::_for_each_element(visitor);
 
         if constexpr (sizeof...(Ts) > 0)
         {
@@ -220,7 +236,7 @@ class VariadicVectorContainer : public VariadicVectorContainer<L>, public Variad
     template<typename T, typename... Ts, typename Visitor>
     void _visit_elements(Visitor&& visitor)
     {
-        this->VariadicVectorContainer<T>::_for_each_element(visitor);
+        this->VariadicVectorContainer_<Container, T>::_for_each_element(visitor);
 
         if constexpr (sizeof...(Ts) > 0)
         {
@@ -231,7 +247,7 @@ class VariadicVectorContainer : public VariadicVectorContainer<L>, public Variad
     template<typename T, typename... Ts>
     size_t _size_helper() const
     {
-        size_t sizeT = this->VariadicVectorContainer<T>::_size();
+        size_t sizeT = this->VariadicVectorContainer_<Container, T>::_size();
         size_t sizeTs = 0;
         if constexpr (sizeof...(Ts) > 0)
         {
@@ -242,9 +258,14 @@ class VariadicVectorContainer : public VariadicVectorContainer<L>, public Variad
     }
 };
 
+template<typename... Types>
+using VariadicVectorContainer = VariadicVectorContainer_<std::vector, Types...>;
+
+template<typename... Types>
+using VariadicTombstoneVectorContainer = VariadicVectorContainer_<TombstoneVector, Types...>;
 
 //////////////////////////////////////////////////////////////////////////
-// Construct VariadicVectorContainer from TypeList
+// Construct VariadicVectorContainer_ from TypeList
 //////////////////////////////////////////////////////////////////////////
 
 template<typename List>
@@ -253,10 +274,10 @@ struct VariadicVectorContainerFromTypeList;
 template<typename... Types>
 struct VariadicVectorContainerFromTypeList<TypeList<Types...>>
 {
-    using type = VariadicVectorContainer<Types...>;
-    using unique_ptr_type = VariadicVectorContainer<std::unique_ptr<Types>...>;
-    using ptr_type = VariadicVectorContainer<Types*...>;
-    using const_ptr_type = VariadicVectorContainer<const Types*...>;
+    using type = VariadicVectorContainer_<std::vector, Types...>;
+    using unique_ptr_type = VariadicVectorContainer_<std::vector, std::unique_ptr<Types>...>;
+    using ptr_type = VariadicVectorContainer_<std::vector, Types*...>;
+    using const_ptr_type = VariadicVectorContainer_<std::vector, const Types*...>;
 };
 
 

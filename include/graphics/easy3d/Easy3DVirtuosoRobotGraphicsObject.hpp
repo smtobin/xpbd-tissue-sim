@@ -14,7 +14,7 @@ class Easy3DVirtuosoRobotGraphicsObject : public VirtuosoRobotGraphicsObject, pu
     public:
     explicit Easy3DVirtuosoRobotGraphicsObject(const std::string& name, const Sim::VirtuosoRobot* virtuoso_robot);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     /** Returns the easy3d::vec3 vertex cache.
      * Does NOT check if vertices are stale.

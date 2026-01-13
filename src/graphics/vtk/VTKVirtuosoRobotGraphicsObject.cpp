@@ -79,10 +79,12 @@ VTKVirtuosoRobotGraphicsObject::VTKVirtuosoRobotGraphicsObject(const std::string
     _vtk_actor->SetUserTransform(_vtk_transform);
 }
 
-void VTKVirtuosoRobotGraphicsObject::update()
+void VTKVirtuosoRobotGraphicsObject::updateGraphicsBuffers()
 {
-    Geometry::TransformationMatrix endoscope_transform = _virtuoso_robot->endoscopeFrame().transform();
-    const Vec3r cyl_frame_pos = endoscope_transform.translation() - endoscope_transform.rotMat().col(2) * _virtuoso_robot->endoscopeLength()/2.0;
+    RenderInfo* rinfo = _latest_rinfo.load(std::memory_order_acquire);
+
+    Geometry::TransformationMatrix endoscope_transform = rinfo->endoscope_frame.transform();
+    const Vec3r cyl_frame_pos = endoscope_transform.translation() - endoscope_transform.rotMat().col(2) * rinfo->endoscope_length/2.0;
 
     Geometry::TransformationMatrix cyl_transform(endoscope_transform.rotMat(), cyl_frame_pos);
      // IMPORTANT: use row-major ordering since that is what VTKTransform expects (default for Eigen is col-major)

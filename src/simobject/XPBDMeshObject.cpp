@@ -33,7 +33,7 @@ namespace Sim
 
 template<bool IsFirstOrder>
 XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, const ConfigType* config)
-    : Object(sim, config), TetMeshObject(config, config)
+    : Object(sim, config), RefinedTetMeshObject(config, config)
 {
     for (const auto& mat_name : config->materials())
     {
@@ -79,8 +79,16 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // filename that has info on element classes (optional)
     _element_classes_filename = config->elementClassesFilename();
 
+    _ground_faces_filename = config->groundFacesFilename();
+
     // filename that has info on fixed faces/vertices (optional)
     _fixed_faces_filename = config->fixedFacesFilename();
+
+    // whether or not to compute heat conduction
+    _compute_heat_conduction = config->computeHeatConduction();
+
+    // whether or not to adaptively refine the mesh
+    _adaptive_mesh_refinement = config->adaptiveMeshRefinement();
 
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
@@ -154,13 +162,55 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     _solver.setup();
 
     // initialize the previous vertices matrix once we've loaded the mesh
-    _previous_vertices = _mesh->vertices();
-    _vertex_velocities = Geometry::Mesh::VerticesMat::Zero(3, _mesh->numVertices());
-    _vertex_velocities.colwise() = _initial_velocity;
+    _previous_vertices.resize(_mesh->vertices().totalSize());
+    
+    for (const auto& vert_ind : _mesh->vertices().validIndices())
+    {
+        _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
+    }
+    
+    // initialize each vertex's velocity with the specified bulk initial velocity
+    _vertex_velocities.resize(_mesh->vertices().totalSize());
+    for (auto& vel : _vertex_velocities)
+        vel = _initial_velocity;
 
     _calculatePerVertexQuantities();
     _createElasticConstraints();     // create constraints and add ConstraintProjectors to the solver object
 
+    // if we are modeling heat conduction, set up the solver
+    if (_compute_heat_conduction)
+    {
+            /** 
+             * 
+             * 
+             * 
+             * TODO: only using first material right now. Extend to handle multiple materials in the same mesh?
+             * 
+             * 
+             * 
+             * 
+             * 
+             */
+            _heat_solver.emplace(refinedTetMesh(), _materials[0], 0, 23);
+
+            if (_ground_faces_filename.has_value())
+            {
+                std::set<int> vertices;
+                std::vector<int> faces;
+                MeshUtils::verticesAndFacesFromFixedFacesFile(_ground_faces_filename.value(), vertices, faces);
+                for (const auto& v : vertices)
+                {
+                    _heat_solver->setVoltageAtBoundary(v, 0, true);
+                }
+            }
+            else
+            {
+                // throw an error if no grounded faces are specified
+                std::cerr << KRED << BOLD << "FATAL:" << RST << KRED << " Thermal simulation enabled but grounded faces not specified! (did you forget to specify the ground-faces-filename parameter?)" << RST << std::endl;
+                assert(0);
+            }
+    }
+        
     // if the fixed-faces file is given, read the fixed vertices from it and then set those vertices to be fixed during the sim
     if (_fixed_faces_filename.has_value())
     {
@@ -202,9 +252,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     int v2 = face[1];
     int v3 = face[2];
 
-    Real* v1_ptr = _mesh->vertexPointer(v1);
-    Real* v2_ptr = _mesh->vertexPointer(v2);
-    Real* v3_ptr = _mesh->vertexPointer(v3);
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     Real m1 = vertexConstraintInertia(v1);
     Real m2 = vertexConstraintInertia(v2);
@@ -214,7 +262,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     // OTHERWISE, VECTOR MIGHT EXCEED ITS CAPACITY AND POINTERS TO CONSTRAINTS IN CONSTRAINT PROJECTORS WILL BECOME INVALID
     // TODO: is there a better way?
     std::vector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
-    constraint_vec.emplace_back(sdf, p, n, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, u, v, w);
+    constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, face_ind);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -230,16 +278,14 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addRigi
     int v2 = face[1];
     int v3 = face[2];
     
-    Real* v1_ptr = _mesh->vertexPointer(v1);
-    Real* v2_ptr = _mesh->vertexPointer(v2);
-    Real* v3_ptr = _mesh->vertexPointer(v3);
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     Real m1 = vertexConstraintInertia(v1);
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
 
     std::vector<Solver::RigidDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::RigidDeformableCollisionConstraint>();
-    constraint_vec.emplace_back(sdf, rigid_obj, rigid_body_point, collision_normal, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, u, v, w);
+    constraint_vec.emplace_back(sdf, rigid_obj, rigid_body_point, collision_normal, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::RigidDeformableCollisionConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -269,11 +315,12 @@ template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>> 
 XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
 {
-    Real* v_ptr = _mesh->vertexPointer(v_ind);
     Real mass = vertexConstraintInertia(v_ind);
 
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
     std::vector<Solver::AttachmentConstraint>& constraint_vec = _constraints.template get<Solver::AttachmentConstraint>();
-    constraint_vec.emplace_back(v_ind, v_ptr, mass, attach_pos_ptr, attachment_offset);
+    constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -294,7 +341,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
 {
     // calculate masses for each vertex
     _vertex_masses.resize(_mesh->numVertices());
-    _vertex_volumes.resize(_mesh->numVertices());
     _is_fixed_vertex.resize(_mesh->numVertices(), false);
 
     std::vector<Real> vertex_E(_mesh->numVertices());
@@ -327,12 +373,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         _vertex_masses[element[2]] += element_mass/4.0;
         _vertex_masses[element[3]] += element_mass/4.0;
 
-        // add volume contribution of element to each of its vertices
-        _vertex_volumes[element[0]] += volume/4.0;
-        _vertex_volumes[element[1]] += volume/4.0;
-        _vertex_volumes[element[2]] += volume/4.0;
-        _vertex_volumes[element[3]] += volume/4.0;
-
         // add material properties to each of its vertices
         vertex_E[element[0]] += material.E() / tetMesh()->vertexAttachedElements(element[0]).size();
         vertex_E[element[1]] += material.E() / tetMesh()->vertexAttachedElements(element[1]).size();
@@ -353,11 +393,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             if (_adjust_b_to_material)
             {
-                _vertex_B[i] = _vertex_volumes[i] * _damping_multiplier * vertex_E[i] / (1+vertex_nu[i]);
+                _vertex_B[i] = tetMesh()->vertexRestVolume(i) * _damping_multiplier * vertex_E[i] / (1+vertex_nu[i]);
             }
             else
             {
-                _vertex_B[i] = _vertex_volumes[i] * _damping_multiplier;
+                _vertex_B[i] = tetMesh()->vertexRestVolume(i) * _damping_multiplier;
             }
         }
     }
@@ -387,10 +427,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         const int v2 = element[2];
         const int v3 = element[3];
 
-        Real* v0_ptr = _mesh->vertexPointer(v0);
-        Real* v1_ptr = _mesh->vertexPointer(v1);
-        Real* v2_ptr = _mesh->vertexPointer(v2);
-        Real* v3_ptr = _mesh->vertexPointer(v3);
+        // Real* v0_ptr = _mesh->vertexPointer(v0);
+        // Real* v1_ptr = _mesh->vertexPointer(v1);
+        // Real* v2_ptr = _mesh->vertexPointer(v2);
+        // Real* v3_ptr = _mesh->vertexPointer(v3);
+
+        Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
         Real m0 = vertexConstraintInertia(v0);
         Real m1 = vertexConstraintInertia(v1);
@@ -402,8 +444,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
             std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
-            hyd_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
-            dev_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
+            hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
+            dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
             
             using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
             using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
@@ -417,8 +459,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
             std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
-            hyd_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
-            dev_constraint_vec.emplace_back(v0, v0_ptr, m0, v1, v1_ptr, m1, v2, v2_ptr, m2, v3, v3_ptr, m3, material);
+            hyd_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
+            dev_constraint_vec.emplace_back(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, material);
 
             using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
             using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
@@ -442,7 +484,10 @@ template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::update()
 {
     // set _x_prev to be ready for the next substep
-    _previous_vertices = _mesh->vertices();
+    for (const auto& vert_ind : _mesh->vertices().validIndices())
+    {
+        _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
+    }
 
     _movePositionsInertially();
     _projectConstraints();
@@ -456,6 +501,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::up
     //     }
         
     // }
+
+    if (_compute_heat_conduction)
+        _heat_solver->step(_sim->dt());
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -464,22 +512,23 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_m
     const Real dt = _sim->dt();
     if constexpr (IsFirstOrder)
     {
-        for (int i = 0; i < _mesh->numVertices(); i++)
+        for (const auto& index : _mesh->vertices().validIndices())
         {
-            const Real dz = -_sim->gAccel() * _vertex_masses[i] * dt / _vertex_B[i];
-            _mesh->displaceVertex(i, Vec3r(0,0,dz));
+            const Real dz = -_sim->gAccel() * _vertex_masses[index] * dt / _vertex_B[index];
+            _mesh->displaceVertex(index, Vec3r(0,0,dz));
         }
         
     }
     else
     {
         // move vertices according to their velocity
-        _mesh->moveSeparate(dt*_vertex_velocities);
-        // external forces (right now just gravity, which acts in -z direction)
-        for (int i = 0; i < _mesh->numVertices(); i++)
+        for (const auto& index : _mesh->vertices().validIndices())
         {
+            _mesh->displaceVertex(index, dt*_vertex_velocities[index]);
+
+            // external forces (right now just gravity, which acts in -z direction)
             const Real dz = -_sim->gAccel() * dt * dt;
-            _mesh->displaceVertex(i, Vec3r(0, 0, dz));
+            _mesh->displaceVertex(index, Vec3r(0, 0, dz));
         }
     }
 }
@@ -509,11 +558,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_p
 
     // TODO: replace with constraints?
     // enforce fixed vertices (move them back to previous position)
-    for (int i = 0; i < _mesh->numVertices(); i++)
+    for (const auto& index : _mesh->vertices().validIndices())
     {
-        if (vertexFixed(i))
+        if (vertexFixed(index))
         {
-            _mesh->setVertex(i, _previous_vertices.col(i));
+            _mesh->setVertex(index, vertexPreviousPosition(index));
         }
     }
 
@@ -544,10 +593,484 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::ve
     //     }
     // }
 
-    const Geometry::Mesh::VerticesMat& cur_vertices = _mesh->vertices();
     // velocities are simply (cur_pos - last_pos) / deltaT
-    _vertex_velocities = (cur_vertices - _previous_vertices) / _sim->dt();
+
+    for (const auto& index : _mesh->vertices().validIndices())
+    {
+        _vertex_velocities[index] = (_mesh->vertex(index) - vertexPreviousPosition(index)) / _sim->dt();
+    }
 }
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::removeElement(int elem_index)
+{
+    if (!tetMesh()->elementValid(elem_index))
+        return;
+
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    {
+        // mark the constraint projectors for the elastic constraints invalid
+        using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+        _solver.template setProjectorValidity<DevHydProjectorType>(elem_index, false);
+
+        // remove the element from the mesh
+        tetMesh()->removeElement(elem_index);
+    }
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::refineElement(int elem_index, int refinement_level, bool absolute)
+{
+    bool refined = refinedTetMesh()->refineElement(elem_index, refinement_level, absolute);
+    if (!refined)
+    {
+        return;
+    }
+
+    std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
+
+    /** Get the newest added/removed vertices/hanging vertices/faces/elements */
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();
+    const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
+    const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
+    const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
+    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
+    const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
+
+    // create the vector for new element classes
+    Geometry::MeshProperty<int>& class_elem_prop = tetMesh()->template getElementProperty<int>("class");
+    int refined_elem_class = class_elem_prop.get(elem_index);
+
+    std::vector<int> added_element_classes(latest_added_elements.size());
+    for (unsigned i = 0; i < latest_added_elements.size(); i++)
+    {
+        added_element_classes[i] = refined_elem_class;
+    }
+    
+    // create the vector for removed element classes
+    std::vector<int> removed_element_classes(latest_removed_elements.size());
+    for (unsigned i = 0; i < latest_removed_elements.size(); i++)
+    {
+        removed_element_classes[i] = refined_elem_class;
+    }
+
+    // update everything based for the latest mesh topology change(s)
+    _updateAfterMeshTopologyChange(
+        latest_added_vertices, latest_removed_vertices, latest_added_hanging_vertices, latest_removed_hanging_vertices,
+        latest_added_faces, latest_added_elements, latest_removed_elements, added_element_classes, removed_element_classes
+    );
+        
+
+    /** Update the 'class' property for new vertices, elements, and faces */
+    Geometry::MeshProperty<int>& class_vert_prop = _mesh->template getVertexProperty<int>("class");
+    Geometry::MeshProperty<int>& class_face_prop = _mesh->template getFaceProperty<int>("class");
+    
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        class_vert_prop.set(new_vert.index, refined_elem_class);
+    }
+    for (const auto& new_face : latest_added_faces)
+    {
+        class_face_prop.set(new_face, refined_elem_class);
+    }
+    for (const auto& new_elem : latest_added_elements)
+    {
+        class_elem_prop.set(new_elem, refined_elem_class);
+    }
+    
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::coarsenElement(int elem_index, int coarsening_level, bool absolute)
+{
+    if (!tetMesh()->elements().indexValid(elem_index))
+    {
+        return;
+    }
+
+    bool coarsened = refinedTetMesh()->coarsenElement(elem_index, coarsening_level, absolute);
+    if (!coarsened)
+    {
+        return;
+    }
+
+    /** Get the newest added/removed vertices/hanging vertices/faces/elements */
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();
+    const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
+    const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
+    const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
+    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
+    const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
+
+    // create the vector for new element classes
+    Geometry::MeshProperty<int>& class_elem_prop = tetMesh()->template getElementProperty<int>("class");
+    int coarsened_elem_class = class_elem_prop.get(elem_index);
+
+    std::vector<int> added_element_classes(latest_added_elements.size());
+    for (unsigned i = 0; i < latest_added_elements.size(); i++)
+    {
+        added_element_classes[i] = coarsened_elem_class;
+    }
+    
+    // create the vector for removed element classes
+    std::vector<int> removed_element_classes(latest_removed_elements.size());
+    for (unsigned i = 0; i < latest_removed_elements.size(); i++)
+    {
+        removed_element_classes[i] = coarsened_elem_class;
+    }
+
+    // update everything based for the latest mesh topology change(s)
+    _updateAfterMeshTopologyChange(
+        latest_added_vertices, latest_removed_vertices, latest_added_hanging_vertices, latest_removed_hanging_vertices,
+        latest_added_faces, latest_added_elements, latest_removed_elements, added_element_classes, removed_element_classes
+    );
+
+    /** Update the 'class' property for new vertices, elements, and faces */
+    Geometry::MeshProperty<int>& class_vert_prop = _mesh->template getVertexProperty<int>("class");
+    Geometry::MeshProperty<int>& class_face_prop = _mesh->template getFaceProperty<int>("class");
+    
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        class_vert_prop.set(new_vert.index, coarsened_elem_class);
+    }
+    for (const auto& new_face : latest_added_faces)
+    {
+        class_face_prop.set(new_face, coarsened_elem_class);
+    }
+    for (const auto& new_elem : latest_added_elements)
+    {
+        class_elem_prop.set(new_elem, coarsened_elem_class);
+    }
+
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_updateAfterMeshTopologyChange(    
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& /*removed_vertices*/,
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
+    const std::vector<int>& /*added_faces*/,
+    const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
+    const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
+{
+
+    /** Resize per-vertex vectors */
+    size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
+    _vertex_masses.resize(new_size);
+    _vertex_velocities.resize(new_size);
+    _previous_vertices.resize(new_size);
+    _is_fixed_vertex.resize(new_size);
+
+    if constexpr(IsFirstOrder)
+    {
+        _vertex_B.resize(new_size);
+    }
+
+    /** Update initial values for new vertices */
+    // first, iterate through newly added vertices and set their masses and volumes to be 0
+    for (const auto& new_vert : added_vertices)
+    {
+        // initial new vertex mass, volume, and damping (if first order) to 0
+        // this will be updated later
+        _vertex_masses[new_vert.index] = 0;
+
+        if constexpr (IsFirstOrder)
+        {
+            _vertex_B[new_vert.index] = 0;
+        }
+
+        // interpolate velocity, previous position, and initial position - new vertex is halfway between parents
+        _vertex_velocities[new_vert.index] = 0.5*(_vertex_velocities[new_vert.parent1] + _vertex_velocities[new_vert.parent2]);
+        _previous_vertices[new_vert.index] = 0.5*(_previous_vertices[new_vert.parent1] + _previous_vertices[new_vert.parent2]);
+
+        _is_fixed_vertex[new_vert.index] = (_is_fixed_vertex[new_vert.parent1] && _is_fixed_vertex[new_vert.parent2]);
+    }
+
+
+    /** Update mass and volumes */
+    // first, for the element that was refined, subtract 1/4 the nominal element volume from the vertices it touches
+    for (unsigned i = 0; i < removed_elements.size(); i++)
+    {
+        const Geometry::RefinedTetMesh::RemovedElement& removed_elem = removed_elements[i];
+        int removed_elem_class = removed_element_classes[i];
+
+        // get the removed element mass from the volume * density
+        const ElasticMaterial& removed_elem_material = _materials[removed_elem_class];
+        Real removed_elem_mass = removed_elem.rest_volume * removed_elem_material.density();
+
+        for (const auto& elem_vert : removed_elem.vertices)
+        {   
+            // update mass for each vertex
+            _vertex_masses[elem_vert] -= 0.25*removed_elem_mass;
+        }
+    }
+
+    // then, iterate through new elements, and add 1/4 the nominal element volume/mass to the vertices it touches
+    for (unsigned i = 0; i < added_elements.size(); i++)
+    {
+        int new_elem = added_elements[i];
+        int new_elem_class = added_element_classes[i];
+
+        const Vec4i& elem_vertices = tetMesh()->element(new_elem);
+        // calculate rest volume for the new tet
+        const Vec3r& iv1 = refinedTetMesh()->initialVertex(elem_vertices[0]);
+        const Vec3r& iv2 = refinedTetMesh()->initialVertex(elem_vertices[1]);
+        const Vec3r& iv3 = refinedTetMesh()->initialVertex(elem_vertices[2]);
+        const Vec3r& iv4 = refinedTetMesh()->initialVertex(elem_vertices[3]);
+        Real rest_volume = tetMesh()->elementVolume(iv1, iv2, iv3, iv4);
+
+        // calculate rest mass for the new tet
+        const ElasticMaterial& material = _materials[new_elem_class];
+        Real element_mass = rest_volume * material.density();
+
+        for (const auto& elem_vert : elem_vertices)
+        {
+            // update mass for each vertex
+            _vertex_masses[elem_vert] += 0.25*element_mass;
+        }
+    }
+
+
+    // for 1st-order objects, calculate per-vertex damping
+    /** TODO: Think about this a bit more...
+     * 
+     * For now, just assign per-vertex damping to the new vertices
+     */
+    if constexpr (IsFirstOrder)
+    {
+        // // if adjust_b_to_material is used, we must calculate the appropriate E and nu at each vertex in the old element
+        // // the new vertices will all have E and nu corresponding to the element that was refined
+        // for (const auto& removed_elem : latest_removed_elements)
+        // {
+        //     Vec4r vertex_E = Vec4r::Zero();
+        //     Vec4r vertex_nu = Vec4r::Zero();
+
+        //     for (int i = 0; i < 4; i++)
+        //     {
+        //         vertex_E[i] 
+        //     }
+        // }
+        for (const auto& new_vert : added_vertices)
+        {
+            if (_adjust_b_to_material)
+            {                
+                /** TODO: this is a temporary, lazy solution to use just the first new element class as the class for all new vertices.
+                 * Works for mesh refinement, but may not work for other topology changes...
+                 * 
+                 * 
+                 */
+                const ElasticMaterial& material = _materials[added_element_classes[0]];
+                _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier * material.E() / material.nu();
+            }
+            else
+            {
+                _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier;
+            }
+        }
+    }
+
+    /** Update constraints and constraint projectors. */
+    // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookean::projector_type_list>)
+    {
+        // resize the constraint projectors in the Solver
+        size_t total_num_elements = tetMesh()->elements().totalSize();
+        using DevProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint>;
+        using HydProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::HydrostaticConstraint>;
+        _solver.template resizeProjectorsOfType<DevProjectorType>(total_num_elements);
+        _solver.template resizeProjectorsOfType<HydProjectorType>(total_num_elements);
+
+        // invalidate constraint projectors associated with the elements that were removed
+        for (unsigned i = 0; i < removed_elements.size(); i++)
+        {
+            _solver.template setProjectorValidity<DevProjectorType>(removed_elements[i].index, false);
+            _solver.template setProjectorValidity<HydProjectorType>(removed_elements[i].index, false);
+        }
+        
+
+        // add constraints and constraint projectors for new elements
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        hyd_constraint_vec.resize(total_num_elements);
+        dev_constraint_vec.resize(total_num_elements);
+        for (unsigned i = 0; i < added_elements.size(); i++)
+        {
+            int new_elem_index = added_elements[i];
+            int new_elem_class = added_element_classes[i];
+            const ElasticMaterial& new_elem_material = _materials[new_elem_class];
+
+            // get the vertices for the element
+            const Vec4i& element = tetMesh()->element(new_elem_index);
+            const int v0 = element[0];
+            const int v1 = element[1];
+            const int v2 = element[2];
+            const int v3 = element[3];
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+            Real m0 = vertexConstraintInertia(v0);
+            Real m1 = vertexConstraintInertia(v1);
+            Real m2 = vertexConstraintInertia(v2);
+            Real m3 = vertexConstraintInertia(v3);
+            
+            const Mat3r& Q = tetMesh()->elementInvUndeformedBasis(new_elem_index);
+            Real rest_volume = tetMesh()->elementRestVolume(new_elem_index);
+            hyd_constraint_vec[new_elem_index] = Solver::HydrostaticConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, new_elem_material, Q, rest_volume);
+            dev_constraint_vec[new_elem_index] = Solver::DeviatoricConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, new_elem_material, Q, rest_volume);
+        
+            using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
+            using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(), HydConstraintRefType(hyd_constraint_vec, new_elem_index));
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(), DevConstraintRefType(dev_constraint_vec, new_elem_index));
+        }
+        
+    }
+    // if the constraint configuration is StableNeohookeanCombined, add a combined constraint projector for the hydrostatic and deviatoric constraints
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    {
+        // resize the constraint projectors in the Solver
+        size_t total_num_elements = tetMesh()->elements().totalSize();
+        using ProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+        _solver.template resizeProjectorsOfType<ProjectorType>(total_num_elements);
+
+        // invalidate constraint projectors associated with the element that was refined (removed)
+        for (unsigned i = 0; i < removed_elements.size(); i++)
+        {
+            _solver.template setProjectorValidity<ProjectorType>(removed_elements[i].index, false);
+        }
+        
+
+        // add constraints and constraint projectors for new elements
+        std::vector<Solver::HydrostaticConstraint>& hyd_constraint_vec = _constraints.template get<Solver::HydrostaticConstraint>();
+        std::vector<Solver::DeviatoricConstraint>& dev_constraint_vec = _constraints.template get<Solver::DeviatoricConstraint>();
+        hyd_constraint_vec.resize(total_num_elements);
+        dev_constraint_vec.resize(total_num_elements);
+        for (unsigned i = 0; i < added_elements.size(); i++)
+        {
+            int new_elem_index = added_elements[i];
+            int new_elem_class = added_element_classes[i];
+            const ElasticMaterial& new_elem_material = _materials[new_elem_class];
+
+            // get the vertices for the element
+            const Vec4i& element = tetMesh()->element(new_elem_index);
+            const int v0 = element[0];
+            const int v1 = element[1];
+            const int v2 = element[2];
+            const int v3 = element[3];
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+            Real m0 = vertexConstraintInertia(v0);
+            Real m1 = vertexConstraintInertia(v1);
+            Real m2 = vertexConstraintInertia(v2);
+            Real m3 = vertexConstraintInertia(v3);
+            
+            const Mat3r& Q = tetMesh()->elementInvUndeformedBasis(new_elem_index);
+            Real rest_volume = tetMesh()->elementRestVolume(new_elem_index);
+            hyd_constraint_vec[new_elem_index] = Solver::HydrostaticConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, new_elem_material, Q, rest_volume);
+            dev_constraint_vec[new_elem_index] = Solver::DeviatoricConstraint(v0, vec_ptr, m0, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, new_elem_material, Q, rest_volume);
+        
+            using HydConstraintRefType = Solver::ConstraintReference<Solver::HydrostaticConstraint>;
+            using DevConstraintRefType = Solver::ConstraintReference<Solver::DeviatoricConstraint>;
+            _solver.setConstraintProjector(new_elem_index, _sim->dt(),  
+                DevConstraintRefType(dev_constraint_vec, new_elem_index),
+                HydConstraintRefType(hyd_constraint_vec, new_elem_index)
+            );
+        }
+    }
+
+
+    /** Update the midpoint constraints for hanging vertices */
+
+    // std::cout << "   Added hanging verts: (";
+    // for (const auto& v : added_hanging_vertices)
+    // {
+    //     std::cout << v.index << ", ";
+    // }
+    // std::cout << ")" << std::endl;
+
+    // std::cout << "   Removed hanging verts: (";
+    // for (const auto& v : removed_hanging_vertices)
+    // {
+    //     std::cout << v << ", ";
+    // }
+    // std::cout << ")" << std::endl;
+
+    // add new hanging vertices
+    // IMPORTANT: do this before removing the latest removed hanging vertices
+    //  Sometimes when coarsening, the same hanging vertex is added and removed within the same coarsening operation
+    //  So if we remove the latest removed hanging vertices first, the hanging vertex may not exist causing an error
+    //  It does create a little bit of redundant work, but as of right now that's just the nature of the algorithm :)
+    std::vector<Solver::MidpointConstraint>& midpoint_constraint_vec = _constraints.template get<Solver::MidpointConstraint>();
+    for (const auto& new_hanging_vert : added_hanging_vertices)
+    {
+        int new_vector_index = _hanging_vertices_vec.push_back(new_hanging_vert.index);
+
+        // std::cout << "   Added hanging vert " << new_hanging_vert.index << " at index " << new_vector_index << std::endl;
+        // add entry in vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.insert({new_hanging_vert.index, new_vector_index});
+
+        // resize the constraint vector (do we really have to do this every loop iteration?)
+        midpoint_constraint_vec.resize(_hanging_vertices_vec.totalSize());
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template resizeProjectorsOfType<MidProjector>(_hanging_vertices_vec.totalSize());
+
+        // create constraint and constraint projector
+        const int v1 = new_hanging_vert.index;
+        const int v2 = new_hanging_vert.parent1;
+        const int v3 = new_hanging_vert.parent2;
+
+        Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+        Real m1 = vertexConstraintInertia(v1);
+        Real m2 = vertexConstraintInertia(v2);
+        Real m3 = vertexConstraintInertia(v3);
+
+        midpoint_constraint_vec[new_vector_index] = Solver::MidpointConstraint(v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3);
+
+        using MidConstraintRefType = Solver::ConstraintReference<Solver::MidpointConstraint>;
+        _solver.setConstraintProjector(new_vector_index, _sim->dt(), MidConstraintRefType(midpoint_constraint_vec, new_vector_index));
+    }
+
+    // remove hanging vertices from its vector and remove the associated MidpointConstraint
+    for (const auto& removed_hanging_vert : removed_hanging_vertices)
+    {
+        // std::cout << "   Removed hanging vert " << removed_hanging_vert << std::endl;
+        int vector_index = _vertex_to_hanging_index.at(removed_hanging_vert);
+
+        // remove from the hanging vertices vector
+        _hanging_vertices_vec.erase(vector_index);
+
+        // remove from the vertex index -> hanging vertex index map
+        _vertex_to_hanging_index.erase(removed_hanging_vert);
+
+        // set the projector as invalid
+        using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+        _solver.template setProjectorValidity<MidProjector>(vector_index, false);
+
+        // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
+    }
+
+    // std::cout << "\nHanging vertices from refinedTetMesh: (";
+    // for (const auto& v : refinedTetMesh()->hangingVertices())
+    // {
+    //     std::cout << v << ", ";
+    // }
+    // std::cout << ")" << std::endl;
+
+    // int num_hanging = 0;
+    // std::cout << "Hanging vertices vector: (";
+    // for (const auto& v : _hanging_vertices_vec)
+    // {
+    //     std::cout << v << ", ";
+    //     num_hanging++;
+    // }
+    // std::cout << ")" << std::endl;
+
+    // std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
+}
+
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Real XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::totalStrainEnergy() const
@@ -783,10 +1306,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
             const Eigen::Vector3i& face = _mesh->face(face_index);
 
-            Real* q_ptr = _mesh->vertexPointer(i);
-            Real* p1_ptr = _mesh->vertexPointer(face[0]);
-            Real* p2_ptr = _mesh->vertexPointer(face[1]);
-            Real* p3_ptr = _mesh->vertexPointer(face[2]);
+            // Real* q_ptr = _mesh->vertexPointer(i);
+            // Real* p1_ptr = _mesh->vertexPointer(face[0]);
+            // Real* p2_ptr = _mesh->vertexPointer(face[1]);
+            // Real* p3_ptr = _mesh->vertexPointer(face[2]);
+
+            Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
             Real qm = vertexConstraintInertia(i);
             Real p1m = vertexConstraintInertia(face[0]);
@@ -800,7 +1325,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
             // std::cout << "  Vertex: " << _mesh->vertex(i).transpose() << 
             //     "  Face:\n\t" << _mesh->vertex(face[0]).transpose() << ",\n\t" << _mesh->vertex(face[1]).transpose()  << ",\n\t" << _mesh->vertex(face[2]).transpose() << std::endl;
             std::vector<Solver::DeformableDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::DeformableDeformableCollisionConstraint>();
-            constraint_vec.emplace_back(i, q_ptr, qm, face[0], p1_ptr, p1m, face[1], p2_ptr, p2m, face[2], p3_ptr, p3m);
+            constraint_vec.emplace_back(i, vec_ptr, qm, face[0], vec_ptr, p1m, face[1], vec_ptr, p2m, face[2], vec_ptr, p3m);
 
             using ConstraintRefType = Solver::ConstraintReference<Solver::DeformableDeformableCollisionConstraint>;
             _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -815,6 +1340,20 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
 {
     // create a container to store all the constraint projectors that we should re-project
     typename SolverType::projector_reference_container_type proj_to_reproject;
+
+    // add all midpoint constraints to be re-projected - midpoint constraints (i.e. hanging nodes) are really only generated in collision areas
+    /** TODO: be more selective about which midpoint constraints get reprojected
+     * 
+     * 
+     * 
+     */
+    using MidProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
+    using MidProjectorTypeRef = Solver::ConstraintProjectorReference<MidProjectorType>;
+    std::vector<MidProjectorType>& midpoint_projectors = _solver.template getConstraintProjectorsOfType<MidProjectorType>();
+    for (unsigned i = 0; i < midpoint_projectors.size(); i++)
+    {
+        proj_to_reproject.template emplace_back<MidProjectorTypeRef>(midpoint_projectors, i);
+    }
 
     // go through each collision constraint and find the ones that were actually projected (lambda != 0)
     using StaticCollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;

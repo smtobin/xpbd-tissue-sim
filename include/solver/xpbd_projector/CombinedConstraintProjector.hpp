@@ -53,16 +53,6 @@ class CombinedConstraintProjector
     {
     }
 
-    /** Special constructor enabled for 1st-Order constraint projectors.
-     * Accepts an additional argument, the B^-1 for the coordinates involved in this constraint projection.
-     */
-    template<bool B = IsFirstOrder, std::enable_if_t<B, int> = 0>
-    CombinedConstraintProjector(Real dt, ConstraintReference<Constraint1>&& constraint1, ConstraintReference<Constraint2>&& constraint2,
-        const Eigen::Matrix<Real, Constraint1::NUM_COORDINATES, Constraint1::NUM_COORDINATES>& B_e_inv)
-        : _dt(dt), _constraint1(constraint1), _constraint2(constraint2), _valid(true), _B_e_inv(B_e_inv)
-    {
-    }
-
     /** Default constructor - projector marked invalid */
     explicit CombinedConstraintProjector()
         : _valid(false)
@@ -212,11 +202,11 @@ class CombinedConstraintProjector
             Real update_y = _constraint1->positions()[i].inv_mass * (delC[3*i+1] * dlam[0] + delC_c2[3*i+1] * dlam[1]);
             Real update_z = _constraint1->positions()[i].inv_mass * (delC[3*i+2] * dlam[0] + delC_c2[3*i+2] * dlam[1]);
             
-            coordinate_updates_ptr[3*i].ptr = _constraint1->positions()[i].position_ptr;
+            coordinate_updates_ptr[3*i].ptr = _constraint1->positions()[i].positionPtr();
             coordinate_updates_ptr[3*i].update = update_x;
-            coordinate_updates_ptr[3*i+1].ptr = _constraint1->positions()[i].position_ptr+1;
+            coordinate_updates_ptr[3*i+1].ptr = _constraint1->positions()[i].positionPtr()+1;
             coordinate_updates_ptr[3*i+1].update = update_y;
-            coordinate_updates_ptr[3*i+2].ptr = _constraint1->positions()[i].position_ptr+2;
+            coordinate_updates_ptr[3*i+2].ptr = _constraint1->positions()[i].positionPtr()+2;
             coordinate_updates_ptr[3*i+2].update = update_z;
         }
     }
@@ -237,9 +227,6 @@ class CombinedConstraintProjector
     ConstraintReference<Constraint1> _constraint1;
     ConstraintReference<Constraint2> _constraint2;
     bool _valid;
-
-    /** The dense B^-1 matrix associated with the coordinates projected by this projector */
-    typename std::conditional<IsFirstOrder, Eigen::Matrix<Real, Constraint1::NUM_COORDINATES, Constraint1::NUM_COORDINATES>, std::monostate>::type _B_e_inv;
 };
 
 

@@ -20,24 +20,24 @@ class ElementConstraint : public Constraint
      * @param v3 - the 3rd vertex of the tetrahedral element
      * @param v4 - the 4th vertex of the tetrahedral element
      */
-    ElementConstraint(int v1, Real* p1, Real m1,
-                        int v2, Real* p2, Real m2,
-                        int v3, Real* p3, Real m3,
-                        int v4, Real* p4, Real m4)
+    ElementConstraint(  int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                        int v4, PositionReference::VecType* vec_ptr4, Real m4)
         : Constraint(std::vector<PositionReference>({
-            PositionReference(v1, p1, m1),
-            PositionReference(v2, p2, m2),
-            PositionReference(v3, p3, m3),
-            PositionReference(v4, p4, m4)}))
+            PositionReference(v1, vec_ptr1, m1),
+            PositionReference(v2, vec_ptr2, m2),
+            PositionReference(v3, vec_ptr3, m3),
+            PositionReference(v4, vec_ptr4, m4)}))
     {
         // if this constructor is used, we assumes that this constraint is created when this object is in the rest configuration
         // so we can calculate Q and volume
 
         // calculate Q
-        const Vec3r& X0 = Eigen::Map<Vec3r>(_positions[0].position_ptr);
-        const Vec3r& X1 = Eigen::Map<Vec3r>(_positions[1].position_ptr);
-        const Vec3r& X2 = Eigen::Map<Vec3r>(_positions[2].position_ptr);
-        const Vec3r& X3 = Eigen::Map<Vec3r>(_positions[3].position_ptr);
+        const Vec3r& X0 = _positions[0].position();
+        const Vec3r& X1 = _positions[1].position();
+        const Vec3r& X2 = _positions[2].position();
+        const Vec3r& X3 = _positions[3].position();
 
         Mat3r X;
         X.col(0) = (X0 - X3);
@@ -50,6 +50,33 @@ class ElementConstraint : public Constraint
         _volume = std::abs(X.determinant()/6);
     }
 
+    /** Creates a constraint from a reference to the MeshObject and the four vertices that make up the tetrahedral element that this constraint is applied to.
+     * @param obj - a pointer to the XPBDMeshObject that this constraint belongs to
+     * @param v1 - the 1st vertex of the tetrahedral element
+     * @param v2 - the 2nd vertex of the tetrahedral element
+     * @param v3 - the 3rd vertex of the tetrahedral element
+     * @param v4 - the 4th vertex of the tetrahedral element
+     */
+    ElementConstraint(  int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                        int v4, PositionReference::VecType* vec_ptr4, Real m4,
+                        const Mat3r& Q, Real volume)
+        : Constraint(std::vector<PositionReference>({
+            PositionReference(v1, vec_ptr1, m1),
+            PositionReference(v2, vec_ptr2, m2),
+            PositionReference(v3, vec_ptr3, m3),
+            PositionReference(v4, vec_ptr4, m4)})),
+            _Q(Q), _volume(volume)
+    {
+    }
+
+    /** Empty constructor */
+    ElementConstraint()
+        : Constraint(), _Q(Mat3r::Zero()), _volume(0)
+    {
+    }
+
     Real restVolume() const { return _volume; }
 
     /** Compute the deformation gradient and return it, using the 4 positions referenced by this constraint.
@@ -57,11 +84,11 @@ class ElementConstraint : public Constraint
     inline Mat3r computeF() const
     {
         Mat3r X;
-        const Vec3r& X3 = Eigen::Map<Vec3r>(_positions[3].position_ptr);
+        const Vec3r& X3 = _positions[3].position();
         // create the deformed shape matrix from current deformed vertex positions
-        X.col(0) = Eigen::Map<Vec3r>(_positions[0].position_ptr) - X3;
-        X.col(1) = Eigen::Map<Vec3r>(_positions[1].position_ptr) - X3;
-        X.col(2) = Eigen::Map<Vec3r>(_positions[2].position_ptr) - X3;
+        X.col(0) = _positions[0].position() - X3;
+        X.col(1) = _positions[1].position() - X3;
+        X.col(2) = _positions[2].position() - X3;
 
         // compute and return F
         return X * _Q;
@@ -79,10 +106,10 @@ class ElementConstraint : public Constraint
     {
         // Eigen::Map<Mat3r> X_mat(X);
         // Eigen::Map<Mat3r> F_mat(F);
-        const Real* X0 = _positions[0].position_ptr;
-        const Real* X1 = _positions[1].position_ptr;
-        const Real* X2 = _positions[2].position_ptr;
-        const Real* X3 = _positions[3].position_ptr;
+        const Real* X0 = _positions[0].positionPtr();
+        const Real* X1 = _positions[1].positionPtr();
+        const Real* X2 = _positions[2].positionPtr();
+        const Real* X3 = _positions[3].positionPtr();
         // create the deformed shape matrix from current deformed vertex positions
         // X_mat.col(0) = _positions[0].position() - X3;
         // X_mat.col(1) = _positions[1].position() - X3;

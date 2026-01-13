@@ -58,7 +58,7 @@ VTKVirtuosoArmGraphicsObject::VTKVirtuosoArmGraphicsObject(const std::string& na
     VTKUtils::setupActorFromRenderConfig(_vtk_actor.Get(), render_config);
 }
 
-void VTKVirtuosoArmGraphicsObject::update()
+void VTKVirtuosoArmGraphicsObject::updateGraphicsBuffers()
 {
     _updatePolyData();
 }
@@ -322,14 +322,16 @@ void VTKVirtuosoArmGraphicsObject::_generateInitialPolyData()
 
 void VTKVirtuosoArmGraphicsObject::_updatePolyData()
 {
-    const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = _virtuoso_arm->outerTubeFrames();
-    const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = _virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = _virtuoso_arm->toolTubeFrames();
+    RenderInfo* rinfo = _latest_rinfo.load(std::memory_order_acquire);
+
+    const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = rinfo->ot_frames;
+    const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = rinfo->it_frames;
+    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = rinfo->tt_frames;
 
     vtkPoints* vtk_points = _vtk_poly_data->GetPoints();
 
     // make an "outer tube" circle in the XY plane
-    Real ot_r = _virtuoso_arm->outerTubeOuterDiameter() / 2.0;
+    Real ot_r = rinfo->ot_outer_diameter / 2.0;
     std::array<Vec3r, _OT_TUBULAR_RES> ot_circle_pts;
     for (int i = 0; i < _OT_TUBULAR_RES; i++)
     {
@@ -339,7 +341,7 @@ void VTKVirtuosoArmGraphicsObject::_updatePolyData()
     }
 
     // make an "inner tube" circle in the XY plane
-    Real it_r = _virtuoso_arm->innerTubeOuterDiameter() / 2.0;
+    Real it_r = rinfo->it_outer_diameter / 2.0;
     std::array<Vec3r, _IT_TUBULAR_RES> it_circle_pts;
     for (int i = 0; i < _IT_TUBULAR_RES; i++)
     {
@@ -381,9 +383,9 @@ void VTKVirtuosoArmGraphicsObject::_updatePolyData()
     vtk_points->SetPoint(it_index_offset + it_frames.size()*_IT_TUBULAR_RES+1, it_frames.back().origin()[0], it_frames.back().origin()[1], it_frames.back().origin()[2]);
     
     // tool tube
-    if (_virtuoso_arm->hasTool())
+    if (rinfo->has_tool)
     {
-        Real tt_r = _virtuoso_arm->toolTube().outer_dia / 2.0;
+        Real tt_r = rinfo->tool_tube.outer_dia / 2.0;
         std::array<Vec3r, _TT_TUBULAR_RES> tt_circle_pts;
         for (int i = 0; i < _TT_TUBULAR_RES; i++)
         {

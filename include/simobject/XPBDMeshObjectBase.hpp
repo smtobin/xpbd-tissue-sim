@@ -16,6 +16,8 @@
 
 #include "geometry/DeformableMeshSDF.hpp"
 
+#include "fem/HeatConductionFEMSolver.hpp"
+
 #include "common/XPBDEnumTypes.hpp"
 
 #include <variant>
@@ -67,7 +69,7 @@ using FirstOrderXPBDMeshObject_Base = XPBDMeshObject_Base_<true>;
  * necessasry additional methods and members for the 1st-order algorithm (such as per-vertex damping).
  */
 template<bool IsFirstOrder> 
-class XPBDMeshObject_Base_ : public Object, public TetMeshObject
+class XPBDMeshObject_Base_ : public Object, public RefinedTetMeshObject
 {
 public:
     using SDFType = Geometry::DeformableMeshSDF;
@@ -114,13 +116,13 @@ public:
      * @param index : the index of the vertex
      * @returns the velocity of the vertex at the specified index
      */
-    Vec3r vertexVelocity(int index) const { return _vertex_velocities.col(index); }
+    Vec3r vertexVelocity(int index) const { return _vertex_velocities.at(index); }
 
     /** The previous position of the vertex at the specified index.
      * @param index : the index of the vertex
      * @returns the previous position of the vertex at the specified index
      */
-    Vec3r vertexPreviousPosition(int index) const { return _previous_vertices.col(index); }
+    Vec3r vertexPreviousPosition(int index) const { return _previous_vertices.at(index); }
 
     /** Returns the "constraint inertia" associated with the vertex.
      * For normal 2nd-order XPBD, this is just the vertex mass.
@@ -183,6 +185,43 @@ public:
      */
     virtual void selfCollisionCheck() = 0;
 
+    
+    /** === Editing mesh topology === */
+
+    /** Removes an element from the mesh object.
+     * This will update the mesh representation and disable any internal constraints associated with that element.
+     */
+    virtual void removeElement(int elem_index) = 0;
+
+    /** Refines an element in the mesh object via recursive, hierarchical refinement.
+     * The element gets split into 8 equal-volume child tetrahedra, and each child gets split into 8 equal-volume child tetrahedra, etc... 
+     * until the specified refinement level is reached.
+     * @param elem_index : the index of the element
+     * @param refinement_level : the number of refinements to do
+     * @param absolute : when True, the refinement_level parameter is taken to be the "absolute" refinement_level. 
+     * I.e. refinement_level = 0 is the base tet mesh, refinement_level = 1 is a base element split into 8 children, etc.
+     * The refinement stops once the absolute refinement level has been reached, and does nothing if the refinement level is not greater than the current level of the element.
+     * When False, the refinement_level parameter is taken to be the "relative" refinement level, and always refines by the number of levels specified.
+     */
+    virtual void refineElement(int elem_index, int refinement_level, bool absolute) = 0;
+
+    /** Coarsens an element in the mesh object via recursive coarsening. (basically undoes refinement from refineElement() ).
+     * This will not coarsen the mesh to be coarser than the original tet mesh.
+     * 
+     * If coarsening one level, the element and all of its siblings will be replaced by their parent element (8 elements -> 1 element)
+     * If coarsening two levels, the element and all of its siblings and cousins will be replaced by their grandparent element (64 elements -> 1 element)
+     * etc.
+     * 
+     * To undo all refinement that resulted in the leaf element, use coarsening_level=0 and absolute=true.
+     * 
+     * If the specified element was not created with mesh refinement, this function does nothing.
+     * 
+     * @param elem_index : the index of the element to coarsen
+     * @param coarsening_level : the number of coarsening operations to do (i.e. the number of levels up the tree to traverse)
+     * @param absolute : defined the same as for refineElement()
+     */
+    virtual void coarsenElement(int elem_index, int coarsening_level, bool absolute) = 0;
+
 
     /** === Querying the solver === */
 
@@ -191,6 +230,15 @@ public:
 
     /** @returns the most recently calculated constraint residual from the solver object */
     virtual VecXr lastConstraintResidual() const = 0;
+
+    /** Queries whether or not the heat solver exists. */
+    bool hasHeatSolver() const { return _heat_solver.has_value(); }
+
+    /** @returns the heat solver */
+    FEM::HeatConductionFEMSolver& heatSolver() { return *_heat_solver; }
+    const FEM::HeatConductionFEMSolver& heatSolver() const { return *_heat_solver; }
+
+    bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement; }
 
 
     /** === Miscellaneous useful methods === */
@@ -223,10 +271,11 @@ public:
 
 
 protected:
+    /** TODO: does _previous_vertices and _vertex_velocities need to be vertices_vec_type? Or can they just be plain old std::vector? */
     /** Stores the vertices from the end of the previous time step */
-    Geometry::Mesh::VerticesMat _previous_vertices;
+    std::vector<Vec3r> _previous_vertices;
     /** Stores the current velocities of each vertex */
-    Geometry::Mesh::VerticesMat _vertex_velocities;
+    std::vector<Vec3r> _vertex_velocities;
 
     /** The initial bulk velocity of the mesh. Set by the config. TODO: is this needed? */
     Vec3r _initial_velocity;
@@ -239,13 +288,17 @@ protected:
 
     /** Stores the vertex masses. */
     std::vector<Real> _vertex_masses;
-    /** Stores the vertex "volumes". This is the total volume of all tetrahedra attached to a vertex, divided by 4. */
-    std::vector<Real> _vertex_volumes;
     /** Whether or not a given vertex is fixed. */
     std::vector<bool> _is_fixed_vertex;
 
     /** Signed Distance Field for the deformable object. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;
+
+    /** Heat conduction solver for computing thermal effects. This is optional, and specified in the config file to be created. */
+    std::optional<FEM::HeatConductionFEMSolver> _heat_solver;
+
+    /** Whether or not to adaptively refine the mesh. Set by the config. */
+    bool _adaptive_mesh_refinement;
 
 
     /** === Class members specific to when the object is 1st-order === */

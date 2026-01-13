@@ -15,8 +15,9 @@ enable-mouse-interaction: true
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_tumor_faces.txt"
 
-# device-name1: "LeftOmni"
-# device-name2: "RightOmni"
+haptic-device-name1: "LeftOmni"
+haptic-device-name2: "RightOmni"
+# haptic-force-scaling: 1.0
 # device-name1: "Omni"
 
 g-accel: 0 # m/s2
@@ -74,7 +75,7 @@ objects:
     # solver-type: "Jacobi"
     # solver-type: "Parallel-Jacobi"
     constraint-type: "Stable-Neohookean-Combined"
-    damping-multiplier: 2e5
+    damping-multiplier: 4e5
     # damping-multiplier: 6000000000
     # damping-multiplier: 40000000000
     adjust-damping-to-material: True
@@ -87,6 +88,7 @@ objects:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
+    smooth-normals: false
     draw-points: false
     draw-edges: true
     draw-faces: true
@@ -108,7 +110,8 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "none"
+      tool-type: "cautery"
+      tool-tube-length: 1e-3
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

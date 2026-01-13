@@ -347,13 +347,13 @@ class Config
     {
         // set the name field of the ConfigParameter
         param.name = param_name;
-        param.value = std::vector<Vec3r>();
         try
         {
             if (yaml_node[param_name].Type() != YAML::NodeType::Null)
             {
                 // if we get here, the parameter exists, and it is not null
                 // so, set the value of the ConfigParameter and we're done!
+                param.value = std::vector<Vec3r>();
                 for (unsigned i = 0; i < yaml_node[param_name].size(); i++)
                 {
                     if (yaml_node[param_name][i].size() == 3)

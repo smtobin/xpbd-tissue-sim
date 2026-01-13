@@ -19,7 +19,7 @@ class VTKVirtuosoRobotGraphicsObject : public VirtuosoRobotGraphicsObject
     public:
     explicit VTKVirtuosoRobotGraphicsObject(const std::string& name, const Sim::VirtuosoRobot* robot, const Config::ObjectRenderConfig& render_config);
 
-    virtual void update() override;
+    virtual void updateGraphicsBuffers() override;
 
     vtkSmartPointer<vtkActor> actor() { return _vtk_actor; }
 

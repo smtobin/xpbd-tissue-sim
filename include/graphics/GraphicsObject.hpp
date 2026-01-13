@@ -24,8 +24,11 @@ class GraphicsObject
 
     virtual ~GraphicsObject() {};
     
-    /** Updates graphics buffers associated with this object */
+    /** Updates the latest "snapshot" of the simulation state that should be rendered. */
     virtual void update() = 0;
+
+    /** Updates graphics buffers associated with this object */
+    virtual void updateGraphicsBuffers() = 0;
 
     /** Returns the name of this GraphicsObject
      * @returns the name of this GraphicsObject

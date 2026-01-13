@@ -43,6 +43,9 @@ set(Easy3D_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/Easy3D/build")
 set(Eigen3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/eigen/share/eigen3/cmake")
 set(VTK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/vtk/lib/cmake")
 set(embree_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/embree/lib/cmake")
+# note: PETSc does not provide a CMake config file
+set(PETSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/petsc")
+set(PETSC_ARCH "arch-linux-c-debug")
 
 # find yaml-cpp
 message(STATUS "\nFinding yaml-cpp...")
@@ -111,6 +114,14 @@ find_package(assimp REQUIRED)
 # === Include Directories ===
 
 include_directories("./include")
+
+# include PETSc directories
+# (PETSc does not provide a CMake config file)
+message(STATUS "including: ${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/${PETSC_ARCH}/include")
+set(PETSC_LIB "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
+
 if (HAVE_CUDA AND NOT NO_GPU)
     include_directories("/usr/local/cuda/include")
 endif()
@@ -132,6 +143,10 @@ add_subdirectory("src/config")
 # Common library
 add_library(Common)
 add_subdirectory("src/common")
+
+# FEM library
+add_library(FEM)
+add_subdirectory("src/fem")
 
 # Graphics library
 add_library(Graphics)
@@ -172,10 +187,11 @@ target_link_libraries(Config Eigen3::Eigen SimObject)
 target_link_libraries(Graphics Eigen3::Eigen easy3d::core easy3d::util easy3d::renderer easy3d::viewer ${VTK_LIBRARIES}) # link Easy3D for Graphics library
 target_link_libraries(Geometry Eigen3::Eigen mesh2sdf SimObject GeometryUtils embree)
 target_link_libraries(Haptics Eigen3::Eigen HD HDU)   # link OpenHaptics API libraries for Haptics library
-target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config)   # link MeshUtils and Solver libraries
+target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config FEM)   # link MeshUtils and Solver libraries
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
 target_link_libraries(MeshUtils gmsh::shared assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)
+target_link_libraries(FEM Eigen3::Eigen Geometry ${PETSC_LIB})
 
 
 
@@ -230,6 +246,9 @@ target_link_libraries(InitialDeformationTest InitialDeformationSimulation)
 add_executable(VariadicVectorContainerTest src/exec/test/variadic_vector_container_test.cpp)
 target_link_libraries(VariadicVectorContainerTest Eigen3::Eigen)
 
+add_executable(TombstoneVectorTest src/exec/test/tombstone_vector_test.cpp)
+target_link_libraries(TombstoneVectorTest Eigen3::Eigen)
+
 add_executable(EmbreeTest src/exec/test/embree_test.cpp)
 target_link_libraries(EmbreeTest embree Geometry MeshUtils)
 
@@ -242,11 +261,23 @@ target_link_libraries(VTKTest Graphics ${VTK_LIBRARIES})
 add_executable(StiffnessMatrixTest src/exec/test/stiffness_matrix_test.cpp)
 target_link_libraries(StiffnessMatrixTest Config SimObject Solver Simulation MeshUtils)
 
+add_executable(PETScTest src/exec/test/petsc_test.cpp)
+target_link_libraries(PETScTest ${PETSC_LIB})
+
+add_executable(LaplaceFEMTest src/exec/test/laplace_fem_test.cpp)
+target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)
+
+add_executable(MeshRefinementTest src/exec/test/mesh_refinement_test.cpp)
+target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
+
+add_executable(RefinedFEMTest src/exec/test/refined_fem_test.cpp)
+target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils Graphics ${PETSC_LIB} ${VTK_LIBRARIES})
+
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
 target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
 
 vtk_module_autoinit(
-  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest
+  TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest MeshRefinementTest RefinedFEMTest
   MODULES ${VTK_LIBRARIES}
 )
 

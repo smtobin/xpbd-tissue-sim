@@ -33,12 +33,20 @@ class DeviatoricConstraint : public ElementConstraint
     using HessianMatType = Eigen::Matrix<Real, NUM_COORDINATES, NUM_COORDINATES>;
 
     public:
+    DeviatoricConstraint();
+
     /** Creates the deviatoric constraint from a MeshObject and the 4 vertices that make up the tetrahedral element. */
-    DeviatoricConstraint(int v1, Real* p1, Real m1,
-                          int v2, Real* p2, Real m2,
-                          int v3, Real* p3, Real m3,
-                          int v4, Real* p4, Real m4,
+    DeviatoricConstraint( int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                          int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                          int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                          int v4, PositionReference::VecType* vec_ptr4, Real m4,
                           const ElasticMaterial& material);
+
+    DeviatoricConstraint( int v1, PositionReference::VecType* vec_ptr1, Real m1,
+                          int v2, PositionReference::VecType* vec_ptr2, Real m2,
+                          int v3, PositionReference::VecType* vec_ptr3, Real m3,
+                          int v4, PositionReference::VecType* vec_ptr4, Real m4,
+                          const ElasticMaterial& material, const Mat3r& Q, Real rest_volume);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

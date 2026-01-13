@@ -70,15 +70,24 @@ void FixedObjectSimulation::setup()
 
         /** SAVE INITIAL VERTICES/ELEMENTS/FACES .txt file*/
         std::ofstream vertices_ss(_text_file_save_folder + "initial_vertices.txt");
-        vertices_ss << _cube_obj.mesh()->vertices().transpose();
+        for (const auto& v : _cube_obj.mesh()->vertices())
+        {
+            vertices_ss << v.transpose() << "\n";
+        }
         vertices_ss.close();
 
         std::ofstream elements_ss(_text_file_save_folder + "initial_elements.txt");
-        elements_ss << _cube_obj.tetMesh()->elements().transpose();
+        for (const auto& e : _cube_obj.tetMesh()->elements())
+        {
+            elements_ss << e.transpose() << "\n";
+        }
         elements_ss.close();
         
         std::ofstream surface_faces_ss(_text_file_save_folder + "initial_surface_faces.txt");
-        surface_faces_ss << _cube_obj.mesh()->faces().transpose();
+        for (const auto& f : _cube_obj.mesh()->faces())
+        {
+            surface_faces_ss << f.transpose() << "\n";
+        }
         surface_faces_ss.close();
     }
 }
@@ -102,7 +111,10 @@ void FixedObjectSimulation::_timeStep()
         std::stringstream vfilename_ss;
         vfilename_ss << _text_file_save_folder << std::setw(6) << std::setfill('0') << "vertices" << _num_saved_text_files << ".txt";
         std::ofstream vertices_ss(vfilename_ss.str());
-        vertices_ss << _cube_obj.mesh()->vertices().transpose();
+        for (const auto& v : _cube_obj.mesh()->vertices())
+        {
+            vertices_ss << v.transpose() << "\n";
+        }
         vertices_ss.close();
 
         _num_saved_text_files++;

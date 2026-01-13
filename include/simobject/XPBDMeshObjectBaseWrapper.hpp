@@ -203,6 +203,23 @@ public:
         return std::visit([](auto& obj) { obj->clearAttachmentConstraints(); }, _variant);
     }
 
+    /** === Mesh topology === */
+
+    void removeElement(int elem_index)
+    {
+        return std::visit([&](auto& obj) { obj->removeElement(elem_index); }, _variant);
+    }
+
+    void refineElement(int elem_index, int refinement_level, bool absolute)
+    {
+        return std::visit([&](auto& obj) { obj->refineElement(elem_index, refinement_level, absolute); }, _variant);
+    }
+
+    void coarsenElement(int elem_index, int coarsening_level, bool absolute)
+    {
+        return std::visit([&](auto& obj) { obj->coarsenElement(elem_index, coarsening_level, absolute); }, _variant);
+    }
+
     /** === Miscellaneous === */
 
     Real totalStrainEnergy() const
@@ -233,6 +250,23 @@ public:
     VecXr lastConstraintResidual() const
     {
         return std::visit([&](const auto& obj) { return obj->lastConstraintResidual(); }, _variant);
+    }
+
+    /** Queries whether or not the heat solver exists. */
+    bool hasHeatSolver() const
+    { 
+        return std::visit([&](const auto& obj) { return obj->hasHeatSolver(); }, _variant);
+    }
+
+    /** @returns the heat solver */
+    FEM::HeatConductionFEMSolver& heatSolver()
+    {
+        return std::visit([&](auto& obj) -> FEM::HeatConductionFEMSolver& { return obj->heatSolver(); }, _variant);
+    }
+
+    const FEM::HeatConductionFEMSolver& heatSolver() const
+    { 
+        return std::visit([&](const auto& obj) -> const FEM::HeatConductionFEMSolver& { return obj->heatSolver(); }, _variant);
     }
 
 

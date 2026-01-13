@@ -45,7 +45,7 @@ Easy3DVirtuosoArmGraphicsObject::Easy3DVirtuosoArmGraphicsObject(const std::stri
     }
 }
 
-void Easy3DVirtuosoArmGraphicsObject::update()
+void Easy3DVirtuosoArmGraphicsObject::updateGraphicsBuffers()
 {
     _updateMesh();
     renderer()->update();

@@ -55,6 +55,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::vertexConstraintInertia;
 
     using Base::tetMesh;
+    using Base::refinedTetMesh;
     using Base::loadAndConfigureMesh;
     // members
     using Base::_previous_vertices;
@@ -62,9 +63,10 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::_initial_velocity;
     using Base::_materials;
     using Base::_vertex_masses;
-    using Base::_vertex_volumes;
     using Base::_is_fixed_vertex;
     using Base::_sdf;
+    using Base::_heat_solver;
+    using Base::_adaptive_mesh_refinement;
     using Base::_damping_multiplier;
     using Base::_adjust_b_to_material;
     using Base::_vertex_B;
@@ -144,6 +146,42 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Clears all attachment constraint that are on this object. */
     virtual void clearAttachmentConstraints() override;
 
+    /** === Editing mesh topology === */
+
+    /** Removes an element from the mesh object.
+     * This will update the mesh representation and disable any internal constraints associated with that element.
+     */
+    virtual void removeElement(int elem_index) override;
+
+    /** Refines an element in the mesh object via recursive, hierarchical refinement.
+     * The element gets split into 8 equal-volume child tetrahedra, and each child gets split into 8 equal-volume child tetrahedra, etc... 
+     * until the specified refinement level is reached.
+     * @param elem_index : the index of the element
+     * @param refinement_level : the number of refinements to do
+     * @param absolute : when True, the refinement_level parameter is taken to be the "absolute" refinement_level. 
+     * I.e. refinement_level = 0 is the base tet mesh, refinement_level = 1 is a base element split into 8 children, etc.
+     * The refinement stops once the absolute refinement level has been reached, and does nothing if the refinement level is not greater than the current level of the element.
+     * When False, the refinement_level parameter is taken to be the "relative" refinement level, and always refines by the number of levels specified.
+     */
+    virtual void refineElement(int elem_index, int refinement_level, bool absolute) override;
+
+    /** Coarsens an element in the mesh object via recursive coarsening. (basically undoes refinement from refineElement() ).
+     * This will not coarsen the mesh to be coarser than the original tet mesh.
+     * 
+     * If coarsening one level, the element and all of its siblings will be replaced by their parent element (8 elements -> 1 element)
+     * If coarsening two levels, the element and all of its siblings and cousins will be replaced by their grandparent element (64 elements -> 1 element)
+     * etc.
+     * 
+     * To undo all refinement that resulted in the leaf element, use coarsening_level=0 and absolute=true.
+     * 
+     * If the specified element was not created with mesh refinement, this function does nothing.
+     * 
+     * @param elem_index : the index of the element to coarsen
+     * @param coarsening_level : the number of coarsening operations to do (i.e. the number of levels up the tree to traverse)
+     * @param absolute : defined the same as for refineElement()
+     */
+    virtual void coarsenElement(int elem_index, int coarsening_level, bool absolute) override;
+
     /** === Querying the solver === */
 
     /** @returns the most recently calculated primary residual from the solver object */
@@ -216,6 +254,27 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     typename SolverType::projector_reference_container_type _gatherProjectorsForLocalCollisionIterations();
 
+    /** Makes updates based on a list of added/removed vertices, added faces, and added/removed elements.
+     * Useful when doing adaptive mesh refinement/coarsening (i.e. calls to refineElement or coarsenElement)
+     *  
+     *  - Updates vertex information (masses, volumes, velocities, previous positions, etc.)
+     * 
+     *  - Adds/removes constraints appropriately:
+     *     - Adds elastic constraints for new elements
+     *     - Removes elastic constraints for removed elements
+     *     - Adds/removes MidpointConstraints for new/removed hanging vertices
+     * 
+     *  Most notably does NOT update the properties (i.e. the class) for vertices, faces, elements.
+     *  How the properties get updated depend on the specific topology change:
+     *    - e.g. for refinement, all new elements have the same class as the parent element
+     *    - e.g. for coarsening, the new element has the same class as one of its children 
+     */
+    void _updateAfterMeshTopologyChange(    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& removed_vertices,
+                                            const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
+                                            const std::vector<int>& added_faces,
+                                            const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
+                                            const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes);
+
     protected:
     /** The specific constraint configuration used to define internal constraints for the XPBD mesh. Set by the Config object
      * TODO: is this necessary? Should XPBDMeshObjectConstraintConfiguration be a struct that can create the elastic constraints for the mesh?
@@ -232,6 +291,18 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     VariadicVectorContainer<ConstraintTypes...> _constraints;
 
+    /** Stores the indices of hanging vertices in a contiguous array. (as opposed to the unordered_set used by RefinedTetMesh)
+     * This is useful for associating hanging vertices with a MidpointConstraint in the std::vector storing the MidpointCosntraints.
+     * which is necessary for quickly adding and removing MidpointConstraints as hanging vertices are created/destroyed by refinement/coarsening.
+     */
+    TombstoneVector<int> _hanging_vertices_vec;
+
+    /** Maps a hanging vertex (index in the _vertices vector) to an index in the _hanging_vertices_vec.
+     * Necessary to avoid an O(n) search over the _hanging_vertices_vec when we need to remove a hanging vertex (and its associated midpoint constraint).
+     */
+    std::unordered_map<int,int> _vertex_to_hanging_index;
+
+
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled
      * and re-projected multiple times, which helps propagate the deformation imposed by collision constraints to the rest of the mesh.
@@ -244,6 +315,12 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** The filename that has information about which class each element belongs to. Set by the config. */
     std::optional<std::string> _element_classes_filename;
 
+    /** The filename that has information about which faces/vertices are grounded (voltage = 0). Set by the config. */
+    std::optional<std::string> _ground_faces_filename;
+
+    /** Whether or not to calculate thermal effects. Set by the config. */
+    bool _compute_heat_conduction;
+    
     /** The filename that has information about which faces/vertices should be fixed. Optional, and set by the config. */
     std::optional<std::string> _fixed_faces_filename;
 

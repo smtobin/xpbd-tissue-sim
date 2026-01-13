@@ -13,17 +13,19 @@ class MeshProperty
 {
 
     public:
-    MeshProperty(const std::string& name, int size)
-        : _name(name), _properties(size)
+    MeshProperty(const std::string& name, int size, bool is_field)
+        : _name(name), _properties(size), _is_field(is_field)
     {
     }
 
-    MeshProperty(const std::string& name, int size, const T& default_value)
-        : _name(name), _properties(size, default_value)
+    MeshProperty(const std::string& name, int size, const T& default_value, bool is_field)
+        : _name(name), _properties(size, default_value), _is_field(is_field)
     {
     }
 
     const std::string& name() const { return _name; }
+
+    bool isField() const { return _is_field; }
 
     // Specialize the getter for bool to return by value
     std::conditional_t<std::is_same_v<T, bool>, T, const T&> 
@@ -33,11 +35,27 @@ class MeshProperty
 
     void set(int index, const T& new_val) { _properties[index] = new_val; }
 
+    void resize(size_t new_size) 
+    {
+        if (_default_value.has_value()) 
+            _properties.resize(new_size, _default_value.value());
+        else
+            _properties.resize(new_size); 
+    }
+
+    void resize(size_t new_size, const T& val)
+    {
+        _properties.resize(new_size, val);
+    }
+
     const std::vector<T>& properties() const { return _properties; }
+    std::vector<T>& properties() { return _properties; }
 
     protected:
-    std::string _name;
-    std::vector<T> _properties; 
+    std::string _name;      // the name of the mesh property
+    std::vector<T> _properties;     // the actual per-feature property
+    std::optional<T> _default_value;    // the default value when resizing 
+    bool _is_field;     // whether or not this property is a "field", i.e. like voltage or temperature, smoothly varying over the mesh
 
 };
 

@@ -37,7 +37,7 @@ class VirtuosoSimulation : public Simulation
 
     const VirtuosoRobot* virtuosoRobot() const { return _virtuoso_robot; }
     const VirtuosoArm* activeArm() const { return _active_arm; }
-    const Vec3r activeTipPosition() const { return _tip_cursor->position(); }
+    const Vec3r activeTipPosition() const { return _tip_cursor1->position(); }
 
     void setArm1JointState(double ot_rot, double ot_trans, double it_rot, double it_trans, int tool);
     void setArm2JointState(double ot_rot, double ot_trans, double it_rot, double it_trans, int tool);
@@ -71,7 +71,7 @@ class VirtuosoSimulation : public Simulation
     
     void _timeStep() override;
 
-    void _moveCursor(const Vec3r& dp);
+    void _moveArm(Sim::VirtuosoArm* arm, Sim::RigidSphere* cursor, const Vec3r& dp);
 
     protected:
     /** Struct for receiving state updates in a thread-safe way.
@@ -89,8 +89,8 @@ class VirtuosoSimulation : public Simulation
             : has_new(false) {}
     };
 
-    VirtuosoRobot* _virtuoso_robot; // the Virtuoso robot (includes both arms)
-    VirtuosoArm* _active_arm;       // whichever arm is being actively controlled (assuming only one input device)
+    VirtuosoRobot* _virtuoso_robot = nullptr; // the Virtuoso robot (includes both arms)
+    VirtuosoArm* _active_arm = nullptr;       // whichever arm is being actively controlled (assuming only one input device)
 
     _AsyncState<VirtuosoArmJointState> _arm1_joint_state;   // arm1's joint state may be set through ROS    
     _AsyncState<VirtuosoArmJointState> _arm2_joint_state;   // arm2's joint state may be set through ROS
@@ -105,13 +105,13 @@ class VirtuosoSimulation : public Simulation
     SimulationInput::Device _input_device;    // the type of input device used (Keyboard, Mouse, or Haptic)
     bool _show_tip_cursor;  // whether or not to show the tip cursor
 
-    RigidSphere* _tip_cursor;       // spherical object for visualizing grasp area 
+    RigidSphere* _tip_cursor1 = nullptr;       // spherical object for visualizing grasp area 
+    RigidSphere* _tip_cursor2 = nullptr;
 
     /** MOUSE INPUT */
     Vec2r _last_mouse_pos;    // tracks the last mouse position (used in when mouse input is used to control the arms)
 
     /** HAPTIC INPUT */
-    Vec3r _last_haptic_pos;   // tracks the last haptic posiion
     std::unique_ptr<HapticDeviceManager> _haptic_device_manager;
 
     /** KEYBOARD INPUT */

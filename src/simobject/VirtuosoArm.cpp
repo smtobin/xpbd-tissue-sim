@@ -10,6 +10,7 @@
 #include <math.h>
 #include <algorithm>
 #include <numeric>
+#include <unordered_set>
 
 namespace Sim 
 {
@@ -40,6 +41,7 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
 
     _tool_state = 0;  // default tool state is off
     _tool_type = config->toolType();
+    _cutting_model = config->cuttingModel();
     _tool_manipulated_object = (XPBDMeshObject_Base_<false>*)nullptr;
     _tool_tube = TOOL_TYPE_TO_STRUCT.at(_tool_type);
     _tool_tube_length = config->toolTubeLength();
@@ -176,6 +178,31 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
+    // refine tissue mesh around tool tip
+    if (_tool_manipulated_object)
+    {
+        // std::unordered_set<int> elements_to_refine;
+        // for (const auto& collision : _collision_constraints)
+        // {
+        //     // get element 
+        //     int face_index = collision.proj_ref.constraint()->faceIndex();
+        //     if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+        //         continue;
+            
+        //     int elem_index_to_refine = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+        //     elements_to_refine.insert(elem_index_to_refine);
+        // }
+
+        // if (elements_to_refine.size() > 0)
+        //     std::cout << "\nREFINING ELEMENTS..." << std::endl;
+
+        // for (const auto& elem_index : elements_to_refine)
+        // {
+        //     std::cout << "  Refining element " << elem_index << std::endl;
+        //     _tool_manipulated_object.refineElement(elem_index, 1, true);
+        // }
+    }
+
     // apply forces from collision constraints
     std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
     _unfiltered_collision_force = Vec3r::Zero();
@@ -192,8 +219,8 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0.01;
-    const Real unload_frac = 0.01;//0.1;
+    const Real load_frac = 0.005;
+    const Real unload_frac = 0.005;//0.1;
     for (int i = 0; i < NUM_OT_FRAMES; i++)
     {
         const Vec3r& cur_force = outerTubeNodalForce(i);
@@ -334,7 +361,116 @@ void VirtuosoArm::_grasperToolAction()
 
 void VirtuosoArm::_cauteryToolAction()
 {
-    // do nothing (for now)
+    if (_tool_manipulated_object.hasHeatSolver())
+    {
+        _tool_manipulated_object.heatSolver().clearVoltageBoundary();
+    }
+
+    if (_tool_state == 1)
+    {
+        /** Simple element removal on contact */
+        if (_cutting_model == CuttingModel::INSTANT)
+        {
+            std::unordered_set<int> elements_to_remove;
+            for (const auto& collision : _collision_constraints)
+            {
+                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
+                {
+                    // get element 
+                    int face_index = collision.proj_ref.constraint()->faceIndex();
+                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                        continue;
+                    
+                    int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+                    elements_to_remove.insert(elem_index_to_remove);                
+                }
+            }
+
+            for (const auto& elem_index : elements_to_remove)
+            {
+                _tool_manipulated_object.removeElement(elem_index);
+            }
+        }
+
+        /** Timer-based element removal. Each element in contact has their time-in-contact field incremented by dt. */
+        if (_cutting_model == CuttingModel::TIMER)
+        {
+            Geometry::TetMesh* obj_mesh = _tool_manipulated_object.tetMesh();
+            if (!obj_mesh->template hasElementProperty<Real>("time-in-contact"))
+            {
+                obj_mesh->template addElementProperty<Real>("time-in-contact", 0, true);
+            }
+
+            Geometry::MeshProperty<Real>& time_prop = obj_mesh->template getElementProperty<Real>("time-in-contact");
+            std::unordered_set<int> elements_in_contact;
+            for (const auto& collision : _collision_constraints)
+            {
+                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
+                {
+                    // get element 
+                    int face_index = collision.proj_ref.constraint()->faceIndex();
+                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                        continue;
+                    
+                    int elem_index_in_contact = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
+                    elements_in_contact.insert(elem_index_in_contact);                
+                }
+            }
+
+            for (const auto& elem_index : elements_in_contact)
+            {
+                Real old_time = time_prop.get(elem_index);
+                time_prop.set(elem_index, old_time + _sim->dt());
+
+                // if we've exceeded the threshold, remove the element
+                if (old_time + _sim->dt() > 100e-3)
+                {
+                    _tool_manipulated_object.removeElement(elem_index);
+                }
+                
+            }
+        }
+        
+
+        /** Code for applying voltage BC at tip */
+        std::unordered_set<int> high_voltage_verts;
+        for (const auto& collision : _collision_constraints)
+        {
+            if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
+            {
+                // get element 
+                int face_index = collision.proj_ref.constraint()->faceIndex();
+                if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    continue;
+
+                // set voltage at the face in collision
+                const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
+                if (_tool_manipulated_object.hasHeatSolver())
+                {
+                    // set the closest vertex on the face to the voltage of the tool
+                    // Eigen doesn't have argmax...
+                     /** TODO: replace with the actual voltage of the cautery tool  */
+                    Vec3r barys = collision.proj_ref.constraint()->barycentricCoordinates();
+                    Real max_bary = barys.maxCoeff();
+                    if (max_bary == barys[0])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
+                        high_voltage_verts.insert(face[0]);
+                    else if (max_bary == barys[1])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
+                        high_voltage_verts.insert(face[1]);
+                    else if (max_bary == barys[2])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
+                        high_voltage_verts.insert(face[2]);
+                }           
+            }
+        }
+
+        for (const auto& vert : high_voltage_verts)
+        {
+            _tool_manipulated_object.heatSolver().setVoltageAtBoundary(vert, 134);
+        }
+        std::cout << "Number of high voltage verts: " << high_voltage_verts.size() << std::endl;
+    }
 }
 
 void VirtuosoArm::_recomputeCoordinateFrames()
