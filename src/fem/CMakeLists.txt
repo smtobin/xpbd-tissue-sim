@@ -25,7 +25,7 @@ target_sources(FEM
         
 )
 
-install(TARGETS FEM EXPORT FEM-targets
+install(TARGETS FEM EXPORT XPBDSim-targets
     RUNTIME DESTINATION bin/${PROJECT_NAME}
     LIBRARY DESTINATION lib/${PROJECT_NAME})
 install(FILES ${FEM_HEADERS}

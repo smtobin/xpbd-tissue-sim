@@ -43,6 +43,9 @@ set(Easy3D_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/Easy3D/build")
 set(Eigen3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/eigen/share/eigen3/cmake")
 set(VTK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/vtk/lib/cmake")
 set(embree_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/embree/lib/cmake")
+# note: PETSc does not provide a CMake config file
+set(PETSC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/petsc")
+set(PETSC_ARCH "arch-linux-c-debug")
 
 # find yaml-cpp
 message(STATUS "\nFinding yaml-cpp...")
@@ -113,10 +116,11 @@ find_package(assimp REQUIRED)
 include_directories("./include")
 
 # include PETSc directories
-message(STATUS "including: $ENV{PETSC_DIR}/include")
-include_directories("$ENV{PETSC_DIR}/include")
-include_directories("$ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/include")
-set(PETSC_LIB "$ENV{PETSC_DIR}/$ENV{PETSC_ARCH}/lib/libpetsc.so")
+# (PETSc does not provide a CMake config file)
+message(STATUS "including: ${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/${PETSC_ARCH}/include")
+set(PETSC_LIB "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
 
 if (HAVE_CUDA AND NOT NO_GPU)
     include_directories("/usr/local/cuda/include")

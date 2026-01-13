@@ -386,7 +386,7 @@ void VirtuosoSimulation::_timeStep()
                 _moveArm(arm, cursor, dx_sim*0.00005);
 
                 // transform force from global frame to haptic frame
-                Vec3r cam_force = rot_mat.transpose() * arm->netCollisionForce();
+                Vec3r cam_force = rot_mat.transpose() * arm->unfilteredCollisionForce();
                 Vec3r haptic_force = GeometryUtils::Ry(-M_PI) * cam_force;
                 
                 

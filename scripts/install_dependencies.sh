@@ -36,6 +36,17 @@ DEPS_DIR=$BASE_DIR/dependencies
 DEPS_SRC_DIR=$DEPS_DIR/src
 DEPS_INSTALL_DIR=$DEPS_DIR/install
 
+#########################
+# PETSc install
+#########################
+cd $DEPS_SRC_DIR
+git clone -b release https://gitlab.com/petsc/petsc.git petsc
+cd petsc
+export PETSC_DIR=$DEPS_SRC_DIR/petsc
+./configure --with-cc=gcc --with-cxx=g++ --with-fc=gfortran --download-f2cblaslapack --download-mpich
+make PETSC_DIR=$DEPS_SRC_DIR/petsc PETSC_ARCH=arch-linux-c-debug all
+
+
 ##########################
 # Embree install
 ##########################
@@ -118,16 +129,6 @@ cd gmsh/build
 cmake -DCMAKE_INSTALL_PREFIX=$DEPS_INSTALL_DIR/gmsh -DENABLE_BUILD_DYNAMIC=1 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF ..
 make -j12
 make install
-
-#########################
-# PETSc install
-#########################
-cd $THIRDPARTY_FOLDER
-git clone -b release https://gitlab.com/petsc/petsc.git petsc
-cd petsc
-./configure --with-cc=gcc --with-cxx=g++ --with-fc=gfortran --download-f2cblaslapack --download-mpich
-make PETSC_DIR=$THIRDPARTY_FOLDER/petsc PETSC_ARCH=arch-linux-c-debug all
-
 
 ################################## 
 # Geomagic Touch device setup
