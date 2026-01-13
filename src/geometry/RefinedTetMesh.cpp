@@ -30,61 +30,6 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
 
     // set the initial refinement levels
     _element_refinement_level.resize(_elements.totalSize(), 0);
-
-    // add edge nodes and face nodes for the features in the mesh
-    // _edge_nodes.clear();
-    // _face_nodes.clear();
-    // _edge_to_edge_node_map.clear();
-    // _face_to_face_node_map.clear();
-
-    // for (const auto& element_index : _elements.validIndices())
-    // {
-    //     const Vec4i& element = _elements[element_index];
-
-    //     // create edge nodes
-    //     for (int i = 0; i < 4; i++)
-    //     {
-    //         for (int j = i+1; j < 4; j++)
-    //         {
-    //             Edge edge(element[i], element[j]);
-    //             EdgeNode edge_node(edge);
-    //             edge_node.in_mesh = true;
-
-    //             // if this edge isn't already accounted for, add it the appropriate maps
-    //             if (_edge_to_edge_node_map.count(edge) == 0)
-    //             {
-    //                 int edge_node_index = _edge_nodes.push_back(std::move(edge_node));
-    //                 _edge_to_edge_node_map.insert({edge, edge_node_index});
-    //             }
-    //         }
-    //     }
-
-    //     // create face nodes
-    //     for (int i = 0; i < 4; i++)
-    //     {
-    //         for (int j = i+1; j < 4; j++)
-    //         {
-    //             for (int k = j+1; k < 4; k++)
-    //             {
-    //                 Face cur_face(element[i], element[j], element[k]);
-    //                 FaceNode face_node(cur_face);
-    //                 face_node.in_mesh = true;
-
-    //                 auto surface_faces_range = _element_to_surface_faces_map.equal_range(element_index);    // iterators for the surface faces associated with the element - useful later
-    //                 for (auto it = surface_faces_range.first; it != surface_faces_range.second; it++)
-    //                 {
-    //                     const Vec3i& face_vec = face(it->second);
-    //                     Face surface_face(face_vec[0], face_vec[1], face_vec[2]);
-    //                     if (cur_face == surface_face)
-    //                     {
-    //                         face_node.on_surface = true;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-        
-    // }
 }
 
 int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
@@ -221,6 +166,18 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
         
         EdgeNode& edge_node = _edge_nodes[edge_node_index];
 
+        // move on if the edge is still present in the mesh (i.e. another element shares this exact edge)
+        if (_edge_to_elements_map.count(edge_node.edge) > 0)
+        {
+            continue;
+        }
+
+        // we are removing the edge in the element, and if we got to here, another element does not have this exact edge
+        // thus, we need to update the vertex adjacency lists
+        // i.e. the vertices that make up the edge are no longer adjacent
+        _vertex_adjacent_vertices[edge_node.edge.index1].erase(edge_node.edge.index2);
+        _vertex_adjacent_vertices[edge_node.edge.index2].erase(edge_node.edge.index1);
+
         // move on if the edge node is not a leaf
         if (!edge_node.is_leaf)
         {
@@ -231,11 +188,6 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
                 _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
             continue;
         }
-            
-
-        // move on if the edge is still present in the mesh (i.e. another element shares this exact edge)
-        if (_edge_to_elements_map.count(edge_node.edge) > 0)
-            continue;
 
         // if we get to here, it is safe to remove this edge node
         // edit the parent
@@ -266,10 +218,6 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
                 }
             }
         }
-        // since we are removing the edge node, we need to update the vertex adjacency lists
-        // i.e. the vertices that make up the edge are no longer adjacent
-        _vertex_adjacent_vertices[edge_node.edge.index1].erase(edge_node.edge.index2);
-        _vertex_adjacent_vertices[edge_node.edge.index2].erase(edge_node.edge.index1);
 
         // remove the edge node
         _edge_nodes.erase(edge_node_index);
@@ -617,13 +565,9 @@ void RefinedTetMesh::_createMidpointVerticesAndChildEdgeNodesForElement(int elem
 
                 // if the parent edge is no longer in the mesh, update the vertex adjacency lists
                 const Edge& parent_edge = _edge_nodes[parent_edge_node_index].edge;
-                // std::cout << " Parent edge being split: (" << parent_edge.index1 << ", " << parent_edge.index2 << ") " << std::endl;
                 if (_edge_to_elements_map.count(parent_edge) == 0)
                 {
-                    // std::cout << "  Edge is split and parent edge not in the mesh anymore!" << std::endl;
-                    // std::cout << "  Removing vertex " << parent_edge.index2 << " from " << parent_edge.index1 << "'s adjacent vertices list!" << std::endl;
                     _vertex_adjacent_vertices[parent_edge.index1].erase(parent_edge.index2);
-                    // std::cout << "  Removing vertex " << parent_edge.index1 << " from " << parent_edge.index2 << "'s adjacent vertices list!" << std::endl;
                     _vertex_adjacent_vertices[parent_edge.index2].erase(parent_edge.index1);
                 }
 
@@ -1307,7 +1251,7 @@ void RefinedTetMesh::_distributeVertexFieldsToRootTreeNode(int root_tree_node_in
 
                         auto new_p1 = (cur_p1 * p1_cur_volume + 0.5 * cur_midpoint * attached_volume_to_midpoint_vertex) / (new_p1_volume);
                         auto new_p2 = (cur_p2 * p2_cur_volume + 0.5 * cur_midpoint * attached_volume_to_midpoint_vertex) / (new_p2_volume);
-                        
+
                         vprop.set(edge_node.edge.index1, new_p1);
                         vprop.set(edge_node.edge.index2, new_p2);
                     }
@@ -1475,11 +1419,10 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                 for (int k = 0; k < 4; k++)
                 {
                     std::vector<int>& vk_map = _vertex_to_elements_map[node.vertices[k]];
-                    // std::cout "VK map size for vertex " << node.vertices[k] << ": " << vk_map.size() << std::endl;
                     if (vk_map.size() == 0)
                     {
-                        // std::cout "Removing vertex from parent element " << node.vertices[k] << "! No longer in the mesh." << std::endl;
                         _vertices.erase(node.vertices[k]);
+                        
                         /** TODO: somehow get the parent vertices of this removed vertex? Is this necessary? */
                         _latest_removed_vertices.emplace_back(node.vertices[k], -1, -1);
 
@@ -1487,7 +1430,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                         if (hanging_vert_removed)
                             _latest_removed_hanging_vertices.push_back(node.vertices[k]);
 
-                        
+                        // vertex no longer in mesh, so clear its adjacent vertices list
+                        _vertex_adjacent_vertices[node.vertices[k]].clear();
                     }
                 }
                 
