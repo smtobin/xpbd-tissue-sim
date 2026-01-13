@@ -72,6 +72,12 @@ bool testCorrectness(Geometry::RefinedTetMesh& refined_mesh)
     {
         vertex_adjacent_vertices[ind] = refined_mesh.vertexAdjacentVertices(ind);
     }
+
+    std::vector<Real> vertex_volumes(refined_mesh.vertices().totalSize());
+    for (const auto& ind : refined_mesh.vertices().validIndices())
+    {
+        vertex_volumes[ind] = refined_mesh.vertexRestVolume(ind);
+    }
     
     refined_mesh.setCurrentStateAsUndeformedState(); // this will recompute the vertex adjacency information
     for (const auto& ind : refined_mesh.vertices().validIndices())
@@ -90,6 +96,17 @@ bool testCorrectness(Geometry::RefinedTetMesh& refined_mesh)
             std::cout << "     - Vertex " << ind << ": " << refined_mesh.vertex(ind).transpose() << std::endl;
 
             correct = false;
+        }
+    }
+
+    /** Check 4: Vertex rest volumes */
+    // we already set the current state as undeformed state, so we have already recomputed the vertex rest volumes
+    for (const auto& ind : refined_mesh.vertices().validIndices())
+    {
+        Real new_vertex_volume = refined_mesh.vertexRestVolume(ind);
+        if (std::abs(new_vertex_volume - vertex_volumes[ind]) > 1e-14)
+        {
+            std::cout << "   Vertex " << ind << " has a different vertex volume! New: " << new_vertex_volume << "  Old: " << vertex_volumes[ind] << std::endl;
         }
     }
 

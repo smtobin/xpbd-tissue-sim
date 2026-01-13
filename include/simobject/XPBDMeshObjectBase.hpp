@@ -288,8 +288,6 @@ protected:
 
     /** Stores the vertex masses. */
     std::vector<Real> _vertex_masses;
-    /** Stores the vertex "volumes". This is the total volume of all tetrahedra attached to a vertex, divided by 4. */
-    std::vector<Real> _vertex_volumes;
     /** Whether or not a given vertex is fixed. */
     std::vector<bool> _is_fixed_vertex;
 

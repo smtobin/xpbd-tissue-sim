@@ -341,7 +341,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
 {
     // calculate masses for each vertex
     _vertex_masses.resize(_mesh->numVertices());
-    _vertex_volumes.resize(_mesh->numVertices());
     _is_fixed_vertex.resize(_mesh->numVertices(), false);
 
     std::vector<Real> vertex_E(_mesh->numVertices());
@@ -374,12 +373,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         _vertex_masses[element[2]] += element_mass/4.0;
         _vertex_masses[element[3]] += element_mass/4.0;
 
-        // add volume contribution of element to each of its vertices
-        _vertex_volumes[element[0]] += volume/4.0;
-        _vertex_volumes[element[1]] += volume/4.0;
-        _vertex_volumes[element[2]] += volume/4.0;
-        _vertex_volumes[element[3]] += volume/4.0;
-
         // add material properties to each of its vertices
         vertex_E[element[0]] += material.E() / tetMesh()->vertexAttachedElements(element[0]).size();
         vertex_E[element[1]] += material.E() / tetMesh()->vertexAttachedElements(element[1]).size();
@@ -400,11 +393,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
         {
             if (_adjust_b_to_material)
             {
-                _vertex_B[i] = _vertex_volumes[i] * _damping_multiplier * vertex_E[i] / (1+vertex_nu[i]);
+                _vertex_B[i] = tetMesh()->vertexRestVolume(i) * _damping_multiplier * vertex_E[i] / (1+vertex_nu[i]);
             }
             else
             {
-                _vertex_B[i] = _vertex_volumes[i] * _damping_multiplier;
+                _vertex_B[i] = tetMesh()->vertexRestVolume(i) * _damping_multiplier;
             }
         }
     }
@@ -765,7 +758,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     /** Resize per-vertex vectors */
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
     _vertex_masses.resize(new_size);
-    _vertex_volumes.resize(new_size);
     _vertex_velocities.resize(new_size);
     _previous_vertices.resize(new_size);
     _is_fixed_vertex.resize(new_size);
@@ -782,7 +774,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         // initial new vertex mass, volume, and damping (if first order) to 0
         // this will be updated later
         _vertex_masses[new_vert.index] = 0;
-        _vertex_volumes[new_vert.index] = 0;
 
         if constexpr (IsFirstOrder)
         {
@@ -809,10 +800,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         Real removed_elem_mass = removed_elem.rest_volume * removed_elem_material.density();
 
         for (const auto& elem_vert : removed_elem.vertices)
-        {
-            // update volume for each vertex
-            _vertex_volumes[elem_vert] -= 0.25*removed_elem.rest_volume;
-            
+        {   
             // update mass for each vertex
             _vertex_masses[elem_vert] -= 0.25*removed_elem_mass;
         }
@@ -838,9 +826,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
 
         for (const auto& elem_vert : elem_vertices)
         {
-            // update volume for each vertex
-            _vertex_volumes[elem_vert] += 0.25*rest_volume;
-
             // update mass for each vertex
             _vertex_masses[elem_vert] += 0.25*element_mass;
         }
@@ -876,11 +861,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
                  * 
                  */
                 const ElasticMaterial& material = _materials[added_element_classes[0]];
-                _vertex_B[new_vert.index] = _vertex_volumes[new_vert.index] * _damping_multiplier * material.E() / material.nu();
+                _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier * material.E() / material.nu();
             }
             else
             {
-                _vertex_B[new_vert.index] = _vertex_volumes[new_vert.index] * _damping_multiplier;
+                _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier;
             }
         }
     }

@@ -137,6 +137,15 @@ void TetMesh::setCurrentStateAsUndeformedState()
     {
         _element_rest_volumes[elem_ind] = elementVolume(elem_ind);
     }
+
+    // vertex rest volumes
+    _vertex_rest_volumes.clear();
+    _vertex_rest_volumes.resize(_vertices.totalSize(), 0);
+    for (const auto& elem_ind : _elements.validIndices())
+    {
+        for (const auto& v : _elements[elem_ind])
+            _vertex_rest_volumes[v] += 0.25 * _element_rest_volumes[elem_ind];
+    }
     
     // find surface elements
     // for now, just do a dumb O(n^2) search
