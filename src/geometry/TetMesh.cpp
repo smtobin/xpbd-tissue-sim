@@ -416,6 +416,9 @@ void TetMesh::removeElement(int elem_index)
 {
     // increment topology version since the topology is changing
     _topology_version++;
+
+    // update vertex volumes
+    _updateVertexVolumesForRemovedElement(elem_index);
     
     // get adjacent elements
     const std::vector<int>& adjacent_elements = faceAdjacentElements(elem_index);
@@ -485,6 +488,16 @@ void TetMesh::removeElement(int elem_index)
 
     // remove element
     _elements.erase(elem_index);
+}
+
+void TetMesh::_updateVertexVolumesForRemovedElement(int element_index)
+{
+    const Vec4i& elem = element(element_index);
+    Real rest_volume = elementRestVolume(element_index);
+    for (const auto& v : elem)
+    {
+        _vertex_rest_volumes[v] -= 0.25*rest_volume;
+    }
 }
 
 std::pair<int, Real> TetMesh::averageTetEdgeLength() const

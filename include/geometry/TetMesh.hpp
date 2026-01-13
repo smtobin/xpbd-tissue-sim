@@ -36,6 +36,11 @@ class TetMesh : public Mesh
      */
     virtual void setCurrentStateAsUndeformedState() override;
 
+    /** Returns the rest volume associated with the specified vertex.
+     * (1/4 the rest volume of all attached elements to the vertex)
+     */
+    Real vertexRestVolume(int index) const { return _vertex_rest_volumes[index]; }
+
     /** Returns a const-reference to the elements of the mesh. */
     const elements_vec_type& elements() const { return _elements; }
 
@@ -193,6 +198,9 @@ class TetMesh : public Mesh
     /** Updates the element -> surface face map when we are removing an element. */
     void _updateElementSurfaceFaceMapForRemovedElement(int element_index);
 
+    /** Simple helper to subtract 1/4 the element volume from its vertices */
+    void _updateVertexVolumesForRemovedElement(int element_index);
+
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
     elements_vec_type _elements;
 
@@ -207,6 +215,11 @@ class TetMesh : public Mesh
      *  calculated [v1 - v4, v2 - v4, v3 - v4]
    */
     std::vector<Mat3r> _element_inv_undeformed_basis;  
+
+    /** The rest volume associated with a vertex
+     * (1/4 the volume of the elements attached to the vertex)
+     */
+    std::vector<Real> _vertex_rest_volumes;
 
     /** A list of elements that are on the surface, i.e. one of their faces is on the surface.
      * Entry i is the index of the element that corresponds to surface face i.

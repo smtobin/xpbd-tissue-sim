@@ -136,6 +136,11 @@ int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
         prop.resize(_vertices.totalSize());
     });
 
+    // resize the vertex rest volumes
+    // since the vertex was just added, it does not have any volume associated with it (yet)
+    _vertex_rest_volumes.resize(_vertices.totalSize(), 0);
+    _vertex_rest_volumes[new_index] = 0;
+
     // add the vertex to the list of newly created vertices
     _latest_new_vertices.emplace_back(new_index, parent1_index, parent2_index);
 
@@ -389,6 +394,12 @@ int RefinedTetMesh::_addNewElement(const Vec4i& new_element, bool f012_on_surfac
     // volume
     Real rest_volume = ie1.dot(ie2.cross(ie3)) / 6.0;
     _element_rest_volumes[new_elem_index] = std::abs(rest_volume);
+
+    // update vertex rest volumes
+    for (const auto& v : new_element)
+    {
+        _vertex_rest_volumes[v] += 0.25*_element_rest_volumes[new_elem_index];
+    }
 
     // compute inverse of undeformed element basis (for deformation gradient computation later)
     _element_inv_undeformed_basis.resize(_elements.totalSize());
@@ -1191,10 +1202,125 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     }
 
     // remove the element
+    _updateVertexVolumesForRemovedElement(element_index);
     _updateVertexElementMapForRemovedElement(element_index);
     _elements.erase(element_index);
 
     return true;
+}
+
+void RefinedTetMesh::_distributeVertexFieldsToRootTreeNode(int root_tree_node_index)
+{
+    // get the root tree node
+    const ElementTreeNode& root_node = _element_tree_nodes[root_tree_node_index];
+
+    // maintain a map of "in-progress" vertex volumes for each vertex involved in coarsening
+    // the new value of the parent is a volume-weighted average of the current value and the value of the refined node
+    //      T_parent = (T_parent * Vol_parent + T_child * Vol_child_elem) / (Vol_parent + Vol_child_elem)
+    std::unordered_map<int, Real> intermediate_vertex_volumes;
+
+    // Stack holds pairs of (node index, processing_stage)
+    // Stage 0: Push children
+    // Stage 1: Delete node
+    std::stack<std::pair<int, int>> stack;
+    
+    for (const auto& child_index : root_node.children)
+    {
+        stack.push({child_index, 0});
+    }
+
+    while (!stack.empty()) 
+    {
+        auto [node_index, stage] = stack.top();
+        ElementTreeNode& node = _element_tree_nodes[node_index];
+        stack.pop();
+        
+        if (stage == 0) 
+        {
+            // First visit: push this node back for deletion later
+            stack.push({node_index, 1});
+            
+            // Then push all children (they'll be processed first)
+            for (const auto& child_index : node.children) 
+            {
+                stack.push({child_index, 0});
+            }
+        } 
+        else 
+        {
+            // Second visit: all children are deleted, safe to delete this node
+            // if this is a leaf, delete the associated element in the mesh
+            if (node.element_index != ElementTreeNode::INVALID_INDEX)
+                continue;
+
+            // distribute field variables (temperature, etc.) from former children to this element
+            // first, create entries in the volume-tracking map for this element, if they don't exist already
+            const ElementTreeNode& parent_node = _element_tree_nodes[node.parent];
+            for (int i = 0; i < 4; i++)
+            {
+                if (intermediate_vertex_volumes.count(parent_node.vertices[i]) == 0)
+                    intermediate_vertex_volumes.insert({parent_node.vertices[i], vertexRestVolume(parent_node.vertices[i])});
+            }
+
+            // compute the rest volume for this element node
+            // since this element is not in the mesh, it cannot be queried with elementRestVolume()
+            const Vec3r& iv1 = initialVertex(node.vertices[0]);
+            const Vec3r& iv2 = initialVertex(node.vertices[1]);
+            const Vec3r& iv3 = initialVertex(node.vertices[2]);
+            const Vec3r& iv4 = initialVertex(node.vertices[3]);
+            Real parent_rest_volume = elementVolume(iv1, iv2, iv3, iv4);
+
+            // iterate through the child edge nodes of this parent element
+            // and distribute the fields on these midpoint vertices to the parent vertices
+            // each midpoint vertex has the following number of child elements attached to it:
+            //      M01: 4
+            //      M02: 4
+            //      M03: 6
+            //      M12: 6
+            //      M13: 4
+            //      M23: 4
+            for (int i = 0; i < 6; i++)
+            {
+                int num_attached_child_elements = 4;
+                if ( (i == 2 || i == 3) )
+                    num_attached_child_elements = 6;
+
+                const EdgeNode& edge_node = _edge_nodes[node.edge_nodes[i]];
+                int midpoint_vertex = edge_node.child_vertex;
+                
+                // the midpoint vertex rest volume from just child elements of the parent element
+                Real attached_volume_to_midpoint_vertex = num_attached_child_elements * parent_rest_volume/32;
+
+                // distribute the vertex field properties to the parents using a volume-weighted sum
+                _vertex_properties.for_each_element([&](auto& vprop) {
+                    if (vprop.isField())
+                    {
+                        auto cur_p1 = vprop.get(edge_node.edge.index1);
+                        auto cur_p2 = vprop.get(edge_node.edge.index2);
+                        auto cur_midpoint = vprop.get(midpoint_vertex);
+
+                        Real p1_cur_volume = intermediate_vertex_volumes[edge_node.edge.index1];
+                        Real p2_cur_volume = intermediate_vertex_volumes[edge_node.edge.index2];
+
+                        Real new_p1_volume = intermediate_vertex_volumes[edge_node.edge.index1] + 0.5 * attached_volume_to_midpoint_vertex;
+                        Real new_p2_volume = intermediate_vertex_volumes[edge_node.edge.index2] + 0.5 * attached_volume_to_midpoint_vertex;
+
+                        auto new_p1 = (cur_p1 * p1_cur_volume + 0.5 * cur_midpoint * attached_volume_to_midpoint_vertex) / (new_p1_volume);
+                        auto new_p2 = (cur_p2 * p2_cur_volume + 0.5 * cur_midpoint * attached_volume_to_midpoint_vertex) / (new_p2_volume);
+                        
+                        vprop.set(edge_node.edge.index1, new_p1);
+                        vprop.set(edge_node.edge.index2, new_p2);
+                    }
+                });
+
+                // each child element attached to the midpoint vertex contributes 1/32 the parent element's volume to that midpoint vertex
+                // so we distribute the volume equally between the parents
+                intermediate_vertex_volumes[edge_node.edge.index1] += 0.5 * attached_volume_to_midpoint_vertex;
+                intermediate_vertex_volumes[edge_node.edge.index2] += 0.5 * attached_volume_to_midpoint_vertex;
+            }
+        }
+    }
+
 }
 
 bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute)
@@ -1272,6 +1398,9 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     ElementTreeNode& root_node = _element_tree_nodes[root_index];
     int new_node_index = _addNewElementFromElementTreeNode(root_index);
 
+    // distribute vertex field variables (temperature, etc.) from refined vertices back to the coarse vertices
+    _distributeVertexFieldsToRootTreeNode(root_index);
+
     // the number of descendant children that are leaves
     // we will increment this for every element in the mesh that we remove
     // used to calculate element properties
@@ -1321,6 +1450,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
 
                 _latest_removed_elements.emplace_back(node.element_index, node.vertices, elementRestVolume(node.element_index));
 
+                _updateVertexVolumesForRemovedElement(node.element_index);
                 _updateElementMapsForRemovedElement(node.element_index);
                 _elements.erase(node.element_index);
                 _element_to_tree_node_map.erase(node.element_index);

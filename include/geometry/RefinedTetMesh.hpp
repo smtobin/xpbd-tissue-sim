@@ -348,6 +348,11 @@ private:
     std::tuple<int,int,int> _matchFaceNodeToChildEdgeNodeIndices(int parent_face_node_index, int lower, int middle);
     std::tuple<int,int,int,int> _matchFaceNodeToChildFaceNodeIndices(int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12);
 
+    /** Distributes field variables (temperature, etc.) defined over the vertices of a refined part of the mesh to their appropriate ancestor vertices during coarsening.
+     * 
+     */
+    void _distributeVertexFieldsToRootTreeNode(int root_tree_node_index);
+
 protected:
     
     /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
