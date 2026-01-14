@@ -35,10 +35,12 @@ class ObjectConfig : public Config
         _extractParameter("material", node, _material_class);
     }
 
-    explicit ObjectConfig(const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit ObjectConfig(const std::string& name, const std::string& material_class, const Vec3r& initial_position, const Vec3r& initial_rotation,
                           const Vec3r& initial_velocity, bool collisions, bool graphics_only, const ObjectRenderConfig& render_config)
         : Config(name), _render_config(render_config)
     {
+        _material_class.value = material_class;
+        
         _initial_position.value = initial_position;
         _initial_rotation.value = initial_rotation;
         _initial_velocity.value = initial_velocity;

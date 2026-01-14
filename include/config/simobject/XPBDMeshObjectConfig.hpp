@@ -77,7 +77,8 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
         
     }
 
-    explicit XPBDMeshObjectConfig(  const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,                  // Object params
+    explicit XPBDMeshObjectConfig(  const std::string& name, const std::string& material_class,
+                                    const Vec3r& initial_position, const Vec3r& initial_rotation,                  // Object params
                                     const Vec3r& initial_velocity, bool collisions, bool graphics_only,
 
                                     const std::string& filename, const std::optional<Real>& max_size, const std::optional<Vec3r>& size, const std::optional<Vec3r>& scaling,     // MeshObject params
@@ -91,7 +92,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
                                     XPBDSolverResidualPolicyEnum residual_policy,
                                 
                                     const ObjectRenderConfig& render_config)
-        : ObjectConfig(name, initial_position, initial_rotation, initial_velocity, collisions, graphics_only, render_config),
+        : ObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, collisions, graphics_only, render_config),
           MeshObjectConfig(filename, max_size, size, scaling, draw_points, draw_edges, draw_faces, color)
     {
         _material_classes.value = mat_names;

@@ -57,12 +57,12 @@ class VirtuosoRobotConfig : public ObjectConfig
         }
     }
 
-    explicit VirtuosoRobotConfig( const std::string& name, 
+    explicit VirtuosoRobotConfig( const std::string& name, const std::string& material_class,
         const Vec3r& initial_pos, const Vec3r& initial_rot, const Vec3r& initial_velocity, bool collisions, bool graphics_only,
         Real endoscope_diameter, Real endoscope_length, Real arm_separation_distance, Real optic_vertical_distance, Real optic_tilt_deg,
         const std::vector<VirtuosoArmConfig>& arm_configs,
         const ObjectRenderConfig& render_config)
-        : ObjectConfig(name, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config),
+        : ObjectConfig(name, material_class, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config),
             _arm_configs(arm_configs)
     {
         _endoscope_diameter.value = endoscope_diameter;

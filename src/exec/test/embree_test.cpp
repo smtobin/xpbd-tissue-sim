@@ -25,7 +25,7 @@ int main()
     Config::MeshObjectConfig mesh_config("../resource/cube/cube2.msh", 2, std::nullopt, std::nullopt,
         false, false, true, Vec4r(0,0,0,0));
 
-    Config::ObjectConfig object_config("test", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
+    Config::ObjectConfig object_config("test", "default", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
 
     Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
     mesh_obj.loadAndConfigureMesh();

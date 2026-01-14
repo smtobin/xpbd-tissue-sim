@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
 
     // load combined mesh from file
     Config::MeshObjectConfig config(combined_mesh_filename, std::nullopt, std::nullopt, std::nullopt, false, false, false, Vec4r(0,0,0,0));
-    Config::ObjectConfig obj_config("combined", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
+    Config::ObjectConfig obj_config("combined", "default", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
 
     
     Sim::TetMeshObject combined_mesh_obj(&config, &obj_config);
