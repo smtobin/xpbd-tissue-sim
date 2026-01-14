@@ -109,9 +109,9 @@ public:
     /** === XPBDMeshObject_Base_ functionality === */
     /** TODO: should some of these methods use perfect forwarding? */
 
-    std::vector<ElasticMaterial> materials() const
+    const std::vector<const MaterialClass*>& materialClasses() const
     {
-        return std::visit([](const auto& obj) { return obj->materials(); }, _variant);
+        return std::visit([](const auto& obj) -> const std::vector<const MaterialClass*>& { return obj->materialClasses(); }, _variant);
     }
 
     const SDFType* SDF() const

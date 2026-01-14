@@ -85,23 +85,24 @@ class Simulation
         const ObjectVectorType& graphicsObjects() const { return _graphics_only_objects; }
 
         /** Adds a new material to the sim. Useful for setting up sims without a config file. */
-        void addMaterial(const ElasticMaterial& mat) { _materials.push_back(mat); }
+        void addMaterial(const MaterialClass& mat) { _material_classes.push_back(mat); }
 
         /** Returns the material with the specified name, if it exists. If it doesn't exist,
          * the program will throw an error and exit.
          */
-        const ElasticMaterial& getMaterial(const std::string& name) const 
+        const MaterialClass& getMaterialClass(const std::string& name) const 
         { 
-            for (const auto& mat : _materials)
+            for (const auto& mat : _material_classes)
             {
                 if (mat.name() == name)
                     return mat;
             }
 
-            std::cerr << "Material with name " << name << " does not exist in the simulation!" << std::endl;
-            assert(0);
+            std::stringstream ss;
+            ss << "Material with name " << name << " does not exist in the simuilation!";
+            throw std::runtime_error(ss.str());
 
-            return _materials[0];
+            return _material_classes[0];
         }
 
         /** Performs setup for the Simulation.
@@ -169,7 +170,22 @@ class Simulation
             // add the new object to the graphics scene to be visualized
             if (_graphics_scene)
             {
-                _graphics_scene->addObject(new_obj.get(), obj_config->renderConfig());
+                // for XPBDMeshObjects can have multiple materials associated with different parts of the mesh
+                if constexpr (std::is_convertible_v<ConfigType*, Config::XPBDMeshObjectConfig*>)
+                {
+                    /** TODO: handle multiple render configs at the same time
+                     * 
+                     * for now, just use the first material
+                     */
+                    const Config::ObjectRenderConfig& render_config = new_obj->materialClasses().front()->renderConfig();
+                    _graphics_scene->addObject(new_obj.get(), render_config);
+                }
+                else
+                {
+                    const Config::ObjectRenderConfig& render_config = getMaterialClass(obj_config->materialClass()).renderConfig();
+                    _graphics_scene->addObject(new_obj.get(), render_config);
+                }
+                
             }
 
             // if we get to here, we have successfully created a new MeshObject of some kind
@@ -240,8 +256,8 @@ class Simulation
          */
         ObjectVectorType _graphics_only_objects;
 
-        /** storage of the elastic materials used by deformable objects in the simulation */
-        std::vector<ElasticMaterial> _materials;
+        /** storage of the materials used by all objects in the simulation */
+        std::vector<MaterialClass> _material_classes;
 
         /** Manages collision detection and creating constraints for collision response.
          * Only objects with collisions enabled will be added to the CollisionScene.

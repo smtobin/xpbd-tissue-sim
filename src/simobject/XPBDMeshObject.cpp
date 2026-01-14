@@ -35,12 +35,22 @@ template<bool IsFirstOrder>
 XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, const ConfigType* config)
     : Object(sim, config), RefinedTetMeshObject(config, config)
 {
-    for (const auto& mat_name : config->materials())
+    // if multiple materials are specified, use those
+    if (config->materialClasses().size() > 0)
     {
-        _materials.push_back(sim->getMaterial(mat_name));
+        for (const auto& mat_name : config->materialClasses())
+        {
+            _material_classes.push_back(&sim->getMaterialClass(mat_name));
+        }
     }
 
-    if (_materials.size() == 0)
+    // otherwise use the single material specified in the ObjectConfig
+    else
+    {
+        _material_classes.push_back(&sim->getMaterialClass(config->materialClass()));
+    }
+
+    if (_material_classes.size() == 0)
     {
         std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "No materials were specified!" << RST << std::endl;
         assert(0);
@@ -191,7 +201,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
              * 
              * 
              */
-            _heat_solver.emplace(refinedTetMesh(), _materials[0], 0, 23);
+            _heat_solver.emplace(refinedTetMesh(), _material_classes[0]->material(), 0, 23);
 
             if (_ground_faces_filename.has_value())
             {
@@ -350,15 +360,15 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
     {
         // get the material for this element
         int material_ind = class_prop.get(i);
-        if (static_cast<unsigned>(material_ind) >= _materials.size())
+        if (static_cast<unsigned>(material_ind) >= _material_classes.size())
         {
-            std::cout << KYEL << BOLD << "WARNING: " << RST << KYEL << "Only " << _materials.size() << " materials were specified, but element " <<
+            std::cout << KYEL << BOLD << "WARNING: " << RST << KYEL << "Only " << _material_classes.size() << " materials were specified, but element " <<
                 i << " has class " << material_ind << ". (Specify more materials in the config file)" << RST << std::endl;
             
             // set the material index to the largest valid index
-            material_ind = _materials.size() - 1;
+            material_ind = _material_classes.size() - 1;
         }
-        const ElasticMaterial& material = _materials[material_ind];
+        const ElasticMaterial& material = _material_classes[material_ind]->material();
 
         const Eigen::Vector4i& element = tetMesh()->element(i);
         // compute volume from X
@@ -417,8 +427,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_c
     {
         // get the material for this element
         int material_ind = class_prop.get(i);
-        if ((unsigned)material_ind >= _materials.size())  material_ind = _materials.size()-1;
-        const ElasticMaterial& material = _materials[material_ind];
+        if ((unsigned)material_ind >= _material_classes.size())  material_ind = _material_classes.size()-1;
+        const ElasticMaterial& material = _material_classes[material_ind]->material();
 
         // get the vertices for the element
         const Eigen::Vector4i element = tetMesh()->element(i);
@@ -796,7 +806,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         int removed_elem_class = removed_element_classes[i];
 
         // get the removed element mass from the volume * density
-        const ElasticMaterial& removed_elem_material = _materials[removed_elem_class];
+        const ElasticMaterial& removed_elem_material = _material_classes[removed_elem_class]->material();
         Real removed_elem_mass = removed_elem.rest_volume * removed_elem_material.density();
 
         for (const auto& elem_vert : removed_elem.vertices)
@@ -821,7 +831,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         Real rest_volume = tetMesh()->elementVolume(iv1, iv2, iv3, iv4);
 
         // calculate rest mass for the new tet
-        const ElasticMaterial& material = _materials[new_elem_class];
+        const ElasticMaterial& material = _material_classes[new_elem_class]->material();
         Real element_mass = rest_volume * material.density();
 
         for (const auto& elem_vert : elem_vertices)
@@ -860,7 +870,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
                  * 
                  * 
                  */
-                const ElasticMaterial& material = _materials[added_element_classes[0]];
+                const ElasticMaterial& material = _material_classes[added_element_classes[0]]->material();
                 _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier * material.E() / material.nu();
             }
             else
@@ -898,7 +908,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         {
             int new_elem_index = added_elements[i];
             int new_elem_class = added_element_classes[i];
-            const ElasticMaterial& new_elem_material = _materials[new_elem_class];
+            const ElasticMaterial& new_elem_material = _material_classes[new_elem_class]->material();
 
             // get the vertices for the element
             const Vec4i& element = tetMesh()->element(new_elem_index);
@@ -950,7 +960,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         {
             int new_elem_index = added_elements[i];
             int new_elem_class = added_element_classes[i];
-            const ElasticMaterial& new_elem_material = _materials[new_elem_class];
+            const ElasticMaterial& new_elem_material = _material_classes[new_elem_class]->material();
 
             // get the vertices for the element
             const Vec4i& element = tetMesh()->element(new_elem_index);

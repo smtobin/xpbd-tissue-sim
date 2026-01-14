@@ -83,7 +83,7 @@ public:
     /** Returns a const-ref to the elastic material for each tetrahedra in the mesh.
      * @returns the elastic material
      */
-    const std::vector<ElasticMaterial>& materials() const { return _materials; }
+    const std::vector<const MaterialClass*>& materialClasses() const { return _material_classes; }
 
     /** Creates the SDF if it doesn't exist already. */
     virtual void createSDF() override;
@@ -284,7 +284,7 @@ protected:
      * The index in the vector corresponds to the class (an integer) associated with this material.
      * The class is a per-element property stored by the TetMesh object.
      */
-    std::vector<ElasticMaterial> _materials;
+    std::vector<const MaterialClass*> _material_classes;
 
     /** Stores the vertex masses. */
     std::vector<Real> _vertex_masses;

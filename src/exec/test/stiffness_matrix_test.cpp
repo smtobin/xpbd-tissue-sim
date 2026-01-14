@@ -15,7 +15,8 @@ int main()
     gmsh::initialize();
 
     Config::ElasticMaterialConfig mat_config("material", 1000, 4e4, 0.45, 0.5, 0.2);
-    ElasticMaterial mat(&mat_config);
+    Config::MaterialClassConfig mat_class_config("test", mat_config, Config::ObjectRenderConfig());
+    Sim::MaterialClass mat(&mat_class_config);
 
     // test the individual constraint Hessians
     Vec3r p1(0,0,0);
@@ -27,8 +28,8 @@ int main()
     int v2 = vertices_vec.push_back(p2);
     int v3 = vertices_vec.push_back(p3);
     int v4 = vertices_vec.push_back(p4);
-    Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
-    Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
+    Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
+    Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
 
     vertices_vec[0][0] = 0.2; vertices_vec[0][1] = 0.15;
     vertices_vec[1][0] = 0.93; vertices_vec[1][1] = 0.1; vertices_vec[1][2] = 0.1;

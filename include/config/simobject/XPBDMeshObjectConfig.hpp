@@ -59,7 +59,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     explicit XPBDMeshObjectConfig(const YAML::Node& node)
         : ObjectConfig(node), MeshObjectConfig(node)
     {
-        _extractParameter("materials", node, _materials);
+        _extractParameter("materials", node, _material_classes);
         _extractParameter("element-classes-filename", node, _element_classes_filename);
         _extractParameter("ground-faces-filename", node, _ground_faces_filename);
         _extractParameter("fixed-faces-filename", node, _fixed_faces_filename);
@@ -94,7 +94,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
         : ObjectConfig(name, initial_position, initial_rotation, initial_velocity, collisions, graphics_only, render_config),
           MeshObjectConfig(filename, max_size, size, scaling, draw_points, draw_edges, draw_faces, color)
     {
-        _materials.value = mat_names;
+        _material_classes.value = mat_names;
         _element_classes_filename.value = element_classes_filename;
         _fixed_faces_filename.value = fixed_faces_filename;
 
@@ -116,7 +116,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     XPBDMeshObjectConstraintConfigurationEnum constraintType() const { return _constraint_type.value; }
     XPBDSolverResidualPolicyEnum residualPolicy() const { return _residual_policy.value; }
 
-    std::vector<std::string> materials() const { return _materials.value; }
+    std::vector<std::string> materialClasses() const { return _material_classes.value; }
     std::optional<std::string> elementClassesFilename() const { return _element_classes_filename.value; }
     std::optional<std::string> groundFacesFilename() const { return _ground_faces_filename.value; }
     std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
@@ -132,7 +132,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     ConfigParameter<XPBDMeshObjectConstraintConfigurationEnum> _constraint_type = ConfigParameter<XPBDMeshObjectConstraintConfigurationEnum>(XPBDMeshObjectConstraintConfigurationEnum::STABLE_NEOHOOKEAN_COMBINED);
     ConfigParameter<XPBDSolverResidualPolicyEnum> _residual_policy = ConfigParameter<XPBDSolverResidualPolicyEnum>(XPBDSolverResidualPolicyEnum::NEVER);
 
-    ConfigParameter<std::vector<std::string>> _materials = ConfigParameter<std::vector<std::string>>({});
+    ConfigParameter<std::vector<std::string>> _material_classes = ConfigParameter<std::vector<std::string>>({});
     ConfigParameter<std::optional<std::string>> _element_classes_filename;
     ConfigParameter<std::optional<std::string>> _ground_faces_filename;
     ConfigParameter<std::optional<std::string>> _fixed_faces_filename;

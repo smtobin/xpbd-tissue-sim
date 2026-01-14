@@ -8,6 +8,7 @@
 #include "geometry/AABB.hpp"
 #include "geometry/SDF.hpp"
 #include "config/simobject/ObjectConfig.hpp"
+#include "simobject/MaterialClass.hpp"
 
 #ifdef HAVE_CUDA
 #include "gpu/resource/GPUResource.hpp"
@@ -25,9 +26,7 @@ class Object
     using ConfigType = Config::ObjectConfig;
 
     public:
-    Object(const Simulation* sim, const ConfigType* config)
-        : _name(config->name()), _sim(sim)
-    {}
+    Object(const Simulation* sim, const ConfigType* config);
 
     virtual ~Object() = default;
 
@@ -76,6 +75,9 @@ class Object
     protected:
     /** Name of the object */
     std::string _name;
+
+    /** The material class associated with the object. */
+    const MaterialClass* _material_class;
 
     /** Pointer to the Simulation object that created this Object.
      * Useful for querying things like current sim time, sim time step, or acceleration due to gravity.

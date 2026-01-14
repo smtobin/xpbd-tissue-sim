@@ -42,6 +42,10 @@ Simulation::Simulation(const Config::SimulationConfig* config)
     _viewer_refresh_time = 1/_config->fps()*1000;
     _time_between_collision_checks = 1.0/_config->collisionRate();
 
+    // add a default material to the simulation (for objects that the user does not specify a material for)
+    Config::MaterialClassConfig default_mat_config("default");
+    addMaterial(MaterialClass(&default_mat_config));
+
     // set the Simulation mode from the YAML config
     _sim_mode = _config->simMode();
 
@@ -86,7 +90,7 @@ Simulation::Simulation(const Config::SimulationConfig* config)
     /** Create the materials */
     for (const auto& mat_config : config->materialConfigs())
     {
-        _materials.emplace_back(&mat_config);
+        _material_classes.emplace_back(&mat_config);
     }
 }
 

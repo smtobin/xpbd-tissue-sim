@@ -39,6 +39,14 @@ class ElasticMaterialConfig : public Config
         _mu_k.value = mu_k;
     }
 
+    explicit ElasticMaterialConfig(const std::string& name)
+        : Config(name)
+    {}
+
+    explicit ElasticMaterialConfig()
+        : Config()
+    {}
+
     // Getters
     Real density() const { return _density.value; }
     Real E() const { return _E.value; }
