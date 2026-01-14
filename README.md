@@ -190,11 +190,11 @@ The launch files provide a few launch arguments:
 
 Launching the Virtuoso robot + trachea demo:
 ```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml simulation_type:=VirtuosoTissueGraspingSimulation
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml simulation_type:=VirtuosoTissueGraspingSimulation
 ```
 Launching the simple grasping demo:
 ```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=/workspace/config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/simple_grasping/grasping_config.yaml simulation_type:=GraspingSimulation
 ```
 
 ## Demos
