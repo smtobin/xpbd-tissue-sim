@@ -69,7 +69,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
     auto partial_view_pc_callback = 
         [this]() -> void {
 
-            std::cout << "Partial view pc callback!" << std::endl;
             if (!this->get_parameter("partial_view_pc").as_bool())
                 return;
 
@@ -89,7 +88,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
                 this->_sim->embreeScene()->partialViewPointCloudsWithClass(cam_position, cam_view_dir, cam_up_dir, hfov_deg, vfov_deg, sample_density);
             
             // go through returned point clouds and find the ones that match the trachea and tumor classes
-            std::cout << "  Iterating through point clouds..." << std::endl;
             for (auto& pc : point_clouds)
             {
                 // transform points to VB frame
@@ -99,8 +97,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
                 {
                     pc.points[i] = vb_transform_inv.rotMat()*pc.points[i] + vb_transform_inv.translation();
                 }
-
-                std::cout << "Point cloud classification: " << pc.classification << std::endl;
 
                 if (pc.classification == trachea_label)
                 {

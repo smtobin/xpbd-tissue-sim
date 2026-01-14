@@ -90,7 +90,7 @@ Simulation::Simulation(const Config::SimulationConfig* config)
     /** Create the materials */
     for (const auto& mat_config : config->materialConfigs())
     {
-        _material_classes.emplace_back(&mat_config);
+        _material_classes.push_back(std::make_unique<MaterialClass>(&mat_config));
     }
 }
 

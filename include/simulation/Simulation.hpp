@@ -85,24 +85,24 @@ class Simulation
         const ObjectVectorType& graphicsObjects() const { return _graphics_only_objects; }
 
         /** Adds a new material to the sim. Useful for setting up sims without a config file. */
-        void addMaterial(const MaterialClass& mat) { _material_classes.push_back(mat); }
+        void addMaterial(const MaterialClass& mat) { _material_classes.push_back(std::make_unique<MaterialClass>(mat)); }
 
         /** Returns the material with the specified name, if it exists. If it doesn't exist,
          * the program will throw an error and exit.
          */
-        const MaterialClass& getMaterialClass(const std::string& name) const 
+        const MaterialClass* getMaterialClass(const std::string& name) const 
         { 
             for (const auto& mat : _material_classes)
             {
-                if (mat.name() == name)
-                    return mat;
+                if (mat->name() == name)
+                    return mat.get();
             }
 
             std::stringstream ss;
             ss << "Material with name " << name << " does not exist in the simuilation!";
             throw std::runtime_error(ss.str());
 
-            return _material_classes[0];
+            return _material_classes[0].get();
         }
 
         /** Performs setup for the Simulation.
@@ -182,7 +182,7 @@ class Simulation
                 }
                 else
                 {
-                    const Config::ObjectRenderConfig& render_config = getMaterialClass(obj_config->materialClass()).renderConfig();
+                    const Config::ObjectRenderConfig& render_config = getMaterialClass(obj_config->materialClass())->renderConfig();
                     _graphics_scene->addObject(new_obj.get(), render_config);
                 }
                 
@@ -256,8 +256,8 @@ class Simulation
          */
         ObjectVectorType _graphics_only_objects;
 
-        /** storage of the materials used by all objects in the simulation */
-        std::vector<MaterialClass> _material_classes;
+        /** Master list of the materials used by all objects in the simulation */
+        std::vector<std::unique_ptr<MaterialClass>> _material_classes;
 
         /** Manages collision detection and creating constraints for collision response.
          * Only objects with collisions enabled will be added to the CollisionScene.

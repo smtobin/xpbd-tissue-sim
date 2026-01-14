@@ -37,7 +37,6 @@ EmbreeScene::~EmbreeScene()
 
 void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 {
-    std::cout << "\n\nAdding MeshObject to EmbreeScene..." << std::endl;
     // make sure that object has not already been added to Embree scene
     if (_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
@@ -94,7 +93,6 @@ void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 
 void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
 {
-    std::cout << "\n\nAdding TetMeshObject to EmbreeScene..." << std::endl;
     // make sure that object has not already been added to Embree scene
     if (_tet_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
@@ -437,7 +435,6 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
 std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const Vec3r& origin, const Vec3r& view_dir, const Vec3r& up_dir, Real hfov_deg, Real vfov_deg, Real sample_density) const
 {
-    std::cout << "EmbreeScene::partialViewPointCloudsWithClass" << std::endl;
     // calculate "right" direction from view direction and up direction
     const Vec3r right_dir = up_dir.cross(view_dir);
     Mat3r R_camera;
@@ -496,8 +493,6 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                         classification = obj->materialClass()->label();
                     } 
                 }
-
-                std::cout << "Hit class: " << classification << std::endl;
                     
 
                 // put the point in the appropriate vector

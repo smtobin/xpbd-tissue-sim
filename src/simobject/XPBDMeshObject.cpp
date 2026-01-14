@@ -40,14 +40,14 @@ XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, 
     {
         for (const auto& mat_name : config->materialClasses())
         {
-            _material_classes.push_back(&sim->getMaterialClass(mat_name));
+            _material_classes.push_back(sim->getMaterialClass(mat_name));
         }
     }
 
     // otherwise use the single material specified in the ObjectConfig
     else
     {
-        _material_classes.push_back(&sim->getMaterialClass(config->materialClass()));
+        _material_classes.push_back(sim->getMaterialClass(config->materialClass()));
     }
 
     if (_material_classes.size() == 0)
