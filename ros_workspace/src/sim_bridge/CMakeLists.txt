@@ -143,7 +143,11 @@ set(PETSC_LIB "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
 link_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/lib")
 
 # === Create Node Executable ===
-add_executable(${PROJECT_NAME}_node src/sim_bridge_node.cpp src/VirtuosoSimBridge.cpp)
+add_executable(${PROJECT_NAME}_node 
+  src/sim_bridge_node.cpp 
+  src/VirtuosoSimBridge.cpp 
+  src/VirtuosoTissueGraspingSimBridge.cpp
+)
 
 # === Link Dependencies ===
 include_directories("${SIM_DIR}/include")
