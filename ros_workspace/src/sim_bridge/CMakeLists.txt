@@ -60,6 +60,10 @@ set(Eigen3_DIR "${SIM_DIR}/dependencies/install/eigen/share/eigen3/cmake")
 set(VTK_DIR "${SIM_DIR}/dependencies/install/vtk/lib/cmake")
 set(embree_DIR "${SIM_DIR}/dependencies/install/embree/lib/cmake")
 
+# note: PETSc does not provide a CMake config file
+set(PETSC_DIR "${SIM_DIR}/dependencies/src/petsc")
+set(PETSC_ARCH "arch-linux-c-debug")
+
 set(XPBDSim_DIR "${SIM_DIR}/build")
 
 find_package(XPBDSim REQUIRED)
@@ -128,11 +132,18 @@ endif()
 # find assimp
 find_package(assimp REQUIRED)
 
+# include PETSc directories
+# (PETSc does not provide a CMake config file)
+message(STATUS "including: ${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/include")
+include_directories("${PETSC_DIR}/${PETSC_ARCH}/include")
+set(PETSC_LIB "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
+
 # Add Mesh2SDF library install directory to the library search path
 link_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/lib")
 
 # === Create Node Executable ===
-add_executable(${PROJECT_NAME}_node src/sim_bridge_node.cpp)
+add_executable(${PROJECT_NAME}_node src/sim_bridge_node.cpp src/VirtuosoSimBridge.cpp)
 
 # === Link Dependencies ===
 include_directories("${SIM_DIR}/include")
@@ -168,6 +179,7 @@ target_link_libraries(${PROJECT_NAME}_node
   HDU
   mesh2sdf
   ${VTK_LIBRARIES}
+  ${PETSC_LIB}
 )
 
 target_link_libraries(${PROJECT_NAME}_node "${cpp_typesupport_target}")
