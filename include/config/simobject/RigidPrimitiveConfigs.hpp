@@ -26,11 +26,11 @@ class RigidSphereConfig : public RigidObjectConfig
         _extractParameter("radius", node, _radius);
     }
 
-    explicit RigidSphereConfig(const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit RigidSphereConfig(const std::string& name, const std::string& material_class, const Vec3r& initial_position, const Vec3r& initial_rotation,
         const Vec3r& initial_velocity, const Vec3r& initial_angular_velocity, Real density, Real radius,
         bool collisions, bool graphics_only, bool fixed,
         const ObjectRenderConfig& render_config)
-        : RigidObjectConfig(name, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
+        : RigidObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
     {
         _radius.value = radius;
     }
@@ -61,11 +61,11 @@ class RigidBoxConfig : public RigidObjectConfig
         _extractParameter("size", node, _size);
     }
 
-    explicit RigidBoxConfig(const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit RigidBoxConfig(const std::string& name, const std::string& material_class, const Vec3r& initial_position, const Vec3r& initial_rotation,
         const Vec3r& initial_velocity, const Vec3r& initial_angular_velocity, Real density, const Vec3r& size,
         bool collisions, bool graphics_only, bool fixed,
         const ObjectRenderConfig& render_config)
-        : RigidObjectConfig(name, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
+        : RigidObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
     {
         _size.value = size;
     }
@@ -95,11 +95,11 @@ class RigidCylinderConfig : public RigidObjectConfig
         _extractParameter("height", node, _height);
     }
 
-    explicit RigidCylinderConfig(const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit RigidCylinderConfig(const std::string& name, const std::string& material_class, const Vec3r& initial_position, const Vec3r& initial_rotation,
         const Vec3r& initial_velocity, const Vec3r& initial_angular_velocity, Real density, Real radius, Real height,
         bool collisions, bool graphics_only, bool fixed,
         const ObjectRenderConfig& render_config)
-        : RigidObjectConfig(name, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
+        : RigidObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config)
     {
         _radius.value = radius;
         _height.value = height;

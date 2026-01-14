@@ -29,7 +29,7 @@ namespace Geometry
 struct PointsWithClass
 {
     std::vector<Vec3r> points;
-    int classification;
+    std::string classification;
 };
 
 /** A class for interfacing with the Embree API.

@@ -20,11 +20,11 @@ class RigidObjectConfig : public ObjectConfig
         _extractParameter("fixed", node, _fixed);
     }
 
-    explicit RigidObjectConfig(const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit RigidObjectConfig(const std::string& name, const std::string& material_class, const Vec3r& initial_position, const Vec3r& initial_rotation,
                                const Vec3r& initial_velocity, const Vec3r& initial_angular_velocity, Real density,
                                bool collisions, bool graphics_only, bool fixed,
                                const ObjectRenderConfig& render_config)
-        : ObjectConfig(name, initial_position, initial_rotation, initial_velocity, collisions, graphics_only, render_config)
+        : ObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, collisions, graphics_only, render_config)
     {
         _initial_ang_velocity.value = initial_angular_velocity;
         _density.value = density;

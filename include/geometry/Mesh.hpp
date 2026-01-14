@@ -263,7 +263,10 @@ public:
         // make sure name doesn't already exist
         for (const auto& vprop : _vertex_properties.get<MeshProperty<T>>())
         {
-            assert(name != vprop.name() && "Vertex property with name already exists!");
+            bool exists = name == vprop.name();
+            if (exists)
+                throw std::runtime_error("Vertex property with name already exists!");
+            
         }
     
         if (default_value.has_value())
@@ -288,7 +291,8 @@ public:
                 return vprop;
         }
     
-        assert(0 && "Vertex property not found!");
+        throw std::runtime_error("Vertex property not found!");
+        return _vertex_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>
@@ -302,7 +306,8 @@ public:
                 return vprop;
         }
     
-        assert(0 && "Vertex property not found!");
+        throw std::runtime_error("Vertex property not found!");
+        return _vertex_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>
@@ -330,7 +335,9 @@ public:
         // make sure name doesn't already exist
         for (const auto& fprop : _face_properties.get<MeshProperty<T>>())
         {
-            assert(name != fprop.name() && "Vertex property with name already exists!");
+            bool exists = name == fprop.name();
+            if (exists)
+                throw std::runtime_error("Face property with name already exists!");
         }
     
         if (default_value.has_value())
@@ -355,7 +362,8 @@ public:
                 return fprop;
         }
     
-        assert(0 && "Face property not found!");
+        throw std::runtime_error("Face property not found!");
+        return _face_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>
@@ -369,7 +377,8 @@ public:
                 return fprop;
         }
     
-        assert(0 && "Face property not found!");
+        std::runtime_error("Face property not found!");
+        return _face_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>

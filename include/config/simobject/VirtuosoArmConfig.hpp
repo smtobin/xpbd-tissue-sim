@@ -71,14 +71,14 @@ class VirtuosoArmConfig : public ObjectConfig
         _extractParameter("base-rotation", node, _base_initial_rotation);
     }
 
-    explicit VirtuosoArmConfig( const std::string& name, 
+    explicit VirtuosoArmConfig( const std::string& name, const std::string& material_class, 
         const Vec3r& initial_pos, const Vec3r& initial_rot, const Vec3r& initial_velocity, bool collisions, bool graphics_only,
         Real ot_outer_dia, Real ot_inner_dia, Real ot_r_curve, Real ot_d_s_length, Real it_outer_dia, Real it_inner_dia,
         Real ot_rot, Real ot_trans, Real it_rot, Real it_trans,
         Sim::VirtuosoArm::ToolType tool_type, Sim::VirtuosoArm::CuttingModel cutting_model, Real tool_tube_length,
         const ObjectRenderConfig& render_config
     )
-        : ObjectConfig(name, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config)
+        : ObjectConfig(name, material_class, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config)
     {
         _ot_outer_diameter.value = ot_outer_dia;
         _ot_inner_diameter.value = ot_inner_dia;

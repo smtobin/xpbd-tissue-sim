@@ -15,7 +15,8 @@ int main()
     gmsh::initialize();
 
     Config::ElasticMaterialConfig mat_config("material", 1000, 4e4, 0.45, 0.5, 0.2);
-    ElasticMaterial mat(&mat_config);
+    Config::MaterialClassConfig mat_class_config("test", mat_config, Config::ObjectRenderConfig());
+    Sim::MaterialClass mat(&mat_class_config);
 
     // test the individual constraint Hessians
     Vec3r p1(0,0,0);
@@ -27,8 +28,8 @@ int main()
     int v2 = vertices_vec.push_back(p2);
     int v3 = vertices_vec.push_back(p3);
     int v4 = vertices_vec.push_back(p4);
-    Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
-    Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat);
+    Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
+    Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
 
     vertices_vec[0][0] = 0.2; vertices_vec[0][1] = 0.15;
     vertices_vec[1][0] = 0.93; vertices_vec[1][1] = 0.1; vertices_vec[1][2] = 0.1;
@@ -47,12 +48,12 @@ int main()
     const std::string single_tet_filename = "../resource/general/single.msh";
     const std::string bunny_filename = "../resource/general/stanford_bunny_medpoly.msh";
     const std::string cube_filename = "../resource/cube/cube2.msh";
-    std::vector<std::string> materials = {"material"};
+    // std::vector<std::string> materials = {"material"};
     Config::FirstOrderXPBDMeshObjectConfig config(
-        "test", Vec3r(0,0,0.50), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
+        "test", "material", Vec3r(0,0,0.50), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
         single_tet_filename, 1, std::nullopt, std::nullopt,
         false, true, true, Vec4r(1,1,1,1),
-        materials, std::nullopt, std::nullopt,
+        {}, std::nullopt, std::nullopt,
         false, 10, 5, XPBDObjectSolverTypeEnum::GAUSS_SEIDEL,
         XPBDMeshObjectConstraintConfigurationEnum::STABLE_NEOHOOKEAN_COMBINED,
         XPBDSolverResidualPolicyEnum::NEVER,

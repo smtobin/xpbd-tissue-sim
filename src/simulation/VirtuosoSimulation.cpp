@@ -79,17 +79,20 @@ void VirtuosoSimulation::setup()
     {
         Config::ObjectRenderConfig cursor_render_config(Config::ObjectRenderConfig::RenderType::PBR, std::nullopt, std::nullopt, std::nullopt,
                 0.0, 0.5, 0.3, Vec3r(1.0, 1.0, 0.0), true, true, false, false);
+        Config::MaterialClassConfig cursor_material_config("cursor", Config::ElasticMaterialConfig("cursor"), cursor_render_config);
+        MaterialClass cursor_mat(&cursor_material_config);
+        addMaterial(cursor_mat);
         
         if (_virtuoso_robot->hasArm1())
         {
-            Config::RigidSphereConfig cursor_config("tip_cursor1", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
+            Config::RigidSphereConfig cursor_config("tip_cursor1", "cursor", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
                 1.0, 0.001, false, true, false, cursor_render_config);
             _tip_cursor1 = _addObjectFromConfig(&cursor_config);
             _tip_cursor1->setPosition(_virtuoso_robot->arm1()->actualTipPosition());
         }
         if (_virtuoso_robot->hasArm2() && _input_device == SimulationInput::Device::HAPTIC && _haptic_device_manager->deviceHandles().size() == 2)
         {
-            Config::RigidSphereConfig cursor_config("tip_cursor2", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
+            Config::RigidSphereConfig cursor_config("tip_cursor2", "cursor", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
                 1.0, 0.001, false, true, false, cursor_render_config);
             _tip_cursor2 = _addObjectFromConfig(&cursor_config);
             _tip_cursor2->setPosition(_virtuoso_robot->arm2()->actualTipPosition());

@@ -25,14 +25,15 @@ class RigidMeshObjectConfig : public RigidObjectConfig, public MeshObjectConfig
         _extractParameter("sdf-filename", node, _sdf_filename);
     }
 
-    explicit RigidMeshObjectConfig( const std::string& name, const Vec3r& initial_position, const Vec3r& initial_rotation,
+    explicit RigidMeshObjectConfig( const std::string& name, const std::string& material_class, 
+                                    const Vec3r& initial_position, const Vec3r& initial_rotation,
                                     const Vec3r& initial_velocity, const Vec3r& initial_angular_velocity, Real density,
                                     bool collisions, bool graphics_only, bool fixed,
                                     const std::string& filename, const std::optional<Real>& max_size, const std::optional<Vec3r>& size, const std::optional<Vec3r>& scaling,
                                     bool draw_points, bool draw_edges, bool draw_faces, const Vec4r& color,
                                     const std::optional<std::string>& sdf_filename,
                                     const ObjectRenderConfig& render_config )
-        : RigidObjectConfig(name, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config),
+        : RigidObjectConfig(name, material_class, initial_position, initial_rotation, initial_velocity, initial_angular_velocity, density, collisions, graphics_only, fixed, render_config),
           MeshObjectConfig(filename, max_size, size, scaling, draw_points, draw_edges, draw_faces, color)
     {
         _sdf_filename.value = sdf_filename;

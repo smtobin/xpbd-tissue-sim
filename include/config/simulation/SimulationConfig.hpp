@@ -176,7 +176,7 @@ class SimulationConfig : public Config
     // get list of MeshObject configs that will be used to create MeshObjects
     const ConfigVectorType& objectConfigs() const { return _object_configs; }
 
-    const std::vector<ElasticMaterialConfig>& materialConfigs() const { return _material_configs; }
+    const std::vector<MaterialClassConfig>& materialConfigs() const { return _material_configs; }
 
     const SimulationRenderConfig& renderConfig() const { return _render_config; }
 
@@ -198,7 +198,7 @@ class SimulationConfig : public Config
     ConfigVectorType _object_configs;
 
     /** List of material configs that can be used by objects in the simulation. */
-    std::vector<ElasticMaterialConfig> _material_configs;
+    std::vector<MaterialClassConfig> _material_configs;
 
     SimulationRenderConfig _render_config;
 };

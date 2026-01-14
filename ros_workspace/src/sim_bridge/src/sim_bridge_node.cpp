@@ -2,6 +2,7 @@
 
 #include "sim_bridge/SimBridge.hpp"
 #include "sim_bridge/VirtuosoSimBridge.hpp"
+#include "sim_bridge/VirtuosoTissueGraspingSimBridge.hpp"
 #include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
@@ -88,7 +89,7 @@ int main(int argc, char ** argv)
         // create the simulation from the config object
         Sim::VirtuosoTissueGraspingSimulation sim(&config);
 
-        startNode<Sim::VirtuosoSimulation, VirtuosoSimBridge>(&sim);
+        startNode<Sim::VirtuosoTissueGraspingSimulation, VirtuosoTissueGraspingSimBridge>(&sim);
     }
     else if (simulation_type == "VirtuosoSimulation")
     {

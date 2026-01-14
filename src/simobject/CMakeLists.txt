@@ -16,6 +16,7 @@ set(SIMOBJECT_HEADERS
 )
 
 set(SIMOBJECT_SOURCES
+    ${SIMOBJECT_SRC_DIR}/Object.cpp
     ${SIMOBJECT_SRC_DIR}/RigidObject.cpp
     ${SIMOBJECT_SRC_DIR}/RigidPrimitives.cpp
     ${SIMOBJECT_SRC_DIR}/XPBDMeshObject.cpp

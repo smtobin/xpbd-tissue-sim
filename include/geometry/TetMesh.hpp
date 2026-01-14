@@ -106,9 +106,11 @@ class TetMesh : public Mesh
         static_assert(type_list_contains_v<T, MeshPropertyTypeList> && "Mesh property type not supported!");
 
         // make sure name doesn't already exist
-        for (const auto& fprop : _element_properties.get<MeshProperty<T>>())
+        for (const auto& eprop : _element_properties.get<MeshProperty<T>>())
         {
-            assert(name != fprop.name() && "Vertex property with name already exists!");
+            bool exists = name == eprop.name();
+            if (exists)
+                throw std::runtime_error("Element property with name already exists!");
         }
     
         if (default_value.has_value())
@@ -133,7 +135,8 @@ class TetMesh : public Mesh
                 return fprop;
         }
     
-        assert(0 && "Element property not found!");
+        throw std::runtime_error("Element property not found!");
+        return _element_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>
@@ -147,7 +150,8 @@ class TetMesh : public Mesh
                 return fprop;
         }
     
-        assert(0 && "Element property not found!");
+        throw std::runtime_error("Element property not found!");
+        return _element_properties.template get<MeshProperty<T>>().front();
     }
 
     template <typename T>

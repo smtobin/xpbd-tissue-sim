@@ -25,7 +25,7 @@ int main()
     Config::MeshObjectConfig mesh_config("../resource/cube/cube2.msh", 2, std::nullopt, std::nullopt,
         false, false, true, Vec4r(0,0,0,0));
 
-    Config::ObjectConfig object_config("test", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
+    Config::ObjectConfig object_config("test", "default", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
 
     Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
     mesh_obj.loadAndConfigureMesh();
@@ -41,9 +41,15 @@ int main()
     // translate object and update the EmbreeScene
     Geometry::Mesh::vertices_vec_type initial_vertices = mesh_obj.mesh()->vertices();
 
+    Geometry::AABB initial_bbox = mesh_obj.mesh()->boundingBox();
+    std::cout << "Initial mesh bounding box:\n(" << initial_bbox.min.transpose() << ") to (" << initial_bbox.max.transpose() << ")" << std::endl;
+    
     Vec3r translation(0,0,-5);
     mesh_obj.mesh()->moveTogether(translation);
     embree_scene.update();
+
+    Geometry::AABB bbox = mesh_obj.mesh()->boundingBox();
+    std::cout << "Mesh bounding box:\n(" << bbox.min.transpose() << ") to (" << bbox.max.transpose() << ")" << std::endl;
 
     // point-in-tetrahedron query
     const Vec3r query_point(0.0,0.0,0.0);

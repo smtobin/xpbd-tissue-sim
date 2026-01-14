@@ -12,11 +12,6 @@ namespace Sim
 class VirtuosoTissueGraspingSimulation : public VirtuosoSimulation
 {
     public:
-    struct TissueClasses
-    {
-        constexpr static int TRACHEA=1;
-        constexpr static int TUMOR=0;
-    };
 
     VirtuosoTissueGraspingSimulation(const Config::VirtuosoTissueGraspingSimulationConfig* config);
 

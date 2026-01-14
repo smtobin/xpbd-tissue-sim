@@ -32,7 +32,7 @@ class ElasticMaterial
     }
 
     // define getters for the material properties
-    std::string name() const { return _name; }
+    const std::string& name() const { return _name; }
     std::string toString() const 
     {
         // write material information to file

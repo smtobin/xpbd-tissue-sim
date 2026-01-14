@@ -42,7 +42,13 @@ void GraspingSimulation::setup()
     
 
     // create an object to show where grasping is
-    Config::RigidSphereConfig cursor_config("cursor", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
+    Config::ObjectRenderConfig cursor_render_config(Config::ObjectRenderConfig::RenderType::PBR, std::nullopt, std::nullopt, std::nullopt,
+            0.0, 0.5, 0.3, Vec3r(1.0, 1.0, 0.0), true, true, false, false);
+    Config::MaterialClassConfig cursor_material_config("cursor", Config::ElasticMaterialConfig("cursor"), cursor_render_config);
+    MaterialClass cursor_mat(&cursor_material_config);
+    addMaterial(cursor_mat);
+
+    Config::RigidSphereConfig cursor_config("cursor", "cursor", Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0),
         1.0, _grasp_radius, false, true, false, Config::ObjectRenderConfig());
     _cursor = _addObjectFromConfig(&cursor_config);
     assert(_cursor);
