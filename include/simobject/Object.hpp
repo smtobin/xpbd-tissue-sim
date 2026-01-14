@@ -47,6 +47,9 @@ class Object
     /** The simulation that this object belongs to. */
     const Simulation* sim() const { return _sim; }
 
+    /** The "material" that this object is made out of. */
+    const MaterialClass* materialClass() const { return _material_class; }
+
     /** Performs any necessary setup for this object.
      * Called after instantiation (i.e. outside the constructor) and before update() is called for the first time.
      */

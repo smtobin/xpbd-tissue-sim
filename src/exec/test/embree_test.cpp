@@ -41,9 +41,15 @@ int main()
     // translate object and update the EmbreeScene
     Geometry::Mesh::vertices_vec_type initial_vertices = mesh_obj.mesh()->vertices();
 
+    Geometry::AABB initial_bbox = mesh_obj.mesh()->boundingBox();
+    std::cout << "Initial mesh bounding box:\n(" << initial_bbox.min.transpose() << ") to (" << initial_bbox.max.transpose() << ")" << std::endl;
+    
     Vec3r translation(0,0,-5);
     mesh_obj.mesh()->moveTogether(translation);
     embree_scene.update();
+
+    Geometry::AABB bbox = mesh_obj.mesh()->boundingBox();
+    std::cout << "Mesh bounding box:\n(" << bbox.min.transpose() << ") to (" << bbox.max.transpose() << ")" << std::endl;
 
     // point-in-tetrahedron query
     const Vec3r query_point(0.0,0.0,0.0);

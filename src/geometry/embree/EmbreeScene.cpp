@@ -3,6 +3,8 @@
 
 #include <math.h>
 
+#include "simobject/XPBDMeshObject.hpp"
+
 namespace Geometry
 {
 
@@ -35,6 +37,7 @@ EmbreeScene::~EmbreeScene()
 
 void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 {
+    std::cout << "\n\nAdding MeshObject to EmbreeScene..." << std::endl;
     // make sure that object has not already been added to Embree scene
     if (_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
@@ -91,6 +94,7 @@ void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 
 void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
 {
+    std::cout << "\n\nAdding TetMeshObject to EmbreeScene..." << std::endl;
     // make sure that object has not already been added to Embree scene
     if (_tet_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
@@ -433,6 +437,7 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
 std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const Vec3r& origin, const Vec3r& view_dir, const Vec3r& up_dir, Real hfov_deg, Real vfov_deg, Real sample_density) const
 {
+    std::cout << "EmbreeScene::partialViewPointCloudsWithClass" << std::endl;
     // calculate "right" direction from view direction and up direction
     const Vec3r right_dir = up_dir.cross(view_dir);
     Mat3r R_camera;
@@ -444,7 +449,7 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
     Real angle_increment = 1.0/sample_density;
 
     // keep track of which classes we have put where - maps classification to index in the vector
-    std::unordered_map<int, int> class_to_vector_index;
+    std::unordered_map<std::string, int> class_to_vector_index;
 
     // store point clouds
     std::vector<PointsWithClass> point_clouds;
@@ -463,11 +468,37 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
             if (hit.obj)
             {
                 // get the class of the face that we hit
-                int classification;
+                std::string classification = "";
                 if (hit.obj->mesh()->hasFaceProperty<int>("class"))
-                    classification = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
+                {
+                    int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
+                    /** TODO: dynamic_cast = yucky, can we do better?
+                     * 
+                     * 
+                     */
+                    if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
+                    {
+                        classification = xpbd_obj->materialClasses()[class_num]->label();
+                    }
+                    else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
+                    {
+                        classification = xpbd_obj->materialClasses()[class_num]->label();
+                    }
+                    else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                    {
+                        classification = obj->materialClass()->label();
+                    }
+                }
                 else
-                    classification = -1; // some default
+                {
+                    if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                    {
+                        classification = obj->materialClass()->label();
+                    } 
+                }
+
+                std::cout << "Hit class: " << classification << std::endl;
+                    
 
                 // put the point in the appropriate vector
                 auto map_it = class_to_vector_index.find(classification);

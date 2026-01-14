@@ -54,7 +54,7 @@ void EmbreeMeshGeometry::copyVertices()
 void EmbreeMeshGeometry::boundsFuncTriangle(const struct RTCBoundsFunctionArguments *args)
 {
     const EmbreeMeshGeometry *geom = static_cast<const EmbreeMeshGeometry *>(args->geometryUserPtr);
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->vertices() + 3 * indices[0];
     const float *v2 = geom->vertices() + 3 * indices[1];
     const float *v3 = geom->vertices() + 3 * indices[2];
@@ -72,7 +72,7 @@ void EmbreeMeshGeometry::boundsFuncTriangle(const struct RTCBoundsFunctionArgume
 void EmbreeMeshGeometry::boundsFuncTriangleInitialVertices(const struct RTCBoundsFunctionArguments *args)
 {
     const EmbreeMeshGeometry *geom = static_cast<const EmbreeMeshGeometry *>(args->geometryUserPtr);
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->initialVertices() + 3 * indices[0];
     const float *v2 = geom->initialVertices() + 3 * indices[1];
     const float *v3 = geom->initialVertices() + 3 * indices[2];
@@ -103,7 +103,7 @@ void EmbreeMeshGeometry::intersectFuncTriangle(const RTCIntersectFunctionNArgume
         return;
 
     // get vertices of face
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->vertices() + 3 * indices[0];
     const float *v2 = geom->vertices() + 3 * indices[1];
     const float *v3 = geom->vertices() + 3 * indices[2];
@@ -137,7 +137,7 @@ void EmbreeMeshGeometry::intersectFuncTriangleInitialVertices(const RTCIntersect
         return;
 
     // get vertices of face
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->initialVertices() + 3 * indices[0];
     const float *v2 = geom->initialVertices() + 3 * indices[1];
     const float *v3 = geom->initialVertices() + 3 * indices[2];
@@ -168,7 +168,7 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangle(RTCPointQueryFunctionArguments *
         return true;
 
     
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->vertices() + 3 * indices[0];
     const float *v2 = geom->vertices() + 3 * indices[1];
     const float *v3 = geom->vertices() + 3 * indices[2];
@@ -208,7 +208,7 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
         return true;
 
     
-    const int *indices = geom->mesh()->face(args->primID).data();
+    const Vec3i& indices = geom->mesh()->face(args->primID);
     const float *v1 = geom->initialVertices() + 3 * indices[0];
     const float *v2 = geom->initialVertices() + 3 * indices[1];
     const float *v3 = geom->initialVertices() + 3 * indices[2];

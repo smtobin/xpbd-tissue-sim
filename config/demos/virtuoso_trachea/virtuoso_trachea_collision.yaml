@@ -110,6 +110,7 @@ objects:
     # damping-multiplier: 6000000000
     # damping-multiplier: 40000000000
     adjust-damping-to-material: True
+    compute-heat-conduction: False
 
     collisions: true
     self-collisions: false
