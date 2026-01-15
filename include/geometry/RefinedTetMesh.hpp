@@ -246,7 +246,7 @@ public:
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
     */
-    bool refineElement(int element_index, int refinement_level, bool absolute=false);
+    bool refineElement(int element_index, int refinement_level, bool absolute=false, bool clear_latest=true);
 
     /** Recursively coarsens the specified element coarsening_level times.
      * This function assumes that the element was created from hiearchical subdivision. (i.e. from the refineElement function)
@@ -257,7 +257,7 @@ public:
      * 
      * If the specified element was not created with mesh refinement, this function does nothing.
      */
-    bool coarsenElement(int element_index, int coarsening_level, bool absolute=false);
+    bool coarsenElement(int element_index, int coarsening_level, bool absolute=false, bool clear_latest=true);
 
     /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
     const std::unordered_map<int, Edge>& hangingVertices() const { return _hanging_vertices; }
@@ -352,6 +352,16 @@ private:
      * 
      */
     void _distributeVertexFieldsToRootTreeNode(int root_tree_node_index);
+
+    /** Given an edge, returns the element (if one exists) who has a face that "contains" this edge.
+     * This is a very specific type of query that is useful for determining if we need to refine adjacent elements when we are removing an element.
+     * Note: this assumes that the edge exists in the mesh (i.e. has an associated edge node)
+     * 
+     * @param edge : the edge to find the element with the parent face for it
+     * @param max_layers_to_traverse : the maximum number of tree layers above the edge to traverse in the search
+     * Returns invalid index (-1) if no such element was found.
+     */
+    int _findElementWithFaceParentOfEdge(const Edge& edge, int max_layers_to_traverse);
 
 protected:
     

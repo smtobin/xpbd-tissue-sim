@@ -644,7 +644,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     int refined_elem_class = class_elem_prop.get(elem_index);
 
     // create the vector for removed element classes
-    std::vector<int> added_element_classes;
+    std::vector<int> added_element_classes(latest_added_elements.size());
+    for (unsigned i = 0; i < latest_added_elements.size(); i++)
+    {
+        added_element_classes[i] = refined_elem_class;
+    }
+    
     std::vector<int> removed_element_classes(latest_removed_elements.size());
     for (unsigned i = 0; i < latest_removed_elements.size(); i++)
     {

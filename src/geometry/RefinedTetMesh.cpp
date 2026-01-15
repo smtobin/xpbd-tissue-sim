@@ -105,7 +105,64 @@ int RefinedTetMesh::_addFace(const Vec3i& new_face)
     return new_index;
 }
 
+int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_layers_to_traverse)
+{
+    // traverse up the feature hierarchy tree to find the face of the 
+    // the edge consisting of the two hanging vertices has to be on a face
+    // i.e., the edge node corresponding to this edge will have a face node parent
+    // from there, we keep traversing up the face hierarchy until we find the element that is unrefined!
+    int cur_edge_node_index = _edge_to_edge_node_map.at(edge);
+    int cur_face_node_index = ElementTreeNode::INVALID_INDEX;
 
+    std::cout << "Finding face for edge " << edge << std::endl;
+
+    // traverse up the feature tree
+    int parent_elem_index = ElementTreeNode::INVALID_INDEX;
+    
+    for (int iter = 0; iter < max_layers_to_traverse+1; iter++)
+    {
+        // Case 1: current feature is an edge
+        if (cur_edge_node_index != ElementTreeNode::INVALID_INDEX)
+        {
+            std::cout << "  Current feature is Edge " << _edge_nodes[cur_edge_node_index].edge << std::endl;
+            const EdgeNode& cur_edge_node = _edge_nodes[cur_edge_node_index];
+            // if this edge has an edge parent, that is our next feature to check
+            if (cur_edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
+            {
+                cur_edge_node_index = cur_edge_node.parent_edge_node;
+                cur_face_node_index = ElementTreeNode::INVALID_INDEX;
+            }
+            // otherwise, this edge has a face parent (or no parent)
+            else
+            {
+                cur_edge_node_index = ElementTreeNode::INVALID_INDEX;
+                cur_face_node_index = cur_edge_node.parent_face_node;
+            }
+        }
+        // Case 2: current feature is a face
+        else if (cur_face_node_index != ElementTreeNode::INVALID_INDEX)
+        {
+            std::cout << "  Current feature is Face " << _face_nodes[cur_face_node_index].face << std::endl;
+            // look for any elements currently in the mesh that have this specific face
+            auto faces_range = _face_to_elements_map.equal_range(_face_nodes[cur_face_node_index].face);
+            for (auto it = faces_range.first; it != faces_range.second; it++)
+            {
+                // if there is one that does, this is element we're looking for!
+                parent_elem_index = it->second;
+                break;
+            }
+
+            // continue traversal up the tree (face nodes only can have face node parents)
+            cur_face_node_index = _face_nodes[cur_face_node_index].parent_face_node;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    return parent_elem_index;
+}
 
 void RefinedTetMesh::removeElement(int elem_index)
 {
@@ -130,49 +187,17 @@ void RefinedTetMesh::removeElement(int elem_index)
     std::cout << "Number of hanging vertices: " << elem_hanging_verts.size() << std::endl;
     // if there are two hanging vertices on this element, there is one adjacent lesser-refined element that needs to be refined to the same level
     // as the removed element
-    if (elem_hanging_verts.size() == 2)
+    for (unsigned i = 0; i < elem_hanging_verts.size(); i++)
     {
-        // traverse up the feature hierarchy tree to find the face of the 
-        // the edge consisting of the two hanging vertices has to be on a face
-        // i.e., the edge node corresponding to this edge will have a face node parent
-        // from there, we keep traversing up the face hierarchy until we find the element that is unrefined!
-        Edge hanging_edge(elem_hanging_verts[0], elem_hanging_verts[1]);
-        // std::cout << "Hanging edge: " << hanging_edge.index1 << ", " << hanging_edge.index2 << std::endl;
-        // std::cout << "All edges: " << std::endl;
-        // for (const auto& edge_node : _edge_nodes)
-        // {
-        //     std::cout << " (" << edge_node.edge.index1 << ", " << edge_node.edge.index2 << ")" << std::endl;
-        // }
-        int edge_node_index = _edge_to_edge_node_map.at(hanging_edge);
-        const EdgeNode& hanging_edge_node = _edge_nodes[edge_node_index];
-        
-        int cur_face_node_index = hanging_edge_node.parent_face_node;
-        assert(cur_face_node_index != ElementTreeNode::INVALID_INDEX);
-
-        // traverse up the feature tree
-        int elem_index_to_refine = -1;
-        
-        for (int iter = 0; iter < elem_to_remove_refinement_level; iter++)
+        for (unsigned j = i+1; j < elem_hanging_verts.size(); j++)
         {
-            if (cur_face_node_index == ElementTreeNode::INVALID_INDEX)
-                break;
-
-            std::cout << "Current face node index: " << cur_face_node_index << std::endl;
-            std::cout << "Current face: " << _face_nodes[cur_face_node_index].face << std::endl;
-            auto faces_range = _face_to_elements_map.equal_range(_face_nodes[cur_face_node_index].face);
-            for (auto it = faces_range.first; it != faces_range.second; it++)
+            int elem_to_refine = _findElementWithFaceParentOfEdge(Edge(elem_hanging_verts[i], elem_hanging_verts[j]), elem_to_remove_refinement_level);
+            if (elem_to_refine != ElementTreeNode::INVALID_INDEX)
             {
-                elem_index_to_refine = it->second;
-                break;
+                std::cout << "  Refining adjacent element " << elem_to_refine << std::endl;
+                refineElement(elem_to_refine, elem_to_remove_refinement_level, true, false);
             }
-
-            cur_face_node_index = _face_nodes[cur_face_node_index].parent_face_node;
         }
-
-        assert(elem_index_to_refine != -1);
-
-        std::cout << "Element to refine: " << elem_index_to_refine << std::endl;
-        refineElement(elem_index_to_refine, elem_to_remove_refinement_level, true);
     }
 
     // do this first - this will update the vertex, edge, and face maps for removing this element
@@ -864,7 +889,7 @@ std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices
     return {ind1, ind2, ind3, ind4};
 }
 
-bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute)
+bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute, bool clear_latest)
 {
     
     assert(elementValid(element_index));
@@ -876,13 +901,16 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
 
 
     // clear the latest added vertices and elements
-    _latest_new_vertices.clear();
-    _latest_removed_vertices.clear();
-    _latest_new_faces.clear();
-    _latest_new_elements.clear();
-    _latest_removed_elements.clear();
-    _latest_new_hanging_vertices.clear();
-    _latest_removed_hanging_vertices.clear();
+    if (clear_latest)
+    {
+        _latest_new_vertices.clear();
+        _latest_removed_vertices.clear();
+        _latest_new_faces.clear();
+        _latest_new_elements.clear();
+        _latest_removed_elements.clear();
+        _latest_new_hanging_vertices.clear();
+        _latest_removed_hanging_vertices.clear();
+    }
 
 
     // what we really care about is the RELATIVE refinement level
@@ -1366,16 +1394,19 @@ void RefinedTetMesh::_distributeVertexFieldsToRootTreeNode(int root_tree_node_in
 
 }
 
-bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute)
+bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute, bool clear_latest)
 {
     // clear the latest added vertices and elements
-    _latest_new_vertices.clear();
-    _latest_removed_vertices.clear();
-    _latest_new_faces.clear();
-    _latest_new_elements.clear();
-    _latest_removed_elements.clear();
-    _latest_new_hanging_vertices.clear();
-    _latest_removed_hanging_vertices.clear();
+    if (clear_latest)
+    {
+        _latest_new_vertices.clear();
+        _latest_removed_vertices.clear();
+        _latest_new_faces.clear();
+        _latest_new_elements.clear();
+        _latest_removed_elements.clear();
+        _latest_new_hanging_vertices.clear();
+        _latest_removed_hanging_vertices.clear();
+    }
 
     // get the element tree node associated with this element
     auto search = _element_to_tree_node_map.find(element_index);

@@ -256,22 +256,26 @@ std::pair<bool, Geometry::RefinedTetMesh> test6()
 std::pair<bool, Geometry::RefinedTetMesh> test7()
 {
     // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/double.msh");
-    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube2.msh");
     Geometry::RefinedTetMesh refined_mesh(mesh);
     refined_mesh.setCurrentStateAsUndeformedState();
 
-    std::vector<int> initially_refined_elements = {
-        1086, 147, 740, 1085, 1010, 399, 717
-    };
-    for (const auto& index : initially_refined_elements)
-    {
-        refined_mesh.refineElement(index, 1, true);
-    }
-    // refined_mesh.refineElement(0, 1, true);
+    // std::vector<int> initially_refined_elements = {
+    //     1086, 147, 740, 1085, 1010, 399, 717
+    // };
+    // for (const auto& index : initially_refined_elements)
+    // {
+    //     refined_mesh.refineElement(index, 1, true);
+    //     break;
+    // }
+    // refined_mesh.refineElement(4, 1, true);
+    refined_mesh.refineElement(0, 1, true);
+    
     
     // search for elements with refinement level > 0 and remove them
     int num_removed = 0;
-    while (num_removed < 2)
+    while (num_removed < 1)
     {
         for (const auto& index : refined_mesh.elements().validIndices())
         {
@@ -283,6 +287,8 @@ std::pair<bool, Geometry::RefinedTetMesh> test7()
             }
         }
     }
+
+    refined_mesh.refineElement(10, 2, true);
 
 
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
