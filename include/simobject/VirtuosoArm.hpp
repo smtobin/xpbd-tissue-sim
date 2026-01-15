@@ -388,6 +388,7 @@ class VirtuosoArm : public Object
     int _last_tool_state; // the previous state of the tool (needed so that we know when tool state has changed)
     ToolType _tool_type; // type of tool used on this arm
     CuttingModel _cutting_model; // the type of cutting model to use (only applies when the cautery tool is equipped)
+    Real _cutting_model_time_threshold; // the time threshold to be used for the "timer" cutting model (only applies when this cutting model is used)
     Real _tool_tube_length; // exposed length of the tool tube, in m
     VirtuosoArmTool _tool_tube = VirtuosoArmTool_None; // stores the tool tube properties
     
