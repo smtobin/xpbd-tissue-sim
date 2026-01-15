@@ -252,6 +252,42 @@ std::pair<bool, Geometry::RefinedTetMesh> test6()
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
 
+/** Test refinement and then removal */
+std::pair<bool, Geometry::RefinedTetMesh> test7()
+{
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/double.msh");
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    Geometry::RefinedTetMesh refined_mesh(mesh);
+    refined_mesh.setCurrentStateAsUndeformedState();
+
+    std::vector<int> initially_refined_elements = {
+        1086, 147, 740, 1085, 1010, 399, 717
+    };
+    for (const auto& index : initially_refined_elements)
+    {
+        refined_mesh.refineElement(index, 1, true);
+    }
+    // refined_mesh.refineElement(0, 1, true);
+    
+    // search for elements with refinement level > 0 and remove them
+    int num_removed = 0;
+    while (num_removed < 2)
+    {
+        for (const auto& index : refined_mesh.elements().validIndices())
+        {
+            if (refined_mesh.elementRefinementLevel(index) > 0)
+            {
+                refined_mesh.removeElement(index);
+                num_removed++;
+                break;
+            }
+        }
+    }
+
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+}
+
 
 void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
 {
@@ -293,7 +329,7 @@ int main()
     gmsh::initialize();
 
     using TestFuncType = std::function<std::pair<bool, Geometry::RefinedTetMesh> ()>;
-    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6};
+    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6, test7};
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
@@ -333,48 +369,5 @@ int main()
     }
 
     return 0;
-
-    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/single.msh");
-
-    Geometry::RefinedTetMesh refined_mesh(mesh);
-    refined_mesh.setCurrentStateAsUndeformedState();
-
-    auto t1 = std::chrono::high_resolution_clock::now();
-    refined_mesh.refineElement(0, 1, true);
-    refined_mesh.removeElement(1);
-    refined_mesh.removeElement(2);
-    refined_mesh.removeElement(6);
-    refined_mesh.removeElement(4);
-    refined_mesh.refineElement(5, 2);
-    refined_mesh.coarsenElement(20, 1);
-    refined_mesh.refineElement(3, 3);
-    // refined_mesh.refineElement(4, 2);
-    // refined_mesh.refineElement(9, 1);
-    // refined_mesh.refineElement(10, 1);
-    // refined_mesh.refineElement(11, 1);
-    // refined_mesh.refineElement(12, 1);
-    // refined_mesh.refineElement(13, 1);
-    // refined_mesh.refineElement(15, 1);
-    // refined_mesh.refineElement(14, 1);
-    // refined_mesh.refineElement(6, 2);
-    // refined_mesh.refineElement(9, 3);
-    // refined_mesh.refineElement(4, 3);
-    // refined_mesh.refineElement(3, 3);
-    
-    // refined_mesh.refineElement(2, 1);
-    // refined_mesh.refineElement(3, 2);
-    // refined_mesh.refineElement(4, 2);
-    // refined_mesh.refineElement(5, 2);
-    // refined_mesh.refineElement(6, 2);
-    // refined_mesh.refineElement(7, 2);
-    // refined_mesh.refineElement(8, 2);
-    // int coarse_elem = refined_mesh.coarsenElement(120, 2);
-    std::cout << "\n\n=!=!=!=!=!=!=!=" << std::endl;
-    // refined_mesh.refineElement(coarse_elem, 4);
-    auto t2 = std::chrono::high_resolution_clock::now();
-
-    
-    double elapsed_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-    std::cout << "Refining took " << elapsed_ms << " ms" << std::endl;
     
 }

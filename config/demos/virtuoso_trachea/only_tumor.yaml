@@ -2,7 +2,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 show-tip-cursor: true
 enable-mouse-interaction: true
 haptic-force-scaling: 0
@@ -55,7 +55,7 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.3
-    smooth-normals: true
+    smooth-normals: false
     draw-points: false
     draw-edges: true
     draw-faces: true
@@ -104,6 +104,8 @@ objects:
 
     collisions: true
     self-collisions: false
+    adaptive-mesh-refinement: true
+    compute-heat-conduction: false
 
   -
     name: "Trachea"
@@ -117,7 +119,7 @@ objects:
     velocity: [0, 0, 0]
     rotation: [0, 0, 0]
 
-    collisions: true
+    collisions: false
     fixed: true
 
   -
@@ -134,7 +136,7 @@ objects:
       name: "Arm1"
       type: "VirtuosoArm"
       tool-type: "cautery"
-      cutting-model: "timer"
+      cutting-model: "instant"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

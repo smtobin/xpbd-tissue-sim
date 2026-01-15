@@ -11,6 +11,16 @@
 namespace Geometry
 {
 
+std::ostream& operator<<(std::ostream& os, const Edge& edge) {
+    os << "(" << edge.index1 << ", " << edge.index2 << ")";
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Face& face) {
+    os << "(" << face.index1 << ", " << face.index2 << ", " << face.index3 << ")";
+    return os;
+}
+
 Mesh::Mesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces)
     : _vertices(vertices), _faces(faces)
 {

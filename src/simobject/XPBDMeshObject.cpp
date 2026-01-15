@@ -617,15 +617,46 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     if (!tetMesh()->elementValid(elem_index))
         return;
 
-    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
-    {
-        // mark the constraint projectors for the elastic constraints invalid
-        using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
-        _solver.template setProjectorValidity<DevHydProjectorType>(elem_index, false);
+    // if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    // {
+    //     // mark the constraint projectors for the elastic constraints invalid
+    //     using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+    //     _solver.template setProjectorValidity<DevHydProjectorType>(elem_index, false);
 
-        // remove the element from the mesh
-        tetMesh()->removeElement(elem_index);
+    //     // remove the element from the mesh
+    //     refinedTetMesh()->removeElement(elem_index);
+    // }
+    refinedTetMesh()->removeElement(elem_index);
+
+
+    /** Get the newest added/removed vertices/hanging vertices/faces/elements */
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();
+    const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
+    const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
+    const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
+    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
+    const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
+
+
+    // create the vector for new element classes
+    Geometry::MeshProperty<int>& class_elem_prop = tetMesh()->template getElementProperty<int>("class");
+    int refined_elem_class = class_elem_prop.get(elem_index);
+
+    // create the vector for removed element classes
+    std::vector<int> added_element_classes;
+    std::vector<int> removed_element_classes(latest_removed_elements.size());
+    for (unsigned i = 0; i < latest_removed_elements.size(); i++)
+    {
+        removed_element_classes[i] = refined_elem_class;
     }
+
+    // update everything based for the latest mesh topology change(s)
+    _updateAfterMeshTopologyChange(
+        latest_added_vertices, latest_removed_vertices, latest_added_hanging_vertices, latest_removed_hanging_vertices,
+        latest_added_faces, latest_added_elements, latest_removed_elements, added_element_classes, removed_element_classes
+    );
+
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

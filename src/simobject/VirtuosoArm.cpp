@@ -432,44 +432,49 @@ void VirtuosoArm::_cauteryToolAction()
         }
         
 
-        /** Code for applying voltage BC at tip */
-        std::unordered_set<int> high_voltage_verts;
-        for (const auto& collision : _collision_constraints)
+        if (_cutting_model == CuttingModel::THERMAL)
         {
-            if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
+            /** Code for applying voltage BC at tip */
+            std::unordered_set<int> high_voltage_verts;
+            for (const auto& collision : _collision_constraints)
             {
-                // get element 
-                int face_index = collision.proj_ref.constraint()->faceIndex();
-                if (!_tool_manipulated_object.mesh()->faceValid(face_index))
-                    continue;
-
-                // set voltage at the face in collision
-                const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
-                if (_tool_manipulated_object.hasHeatSolver())
+                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
-                    // set the closest vertex on the face to the voltage of the tool
-                    // Eigen doesn't have argmax...
-                     /** TODO: replace with the actual voltage of the cautery tool  */
-                    Vec3r barys = collision.proj_ref.constraint()->barycentricCoordinates();
-                    Real max_bary = barys.maxCoeff();
-                    if (max_bary == barys[0])
-                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
-                        high_voltage_verts.insert(face[0]);
-                    else if (max_bary == barys[1])
-                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
-                        high_voltage_verts.insert(face[1]);
-                    else if (max_bary == barys[2])
-                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
-                        high_voltage_verts.insert(face[2]);
-                }           
+                    // get element 
+                    int face_index = collision.proj_ref.constraint()->faceIndex();
+                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                        continue;
+
+                    // set voltage at the face in collision
+                    const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
+                    if (_tool_manipulated_object.hasHeatSolver())
+                    {
+                        // set the closest vertex on the face to the voltage of the tool
+                        // Eigen doesn't have argmax...
+                        /** TODO: replace with the actual voltage of the cautery tool  */
+                        Vec3r barys = collision.proj_ref.constraint()->barycentricCoordinates();
+                        Real max_bary = barys.maxCoeff();
+                        if (max_bary == barys[0])
+                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
+                            high_voltage_verts.insert(face[0]);
+                        else if (max_bary == barys[1])
+                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
+                            high_voltage_verts.insert(face[1]);
+                        else if (max_bary == barys[2])
+                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
+                            high_voltage_verts.insert(face[2]);
+                    }           
+                }
             }
+
+            for (const auto& vert : high_voltage_verts)
+            {
+                _tool_manipulated_object.heatSolver().setVoltageAtBoundary(vert, 134);
+            }
+            std::cout << "Number of high voltage verts: " << high_voltage_verts.size() << std::endl;
         }
 
-        for (const auto& vert : high_voltage_verts)
-        {
-            _tool_manipulated_object.heatSolver().setVoltageAtBoundary(vert, 134);
-        }
-        std::cout << "Number of high voltage verts: " << high_voltage_verts.size() << std::endl;
+        
     }
 }
 
