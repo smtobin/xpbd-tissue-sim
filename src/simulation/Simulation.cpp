@@ -213,7 +213,7 @@ void Simulation::setup()
                 for (const auto& elem : elems_to_refine)
                 {
                     std::cout << "Refining element " << elem << "..." << std::endl;
-                    xpbd_obj->refineElement(elem, 2, true);
+                    xpbd_obj->refineElement(elem, 1, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {

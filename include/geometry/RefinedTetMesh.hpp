@@ -279,6 +279,12 @@ public:
     const std::vector<NewVertex>& latestAddedHangingVertices() const { return _latest_new_hanging_vertices; }
     const std::vector<int>& latestRemovedHangingVertices() const { return _latest_removed_hanging_vertices; }
 
+    /** Finds "boundary edges" (edges shared by only 1 face) in the mesh.
+     * If any boundary edges are present, then there is a hole in the mesh.
+     * This function accounts for hanging vertices.
+     */
+    std::vector<Edge> boundaryEdges() const;
+
 protected:
     
     /** Updates the vertex -> element map when we are removing an element with index element_index.

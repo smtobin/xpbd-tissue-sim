@@ -32,6 +32,51 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
     _element_refinement_level.resize(_elements.totalSize(), 0);
 }
 
+std::vector<Edge> RefinedTetMesh::boundaryEdges() const
+{
+    std::vector<Edge> boundary_edges;
+
+    std::unordered_map<Edge, int, EdgeHash> edge_count;
+
+    for (const auto& face : _faces)
+    {
+        Edge e01(face[0], face[1]);
+        Edge e02(face[0], face[2]);
+        Edge e12(face[1], face[2]);
+        bool hanging0 = _hanging_vertices.count(face[0]) > 0;
+        bool hanging1 = _hanging_vertices.count(face[1]) > 0;
+        bool hanging2 = _hanging_vertices.count(face[2]) > 0;
+        if (!hanging0 && !hanging1)
+            edge_count[e01]++;
+        if (!hanging0 && !hanging2)
+            edge_count[e02]++;
+        if (!hanging1 && !hanging2)
+            edge_count[e12]++;
+    }
+
+    for (const auto& [edge, count] : edge_count)
+    {
+        if (count > 1)
+            continue;
+        
+        // if we get to here, this edge might be a boundary edge, since it was only seen once in the mesh!
+        // however, we have to be careful - this could be because it is on a refinement boundary
+        // so, check if there is an edge node associated with it
+        // if this edge node has child edge nodes, then the edge is not a boundary edge
+        int edge_node_index = _edge_to_edge_node_map.at(edge);
+        const EdgeNode& edge_node = _edge_nodes[edge_node_index];
+        if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX || edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX)
+        {
+            continue;
+        }
+
+        // if we get to here, this edge is a boundary edge
+        boundary_edges.push_back(edge);
+    }
+
+    return boundary_edges;
+}
+
 int RefinedTetMesh::_addVertex(int parent1_index, int parent2_index)
 {
     const Vec3r& parent1 = _vertices[parent1_index];
@@ -114,7 +159,7 @@ int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_l
     int cur_edge_node_index = _edge_to_edge_node_map.at(edge);
     int cur_face_node_index = ElementTreeNode::INVALID_INDEX;
 
-    std::cout << "Finding face for edge " << edge << std::endl;
+    // std::cout << "Finding face for edge " << edge << std::endl;
 
     // traverse up the feature tree
     int parent_elem_index = ElementTreeNode::INVALID_INDEX;
@@ -124,7 +169,7 @@ int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_l
         // Case 1: current feature is an edge
         if (cur_edge_node_index != ElementTreeNode::INVALID_INDEX)
         {
-            std::cout << "  Current feature is Edge " << _edge_nodes[cur_edge_node_index].edge << std::endl;
+            // std::cout << "  Current feature is Edge " << _edge_nodes[cur_edge_node_index].edge << std::endl;
             const EdgeNode& cur_edge_node = _edge_nodes[cur_edge_node_index];
             // if this edge has an edge parent, that is our next feature to check
             if (cur_edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
@@ -142,7 +187,7 @@ int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_l
         // Case 2: current feature is a face
         else if (cur_face_node_index != ElementTreeNode::INVALID_INDEX)
         {
-            std::cout << "  Current feature is Face " << _face_nodes[cur_face_node_index].face << std::endl;
+            // std::cout << "  Current feature is Face " << _face_nodes[cur_face_node_index].face << std::endl;
             // look for any elements currently in the mesh that have this specific face
             auto faces_range = _face_to_elements_map.equal_range(_face_nodes[cur_face_node_index].face);
             for (auto it = faces_range.first; it != faces_range.second; it++)
@@ -184,7 +229,6 @@ void RefinedTetMesh::removeElement(int elem_index)
         if (_hanging_vertices.count(v) > 0)
             elem_hanging_verts.push_back(v);
     }
-    std::cout << "Number of hanging vertices: " << elem_hanging_verts.size() << std::endl;
     // if there are two hanging vertices on this element, there is one adjacent lesser-refined element that needs to be refined to the same level
     // as the removed element
     for (unsigned i = 0; i < elem_hanging_verts.size(); i++)

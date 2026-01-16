@@ -292,6 +292,16 @@ public:
         return std::visit([](auto& obj) { return obj->tetMesh(); }, _variant);
     }
 
+    const Geometry::RefinedTetMesh* refinedTetMesh() const
+    {
+        return std::visit([](const auto& obj) { return obj->refinedTetMesh(); }, _variant);
+    }
+
+    Geometry::RefinedTetMesh* refinedTetMesh()
+    {
+        return std::visit([](auto& obj) { return obj->refinedTetMesh(); }, _variant);
+    }
+
 private:
     std::variant<XPBDMeshObject_Base_<true>*, XPBDMeshObject_Base_<false>*> _variant;
 };
