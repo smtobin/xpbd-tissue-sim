@@ -638,6 +638,26 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
+    // std::cout << "Added elements: ";
+    // for (const auto& e : latest_added_elements)
+    //     std::cout << e << ", ";
+    // std::cout << std::endl;
+
+    // std::cout << "Removed elements: ";
+    // for (const auto& e : latest_removed_elements)
+    //     std::cout << e.index << ", ";
+    // std::cout << std::endl;
+
+    // std::cout << "Added vertices: ";
+    // for (const auto& v : latest_added_vertices)
+    //     std::cout << v.index << ", ";
+    // std::cout << std::endl;
+
+    // std::cout << "Removed vertices: ";
+    // for (const auto& v : latest_removed_vertices)
+    //     std::cout << v.index << ", ";
+    // std::cout << std::endl;
+
 
     // create the vector for new element classes
     Geometry::MeshProperty<int>& class_elem_prop = tetMesh()->template getElementProperty<int>("class");
@@ -817,7 +837,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
     const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
 {
-
     // TEST: clear collision constraints
     // clearCollisionConstraints();
 

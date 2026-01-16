@@ -246,6 +246,7 @@ void RefinedTetMesh::removeElement(int elem_index)
 
     // do this first - this will update the vertex, edge, and face maps for removing this element
     TetMesh::removeElement(elem_index);
+    _latest_removed_elements.emplace_back(elem_index, elem_to_remove, elementRestVolume(elem_index));
 
     // before we remove the element, we need to update the tree structure (when applicable)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
@@ -1545,7 +1546,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
             // First visit: push this node back for deletion later
             stack.push({node_index, 1});
             
-            // Then push all children (they'll be processed first)
+            // push all children (they'll be processed first)
+            // but only if all children exist! Otherwise, we don't want to coarsen beyond this point
             for (const auto& child_index : node.children) 
             {
                 stack.push({child_index, 0});
