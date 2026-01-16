@@ -490,10 +490,10 @@ void TetMesh::removeElement(int elem_index)
         _surface_face_to_element_map[new_face_index] = adj_elem_index;
 
         _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
-
-        // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
-        _updateElementMapsForRemovedElement(elem_index);
     }
+
+    // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
+    _updateElementMapsForRemovedElement(elem_index);
 
     // remove element
     _elements.erase(elem_index);

@@ -73,6 +73,8 @@ class TetMesh : public Mesh
     /** Returns the element index corresponding to a surface face. */
     int elementWithFace(int face_index) const { return _surface_face_to_element_map.at(face_index); }
 
+    bool elementOnSurface(int element_index) const { return _element_to_surface_faces_map.count(element_index) > 0; }
+
     /** Returns the element indices for elements that are face-adjacent (share a face) with an element specified by its index. */
     std::vector<int> faceAdjacentElements(int elem_index);
 

@@ -649,7 +649,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     {
         added_element_classes[i] = refined_elem_class;
     }
-    
+
     std::vector<int> removed_element_classes(latest_removed_elements.size());
     for (unsigned i = 0; i < latest_removed_elements.size(); i++)
     {
@@ -661,6 +661,23 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         latest_added_vertices, latest_removed_vertices, latest_added_hanging_vertices, latest_removed_hanging_vertices,
         latest_added_faces, latest_added_elements, latest_removed_elements, added_element_classes, removed_element_classes
     );
+
+    /** Update the 'class' property for new vertices, elements, and faces */
+    Geometry::MeshProperty<int>& class_vert_prop = _mesh->template getVertexProperty<int>("class");
+    Geometry::MeshProperty<int>& class_face_prop = _mesh->template getFaceProperty<int>("class");
+    
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        class_vert_prop.set(new_vert.index, refined_elem_class);
+    }
+    for (const auto& new_face : latest_added_faces)
+    {
+        class_face_prop.set(new_face, refined_elem_class);
+    }
+    for (const auto& new_elem : latest_added_elements)
+    {
+        class_elem_prop.set(new_elem, refined_elem_class);
+    }
 
 }
 
@@ -800,6 +817,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
     const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
 {
+
+    // TEST: clear collision constraints
+    // clearCollisionConstraints();
 
     /** Resize per-vertex vectors */
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector

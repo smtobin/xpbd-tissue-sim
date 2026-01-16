@@ -302,6 +302,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     std::unordered_map<int,int> _vertex_to_hanging_index;
 
+    /** Maps face to collision constraint index */
+    std::unordered_multimap<int, int> _face_to_collision_constraint_index;
+
 
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled

@@ -64,6 +64,11 @@ public:
         return (*_vec).at(_index);
     }
 
+    bool exists() const
+    {
+        return (_index < _vec->size());
+    }
+
     private:
     vector_type* _vec;
     int _index;

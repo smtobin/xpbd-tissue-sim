@@ -294,6 +294,47 @@ std::pair<bool, Geometry::RefinedTetMesh> test7()
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
 
+/** Test refinement and then removal */
+std::pair<bool, Geometry::RefinedTetMesh> test8()
+{
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/double.msh");
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh");
+    // Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube2.msh");
+    Geometry::RefinedTetMesh refined_mesh(mesh);
+    refined_mesh.setCurrentStateAsUndeformedState();
+
+    refined_mesh.refineElement(0, 2, true);
+    std::vector<int> latest_added_elements = refined_mesh.latestAddedElements();
+    std::cout << "Added elements:\n" << std::endl;
+    for (const auto& e : latest_added_elements)
+    {
+        std::cout << e << ", ";
+    }
+    std::cout << std::endl;
+    
+    
+    // search for elements with refinement level > 0 and remove them
+    int num_removed = 0;
+    while (num_removed < 60)
+    {
+        for (const auto& index : latest_added_elements)
+        {
+            std::cout << " Element " << index << " refinement level: " << refined_mesh.elementRefinementLevel(index) << std::endl;
+            std::cout << " Element " << index << " on surface: " << refined_mesh.elementOnSurface(index) << std::endl;
+            if (refined_mesh.elementRefinementLevel(index) > 0 && refined_mesh.elementOnSurface(index))
+            {
+                std::cout << "Removing element " << index << "..." << std::endl;
+                refined_mesh.removeElement(index);
+                num_removed++;
+                break;
+            }
+        }
+    }
+
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+}
+
 
 void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
 {
@@ -335,7 +376,7 @@ int main()
     gmsh::initialize();
 
     using TestFuncType = std::function<std::pair<bool, Geometry::RefinedTetMesh> ()>;
-    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6, test7};
+    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6, test7, test8};
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
