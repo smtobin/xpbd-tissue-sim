@@ -78,6 +78,7 @@ public:
         int parent = INVALID_INDEX;         // the index of the parent TreeNode
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
         int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
+        bool incomplete = false;    // true if there is a direct descendant element that has been removed
 
         // the edge nodes corresponding to the edges in this element
         // stored in a specific order: E01, E02, E03, E12, E13, E23 (numbers refer to indices in the "vertices" member)
@@ -358,6 +359,12 @@ private:
      * 
      */
     void _distributeVertexFieldsToRootTreeNode(int root_tree_node_index);
+
+    /** Mark an ElementTreeNode (and its parent nodes) as incomplete.
+     * This is used when a refined element is removed, so we must mark the parent nodes as incomplete to know that we can't coarsen these elements anymore
+     * (otherwise we will lose information)
+     */
+    void _markParentsAsIncomplete(int element_tree_node_index);
 
     /** Given an edge, returns the element (if one exists) who has a face that "contains" this edge.
      * This is a very specific type of query that is useful for determining if we need to refine adjacent elements when we are removing an element.

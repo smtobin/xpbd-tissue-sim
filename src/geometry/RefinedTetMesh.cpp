@@ -150,6 +150,32 @@ int RefinedTetMesh::_addFace(const Vec3i& new_face)
     return new_index;
 }
 
+void RefinedTetMesh::_markParentsAsIncomplete(int element_tree_node_index)
+{
+    int cur_index = element_tree_node_index;
+    int max_levels = _element_tree_nodes[cur_index].level + 1;
+    for (int iter = 0; iter < max_levels; iter++)
+    {
+        ElementTreeNode& cur_node = _element_tree_nodes[cur_index];
+
+        // if we have traversed up the tree past the element being removed (i.e., iter > 0)
+        // and the incomplete flag is already true, then there's no need to go any further
+        if (iter > 0 && cur_node.incomplete)
+            break;
+
+        // mark the node as incomplete
+        cur_node.incomplete = true;
+
+        // if there's no parent, we're done
+        if (cur_node.parent == ElementTreeNode::INVALID_INDEX)
+            break;
+        
+        // move on to the parent node
+        cur_index = cur_node.parent;
+    }
+    
+}
+
 int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_layers_to_traverse)
 {
     // traverse up the feature hierarchy tree to find the face of the 
@@ -254,6 +280,9 @@ void RefinedTetMesh::removeElement(int elem_index)
         int node_index = search->second;
         const ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
         ElementTreeNode& parent_tree_node = _element_tree_nodes[node_to_remove.parent];
+
+        // mark parent nodes as incomplete
+        _markParentsAsIncomplete(node_index);
 
         // since this element is being removed, all of its faces (if they are still in the mesh after the element is removed) will now be on the surface
         // so update the face nodes of the element to reflect this
@@ -1460,6 +1489,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     if (search == _element_to_tree_node_map.end())
         return false;
 
+    int leaf_node_index = search->second;
     const ElementTreeNode& leaf_node = _element_tree_nodes[search->second];
 
     // if the element doesn't have a parent (for some reason), remove it and do nothing
@@ -1494,20 +1524,24 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     }
 
     // get the root of the tree branch that we are going to replace this element (and its relatives) with
-    int root_index = leaf_node.parent;
-    int cur_level = leaf_node.level - 1;
+    int root_index = leaf_node_index;
+    int cur_level = leaf_node.level;
     while (cur_level > leaf_node.level - rel_coarsening_level)
     {
         // need to ensure that the parent has all of its children
         // otherwise we might lose information!
         int parent_index = _element_tree_nodes[root_index].parent;
-        if (_element_tree_nodes[parent_index].children.size() < 8)
+        if (_element_tree_nodes[parent_index].incomplete)
             break;
 
         // parent has all of its children - keep traversing up the tree
         root_index = parent_index;
         cur_level--;
     }
+
+    // if the parent is not complete, we're not coarsening anything
+    if (root_index == leaf_node_index)
+        return false;
 
     // increment the topology version
     _topology_version++;
