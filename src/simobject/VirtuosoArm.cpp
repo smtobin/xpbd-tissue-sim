@@ -376,10 +376,10 @@ void VirtuosoArm::_cauteryToolAction()
         if (_cutting_model == CuttingModel::INSTANT)
         {
             // stores (element index, element refinement level) pairs
-            std::unordered_map<int, int> elements_to_remove;
+            std::unordered_map<int, Vec4i> elements_to_remove;
             for (const auto& collision : _collision_constraints)
             {
-                if (!collision.proj_ref.exists())
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
                     continue;
 
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
@@ -390,19 +390,23 @@ void VirtuosoArm::_cauteryToolAction()
                         continue;
                     
                     int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_to_remove.insert( {elem_index_to_remove, _tool_manipulated_object.refinedTetMesh()->elementRefinementLevel(elem_index_to_remove)} );                
+                    elements_to_remove.insert( {elem_index_to_remove, _tool_manipulated_object.refinedTetMesh()->element(elem_index_to_remove)} );                
                 }
             }
 
-            for (const auto& [elem_index, refinement_level] : elements_to_remove)
+            for (const auto& [elem_index, vertices] : elements_to_remove)
             {
                 // if the element refinement level has changed, then we know that as we removed an earlier element, adjacent elements were refined
                 // so make sure that the expected refinement level matches
                 /** TODO:
                  * Is this necessary??
                  */
-                if (  _tool_manipulated_object.refinedTetMesh()->elementRefinementLevel(elem_index) == refinement_level)
+                if (  _tool_manipulated_object.refinedTetMesh()->element(elem_index) == vertices)
                     _tool_manipulated_object.removeElement(elem_index);
+                else
+                {
+                    std::cout << "\n\nVertices not equal!!!!" << std::endl;
+                }
             }
         }
 

@@ -66,6 +66,9 @@ class ConstraintProjectorReference
         return (_index < _vec.size()) && (_index >= 0);
     }
 
+    /** Get the index */
+    int index() const { return _index; }
+
     private:
     vector_type& _vec;
     int _index;

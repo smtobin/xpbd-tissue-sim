@@ -20,6 +20,8 @@
 #include "gpu/resource/XPBDMeshObjectGPUResource.hpp"
 #endif
 
+#include <unordered_map>
+
 namespace Sim
 {
 
@@ -302,8 +304,8 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      */
     std::unordered_map<int,int> _vertex_to_hanging_index;
 
-    /** Maps face to collision constraint index */
-    std::unordered_multimap<int, int> _face_to_collision_constraint_index;
+    /** Maps element to collision constraint index */
+    std::unordered_multimap<int, int> _element_to_collision_proj_index;
 
 
     /** The number of local iterations for collision area.

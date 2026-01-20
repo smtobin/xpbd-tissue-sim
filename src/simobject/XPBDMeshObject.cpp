@@ -268,14 +268,17 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
 
-    // IN ORDER FOR THIS TO WORK, COLLISION CONSTRAINTS MUST BE RECENTLY CLEARED
-    // OTHERWISE, VECTOR MIGHT EXCEED ITS CAPACITY AND POINTERS TO CONSTRAINTS IN CONSTRAINT PROJECTORS WILL BECOME INVALID
-    // TODO: is there a better way?
     std::vector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
     constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, face_ind);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
-    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    auto proj_ref = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+
+    // add an entry in the element -> collision projector index map
+    int element_index = tetMesh()->elementWithFace(face_ind);
+    _element_to_collision_proj_index.insert({element_index, proj_ref.index()});
+
+    return proj_ref;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -318,6 +321,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
     _constraints.template clear<Solver::DeformableDeformableCollisionConstraint>();
     _constraints.template clear<Solver::RigidDeformableCollisionConstraint>();
 
+    // clear the element index -> collision projector index map
+    _element_to_collision_proj_index.clear();
 
 }
 
@@ -837,9 +842,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
     const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
 {
-    // TEST: clear collision constraints
-    // clearCollisionConstraints();
-
     /** Resize per-vertex vectors */
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
     _vertex_masses.resize(new_size);
@@ -953,6 +955,20 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
                 _vertex_B[new_vert.index] = tetMesh()->vertexRestVolume(new_vert.index) * _damping_multiplier;
             }
         }
+    }
+
+    /** Remove collision constraints associated with removed elements */
+    for (const auto& elem_index : removed_elements)
+    {
+        auto cc_proj_range = _element_to_collision_proj_index.equal_range(elem_index.index);
+        for (auto it = cc_proj_range.first; it != cc_proj_range.second; it++)
+        {
+            using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;
+            _solver.template setProjectorValidity<CollisionProjectorType>(it->second, false);
+        }
+
+        // remove map entries
+        _element_to_collision_proj_index.erase(elem_index.index);
     }
 
     /** Update constraints and constraint projectors. */
