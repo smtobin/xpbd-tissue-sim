@@ -199,7 +199,7 @@ void Simulation::setup()
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                         {
                             // std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
-                            // elems_to_coarsen.insert(element_with_face);
+                            elems_to_coarsen.insert(element_with_face);
                         }
                         // verts_to_coarsen.insert(f[0]);
                         // verts_to_coarsen.insert(f[1]);

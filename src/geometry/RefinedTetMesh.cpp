@@ -270,6 +270,15 @@ void RefinedTetMesh::removeElement(int elem_index)
         }
     }
 
+    // get face-adjacent elements and set their parents as incomplete
+    // this prevents coarsening of elements adjacent to this one
+    std::vector<int> adj_elems = faceAdjacentElements(elem_index);
+    for (const auto& e : adj_elems)
+    {
+        int elem_node_index = _element_to_tree_node_map.at(e);
+        _markParentsAsIncomplete(elem_node_index);
+    }
+
     // do this first - this will update the vertex, edge, and face maps for removing this element
     TetMesh::removeElement(elem_index);
     _latest_removed_elements.emplace_back(elem_index, elem_to_remove, elementRestVolume(elem_index));
