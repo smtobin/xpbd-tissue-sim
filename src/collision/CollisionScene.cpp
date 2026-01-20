@@ -146,7 +146,7 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         if (centroid_dist > max_edge)
             continue;
 
-        const int num_samples = (int)(5*max_edge / 0.5e-3);
+        const int num_samples = (int)(max_edge / 0.5e-3);
 
         // const int num_samples = 4;
         for (int si = 0; si <= num_samples; si++)
