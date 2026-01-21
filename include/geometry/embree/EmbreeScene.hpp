@@ -135,6 +135,19 @@ class EmbreeScene
     std::set<EmbreeHit> tetMeshSelfCollisionQuery(int vertex_index, const Sim::TetMeshObject* obj_ptr) const;
 
     private:
+    /** Sets up the Embree geometry and scenes for a surface mesh. The primitive Embree triangle type is used.
+     * This includes:
+     *   - creating a dynamic RTCGeometry for the surface mesh and adding it to the ray-tracing scene
+     *   - creating a static RTCGeometry for the undeformed (initial) surface mesh and creating a static undeformed scene just for this mesh
+     */
+    void _setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom);
+
+    /** Sets up the Embree geometry and scenes for a tetrahedral (volume) mesh. A custom user geometry for tetrahedra is used.
+     * This includes everything in _setupEmbreeForSurfaceMesh (using only the surface part of the volume mesh), and:
+     *   - a dynamic RTCGeometry and scene specifically for point-in-tetrahedra queries (i.e. the scene just has this mesh in it)
+     */
+    void _setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom);
+
     EmbreeHit _closestPointQuery(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
     EmbreeHit _closestPointQueryUndeformed(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
 

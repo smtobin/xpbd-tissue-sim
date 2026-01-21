@@ -94,12 +94,14 @@ int main()
     const Vec3r cp_query_point2 = cp_query_point - translation;
     Geometry::EmbreeHit cp_result2 = embree_scene.closestPointUndeformedTetMesh(cp_query_point2, &mesh_obj);
     std::cout << "\n=== Results for closest-point query (undeformed mesh) for query point (" << cp_query_point2[0] << ", " << cp_query_point2[1] << ", " << cp_query_point2[2] << ") ===" << std::endl;
+    std::cout << "Face index: " << cp_result2.prim_index << std::endl;
+
     const Eigen::Vector3i& face2 = mesh_obj.tetMesh()->face(cp_result2.prim_index);
     const Vec3r& v12 = initial_vertices[face2[0]];
     const Vec3r& v22 = initial_vertices[face2[1]];
     const Vec3r& v32 = initial_vertices[face2[2]];
 
-    std::cout << "Face index: " << cp_result2.prim_index << std::endl;
+    
     std::cout << "Face v1: " << v12[0] << ", " << v12[1] << ", " << v12[2] << std::endl;
     std::cout << "Face v2: " << v22[0] << ", " << v22[1] << ", " << v22[2] << std::endl;
     std::cout << "Face v3: " << v32[0] << ", " << v32[1] << ", " << v32[2] << std::endl;

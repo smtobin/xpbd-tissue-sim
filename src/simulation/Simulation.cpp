@@ -209,15 +209,15 @@ void Simulation::setup()
 
                 auto t2 = std::chrono::high_resolution_clock::now();
 
-                std::cout << "\nRefining + Coarsening..." << std::endl;
+                // std::cout << "\nRefining + Coarsening..." << std::endl;
                 for (const auto& elem : elems_to_refine)
                 {
-                    std::cout << "Refining element " << elem << "..." << std::endl;
+                    // std::cout << "Refining element " << elem << "..." << std::endl;
                     xpbd_obj->refineElement(elem, 2, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
-                    std::cout << "Coarsening element " << elem << "..." << std::endl;
+                    // std::cout << "Coarsening element " << elem << "..." << std::endl;
                     xpbd_obj->coarsenElement(elem, 2, false);
                 }
 
