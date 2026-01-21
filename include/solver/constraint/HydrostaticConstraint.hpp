@@ -190,7 +190,7 @@ class HydrostaticConstraint : public ElementConstraint
 
         // the factor out front of the old gradient F_cross * Q^T
         Real fac;
-        Real detF = F[0]*F[4]*F[8] - F[0]*F[7]*F[5] - F[3]*F[1]*F[8] + F[3]*F[7]*F[2] + F[6]*F[1]*F[5] - F[6]*F[4]*F[2];
+        // Real detF = F[0]*F[4]*F[8] - F[0]*F[7]*F[5] - F[3]*F[1]*F[8] + F[3]*F[7]*F[2] + F[6]*F[1]*F[5] - F[6]*F[4]*F[2];
         
         fac = 1;
         // if (detF >= 1.0)

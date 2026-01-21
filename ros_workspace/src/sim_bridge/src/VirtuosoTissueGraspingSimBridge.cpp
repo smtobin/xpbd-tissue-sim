@@ -83,9 +83,12 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
             const std::string trachea_label = this->get_parameter("trachea_label").as_string();
             const std::string tumor_label = this->get_parameter("tumor_label").as_string();
 
-            this->_sim->updateEmbreeScene();
+            std::cout << "Updating ray scene..." << std::endl;
+            this->_sim->updateEmbreeRayScene();
+            std::cout << "Done.\nGetting point clouds..." << std::endl;
             std::vector<Geometry::PointsWithClass> point_clouds = 
                 this->_sim->embreeScene()->partialViewPointCloudsWithClass(cam_position, cam_view_dir, cam_up_dir, hfov_deg, vfov_deg, sample_density);
+            std::cout << "Done." << std::endl;
             
             // go through returned point clouds and find the ones that match the trachea and tumor classes
             for (auto& pc : point_clouds)

@@ -104,7 +104,7 @@ objects:
 
     collisions: true
     self-collisions: false
-    adaptive-mesh-refinement: true
+    adaptive-mesh-refinement: false
     compute-heat-conduction: false
 
   # -

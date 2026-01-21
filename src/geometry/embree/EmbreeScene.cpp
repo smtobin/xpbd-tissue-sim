@@ -21,6 +21,10 @@ EmbreeScene::EmbreeScene()
 
     _ray_scene = rtcNewScene(_device);
     rtcSetSceneFlags(_ray_scene, RTC_SCENE_FLAG_DYNAMIC);
+
+    _hasAVX512 = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY16_SUPPORTED);
+    _hasAVX = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY8_SUPPORTED);
+    _hasSSE = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY4_SUPPORTED);
 }
 
 EmbreeScene::~EmbreeScene()
@@ -219,16 +223,16 @@ void EmbreeScene::updateRayScene()
     rtcCommitScene(_ray_scene);
 }
 
-EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
+RTCRayHit EmbreeScene::_createRayHit(const Vec3r& origin, const Vec3r& dir) const
 {
     RTCRayHit rayhit;
-    rayhit.ray.org_x = ray_origin[0];
-    rayhit.ray.org_y = ray_origin[1];
-    rayhit.ray.org_z = ray_origin[2];
+    rayhit.ray.org_x = origin[0];
+    rayhit.ray.org_y = origin[1];
+    rayhit.ray.org_z = origin[2];
 
-    rayhit.ray.dir_x = ray_dir[0];
-    rayhit.ray.dir_y = ray_dir[1];
-    rayhit.ray.dir_z = ray_dir[2];
+    rayhit.ray.dir_x = dir[0];
+    rayhit.ray.dir_y = dir[1];
+    rayhit.ray.dir_z = dir[2];
 
     rayhit.ray.tnear = 0;
     rayhit.ray.tfar = std::numeric_limits<float>::infinity();
@@ -239,20 +243,21 @@ EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) co
     rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
     rayhit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
 
-    rtcIntersect1(_ray_scene, &rayhit, nullptr);
+    return rayhit;
+}
 
+EmbreeHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const
+{
     // check if we have a hit
     if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID)
     {
         const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(rayhit.hit.geomID);
         float t = rayhit.ray.tfar;
         
-
         EmbreeHit hit;
         hit.obj = obj;
         hit.prim_index = rayhit.hit.primID;
-        // hit.hit_point = v1*rayhit.hit.u + v2*rayhit.hit.v + v3*(1 - rayhit.hit.u - rayhit.hit.v);
-        hit.hit_point = ray_origin + t*ray_dir;
+        hit.hit_point = origin + t*dir;
         return hit;
     }
     else
@@ -260,6 +265,141 @@ EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) co
         EmbreeHit hit;
         hit.obj = nullptr;
         return hit;
+    }
+}
+
+EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
+{
+    RTCRayHit rayhit = _createRayHit(ray_origin, ray_dir);
+    rtcIntersect1(_ray_scene, &rayhit, nullptr);
+    return _processRayHit(rayhit, ray_origin, ray_dir);
+}
+
+void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeHit>& hits) const
+{
+    hits.clear();
+    unsigned total_num_rays = origins.size();
+
+    if (_hasAVX512)
+    {
+        RTCRayHit16 packet;
+        int valid[16];
+        for (unsigned i = 0; i < total_num_rays; i += 16)
+        {
+            unsigned rays_in_packet = std::min(16u, total_num_rays - i);
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                packet.ray.org_x[ri] = origins[i+ri][0];
+                packet.ray.org_y[ri] = origins[i+ri][1];
+                packet.ray.org_z[ri] = origins[i+ri][2];
+
+                packet.ray.dir_x[ri] = dirs[i+ri][0];
+                packet.ray.dir_y[ri] = dirs[i+ri][1];
+                packet.ray.dir_z[ri] = dirs[i+ri][2];
+
+                packet.ray.tnear[ri] = 0;
+                packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
+                packet.ray.flags[ri] = 0;
+                packet.ray.time[ri] = 0;
+                packet.ray.mask[ri] = -1;
+
+                packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
+                packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
+
+                valid[ri] = 1;
+            }
+            for (unsigned ri = rays_in_packet; ri < 16; ri++)
+            {
+                valid[ri] = 0;
+            }
+
+            rtcIntersect16(valid, _ray_scene, &packet, nullptr);
+
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
+                {
+                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    float t = packet.ray.tfar[ri];
+                    
+                    EmbreeHit hit;
+                    hit.obj = obj;
+                    hit.prim_index = packet.hit.primID[ri];
+                    hit.hit_point = origins[i+ri] + t*dirs[i+ri];
+                    hits.push_back(hit);
+                }
+                else
+                {
+                    EmbreeHit hit;
+                    hit.obj = nullptr;
+                    hits.push_back(hit);
+                }
+            }
+        }
+    }
+    else if (_hasAVX)
+    {
+        RTCRayHit8 packet;
+        int valid[8];
+        for (unsigned i = 0; i < total_num_rays; i += 8)
+        {
+            unsigned rays_in_packet = std::min(8u, total_num_rays - i);
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                packet.ray.org_x[ri] = origins[i+ri][0];
+                packet.ray.org_y[ri] = origins[i+ri][1];
+                packet.ray.org_z[ri] = origins[i+ri][2];
+
+                packet.ray.dir_x[ri] = dirs[i+ri][0];
+                packet.ray.dir_y[ri] = dirs[i+ri][1];
+                packet.ray.dir_z[ri] = dirs[i+ri][2];
+
+                packet.ray.tnear[ri] = 0;
+                packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
+                packet.ray.flags[ri] = 0;
+                packet.ray.time[ri] = 0;
+                packet.ray.mask[ri] = -1;
+
+                packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
+                packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
+
+                valid[ri] = 1;
+            }
+            for (unsigned ri = rays_in_packet; ri < 8; ri++)
+            {
+                valid[ri] = 0;
+            }
+
+            rtcIntersect8(valid, _ray_scene, &packet, nullptr);
+
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
+                {
+                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    float t = packet.ray.tfar[ri];
+                    
+                    EmbreeHit hit;
+                    hit.obj = obj;
+                    hit.prim_index = packet.hit.primID[ri];
+                    hit.hit_point = origins[i+ri] + t*dirs[i+ri];
+                    hits.push_back(hit);
+                }
+                else
+                {
+                    EmbreeHit hit;
+                    hit.obj = nullptr;
+                    hits.push_back(hit);
+                }
+            }
+        }
+    }
+    else
+    {
+        for (unsigned i = 0; i < total_num_rays; i++)
+        {
+            hits.push_back(castRay(origins[i], dirs[i]));
+        }
     }
 }
     
@@ -384,24 +524,50 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
     // create rays by sampling spherical coordinates and transforming into local frame
     Real angle_increment = 1.0/sample_density;
+    int h_ind_max = static_cast<int>(hfov_deg / angle_increment);
+    int v_ind_max = static_cast<int>(vfov_deg / angle_increment);
+    
+    std::vector<Vec3r> origins(16, origin);
+    std::vector<Vec3r> directions(16);
+    std::vector<EmbreeHit> hits(16);
 
-    // std::cout << "hfov: " << hfov_deg << " vfov: " << vfov_deg << " angle_incr: " << angle_increment<< std::endl;
-    for (Real h_angle = -hfov_deg/2.0; h_angle < hfov_deg/2.0; h_angle += angle_increment)
+    for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
-        for (Real v_angle = -vfov_deg/2.0; v_angle < vfov_deg/2.0; v_angle += angle_increment)
+        Real h_angle_start = -hfov_deg/2.0 + angle_increment * h_ind;
+        
+        for (int v_ind = 0; v_ind < v_ind_max; v_ind += 4)
         {
-            Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            Real y_local = std::sin(v_angle * M_PI/180.0);
-            Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            const Vec3r dir_local(x_local, y_local, z_local);
-            const Vec3r ray_dir = R_camera * dir_local;
+            Real v_angle_start = -vfov_deg/2.0 + angle_increment * v_ind;
 
-            // std::cout << "Ray dir: " << ray_dir[0] << ", " << ray_dir[1] << ", " << ray_dir[2] << std::endl;
-            EmbreeHit hit = castRay(origin, ray_dir);
-            if (hit.obj)
+            // 4x4 block of rays
+            directions.clear();
+            for (int dh = 0; dh < 4; dh++)
             {
-                // std::cout << "Hit!" << std::endl;
-                hit_points.push_back(hit.hit_point);
+                Real h_angle = h_angle_start + angle_increment * dh;
+                for (int dv = 0; dv < 4; dv++)
+                {
+                    if (h_ind + dh >= h_ind_max || v_ind + dv >= v_ind_max)
+                        continue;
+                    
+                    Real v_angle = v_angle_start + angle_increment * dv;
+
+                    Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+                    Real y_local = std::sin(v_angle * M_PI/180.0);
+                    Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+
+                    const Vec3r dir_local(x_local, y_local, z_local);
+                    const Vec3r ray_dir = R_camera * dir_local;
+                    directions.push_back(ray_dir);
+                }
+            }
+            castRays(origins, directions, hits);
+
+            for (const auto& hit : hits)
+            {
+                if (hit.obj)
+                {
+                    hit_points.push_back(hit.hit_point);
+                }
             }
         }
     }
