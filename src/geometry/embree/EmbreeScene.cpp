@@ -92,29 +92,8 @@ void EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom)
     /** Point-in-query scene */
 
     // create a new scene for the TetMesh exclusively for point-in-tetrahedra queries
-    RTCScene tet_mesh_scene = rtcNewScene(_device);
-    rtcSetSceneFlags(tet_mesh_scene, RTC_SCENE_FLAG_DYNAMIC);
-    tet_mesh_geom.setTetScene(tet_mesh_scene);
-    
-    // create a user-geometry type
-    RTCGeometry rtc_tet_mesh_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    tet_mesh_geom.setTetMeshGeomID( rtcAttachGeometry(tet_mesh_scene, rtc_tet_mesh_geom) );
-
-    rtcSetGeometryBuildQuality(rtc_tet_mesh_geom, RTC_BUILD_QUALITY_REFIT);
-
-    // set custom user data
-    rtcSetGeometryUserPrimitiveCount(rtc_tet_mesh_geom, tet_mesh_geom.tetMesh()->numElements());
-    rtcSetGeometryUserData(rtc_tet_mesh_geom, &tet_mesh_geom);
-
-    // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::boundsFuncTetrahedra, &tet_mesh_geom);
-    rtcSetGeometryIntersectFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::intersectFuncTetrahedra);
-    rtcSetGeometryPointQueryFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::pointQueryFuncTetrahedra);
-
-    // commit geometry and scene
-    rtcCommitGeometry(rtc_tet_mesh_geom);
-    rtcCommitScene(tet_mesh_scene);
-    rtcReleaseGeometry(rtc_tet_mesh_geom);
+    tet_mesh_geom.createTetScene(_device);
+    tet_mesh_geom.updateTetScene(_device);
 }
 
 void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
@@ -177,9 +156,7 @@ void EmbreeScene::update()
         rtcCommitGeometry(rtc_mesh_geom);
 
         // update the point-in-tet query scene
-        RTCGeometry rtc_tet_mesh_geom = rtcGetGeometry(geom.tetScene(), geom.tetMeshGeomID());
-        rtcCommitGeometry(rtc_tet_mesh_geom);
-        rtcCommitScene(geom.tetScene());
+        geom.updateTetScene(_device);
     }
 
     // commit the ray scene once we've updated all the objects
@@ -195,9 +172,7 @@ void EmbreeScene::updateObject(const Sim::TetMeshObject* tet_mesh_obj)
 {
     // update the point-in-tet query scene
     EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom[tet_mesh_obj];
-    RTCGeometry rtc_tet_mesh_geom = rtcGetGeometry(geom->tetScene(), geom->tetMeshGeomID());
-    rtcCommitGeometry(rtc_tet_mesh_geom);
-    rtcCommitScene(geom->tetScene());
+    geom->updateTetScene(_device);
 }
 
 void EmbreeScene::updateRayScene()

@@ -9,12 +9,70 @@ namespace Geometry
 EmbreeTetMeshGeometry::EmbreeTetMeshGeometry(const Geometry::TetMesh* tet_mesh)
     : EmbreeMeshGeometry(tet_mesh), _tet_mesh(tet_mesh), _tet_scene(nullptr)
 {
+    // set the topology version to some arbitrary large number, so we update initially
+    _prev_topology_version = std::numeric_limits<unsigned long>::max();
 }
 
 EmbreeTetMeshGeometry::~EmbreeTetMeshGeometry()
 {
     if (_tet_scene)
         rtcReleaseScene(_tet_scene);
+}
+
+void EmbreeTetMeshGeometry::createTetScene(RTCDevice device)
+{
+    // make sure that the scene hasn't already been created
+    assert(_tet_scene == nullptr);
+
+    // create the scene
+    _tet_scene = rtcNewScene(device);
+    rtcSetSceneFlags(_tet_scene, RTC_SCENE_FLAG_DYNAMIC);
+
+    // create an initial dummy geometry
+    _tet_mesh_geom_id = RTC_INVALID_GEOMETRY_ID;
+    rtcCommitScene(_tet_scene);
+}
+
+void EmbreeTetMeshGeometry::updateTetScene(RTCDevice device)
+{
+    bool topology_changed = _prev_topology_version != _tet_mesh->topologyVersion();
+    
+    if (topology_changed)
+    {
+        // If primitive count changed, we need to recreate the geometry
+        if (_tet_mesh_geom_id != RTC_INVALID_GEOMETRY_ID)
+        {
+            RTCGeometry old_geom = rtcGetGeometry(_tet_scene, _tet_mesh_geom_id);
+            rtcDetachGeometry(_tet_scene, _tet_mesh_geom_id);
+        }
+
+        // create a user-geometry type
+        RTCGeometry new_geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_USER);
+
+        rtcSetGeometryBuildQuality(new_geom, RTC_BUILD_QUALITY_REFIT);
+
+        // set custom user data
+        rtcSetGeometryUserPrimitiveCount(new_geom, _tet_mesh->numElements());
+        rtcSetGeometryUserData(new_geom, this);
+
+        // set custom callbacks
+        rtcSetGeometryBoundsFunction(new_geom, EmbreeTetMeshGeometry::boundsFuncTetrahedra, this);
+        rtcSetGeometryIntersectFunction(new_geom, EmbreeTetMeshGeometry::intersectFuncTetrahedra);
+        rtcSetGeometryPointQueryFunction(new_geom, EmbreeTetMeshGeometry::pointQueryFuncTetrahedra);
+
+        _tet_mesh_geom_id = rtcAttachGeometry(_tet_scene, new_geom);
+        rtcCommitGeometry(new_geom);
+        rtcReleaseGeometry(new_geom);
+
+        _prev_topology_version = _tet_mesh->topologyVersion();
+        rtcCommitScene(_tet_scene);
+    }
+    else
+    {
+        RTCGeometry rtc_geom = rtcGetGeometry(_tet_scene, _tet_mesh_geom_id);
+        rtcCommitGeometry(rtc_geom);
+        rtcCommitScene(_tet_scene);
+    }
 }
 
 bool EmbreeTetMeshGeometry::isPointInTetrahedron(const Vec3r& p, const Vec3r& v0, const Vec3r& v1, const Vec3r& v2, const Vec3r& v3)

@@ -150,6 +150,8 @@ class EmbreeScene
     EmbreeHit _processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const;
 
 
+    /** TODO: probably should move the next few functions to EmbreeMeshGeometry and EmbreeTetMeshGeometry classes */
+
     /** Sets up the Embree geometry and scenes for a surface mesh. The primitive Embree triangle type is used.
      * This includes:
      *   - creating a dynamic RTCGeometry for the surface mesh and adding it to the ray-tracing scene

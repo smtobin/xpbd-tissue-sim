@@ -24,7 +24,7 @@ EmbreeMeshGeometry::~EmbreeMeshGeometry()
 void EmbreeMeshGeometry::updateSurfaceMeshGeometryBuffers(RTCGeometry geom)
 {
     int num_vertices = _mesh->vertices().totalSize();
-    int num_faces = _mesh->numFaces();
+    int num_faces = _mesh->faces().totalSize();
 
     // allocate vertex buffer
     // important: allocate enough space for ALL vertices (including tombstones)
@@ -48,6 +48,8 @@ void EmbreeMeshGeometry::updateSurfaceMeshGeometryBuffers(RTCGeometry geom)
     }
 
     // allocate face index buffer
+    // important: allocate enough space for ALL faces (including tombstones)
+    // so that the Embree primitive index is correct
     unsigned int* index_buffer = (unsigned int*)rtcSetNewGeometryBuffer(
         geom,
         RTC_BUFFER_TYPE_INDEX,
@@ -58,13 +60,27 @@ void EmbreeMeshGeometry::updateSurfaceMeshGeometryBuffers(RTCGeometry geom)
     );
 
     // copy faces into buffer
-    int face_index = 0;
-    for (const auto& face : _mesh->faces())
+    // a safe vertex index for invalid faces
+    int safe_index = *_mesh->vertices().validIndices().begin();
+    for (int i = 0; i < _mesh->faces().totalSize(); i++)
     {
-        index_buffer[3*face_index] = static_cast<unsigned int>(face[0]);
-        index_buffer[3*face_index+1] = static_cast<unsigned int>(face[1]);
-        index_buffer[3*face_index+2] = static_cast<unsigned int>(face[2]);
-        face_index++;
+        // if the face is valid, copy it over
+        if (_mesh->faceValid(i))
+        {
+            const Vec3i& face = _mesh->face(i);
+            index_buffer[3*i] = static_cast<unsigned int>(face[0]);
+            index_buffer[3*i+1] = static_cast<unsigned int>(face[1]);
+            index_buffer[3*i+2] = static_cast<unsigned int>(face[2]);
+        }
+        // face is invalid, set it as degenerate (with all 3 vertices the same)
+        // make sure to use a valid vertex
+        else
+        {
+            index_buffer[3*i] = safe_index;
+            index_buffer[3*i+1] = safe_index;
+            index_buffer[3*i+2] = safe_index;
+        }
+        
     }
 }
 
