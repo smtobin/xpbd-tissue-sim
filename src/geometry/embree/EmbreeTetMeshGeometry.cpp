@@ -52,7 +52,7 @@ void EmbreeTetMeshGeometry::updateTetScene(RTCDevice device)
         rtcSetGeometryBuildQuality(new_geom, RTC_BUILD_QUALITY_REFIT);
 
         // set custom user data
-        rtcSetGeometryUserPrimitiveCount(new_geom, _tet_mesh->numElements());
+        rtcSetGeometryUserPrimitiveCount(new_geom, _tet_mesh->elements().totalSize());
         rtcSetGeometryUserData(new_geom, this);
 
         // set custom callbacks
@@ -134,20 +134,34 @@ Real EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(const Vec3r& p, const V
 void EmbreeTetMeshGeometry::boundsFuncTetrahedra(const struct RTCBoundsFunctionArguments *args)
 {
     const EmbreeTetMeshGeometry *geom = static_cast<const EmbreeTetMeshGeometry *>(args->geometryUserPtr);
-    const Vec4i& indices = geom->tetMesh()->element(args->primID);
-    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
-    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
-    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
-    const Vec3r& v4 = geom->mesh()->vertex(indices[3]);
+    if (geom->tetMesh()->elementValid(args->primID))
+    {
+        const Vec4i& indices = geom->tetMesh()->element(args->primID);
+        const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+        const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+        const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
+        const Vec3r& v4 = geom->mesh()->vertex(indices[3]);
 
-    RTCBounds* bounds = args->bounds_o;
-    bounds->lower_x = std::min({v1[0], v2[0], v3[0], v4[0]});
-    bounds->lower_y = std::min({v1[1], v2[1], v3[1], v4[1]});
-    bounds->lower_z = std::min({v1[2], v2[2], v3[2], v4[2]});
+        RTCBounds* bounds = args->bounds_o;
+        bounds->lower_x = std::min({v1[0], v2[0], v3[0], v4[0]});
+        bounds->lower_y = std::min({v1[1], v2[1], v3[1], v4[1]});
+        bounds->lower_z = std::min({v1[2], v2[2], v3[2], v4[2]});
 
-    bounds->upper_x = std::max({v1[0], v2[0], v3[0], v4[0]});
-    bounds->upper_y = std::max({v1[1], v2[1], v3[1], v4[1]});
-    bounds->upper_z = std::max({v1[2], v2[2], v3[2], v4[2]});
+        bounds->upper_x = std::max({v1[0], v2[0], v3[0], v4[0]});
+        bounds->upper_y = std::max({v1[1], v2[1], v3[1], v4[1]});
+        bounds->upper_z = std::max({v1[2], v2[2], v3[2], v4[2]});
+    }
+    else
+    {
+        RTCBounds* bounds = args->bounds_o;
+        bounds->lower_x = 0;
+        bounds->lower_y = 0;
+        bounds->lower_z = 0;
+
+        bounds->upper_x = 0;
+        bounds->upper_y = 0;
+        bounds->upper_z = 0;
+    }
 }
 
 void EmbreeTetMeshGeometry::intersectFuncTetrahedra(const RTCIntersectFunctionNArguments *args)

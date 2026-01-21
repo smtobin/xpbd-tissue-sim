@@ -45,8 +45,7 @@ int main()
     Geometry::AABB initial_bbox = mesh_obj.mesh()->boundingBox();
     std::cout << "Initial mesh bounding box:\n(" << initial_bbox.min.transpose() << ") to (" << initial_bbox.max.transpose() << ")" << std::endl;
     
-    mesh_obj.refinedTetMesh()->refineElement(0,3);
-    mesh_obj.refinedTetMesh()->refineElement(1,3);
+    mesh_obj.refinedTetMesh()->refineElement(0,2);
 
     Vec3r translation(0,0,-5);
     mesh_obj.mesh()->moveTogether(translation);
