@@ -104,7 +104,7 @@ objects:
 
     collisions: true
     self-collisions: false
-    adaptive-mesh-refinement: false
+    adaptive-mesh-refinement: true
     compute-heat-conduction: false
 
   # -
@@ -144,7 +144,7 @@ objects:
       outer-tube-rotation: 60
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 8e-3
+      inner-tube-translation: 6e-3
 
     -
       name: "Arm2"

@@ -264,7 +264,7 @@ void RefinedTetMesh::removeElement(int elem_index)
             int elem_to_refine = _findElementWithFaceParentOfEdge(Edge(elem_hanging_verts[i], elem_hanging_verts[j]), elem_to_remove_refinement_level);
             if (elem_to_refine != ElementTreeNode::INVALID_INDEX)
             {
-                std::cout << "  Refining adjacent element " << elem_to_refine << std::endl;
+                // std::cout << "  Refining adjacent element " << elem_to_refine << std::endl;
                 refineElement(elem_to_refine, elem_to_remove_refinement_level, true, false);
             }
         }

@@ -303,7 +303,7 @@ std::pair<bool, Geometry::RefinedTetMesh> test8()
 
     refined_mesh.refineElement(0, 2, true);
     std::vector<int> latest_added_elements = refined_mesh.latestAddedElements();
-    std::cout << "Added elements:\n" << std::endl;
+    // std::cout << "Added elements:\n" << std::endl;
     for (const auto& e : latest_added_elements)
     {
         std::cout << e << ", ";
@@ -317,11 +317,11 @@ std::pair<bool, Geometry::RefinedTetMesh> test8()
     {
         for (const auto& index : latest_added_elements)
         {
-            std::cout << " Element " << index << " refinement level: " << refined_mesh.elementRefinementLevel(index) << std::endl;
-            std::cout << " Element " << index << " on surface: " << refined_mesh.elementOnSurface(index) << std::endl;
+            // std::cout << " Element " << index << " refinement level: " << refined_mesh.elementRefinementLevel(index) << std::endl;
+            // std::cout << " Element " << index << " on surface: " << refined_mesh.elementOnSurface(index) << std::endl;
             if (refined_mesh.elementRefinementLevel(index) > 0 && refined_mesh.elementOnSurface(index))
             {
-                std::cout << "Removing element " << index << "..." << std::endl;
+                // std::cout << "Removing element " << index << "..." << std::endl;
                 refined_mesh.removeElement(index);
                 num_removed++;
                 break;
@@ -471,7 +471,7 @@ int main()
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
-    unsigned visualize_index = test_funcs.size()-1;
+    unsigned visualize_index = -1;//test_funcs.size()-1;
 
     std::cout << "\n=== Running tests ===" << std::endl;
     for (unsigned i = 0; i < test_funcs.size(); i++)

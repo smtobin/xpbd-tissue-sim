@@ -27,7 +27,8 @@ int main()
 
     Config::ObjectConfig object_config("test", "default", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
 
-    Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
+    // Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
+    Sim::RefinedTetMeshObject mesh_obj(&mesh_config, &object_config);
     mesh_obj.loadAndConfigureMesh();
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/single.msh");
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube16.msh");
@@ -36,7 +37,7 @@ int main()
     Geometry::EmbreeScene embree_scene;
 
     // add object(s) to EmbreeScene
-    embree_scene.addObject(&mesh_obj);
+    embree_scene.addObject((Sim::TetMeshObject*)&mesh_obj);
 
     // translate object and update the EmbreeScene
     Geometry::Mesh::vertices_vec_type initial_vertices = mesh_obj.mesh()->vertices();
@@ -44,6 +45,9 @@ int main()
     Geometry::AABB initial_bbox = mesh_obj.mesh()->boundingBox();
     std::cout << "Initial mesh bounding box:\n(" << initial_bbox.min.transpose() << ") to (" << initial_bbox.max.transpose() << ")" << std::endl;
     
+    mesh_obj.refinedTetMesh()->refineElement(0,3);
+    mesh_obj.refinedTetMesh()->refineElement(1,3);
+
     Vec3r translation(0,0,-5);
     mesh_obj.mesh()->moveTogether(translation);
     embree_scene.update();

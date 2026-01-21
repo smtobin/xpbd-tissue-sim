@@ -492,6 +492,11 @@ void TetMesh::removeElement(int elem_index)
         _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
     }
 
+    // resize face properties after adding some faces
+    _face_properties.for_each_element([&](auto& prop) {
+        prop.resize(_faces.totalSize());
+    });
+
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);
 

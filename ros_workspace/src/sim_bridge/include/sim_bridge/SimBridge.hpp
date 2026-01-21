@@ -130,15 +130,21 @@ private:
             [this, index, deformable_mesh]() -> void {
                 // update vertices
                 // memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+                this->_mesh_pcl_messages[index].header.stamp = this->now();
+                this->_mesh_pcl_messages[index].width = deformable_mesh->numVertices();
+                this->_mesh_pcl_messages[index].row_step = this->_mesh_pcl_messages[index].width * this->_mesh_pcl_messages[index].point_step;
+                this->_mesh_pcl_messages[index].data.resize(this->_mesh_pcl_messages[index].row_step);
 
                 float* pc_data = (float*)this->_mesh_pcl_messages[index].data.data();
-                for (int i = 0; i < deformable_mesh->numVertices(); i++)
+
+                int pc_index = 0;
+                for (const auto& v : deformable_mesh->vertices())
                 {
-                    // memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
-                    const Vec3r& vertex = deformable_mesh->vertex(i);
-                    *(pc_data + 3*i) = static_cast<float>(vertex[0]);
-                    *(pc_data + 3*i+1) = static_cast<float>(vertex[1]);
-                    *(pc_data + 3*i+2) = static_cast<float>(vertex[2]);
+                    *(pc_data + 3*pc_index) = static_cast<float>(v[0]);
+                    *(pc_data + 3*pc_index+1) = static_cast<float>(v[1]);
+                    *(pc_data + 3*pc_index+2) = static_cast<float>(v[2]);
+
+                    pc_index++;
                 }
 
                 this->_mesh_pcl_publishers[index]->publish(this->_mesh_pcl_messages[index]);
