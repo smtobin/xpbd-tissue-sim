@@ -42,6 +42,7 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _tool_state = 0;  // default tool state is off
     _tool_type = config->toolType();
     _cutting_model = config->cuttingModel();
+    _cutting_model_time_threshold = config->cuttingModelTimeThreshold();
     _tool_manipulated_object = (XPBDMeshObject_Base_<false>*)nullptr;
     _tool_tube = TOOL_TYPE_TO_STRUCT.at(_tool_type);
     _tool_tube_length = config->toolTubeLength();
@@ -434,7 +435,7 @@ void VirtuosoArm::_cauteryToolAction()
                 time_prop.set(elem_index, old_time + _sim->dt());
 
                 // if we've exceeded the threshold, remove the element
-                if (old_time + _sim->dt() > 100e-3)
+                if (old_time + _sim->dt() > _cutting_model_time_threshold)
                 {
                     _tool_manipulated_object.removeElement(elem_index);
                 }
@@ -487,8 +488,6 @@ void VirtuosoArm::_cauteryToolAction()
             }
             std::cout << "Number of high voltage verts: " << high_voltage_verts.size() << std::endl;
         }
-
-        
     }
 }
 

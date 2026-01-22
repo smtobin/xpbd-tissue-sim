@@ -65,6 +65,7 @@ class VirtuosoArmConfig : public ObjectConfig
 
         _extractParameterWithOptions("tool-type", node, _tool_type, TOOL_TYPE_OPTIONS());
         _extractParameterWithOptions("cutting-model", node, _cutting_model, CUTTING_MODEL_OPTIONS());
+        _extractParameter("time-threshold", node, _cutting_model_time_threshold);
         _extractParameter("tool-tube-length", node, _tool_tube_length);
 
         _extractParameter("base-position", node, _base_initial_position);
@@ -116,6 +117,7 @@ class VirtuosoArmConfig : public ObjectConfig
 
     Sim::VirtuosoArm::ToolType toolType() const { return _tool_type.value; }
     Sim::VirtuosoArm::CuttingModel cuttingModel() const { return _cutting_model.value; }
+    Real cuttingModelTimeThreshold() const { return _cutting_model_time_threshold.value; }
     Real toolTubeLength() const { return _tool_tube_length.value; }
 
     Vec3r baseInitialPosition() const { return _base_initial_position.value; }
@@ -136,6 +138,7 @@ class VirtuosoArmConfig : public ObjectConfig
 
     ConfigParameter<Sim::VirtuosoArm::ToolType> _tool_type = ConfigParameter<Sim::VirtuosoArm::ToolType>(Sim::VirtuosoArm::ToolType::NONE);
     ConfigParameter<Sim::VirtuosoArm::CuttingModel> _cutting_model = ConfigParameter<Sim::VirtuosoArm::CuttingModel>(Sim::VirtuosoArm::CuttingModel::INSTANT);
+    ConfigParameter<Real> _cutting_model_time_threshold = ConfigParameter<Real>(100e-3);
     ConfigParameter<Real> _tool_tube_length = ConfigParameter<Real>(5e-3);
 
     ConfigParameter<Vec3r> _base_initial_position = ConfigParameter<Vec3r>(Vec3r(0,0,0));

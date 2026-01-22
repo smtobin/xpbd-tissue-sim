@@ -14,8 +14,8 @@ show-tip-cursor: true
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/tracheal_tumor_v2_refined_tumor_faces.txt"
 
-haptic-device-name1: "LeftOmni"
-haptic-device-name2: "RightOmni"
+# haptic-device-name1: "LeftOmni"
+# haptic-device-name2: "RightOmni"
 haptic-force-scaling: 0.0
 # device-name1: "Omni"
 
@@ -29,12 +29,34 @@ collision-rate: 100
 fps: 30
 end-time: 5000
 
+express-meshes-in-vb-frame: true
+
 materials:
   -
     name: "Raw Chicken Breast"
-    density: 1000
+    label: "Tumor"
+    # material parameters
+    density: 1060
     E: 0.07e6
     nu: 0.49
+
+    # rendering settings
+    color: [1.0, 0.4, 0.3]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.3
+    smooth-normals: false
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+
+  -
+    name: "Nitinol"
+    # rendering settings
+    color: [0.7, 0.7, 0.7]
+    render-type: "PBR"
+    metallic: 1.0
+    roughness: 0.2
 
 # rendering settings
 exposure: 0.2
@@ -49,12 +71,14 @@ objects:
     name: "Prostate"
     # type: "XPBDMeshObject"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/prostate/bph_r.msh"
+    # filename: "../resource/demos/prostate/bph_r.msh"
+    filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
+    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
     materials: ["Raw Chicken Breast"]
-    max-size: 0.0857
-    position: [0, 0, -0.005]
+    scaling: [1e-3, 1e-3, 1e-3]
+    position: [0.10, 0.11, 0.14]
     velocity: [0, 0, 0]
-    rotation: [-30, 0, 0]
+    rotation: [30, 0, 0]
     num-solver-iters: 1
     num-local-collision-iters: 3
     residual-policy: "Never"
@@ -81,14 +105,10 @@ objects:
   -
     name: "Robot"
     type: "VirtuosoRobot"
+    material: "Nitinol"
     position: [0.002, 0, 0.016]
     rotation: [0, 180, 0]
     collisions: true
-    # rendering settings
-    color: [0.7, 0.7, 0.7]
-    render-type: "PBR"
-    metallic: 1.0
-    roughness: 0.2
 
     arms:
     -

@@ -40,17 +40,9 @@ class VirtuosoTissueGraspingSimulation : public VirtuosoSimulation
     
     void _timeStep() override;
 
-    void _moveCursor(const Vec3r& dp);
-
-    void _toggleGoal();
-    void _changeGoal();
-
-    int _calculateScore();
-
     protected:
 
     XPBDMeshObject_BasePtrWrapper _tissue_obj;    // the tissue XPBD object that is being manipulated
-    std::optional<std::string> _fixed_faces_filename;   // a .txt filename that lists all the faces that should be held fixed
 
     bool _express_meshes_in_vb_frame;   // if true, all meshes loaded into the scene will be put into the base frame of the Virtuoso robot in the scene
 };

@@ -19,7 +19,6 @@ VirtuosoTissueGraspingSimulation::VirtuosoTissueGraspingSimulation(const Config:
 {
     // extract parameters from config object
     _input_device = config->inputDevice();
-    _fixed_faces_filename = config->fixedFacesFilename();
     _express_meshes_in_vb_frame = config->expressMeshesInVBFrame();
 }
 
@@ -73,18 +72,6 @@ void VirtuosoTissueGraspingSimulation::setup()
         _virtuoso_robot->arm1()->setToolManipulatedObject(_tissue_obj);
     if (_virtuoso_robot->hasArm2())
         _virtuoso_robot->arm2()->setToolManipulatedObject(_tissue_obj);
-
-
-    if (_fixed_faces_filename.has_value())
-    {
-        std::set<int> vertices;
-        std::vector<int> faces;
-        MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
-        for (const auto& v : vertices)
-        {
-            _tissue_obj.fixVertex(v);
-        }
-    }
     
 }
 
