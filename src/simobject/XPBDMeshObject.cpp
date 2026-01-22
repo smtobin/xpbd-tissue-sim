@@ -232,6 +232,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
             fixVertex(v);
         }
     }
+
+    // set the characteristic dimension as the smallest dim in the AABB
+    Geometry::AABB bbox = _mesh->boundingBox();
+    this->_char_dim = bbox.size().minCoeff();
 }
 
 // template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>

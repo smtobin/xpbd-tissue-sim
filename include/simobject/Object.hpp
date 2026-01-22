@@ -50,6 +50,15 @@ class Object
     /** The "material" that this object is made out of. */
     const MaterialClass* materialClass() const { return _material_class; }
 
+    /** Returns the characteristic dimension of the object. */
+    Real characteristicDimension() const { return _char_dim; }
+
+    /** Set the characteristic dimension of the SDF.
+     * This is only necessary if the object has some special known structure that needs to be accounted for during collision detection.
+     * E.g. a mesh with small features
+     */
+    void setCharacteristicDimension(Real new_char_dim) { _char_dim = new_char_dim; }
+
     /** Performs any necessary setup for this object.
      * Called after instantiation (i.e. outside the constructor) and before update() is called for the first time.
      */
@@ -78,6 +87,16 @@ class Object
     protected:
     /** Name of the object */
     std::string _name;
+
+    /** The characteristic dimension of the object. Used to determine the sample density during collision detection.
+     * I.e. for an object with a smaller characteristic dimension, the faces will need to be more highly subsampled to prevent tunneling
+     * 
+     * For example, the characteristic dimension of a sphere is its diameter, and the characteristic dimension of a box is its smallest side length.
+     * 
+     * This can be set explicitly for objects with some known structure (e.g. a spiky mesh).
+     * 
+     */
+    Real _char_dim = 1;
 
     /** The material class associated with the object. */
     const MaterialClass* _material_class;

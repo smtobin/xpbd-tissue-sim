@@ -150,6 +150,8 @@ class CollisionScene
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj);
 
+    void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func);
+
     /** Implements the Frank-Wolfe optimization algorithm applied to finding a contact point between a SDF and a 3D triangle face. 
      * @param sdf - the signed distance function (SDF) to collide against
      * @param p1 - 1st triangle vertex

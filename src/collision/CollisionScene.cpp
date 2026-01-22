@@ -50,6 +50,70 @@ void CollisionScene::collideObjects()
     }
 }
 
+void CollisionScene::_lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func)
+{
+        const Real p1p2 = (p2-p1).norm();
+        const Real p1p3 = (p3-p1).norm();
+        const Real p2p3 = (p3-p2).norm();
+
+        const Real max_edge = std::max({p1p2, p1p3, p2p3});
+
+        int num_subdivisions = std::max(0.0, std::floor(std::log2(2*max_edge / char_dim)));
+        int num_steps = 1 << num_subdivisions;
+        Real step = 1.0/num_steps;
+
+        for (int i = 0; i < num_steps+1; i++)
+        {
+            for (int j = 0; j < num_steps+1 - i; j++)
+            {
+                // top triangle
+                Real u1 = static_cast<Real>(i)/num_steps;
+                Real v1 = static_cast<Real>(j)/num_steps;
+                Real w1 = 1 - u1 - v1;
+                if (w1 < 0)
+                    continue;
+                
+                Real u2 = u1-step;
+                Real v2 = v1+step;
+                Real w2 = w1;
+                if (v2 > 1 || u2 < 0)
+                    continue;
+                
+                Real u3 = u2;
+                Real v3 = v1;
+                Real w3 = w1+step;
+                if (w3 > 1)
+                    continue;
+
+                Real ux = (u1+u2+u3)/3;
+                Real vx = (v1+v2+v3)/3;
+                Real wx = (w1+w2+w3)/3;
+
+                // centroid of triangle = test point
+                Vec3r x = ux*p1 + vx*p2 + wx*p3;
+
+                test_func(x, Vec3r(ux,vx,wx));
+                
+
+                // bottom triangle
+                u3 = u1;
+                v3 = v2;
+                w3 = w1-step;
+                if (w3 < 0)
+                    continue;
+
+                ux = (u1+u2+u3)/3;
+                vx = (v1+v2+v3)/3;
+                wx = (w1+w2+w3)/3;
+
+                // centroid of triangle = test point
+                x = ux*p1 + vx*p2 + wx*p3;
+
+                test_func(x, Vec3r(ux,vx,wx));
+            }
+        }
+}
+
 void CollisionScene::_collideObjectPair(Sim::Object* /*obj1*/, Sim::Object* /*obj2*/)
 {
     // do nothing in the general case
@@ -123,7 +187,8 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
 
-    // std::unordered_set<int> elems_to_refine;
+    Real char_dim = virtuoso_arm->characteristicDimension();
+
     for (const auto& face_ind : mesh->faces().validIndices())
     {
         const Vec3i& f = mesh->face(face_ind);
@@ -142,189 +207,42 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         if (centroid_dist > max_edge/2)
             continue;
         
-        Real char_dim = 0.5e-3;
-        int num_subdivisions = std::max(0.0, std::floor(std::log2(2*max_edge / 0.5e-3)));
-        int num_steps = 1 << num_subdivisions;
-        Real step = 1.0/num_steps;
 
-        int num_tested_points = 0;
-        for (int i = 0; i < num_steps+1; i++)
-        {
-            for (int j = 0; j < num_steps+1 - i; j++)
+        auto test_func = [&face_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm](const Vec3r& x, const Vec3r& bary_coords) {
+            auto result = sdf->evaluateWithGradientAndNodeInfo(x);
+            if (result.distance <= char_dim)
             {
-                Real u1 = static_cast<Real>(i)/num_steps;
-                Real v1 = static_cast<Real>(j)/num_steps;
-                Real w1 = 1 - u1 - v1;
-                if (w1 < 0)
-                    continue;
+                const Vec3r surface_x = x - result.gradient*result.distance;
+                Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+                    xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, result.gradient, face_ind, bary_coords[0], bary_coords[1], bary_coords[2]);
                 
-                Real u2 = u1-step;
-                Real v2 = v1+step;
-                Real w2 = w1;
-                if (v2 > 1 || u2 < 0)
-                    continue;
-                
-                Real u3 = u2;
-                Real v3 = v1;
-                Real w3 = w1+step;
-                if (w3 > 1)
-                    continue;
-
-                num_tested_points++;
-
-                Real ux = (u1+u2+u3)/3;
-                Real vx = (v1+v2+v3)/3;
-                Real wx = (w1+w2+w3)/3;
-                Vec3r x = ux*p1 + vx*p2 + wx*p3;
-
-                auto result = sdf->evaluateWithGradientAndNodeInfo(x);
-                if (result.distance <= char_dim)
-                {
-                    // const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-                    // std::cout << "Calculated u,v,w: " << u << ", " << v << ", " << w << std::endl;
-                    // std::cout << "Assumed u,v,w: " << (u1+u2+u3)/3 << ", " << (v1+v2+v3)/3 << ", " << (w1+w2+w3)/3 << std::endl;
-                    const Vec3r surface_x = x - result.gradient*result.distance;
-                    Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                        xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, result.gradient, face_ind, ux, vx, wx);
-                    
-                    virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
-                }
-
-                // bottom triangle
-                u3 = u1;
-                v3 = v2;
-                w3 = w1-step;
-                if (w3 < 0)
-                    continue;
-
-                num_tested_points++;
-
-                ux = (u1+u2+u3)/3;
-                vx = (v1+v2+v3)/3;
-                wx = (w1+w2+w3)/3;
-                x = ux*p1 + vx*p2 + wx*p3;
-
-                result = sdf->evaluateWithGradientAndNodeInfo(x);
-                if (result.distance <= char_dim)
-                {
-                    const Vec3r surface_x = x - result.gradient*result.distance;
-                    Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                        xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, result.gradient, face_ind, ux, vx, wx);
-                    
-                    virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
-                }
-                
+                virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
             }
-        }
+        };
 
-        // const int num_samples = (int)(2*max_edge / 0.5e-3);
-
-        // // const int num_samples = 4;
-        // for (int si = 0; si <= num_samples; si++)
-        // {
-        //     for (int sj = 0; sj <= num_samples - si; sj++)
-        //     {
-        //         const Real u = (Real)(si+1) / (num_samples+2);
-        //         const Real v = (Real)(sj+1) / (num_samples+2);
-        //         const Real w = 1 - u - v;
-        //         const Vec3r x = u*p1 + v*p2 + w*p3;
-        //         const auto result = sdf->evaluateWithGradientAndNodeInfo(x);
-        //         if (result.distance <= virtuoso_arm->innerTubeOuterDiameter())
-        //         {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
-        //             // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
-        //             const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-        //             const Vec3r surface_x = x - result.gradient*result.distance;
-        //             Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-        //                 xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, result.gradient, face_ind, u, v, w);
-                    
-        //             virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
-                    
-        //         }
-        //     }
-        // }
-        // std::cout << "Num subdivisions: " << num_subdivisions << std::endl;
-        // std::cout << "Num subdivision points: " << num_steps << std::endl;
-        // std::cout << "Num tested points: " << num_tested_points << std::endl;
+        _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
     }
 }
 
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::RigidObject* rigid_obj)
 {
-    // iterate through faces of mesh
-    const Geometry::SDF* sdf = rigid_obj->SDF();
-    const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    for (const auto& i : mesh->faces().validIndices())
-    {
-        const Eigen::Vector3i& f = mesh->face(i);
-        const Vec3r& p1 = mesh->vertex(f[0]);
-        const Vec3r& p2 = mesh->vertex(f[1]);
-        const Vec3r& p3 = mesh->vertex(f[2]);
-
-        // check if centroid of face is close
-        const Real p1p2 = (p2-p1).squaredNorm();
-        const Real p1p3 = (p3-p1).squaredNorm();
-        const Real p2p3 = (p3-p2).squaredNorm();
-        const Real max_edge = std::max({p1p2, p1p3, p2p3});
-        const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
-        if (centroid_dist*centroid_dist > max_edge)
-            continue;
-
-        const int num_samples = 1;
-        for (int si = 0; si <= num_samples; si++)
-        {
-            for (int sj = 0; sj <= num_samples - si; sj++)
-            {
-                const Real u = (Real)(si+1) / (num_samples+2);
-                const Real v = (Real)(sj+1) / (num_samples+2);
-                const Real w = 1 - u - v;
-                const Vec3r x = u*p1 + v*p2 + w*p3;
-                const Real dist = sdf->evaluate(x);
-                if (dist <= 1e-4)
-                {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
-                    // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
-                    const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-                    const Vec3r grad = sdf->gradient(x);
-                    const Vec3r surface_x = x - grad*dist;
-                    // Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                    xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
-                    
-                    // virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
-                    
-                }
-            }
-        }
-        // const Vec3r x = _frankWolfe(sdf, p1, p2, p3);
-        // const double distance = sdf->evaluate(x);
-        // if (distance <= 1e-4)
-        // {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
-        //     // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
-        //     const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-        //     const Vec3r grad = sdf->gradient(x);
-        //     const Vec3r surface_x = x - grad*distance;
-            
-        //     if (rigid_obj->isFixed())
-        //     {
-        //         xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
-        //     }
-        //     else
-        //     {
-        //         xpbd_mesh_obj->addRigidDeformableCollisionConstraint(sdf, rigid_obj, surface_x, grad, i, u, v, w);
-        //     }
-            
-        // }
-    }
+    // for now, rigid objects treated the same as any generic object
+    // (i.e. no special rigid-xpbd coupling...we assume the rigid body is fixed)
+    _collideObjectPair(xpbd_mesh_obj, (Sim::Object*)rigid_obj);
 }
 
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj2)
 {
-    // iterate through faces of mesh
     const Geometry::SDF* sdf = obj2->SDF();
     const Geometry::Mesh* mesh = xpbd_mesh_obj->mesh();
-    for (const auto& i : mesh->faces().validIndices())
+
+    Real char_dim = obj2->characteristicDimension();
+
+    for (const auto& face_ind : mesh->faces().validIndices())
     {
-        const Eigen::Vector3i& f = mesh->face(i);
+        const Vec3i& f = mesh->face(face_ind);
         const Vec3r& p1 = mesh->vertex(f[0]);
         const Vec3r& p2 = mesh->vertex(f[1]);
         const Vec3r& p3 = mesh->vertex(f[2]);
@@ -335,20 +253,22 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
         const Real p2p3 = (p3-p2).squaredNorm();
         const Real max_edge = std::max({p1p2, p1p3, p2p3});
         const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
-        if (centroid_dist*centroid_dist > max_edge)
+        // skip faces that are sufficiently far away
+        if (centroid_dist*centroid_dist > max_edge/4)
             continue;
 
-        const Vec3r x = _frankWolfe(sdf, p1, p2, p3);
-        const double distance = sdf->evaluate(x);
-        if (distance <= 1e-4)
-        {// collision occurred, find barycentric coordinates (u,v,w) of x on triangle face
-            // from https://ceng2.ktu.edu.tr/~cakir/files/grafikler/Texture_Mapping.pdf
-            const auto [u, v, w] = GeometryUtils::barycentricCoords(x, p1, p2, p3);
-            const Vec3r grad = sdf->gradient(x);
-            const Vec3r surface_x = x - grad*distance;
-            xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, i, u, v, w);
-            
-        }
+        auto test_func = [&face_ind, &sdf, &char_dim, &xpbd_mesh_obj](const Vec3r& x, const Vec3r& bary_coords) {
+            Real dist = sdf->evaluate(x);
+            if (dist <= 1e-4)   // some arbitrary distance threshold
+            {
+                const Vec3r grad = sdf->gradient(x);
+                const Vec3r surface_x = x - grad*dist;
+                Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+                    xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, face_ind, bary_coords[0], bary_coords[1], bary_coords[2]);
+            }
+        };
+
+        _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
     }
 }
 
