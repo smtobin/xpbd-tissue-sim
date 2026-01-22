@@ -4,6 +4,8 @@ VirtuosoTissueGraspingSimBridge::VirtuosoTissueGraspingSimBridge(Sim::VirtuosoTi
     : VirtuosoSimBridge(sim)
 {
     _setupPartialViewPointCloudPublishers();
+
+    std::cout << "VirtuosoTissueGraspingSimBridge constructor" << std::endl;
 }
 
 
@@ -83,10 +85,9 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
             const std::string trachea_label = this->get_parameter("trachea_label").as_string();
             const std::string tumor_label = this->get_parameter("tumor_label").as_string();
 
-            this->_sim->updateEmbreeScene();
+            this->_sim->updateEmbreeRayScene();
             std::vector<Geometry::PointsWithClass> point_clouds = 
                 this->_sim->embreeScene()->partialViewPointCloudsWithClass(cam_position, cam_view_dir, cam_up_dir, hfov_deg, vfov_deg, sample_density);
-            
             // go through returned point clouds and find the ones that match the trachea and tumor classes
             for (auto& pc : point_clouds)
             {
@@ -104,13 +105,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
                     this->_trachea_partial_view_pc_message.width = pc.points.size();
                     this->_trachea_partial_view_pc_message.row_step = this->_trachea_partial_view_pc_message.width * this->_trachea_partial_view_pc_message.point_step;
                     this->_trachea_partial_view_pc_message.data.resize(this->_trachea_partial_view_pc_message.row_step);
-                    
-                    // make sure we have enough space allocated (this only won't be the case if the user changes the parameters of the partial view point cloud in the middle of running the sim)
-                    // size_t data_size = hfov_deg * vfov_deg * sample_density * sample_density * this->_trachea_partial_view_pc_message.point_step;
-                    // if (data_size != this->_trachea_partial_view_pc_message.data.size())
-                    // {
-                    //     this->_trachea_partial_view_pc_message.data.resize(data_size);
-                    // }
 
                     float* pc_data = (float*)this->_trachea_partial_view_pc_message.data.data();
                     for (unsigned i = 0; i < pc.points.size(); i++)
@@ -127,14 +121,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
                     this->_tumor_partial_view_pc_message.width = pc.points.size();
                     this->_tumor_partial_view_pc_message.row_step = this->_tumor_partial_view_pc_message.width * this->_tumor_partial_view_pc_message.point_step;
                     this->_tumor_partial_view_pc_message.data.resize(this->_tumor_partial_view_pc_message.row_step);
-
-                    // make sure we have enough space allocated (this only won't be the case if the user changes the parameters of the partial view point cloud in the middle of running the sim)
-                    // size_t data_size = hfov_deg * vfov_deg * sample_density * sample_density * this->_tumor_partial_view_pc_message.point_step;
-                    // this->_tumor_partial_view_pc_message.row_step = data_size;
-                    // if (data_size != this->_tumor_partial_view_pc_message.data.size())
-                    // {
-                    //     this->_tumor_partial_view_pc_message.data.resize(data_size);
-                    // }
 
                     float* pc_data = (float*)this->_tumor_partial_view_pc_message.data.data();
                     for (unsigned i = 0; i < pc.points.size(); i++)

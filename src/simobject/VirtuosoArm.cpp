@@ -210,13 +210,17 @@ void VirtuosoArm::velocityUpdate()
     _filtered_collision_force = Vec3r::Zero();
     for (const auto& collision : _collision_constraints)
     {
-        // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
-        std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
-        Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());  
-        new_forces[collision.node_index] += net_force*(1-collision.interp);
-        new_forces[collision.node_index+1] += net_force*collision.interp;
+        
+        if (collision.proj_ref.exists())
+        {
+            // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
+            std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
+            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());  
+            new_forces[collision.node_index] += net_force*(1-collision.interp);
+            new_forces[collision.node_index+1] += net_force*collision.interp;
 
-        _unfiltered_collision_force += net_force;
+            _unfiltered_collision_force += net_force;
+        }
     }
 
     
@@ -372,9 +376,13 @@ void VirtuosoArm::_cauteryToolAction()
         /** Simple element removal on contact */
         if (_cutting_model == CuttingModel::INSTANT)
         {
+            // stores (element index, element refinement level) pairs
             std::unordered_set<int> elements_to_remove;
             for (const auto& collision : _collision_constraints)
             {
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
+                    continue;
+
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
@@ -383,7 +391,7 @@ void VirtuosoArm::_cauteryToolAction()
                         continue;
                     
                     int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_to_remove.insert(elem_index_to_remove);                
+                    elements_to_remove.insert( elem_index_to_remove );                
                 }
             }
 
@@ -406,6 +414,9 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> elements_in_contact;
             for (const auto& collision : _collision_constraints)
             {
+                if (!collision.proj_ref.exists())
+                    continue;
+
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
@@ -439,6 +450,9 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> high_voltage_verts;
             for (const auto& collision : _collision_constraints)
             {
+                if (!collision.proj_ref.exists())
+                    continue;
+
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 

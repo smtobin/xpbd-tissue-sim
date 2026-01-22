@@ -20,6 +20,8 @@
 #include "gpu/resource/XPBDMeshObjectGPUResource.hpp"
 #endif
 
+#include <unordered_map>
+
 namespace Sim
 {
 
@@ -301,6 +303,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
      * Necessary to avoid an O(n) search over the _hanging_vertices_vec when we need to remove a hanging vertex (and its associated midpoint constraint).
      */
     std::unordered_map<int,int> _vertex_to_hanging_index;
+
+    /** Maps element to collision constraint index */
+    std::unordered_multimap<int, int> _element_to_collision_proj_index;
 
 
     /** The number of local iterations for collision area.

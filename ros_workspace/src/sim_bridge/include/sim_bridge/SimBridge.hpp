@@ -130,15 +130,21 @@ private:
             [this, index, deformable_mesh]() -> void {
                 // update vertices
                 // memcpy(this->_mesh_pcl_messages[index].data.data(), deformable_mesh->vertices().data(), _mesh_pcl_messages[index].data.size());
+                this->_mesh_pcl_messages[index].header.stamp = this->now();
+                this->_mesh_pcl_messages[index].width = deformable_mesh->numVertices();
+                this->_mesh_pcl_messages[index].row_step = this->_mesh_pcl_messages[index].width * this->_mesh_pcl_messages[index].point_step;
+                this->_mesh_pcl_messages[index].data.resize(this->_mesh_pcl_messages[index].row_step);
 
                 float* pc_data = (float*)this->_mesh_pcl_messages[index].data.data();
-                for (int i = 0; i < deformable_mesh->numVertices(); i++)
+
+                int pc_index = 0;
+                for (const auto& v : deformable_mesh->vertices())
                 {
-                    // memcpy((Real*)this->_tumor_partial_view_pc_message.data.data() + 3*i, pc.points[i].data(), sizeof(Real)*3);
-                    const Vec3r& vertex = deformable_mesh->vertex(i);
-                    *(pc_data + 3*i) = static_cast<float>(vertex[0]);
-                    *(pc_data + 3*i+1) = static_cast<float>(vertex[1]);
-                    *(pc_data + 3*i+2) = static_cast<float>(vertex[2]);
+                    *(pc_data + 3*pc_index) = static_cast<float>(v[0]);
+                    *(pc_data + 3*pc_index+1) = static_cast<float>(v[1]);
+                    *(pc_data + 3*pc_index+2) = static_cast<float>(v[2]);
+
+                    pc_index++;
                 }
 
                 this->_mesh_pcl_publishers[index]->publish(this->_mesh_pcl_messages[index]);
@@ -152,12 +158,6 @@ private:
     {
         std::string topic_name = "/output/stiffness_mat_" + std::to_string(index);
         _stiffness_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
-
-        // std_msgs::msg::Float64MultiArray& mat_msg = _stiffness_mat_messages[index];
-        // mat_msg.layout.dim.resize(2);
-        // mat_msg.layout.dim[0].label = "rows";
-        // mat_msg.layout.dim[1].label = "cols";
-        // mat_msg.layout.data_offset = 0;
         
         auto mat_callback = 
             [this, index, xpbd_obj]() -> void {
@@ -180,16 +180,6 @@ private:
                         msg.values.push_back(it.value());
                     }
                 }
-
-                // make sure size is correct based on number of vertices
-                // _stiffness_mat_messages[index].layout.dim[0].size = stiffness_mat.rows();
-                // _stiffness_mat_messages[index].layout.dim[0].stride = stiffness_mat.size();
-                // _stiffness_mat_messages[index].layout.dim[1].size = stiffness_mat.cols();
-                // _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
-
-                // _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
-                // // update vertices
-                // memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
 
                 this->_stiffness_mat_publishers[index]->publish(msg);
             };

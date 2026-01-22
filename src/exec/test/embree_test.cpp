@@ -27,7 +27,8 @@ int main()
 
     Config::ObjectConfig object_config("test", "default", Vec3r(0,0,5), Vec3r(0,0,0), Vec3r(0,0,0), true, false, Config::ObjectRenderConfig());
 
-    Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
+    // Sim::TetMeshObject mesh_obj(&mesh_config, &object_config);
+    Sim::RefinedTetMeshObject mesh_obj(&mesh_config, &object_config);
     mesh_obj.loadAndConfigureMesh();
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/single.msh");
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube16.msh");
@@ -36,7 +37,7 @@ int main()
     Geometry::EmbreeScene embree_scene;
 
     // add object(s) to EmbreeScene
-    embree_scene.addObject(&mesh_obj);
+    embree_scene.addObject((Sim::TetMeshObject*)&mesh_obj);
 
     // translate object and update the EmbreeScene
     Geometry::Mesh::vertices_vec_type initial_vertices = mesh_obj.mesh()->vertices();
@@ -44,6 +45,8 @@ int main()
     Geometry::AABB initial_bbox = mesh_obj.mesh()->boundingBox();
     std::cout << "Initial mesh bounding box:\n(" << initial_bbox.min.transpose() << ") to (" << initial_bbox.max.transpose() << ")" << std::endl;
     
+    mesh_obj.refinedTetMesh()->refineElement(0,2);
+
     Vec3r translation(0,0,-5);
     mesh_obj.mesh()->moveTogether(translation);
     embree_scene.update();
@@ -94,12 +97,14 @@ int main()
     const Vec3r cp_query_point2 = cp_query_point - translation;
     Geometry::EmbreeHit cp_result2 = embree_scene.closestPointUndeformedTetMesh(cp_query_point2, &mesh_obj);
     std::cout << "\n=== Results for closest-point query (undeformed mesh) for query point (" << cp_query_point2[0] << ", " << cp_query_point2[1] << ", " << cp_query_point2[2] << ") ===" << std::endl;
+    std::cout << "Face index: " << cp_result2.prim_index << std::endl;
+
     const Eigen::Vector3i& face2 = mesh_obj.tetMesh()->face(cp_result2.prim_index);
     const Vec3r& v12 = initial_vertices[face2[0]];
     const Vec3r& v22 = initial_vertices[face2[1]];
     const Vec3r& v32 = initial_vertices[face2[2]];
 
-    std::cout << "Face index: " << cp_result2.prim_index << std::endl;
+    
     std::cout << "Face v1: " << v12[0] << ", " << v12[1] << ", " << v12[2] << std::endl;
     std::cout << "Face v2: " << v22[0] << ", " << v22[1] << ", " << v22[2] << std::endl;
     std::cout << "Face v3: " << v32[0] << ", " << v32[1] << ", " << v32[2] << std::endl;

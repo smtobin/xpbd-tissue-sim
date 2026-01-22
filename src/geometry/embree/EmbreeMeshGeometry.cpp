@@ -12,19 +12,7 @@ namespace Geometry
 EmbreeMeshGeometry::EmbreeMeshGeometry(const Geometry::Mesh* mesh)
 : _mesh(mesh), _undeformed_scene(nullptr)
 {
-    // if double precision is being used in the sim, we must allocate space fo the float vertex buffer
-    if constexpr (std::is_same_v<Real, double>)
-        _vertex_buffer.resize(mesh->numVertices()*3);
-    
-    int index = 0;
-    _initial_vertex_buffer.resize(mesh->numVertices()*3);
-    for (const auto& v : _mesh->vertices())
-    {
-        _initial_vertex_buffer[3*index] = static_cast<float>(v[0]);
-        _initial_vertex_buffer[3*index+1] = static_cast<float>(v[1]);
-        _initial_vertex_buffer[3*index+2] = static_cast<float>(v[2]);
-        index++;
-    }
+    _initial_vertices = mesh->vertices();
 }
 
 EmbreeMeshGeometry::~EmbreeMeshGeometry()
@@ -33,21 +21,66 @@ EmbreeMeshGeometry::~EmbreeMeshGeometry()
         rtcReleaseScene(_undeformed_scene);
 }
 
-const float* EmbreeMeshGeometry::vertices() const
+void EmbreeMeshGeometry::updateSurfaceMeshGeometryBuffers(RTCGeometry geom)
 {
-    return _vertex_buffer.data();
-}
+    int num_vertices = _mesh->vertices().totalSize();
+    int num_faces = _mesh->faces().totalSize();
 
-void EmbreeMeshGeometry::copyVertices()
-{
-    int index = 0;
-    _vertex_buffer.resize(_mesh->numVertices()*3);
-    for (const auto& v : _mesh->vertices())
+    // allocate vertex buffer
+    // important: allocate enough space for ALL vertices (including tombstones)
+    // so that the indices in the faces are correct
+    float* vertex_buffer = (float*)rtcSetNewGeometryBuffer(
+        geom,
+        RTC_BUFFER_TYPE_VERTEX,
+        0,
+        RTC_FORMAT_FLOAT3,
+        3*sizeof(float),
+        num_vertices
+    );
+
+    // copy vertices into buffer
+    for (const auto& index : _mesh->vertices().validIndices())
     {
-        _vertex_buffer[3*index] = static_cast<float>(v[0]);
-        _vertex_buffer[3*index+1] = static_cast<float>(v[1]);
-        _vertex_buffer[3*index+2] = static_cast<float>(v[2]);
-        index++;
+        const Vec3r& v  = _mesh->vertex(index);
+        vertex_buffer[3*index] = static_cast<float>(v[0]);
+        vertex_buffer[3*index+1] = static_cast<float>(v[1]);
+        vertex_buffer[3*index+2] = static_cast<float>(v[2]);
+    }
+
+    // allocate face index buffer
+    // important: allocate enough space for ALL faces (including tombstones)
+    // so that the Embree primitive index is correct
+    unsigned int* index_buffer = (unsigned int*)rtcSetNewGeometryBuffer(
+        geom,
+        RTC_BUFFER_TYPE_INDEX,
+        0,
+        RTC_FORMAT_UINT3,
+        3*sizeof(unsigned int),
+        num_faces
+    );
+
+    // copy faces into buffer
+    // a safe vertex index for invalid faces
+    int safe_index = *_mesh->vertices().validIndices().begin();
+    for (int i = 0; i < _mesh->faces().totalSize(); i++)
+    {
+        // if the face is valid, copy it over
+        if (_mesh->faceValid(i))
+        {
+            const Vec3i& face = _mesh->face(i);
+            index_buffer[3*i] = static_cast<unsigned int>(face[0]);
+            index_buffer[3*i+1] = static_cast<unsigned int>(face[1]);
+            index_buffer[3*i+2] = static_cast<unsigned int>(face[2]);
+        }
+        // face is invalid, set it as degenerate (with all 3 vertices the same)
+        // make sure to use a valid vertex
+        else
+        {
+            index_buffer[3*i] = safe_index;
+            index_buffer[3*i+1] = safe_index;
+            index_buffer[3*i+2] = safe_index;
+        }
+        
     }
 }
 
@@ -55,9 +88,9 @@ void EmbreeMeshGeometry::boundsFuncTriangle(const struct RTCBoundsFunctionArgume
 {
     const EmbreeMeshGeometry *geom = static_cast<const EmbreeMeshGeometry *>(args->geometryUserPtr);
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->vertices() + 3 * indices[0];
-    const float *v2 = geom->vertices() + 3 * indices[1];
-    const float *v3 = geom->vertices() + 3 * indices[2];
+    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
 
     RTCBounds* bounds = args->bounds_o;
     bounds->lower_x = std::min({v1[0], v2[0], v3[0]});
@@ -73,9 +106,9 @@ void EmbreeMeshGeometry::boundsFuncTriangleInitialVertices(const struct RTCBound
 {
     const EmbreeMeshGeometry *geom = static_cast<const EmbreeMeshGeometry *>(args->geometryUserPtr);
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->initialVertices() + 3 * indices[0];
-    const float *v2 = geom->initialVertices() + 3 * indices[1];
-    const float *v3 = geom->initialVertices() + 3 * indices[2];
+    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
 
     RTCBounds* bounds = args->bounds_o;
     bounds->lower_x = std::min({v1[0], v2[0], v3[0]});
@@ -104,9 +137,9 @@ void EmbreeMeshGeometry::intersectFuncTriangle(const RTCIntersectFunctionNArgume
 
     // get vertices of face
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->vertices() + 3 * indices[0];
-    const float *v2 = geom->vertices() + 3 * indices[1];
-    const float *v3 = geom->vertices() + 3 * indices[2];
+    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
 
     // loop through cast rays (there may be more than 1 in a batch)
     RTCRayHit* rayhit = (RTCRayHit*)args->rayhit;
@@ -138,9 +171,10 @@ void EmbreeMeshGeometry::intersectFuncTriangleInitialVertices(const RTCIntersect
 
     // get vertices of face
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->initialVertices() + 3 * indices[0];
-    const float *v2 = geom->initialVertices() + 3 * indices[1];
-    const float *v3 = geom->initialVertices() + 3 * indices[2];
+    const Geometry::Mesh::vertices_vec_type& initial_vertices = geom->initialVertices();
+    const Vec3r& v1 = initial_vertices[indices[0]];
+    const Vec3r& v2 = initial_vertices[indices[1]];
+    const Vec3r& v3 = initial_vertices[indices[2]];
 
     // loop through cast rays (there may be more than 1 in a batch)
     RTCRayHit* rayhit = (RTCRayHit*)args->rayhit;
@@ -169,25 +203,19 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangle(RTCPointQueryFunctionArguments *
 
     
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->vertices() + 3 * indices[0];
-    const float *v2 = geom->vertices() + 3 * indices[1];
-    const float *v3 = geom->vertices() + 3 * indices[2];
+    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
 
-    
-    const float *point = userData->point;
-    float closest_point[3]; closest_point[0] = 0; closest_point[1] = 0; closest_point[2] = 0;
-
-    _closestPointTriangle(point, v1, v2, v3, closest_point);
-    const float d = (Eigen::Map<const Eigen::Vector3f>(point) - Eigen::Map<const Eigen::Vector3f>(closest_point)).norm();
+    Vec3r closest_point = _closestPointTriangle(userData->point, v1, v2, v3);
+    const Real d = (closest_point - userData->point).norm();
 
     if (d < args->query->radius)
     {
         EmbreeHit& hit = userData->result;
         args->query->radius = d;
         hit.prim_index = args->primID;
-        hit.hit_point[0] = Real(closest_point[0]); 
-        hit.hit_point[1] = Real(closest_point[1]);
-        hit.hit_point[2] = Real(closest_point[2]);
+        hit.hit_point = closest_point;
 
         return true; // return true to indicate that the query radius changed
     }
@@ -209,25 +237,20 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
 
     
     const Vec3i& indices = geom->mesh()->face(args->primID);
-    const float *v1 = geom->initialVertices() + 3 * indices[0];
-    const float *v2 = geom->initialVertices() + 3 * indices[1];
-    const float *v3 = geom->initialVertices() + 3 * indices[2];
+    const Geometry::Mesh::vertices_vec_type& initial_vertices = geom->initialVertices();
+    const Vec3r& v1 = initial_vertices[indices[0]];
+    const Vec3r& v2 = initial_vertices[indices[1]];
+    const Vec3r& v3 = initial_vertices[indices[2]];
 
-    
-    const float *point = userData->point;
-    float closest_point[3]; closest_point[0] = 0; closest_point[1] = 0; closest_point[2] = 0;
-
-    _closestPointTriangle(point, v1, v2, v3, closest_point);
-    const float d = (Eigen::Map<const Eigen::Vector3f>(point) - Eigen::Map<const Eigen::Vector3f>(closest_point)).norm();
+    Vec3r closest_point = _closestPointTriangle(userData->point, v1, v2, v3);
+    const Real d = (userData->point - closest_point).norm();
 
     if (d < args->query->radius)
     {
         EmbreeHit& hit = userData->result;
         args->query->radius = d;
         hit.prim_index = args->primID;
-        hit.hit_point[0] = Real(closest_point[0]); 
-        hit.hit_point[1] = Real(closest_point[1]);
-        hit.hit_point[2] = Real(closest_point[2]);
+        hit.hit_point = closest_point;
 
         return true; // return true to indicate that the query radius changed
     }
@@ -236,112 +259,93 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
 }
 
 // adapted from: https://github.com/RenderKit/embree/blob/master/tutorials/common/math/closest_point.h
-void EmbreeMeshGeometry::_closestPointTriangle(const float p_[3], const float a_[3], const float b_[3], const float c_[3], float out_[3])
+// void EmbreeMeshGeometry::_closestPointTriangle(const float p_[3], const float a_[3], const float b_[3], const float c_[3], float out_[3])
+Vec3r EmbreeMeshGeometry::_closestPointTriangle(const Vec3r& p, const Vec3r& a, const Vec3r& b, const Vec3r& c)
 {
-    Eigen::Map<const Eigen::Vector3f> p(p_);
-    Eigen::Map<const Eigen::Vector3f> a(a_);
-    Eigen::Map<const Eigen::Vector3f> b(b_);
-    Eigen::Map<const Eigen::Vector3f> c(c_);
-    Eigen::Map<Eigen::Vector3f> out(out_);
 
-    const Eigen::Vector3f ab = b - a;
-    const Eigen::Vector3f ac = c - a;
-    const Eigen::Vector3f ap = p - a;
+    const Vec3r ab = b - a;
+    const Vec3r ac = c - a;
+    const Vec3r ap = p - a;
 
-    const float d1 = ab.dot(ap);
-    const float d2 = ac.dot(ap);
+    const Real d1 = ab.dot(ap);
+    const Real d2 = ac.dot(ap);
     if (d1 <= 0.f && d2 <= 0.f)
     {
-        out = a;
-        return;
+        return a;
     }
 
-    const Eigen::Vector3f bp = p - b;
-    const float d3 = ab.dot(bp);
-    const float d4 = ac.dot(bp);
+    const Vec3r bp = p - b;
+    const Real d3 = ab.dot(bp);
+    const Real d4 = ac.dot(bp);
     if (d3 >= 0.f && d4 <= d3)
     {
-        out = b;
-        return;
+        return b;
     }
 
-    const Eigen::Vector3f cp = p - c;
-    const float d5 = ab.dot(cp);
-    const float d6 = ac.dot(cp);
+    const Vec3r cp = p - c;
+    const Real d5 = ab.dot(cp);
+    const Real d6 = ac.dot(cp);
     if (d6 >= 0.f && d5 <= d6)
     {
-        out = c;
-        return;
+        return c;
     }
 
-    const float vc = d1 * d4 - d3 * d2;
+    const Real vc = d1 * d4 - d3 * d2;
     if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
     {
-        const float v = d1 / (d1 - d3);
-        out = a + v * ab;
-        return;
+        const Real v = d1 / (d1 - d3);
+        return a + v * ab;
     }
     
-    const float vb = d5 * d2 - d1 * d6;
+    const Real vb = d5 * d2 - d1 * d6;
     if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
     {
-        const float v = d2 / (d2 - d6);
-        out = a + v * ac;
-        return;
+        const Real v = d2 / (d2 - d6);
+        return a + v * ac;
     }
     
-    const float va = d3 * d6 - d5 * d4;
+    const Real va = d3 * d6 - d5 * d4;
     if (va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
     {
-        const float v = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        out = b + v * (c - b);
-        return;
+        const Real v = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        return b + v * (c - b);
     }
 
-    const float denom = 1.f / (va + vb + vc);
-    const float v = vb * denom;
-    const float w = vc * denom;
-    out = a + v * ab + w * ac;
-    // out_[0] = out[0]; out_[1] = out[1]; out_[2] = out[2];
-    return;
+    const Real denom = 1.f / (va + vb + vc);
+    const Real v = vb * denom;
+    const Real w = vc * denom;
+    return a + v * ab + w * ac;
 }
 
-bool EmbreeMeshGeometry::_rayTriangleIntersect(RTCRay* ray, RTCHit* hit,
-    const float a_[3], const float b_[3], const float c_[3])
+bool EmbreeMeshGeometry::_rayTriangleIntersect(RTCRay* ray, RTCHit* hit, const Vec3r& a, const Vec3r& b, const Vec3r& c)
 {
-    // Eigen::Map<const Eigen::Vector3f> ray_origin(ray_origin_);
-    // Eigen::Map<const Eigen::Vector3f> ray_dir(ray_dir_);
-    const Eigen::Vector3f ray_origin(ray->org_x, ray->org_y, ray->org_z);
-    const Eigen::Vector3f ray_dir(ray->dir_x, ray->dir_y, ray->dir_z);
-
-    Eigen::Map<const Eigen::Vector3f> a(a_);
-    Eigen::Map<const Eigen::Vector3f> b(b_);
-    Eigen::Map<const Eigen::Vector3f> c(c_);
+    const Vec3r ray_origin(ray->org_x, ray->org_y, ray->org_z);
+    const Vec3r ray_dir(ray->dir_x, ray->dir_y, ray->dir_z);
 
     constexpr float epsilon = std::numeric_limits<float>::epsilon();
 
-    const Eigen::Vector3f edge1 = b - a;
-    const Eigen::Vector3f edge2 = c - a;
-    const Eigen::Vector3f ray_cross_e2 = ray_dir.cross(edge2);
-    const float det = edge1.dot(ray_cross_e2);
+    const Vec3r edge1 = b - a;
+    const Vec3r edge2 = c - a;
+    const Vec3r ray_cross_e2 = ray_dir.cross(edge2);
+    const Real det = edge1.dot(ray_cross_e2);
 
     if (det > -epsilon && det < epsilon)
         return false;
     
-    const float inv_det = 1.0 / det;
-    const Eigen::Vector3f s = ray_origin - a;
-    const float v = inv_det * s.dot(ray_cross_e2);
+    const Real inv_det = 1.0 / det;
+    const Vec3r s = ray_origin - a;
+    const Real v = inv_det * s.dot(ray_cross_e2);
 
     if ( (v < 0 && std::abs(v) > epsilon) || (v > 1 && std::abs(v - 1) > epsilon) )
         return false;
 
-    const Eigen::Vector3f s_cross_e1 = s.cross(edge1);
-    const float w = inv_det * ray_dir.dot(s_cross_e1);
+    const Vec3r s_cross_e1 = s.cross(edge1);
+    const Real w = inv_det * ray_dir.dot(s_cross_e1);
 
     if ( (w < 0 && std::abs(w) > epsilon) || (w + v > 1 && std::abs(w + v - 1) > epsilon) )
         return false;
     
-    const float t = inv_det * edge2.dot(s_cross_e1);
+    const Real t = inv_det * edge2.dot(s_cross_e1);
 
     if (t >= ray->tnear && t <= ray->tfar)
     {
@@ -350,7 +354,7 @@ bool EmbreeMeshGeometry::_rayTriangleIntersect(RTCRay* ray, RTCHit* hit,
         hit->v = v;
 
         // compute normal
-        const Eigen::Vector3f n = edge1.cross(edge2);
+        const Vec3r n = edge1.cross(edge2);
         hit->Ng_x = n[0];
         hit->Ng_y = n[1];
         hit->Ng_z = n[2];

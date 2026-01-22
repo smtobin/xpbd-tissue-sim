@@ -2,7 +2,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # Tissue grasping simulation-specific parameters
-input-device: "Haptic" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
 # fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_fixed_faces.txt"
 # tumor-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_tumor_faces.txt"
 show-tip-cursor: true
@@ -19,7 +19,7 @@ show-tip-cursor: true
 haptic-force-scaling: 0.0
 # device-name1: "Omni"
 
-g-accel: 0 # m/s2
+g-accel: 9.81 # m/s2
 # sim-mode: "Visualization"
 # sim-mode: "Frame-by-frame"
 sim-mode: "AFAP"

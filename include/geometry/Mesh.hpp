@@ -37,7 +37,10 @@ struct Edge
     {
         return index1 == other.index1 && index2 == other.index2;
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const Edge& edge);
 };
+
 struct EdgeHash
 {
     size_t operator()(const Edge& e) const {
@@ -69,7 +72,10 @@ struct Face
     {
         return index1 == other.index1 && index2 == other.index2 && index3 == other.index3;
     }
+
+    friend std::ostream& operator<<(std::ostream& os, const Face& face);
 };
+
 struct FaceHash
 {
     size_t operator()(const Face& f) const {

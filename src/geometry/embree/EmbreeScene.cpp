@@ -21,6 +21,13 @@ EmbreeScene::EmbreeScene()
 
     _ray_scene = rtcNewScene(_device);
     rtcSetSceneFlags(_ray_scene, RTC_SCENE_FLAG_DYNAMIC);
+
+    _hasAVX512 = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY16_SUPPORTED);
+    _hasAVX = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY8_SUPPORTED);
+    _hasSSE = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY4_SUPPORTED);
+
+    // _hasAVX512 = false;
+    // _hasAVX = false;
 }
 
 EmbreeScene::~EmbreeScene()
@@ -35,6 +42,63 @@ EmbreeScene::~EmbreeScene()
     
 }
 
+void EmbreeScene::_setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom)
+{
+    /** Ray-casting scene */
+
+    // create Embree geometry (using triangle primitive type)
+    RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_TRIANGLE);
+    // update geometry buffers (copy vertices and faces into buffers)
+    mesh_geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
+    // attach the geometry, and store its ID in the EmbreeMeshGeometry object
+    mesh_geom.setMeshGeomID( rtcAttachGeometry(_ray_scene, rtc_geom) );
+
+    // commit geometry to scene
+    rtcCommitGeometry(rtc_geom);
+    rtcCommitScene(_ray_scene);     // this will build BVH
+    rtcReleaseGeometry(rtc_geom);
+
+
+    /**  Undeformed scene */
+
+    // create a new scene for the mesh exclusively for undeformed mesh queries (this scene is static)
+    RTCScene undeformed_mesh_scene = rtcNewScene(_device);
+    mesh_geom.setUndeformedScene(undeformed_mesh_scene);
+
+    // add Embree user geometry to static scene for undeformed mesh
+    RTCGeometry rtc_undeformed_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_TRIANGLE);
+    // update geometry buffers (copy vertices and faces into buffers)
+    mesh_geom.updateSurfaceMeshGeometryBuffers(rtc_undeformed_geom);
+    // attach the geometry, and store its ID in the EmbreeMeshGeometry object
+    mesh_geom.setUndeformedMeshGeomID( rtcAttachGeometry(mesh_geom.undeformedScene(), rtc_undeformed_geom) );
+
+    // set BVH build quality to REFIT - this will update the BVH rather than do a complete rebuild
+    rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
+
+    // set BVH build quality to MEDIUM for the static scene
+    rtcSetGeometryBuildQuality(rtc_undeformed_geom, RTC_BUILD_QUALITY_MEDIUM);
+
+    rtcCommitGeometry(rtc_undeformed_geom);
+    rtcCommitScene(undeformed_mesh_scene);
+    rtcReleaseGeometry(rtc_undeformed_geom);
+}
+
+
+void EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom)
+{
+
+    /** Setup for surface mesh part of the volume mesh */
+    _setupEmbreeForSurfaceMesh(tet_mesh_geom);
+
+
+
+    /** Point-in-query scene */
+
+    // create a new scene for the TetMesh exclusively for point-in-tetrahedra queries
+    tet_mesh_geom.createTetScene(_device);
+    tet_mesh_geom.updateTetScene(_device);
+}
+
 void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 {
     // make sure that object has not already been added to Embree scene
@@ -44,51 +108,13 @@ void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
     // create new EmbreeMeshGeometry for the object
     _embree_mesh_geoms.emplace_back(obj_ptr->mesh());
     EmbreeMeshGeometry& geom = _embree_mesh_geoms.back();
-    geom.copyVertices();
 
     _mesh_to_embree_geom[obj_ptr] = &geom;
 
-    // create Embree user geometry from newly created EmbreeMeshGeometry
-    RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    geom.setMeshGeomID( rtcAttachGeometry(_ray_scene, rtc_geom) );
+    // set up Embree scenes and geometries for the surface mesh
+    _setupEmbreeForSurfaceMesh(geom);
     _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
-
-    // create a new scene for the mesh exclusively for undeformed mesh queries (this scene is static)
-    RTCScene undeformed_mesh_scene = rtcNewScene(_device);
-    geom.setUndeformedScene(undeformed_mesh_scene);
-    // add Embree user geometry to static scene for undeformed mesh
-    RTCGeometry rtc_undeformed_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    geom.setUndeformedMeshGeomID( rtcAttachGeometry(geom.undeformedScene(), rtc_undeformed_geom) );
-
-    // set BVH build quality to REFIT - this will update the BVH rather than do a complete rebuild
-    rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
-    rtcSetGeometryUserPrimitiveCount(rtc_geom, obj_ptr->mesh()->numFaces());
-    rtcSetGeometryUserData(rtc_geom, &geom);
-
-    // set BVH build quality to MEDIUM for the static scene
-    rtcSetGeometryBuildQuality(rtc_undeformed_geom, RTC_BUILD_QUALITY_MEDIUM);
-    rtcSetGeometryUserPrimitiveCount(rtc_undeformed_geom, obj_ptr->mesh()->numFaces());
-    rtcSetGeometryUserData(rtc_undeformed_geom, &geom);
-
-    // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_geom, EmbreeMeshGeometry::boundsFuncTriangle, &geom);
-    rtcSetGeometryIntersectFunction(rtc_geom, EmbreeMeshGeometry::intersectFuncTriangle);
-    rtcSetGeometryPointQueryFunction(rtc_geom, EmbreeMeshGeometry::pointQueryFuncTriangle);
-
-    // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_undeformed_geom, EmbreeMeshGeometry::boundsFuncTriangleInitialVertices, &geom);
-    rtcSetGeometryIntersectFunction(rtc_undeformed_geom, EmbreeMeshGeometry::intersectFuncTriangleInitialVertices);
-    rtcSetGeometryPointQueryFunction(rtc_undeformed_geom, EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices);
-
-    // commit geometry to scene
-    rtcCommitGeometry(rtc_geom);
-    rtcCommitScene(_ray_scene);     // this will build BVH
-
-    rtcCommitGeometry(rtc_undeformed_geom);
-    rtcCommitScene(undeformed_mesh_scene);
-
-    rtcReleaseGeometry(rtc_geom);
-    rtcReleaseGeometry(rtc_undeformed_geom);
+    
 }
 
 void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
@@ -100,99 +126,43 @@ void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
     // create new EmbreeTetMeshGeometry for the object
     _embree_tet_mesh_geoms.emplace_back(obj_ptr->tetMesh());
     EmbreeTetMeshGeometry& geom = _embree_tet_mesh_geoms.back();
-    geom.copyVertices();
 
     // store the new user geometry by its pointer in the maps
     _tet_mesh_to_embree_geom[obj_ptr] = &geom;
     _mesh_to_embree_geom[obj_ptr] = &geom;
 
-    // create a new scene for the TetMesh exclusively for point-in-tetrahedra queries
-    RTCScene tet_mesh_scene = rtcNewScene(_device);
-    rtcSetSceneFlags(tet_mesh_scene, RTC_SCENE_FLAG_DYNAMIC);
-    geom.setTetScene(tet_mesh_scene);
-    
-
-    // create Embree user geometry from newly created EmbreeTetMeshGeometry struct
-    // we create 2 Embree geometries - one for the volumetric representation and one for the surface of the mesh
-    RTCGeometry rtc_mesh_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    geom.setMeshGeomID( rtcAttachGeometry(_ray_scene, rtc_mesh_geom) );
+    // set up Embree scenes and geometries for the tet mesh object
+    _setupEmbreeForTetMesh(geom);
     _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
-
-    RTCGeometry rtc_tet_mesh_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    geom.setTetMeshGeomID( rtcAttachGeometry(tet_mesh_scene, rtc_tet_mesh_geom) );
-
-    // create a new scene for the mesh exclusively for undeformed mesh queries (this scene is static)
-    RTCScene undeformed_mesh_scene = rtcNewScene(_device);
-    geom.setUndeformedScene(undeformed_mesh_scene);
-    // add Embree user geometry to static scene for undeformed mesh
-    RTCGeometry rtc_undeformed_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
-    geom.setUndeformedMeshGeomID( rtcAttachGeometry(geom.undeformedScene(), rtc_undeformed_geom) );
-
-
-    // set the BVH build quality to REFIT - this will update the BVH rather than do a complete rebuild
-    rtcSetGeometryBuildQuality(rtc_mesh_geom, RTC_BUILD_QUALITY_REFIT);
-    rtcSetGeometryUserPrimitiveCount(rtc_mesh_geom, obj_ptr->mesh()->numFaces());
-    rtcSetGeometryUserData(rtc_mesh_geom, &geom);
-
-    rtcSetGeometryBuildQuality(rtc_tet_mesh_geom, RTC_BUILD_QUALITY_REFIT);
-    rtcSetGeometryUserPrimitiveCount(rtc_tet_mesh_geom, obj_ptr->tetMesh()->numElements());
-    rtcSetGeometryUserData(rtc_tet_mesh_geom, &geom);
-
-    // set BVH build quality to MEDIUM for the static scene
-    rtcSetGeometryBuildQuality(rtc_undeformed_geom, RTC_BUILD_QUALITY_MEDIUM);
-    rtcSetGeometryUserPrimitiveCount(rtc_undeformed_geom, obj_ptr->mesh()->numFaces());
-    rtcSetGeometryUserData(rtc_undeformed_geom, &geom);
-
-    // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_mesh_geom, EmbreeMeshGeometry::boundsFuncTriangle, &geom);
-    rtcSetGeometryIntersectFunction(rtc_mesh_geom, EmbreeMeshGeometry::intersectFuncTriangle);
-    rtcSetGeometryPointQueryFunction(rtc_mesh_geom, EmbreeMeshGeometry::pointQueryFuncTriangle);
-
-    rtcSetGeometryBoundsFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::boundsFuncTetrahedra, &geom);
-    rtcSetGeometryIntersectFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::intersectFuncTetrahedra);
-    rtcSetGeometryPointQueryFunction(rtc_tet_mesh_geom, EmbreeTetMeshGeometry::pointQueryFuncTetrahedra);
-
-    // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_undeformed_geom, EmbreeMeshGeometry::boundsFuncTriangleInitialVertices, &geom);
-    rtcSetGeometryIntersectFunction(rtc_undeformed_geom, EmbreeMeshGeometry::intersectFuncTriangleInitialVertices);
-    rtcSetGeometryPointQueryFunction(rtc_undeformed_geom, EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices);
-
-    // commit geometry to scene
-    rtcCommitGeometry(rtc_mesh_geom);
-    rtcCommitScene(_ray_scene);     // this will build initial BVH
-
-    rtcCommitGeometry(rtc_tet_mesh_geom);
-    rtcCommitScene(tet_mesh_scene);
-
-    rtcCommitGeometry(rtc_undeformed_geom);
-    rtcCommitScene(undeformed_mesh_scene);
-
-    rtcReleaseGeometry(rtc_mesh_geom);
-    rtcReleaseGeometry(rtc_tet_mesh_geom);
-    rtcReleaseGeometry(rtc_undeformed_geom);
+    
 }
 
 
 void EmbreeScene::update()
 {
+    // update all surface meshes
+    // (just the ray-scene)
     for (auto& geom : _embree_mesh_geoms)
     {
-        geom.copyVertices();
         RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
+        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
+    // update all tet meshes
+    // (the ray-scene and the point-in-tet scene)
     for (auto& geom : _embree_tet_mesh_geoms)
     {
-        geom.copyVertices();
+        // update the ray casting scene
         RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
+        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
-        RTCGeometry rtc_tet_mesh_geom = rtcGetGeometry(geom.tetScene(), geom.tetMeshGeomID());
-        rtcCommitGeometry(rtc_tet_mesh_geom);
 
-        rtcCommitScene(geom.tetScene());
+        // update the point-in-tet query scene
+        geom.updateTetScene(_device);
     }
 
+    // commit the ray scene once we've updated all the objects
     rtcCommitScene(_ray_scene);
 }
 
@@ -203,44 +173,44 @@ void EmbreeScene::updateObject(const Sim::MeshObject* /*mesh_obj*/)
 
 void EmbreeScene::updateObject(const Sim::TetMeshObject* tet_mesh_obj)
 {
+    // update the point-in-tet query scene
     EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom[tet_mesh_obj];
-    geom->copyVertices(); 
-
-    RTCGeometry rtc_tet_mesh_geom = rtcGetGeometry(geom->tetScene(), geom->tetMeshGeomID());
-    rtcCommitGeometry(rtc_tet_mesh_geom);
-    rtcCommitScene(geom->tetScene());
+    geom->updateTetScene(_device);
 }
 
 void EmbreeScene::updateRayScene()
 {
+    // update buffers for surface meshes
     for (auto& geom : _embree_mesh_geoms)
     {
-        geom.copyVertices();
         RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
+        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
+    // update buffers for tet meshes (just the surface part)
     for (auto& geom : _embree_tet_mesh_geoms)
     {
         // only update the ray scene geometry (not the tetrahedral mesh geometry)
-        geom.copyVertices();
         RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
+        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
     }
 
+    // commit the ray scene (rebuild the BVH) after we've updated all the buffers
     rtcCommitScene(_ray_scene);
 }
 
-EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
+RTCRayHit EmbreeScene::_createRayHit(const Vec3r& origin, const Vec3r& dir) const
 {
     RTCRayHit rayhit;
-    rayhit.ray.org_x = ray_origin[0];
-    rayhit.ray.org_y = ray_origin[1];
-    rayhit.ray.org_z = ray_origin[2];
+    rayhit.ray.org_x = origin[0];
+    rayhit.ray.org_y = origin[1];
+    rayhit.ray.org_z = origin[2];
 
-    rayhit.ray.dir_x = ray_dir[0];
-    rayhit.ray.dir_y = ray_dir[1];
-    rayhit.ray.dir_z = ray_dir[2];
+    rayhit.ray.dir_x = dir[0];
+    rayhit.ray.dir_y = dir[1];
+    rayhit.ray.dir_z = dir[2];
 
     rayhit.ray.tnear = 0;
     rayhit.ray.tfar = std::numeric_limits<float>::infinity();
@@ -251,21 +221,21 @@ EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) co
     rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
     rayhit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
 
-    rtcIntersect1(_ray_scene, &rayhit, nullptr);
+    return rayhit;
+}
 
+EmbreeHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const
+{
     // check if we have a hit
     if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID)
     {
         const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(rayhit.hit.geomID);
-        const Vec3i& f = obj->mesh()->face(rayhit.hit.primID);
-        const Vec3r& v1 = obj->mesh()->vertex(f[0]);
-        const Vec3r& v2 = obj->mesh()->vertex(f[1]);
-        const Vec3r& v3 = obj->mesh()->vertex(f[2]);
-
+        float t = rayhit.ray.tfar;
+        
         EmbreeHit hit;
         hit.obj = obj;
         hit.prim_index = rayhit.hit.primID;
-        hit.hit_point = v1*rayhit.hit.u + v2*rayhit.hit.v + v3*(1 - rayhit.hit.u - rayhit.hit.v);
+        hit.hit_point = origin + t*dir;
         return hit;
     }
     else
@@ -273,6 +243,151 @@ EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) co
         EmbreeHit hit;
         hit.obj = nullptr;
         return hit;
+    }
+}
+
+EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
+{
+    RTCRayHit rayhit = _createRayHit(ray_origin, ray_dir);
+    rtcIntersect1(_ray_scene, &rayhit, nullptr);
+    return _processRayHit(rayhit, ray_origin, ray_dir);
+}
+
+void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeHit>& hits) const
+{
+    hits.clear();
+    unsigned total_num_rays = dirs.size();
+
+    if (_hasAVX512)
+    {
+        alignas(64) RTCRayHit16 packet;
+        alignas(64) int valid[16];
+        // initialize the memory
+        std::memset(&packet, 0, sizeof(packet));
+
+        for (unsigned i = 0; i < total_num_rays; i += 16)
+        {
+            unsigned rays_in_packet = std::min(16u, total_num_rays - i);
+            // active rays
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                packet.ray.org_x[ri] = origins[i+ri][0];
+                packet.ray.org_y[ri] = origins[i+ri][1];
+                packet.ray.org_z[ri] = origins[i+ri][2];
+
+                packet.ray.dir_x[ri] = dirs[i+ri][0];
+                packet.ray.dir_y[ri] = dirs[i+ri][1];
+                packet.ray.dir_z[ri] = dirs[i+ri][2];
+
+                packet.ray.tnear[ri] = 0;
+                packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
+                packet.ray.flags[ri] = 0;
+                packet.ray.time[ri] = 0;
+                packet.ray.mask[ri] = -1;
+
+                packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
+
+                valid[ri] = -1;
+            }
+            // inactive rays
+            for (unsigned ri = rays_in_packet; ri < 16u; ri++)
+            {
+                valid[ri] = 0;
+            }
+
+            rtcIntersect16(valid, _ray_scene, &packet, nullptr);
+
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                // process hits
+                if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
+                {
+                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    float t = packet.ray.tfar[ri];
+                    
+                    EmbreeHit hit;
+                    hit.obj = obj;
+                    hit.prim_index = packet.hit.primID[ri];
+                    hit.hit_point = origins[i+ri] + t*dirs[i+ri];
+                    hits.push_back(hit);
+                }
+                // ray did not hit
+                else
+                {
+                    EmbreeHit hit;
+                    hit.obj = nullptr;
+                    hits.push_back(hit);
+                }
+            }
+        }
+    }
+    else if (_hasAVX)
+    {
+        alignas(32) RTCRayHit8 packet;
+        alignas(32) int valid[8];
+
+        // initialize the memory
+        std::memset(&packet, 0, sizeof(packet));
+
+        for (unsigned i = 0; i < total_num_rays; i += 8)
+        {
+            unsigned rays_in_packet = std::min(8u, total_num_rays - i);
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                packet.ray.org_x[ri] = origins[i+ri][0];
+                packet.ray.org_y[ri] = origins[i+ri][1];
+                packet.ray.org_z[ri] = origins[i+ri][2];
+
+                packet.ray.dir_x[ri] = dirs[i+ri][0];
+                packet.ray.dir_y[ri] = dirs[i+ri][1];
+                packet.ray.dir_z[ri] = dirs[i+ri][2];
+
+                packet.ray.tnear[ri] = 0;
+                packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
+                packet.ray.flags[ri] = 0;
+                packet.ray.time[ri] = 0;
+                packet.ray.mask[ri] = -1;
+
+                packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
+                packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
+
+                valid[ri] = -1;
+            }
+            for (unsigned ri = rays_in_packet; ri < 8; ri++)
+            {
+                valid[ri] = 0;
+            }
+
+            rtcIntersect8(valid, _ray_scene, &packet, nullptr);
+
+            for (unsigned ri = 0; ri < rays_in_packet; ri++)
+            {
+                if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
+                {
+                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    float t = packet.ray.tfar[ri];
+                    
+                    EmbreeHit hit;
+                    hit.obj = obj;
+                    hit.prim_index = packet.hit.primID[ri];
+                    hit.hit_point = origins[i+ri] + t*dirs[i+ri];
+                    hits.push_back(hit);
+                }
+                else
+                {
+                    EmbreeHit hit;
+                    hit.obj = nullptr;
+                    hits.push_back(hit);
+                }
+            }
+        }
+    }
+    else
+    {
+        for (unsigned i = 0; i < total_num_rays; i++)
+        {
+            hits.push_back(castRay(origins[i], dirs[i]));
+        }
     }
 }
     
@@ -299,15 +414,12 @@ EmbreeHit EmbreeScene::_closestPointQuery(const Vec3r& point, const Sim::MeshObj
     EmbreeClosestPointQueryUserData point_query_data;
     point_query_data.obj_ptr = obj_ptr;
     point_query_data.geom = geom;
-
-    float p[3];
-    p[0] = point[0]; p[1] = point[1]; p[2] = point[2];
-    point_query_data.point = p;
+    point_query_data.point = point;
 
     RTCPointQuery query;
-    query.x = p[0];
-    query.y = p[1];
-    query.z = p[2];
+    query.x = point[0];
+    query.y = point[1];
+    query.z = point[2];
     query.radius = std::numeric_limits<float>::infinity(); // the query radius will get refined as we go
 
     RTCPointQueryContext context;
@@ -323,15 +435,12 @@ EmbreeHit EmbreeScene::_closestPointQueryUndeformed(const Vec3r& point, const Si
     EmbreeClosestPointQueryUserData point_query_data;
     point_query_data.obj_ptr = obj_ptr;
     point_query_data.geom = geom;
-
-    float p[3];
-    p[0] = point[0]; p[1] = point[1]; p[2] = point[2];
-    point_query_data.point = p;
+    point_query_data.point = point;
 
     RTCPointQuery query;
-    query.x = p[0];
-    query.y = p[1];
-    query.z = p[2];
+    query.x = point[0];
+    query.y = point[1];
+    query.z = point[2];
     query.radius = std::numeric_limits<float>::infinity(); // the query radius will get refined as we go
 
     RTCPointQueryContext context;
@@ -350,15 +459,12 @@ std::set<EmbreeHit> EmbreeScene::pointInTetrahedraQuery(const Vec3r& point, Real
     point_query_data.geom = geom;
     point_query_data.vertex_ind = -1;
     point_query_data.radius = radius;
-    
-    float p[3];
-    p[0] = point[0]; p[1] = point[1]; p[2] = point[2];
-    point_query_data.point = p;
+    point_query_data.point = point;
 
     RTCPointQuery query;
-    query.x = p[0];
-    query.y = p[1];
-    query.z = p[2];
+    query.x = point[0];
+    query.y = point[1];
+    query.z = point[2];
     query.radius = radius;
 
     RTCPointQueryContext context;
@@ -377,14 +483,12 @@ std::set<EmbreeHit> EmbreeScene::tetMeshSelfCollisionQuery(int vertex_index, con
     point_query_data.vertex_ind = vertex_index;
     
     const Vec3r& vertex = obj_ptr->mesh()->vertex(vertex_index);
-    float p[3];
-    p[0] = vertex[0]; p[1] = vertex[1]; p[2] = vertex[2];
-    point_query_data.point = p;
+    point_query_data.point = vertex;
 
     RTCPointQuery query;
-    query.x = p[0];
-    query.y = p[1];
-    query.z = p[2];
+    query.x = vertex[0];
+    query.y = vertex[1];
+    query.z = vertex[2];
     query.radius = 0.0f;
 
     RTCPointQueryContext context;
@@ -408,24 +512,51 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
     // create rays by sampling spherical coordinates and transforming into local frame
     Real angle_increment = 1.0/sample_density;
+    int h_ind_max = static_cast<int>(hfov_deg / angle_increment);
+    int v_ind_max = static_cast<int>(vfov_deg / angle_increment);
+    
+    std::vector<Vec3r> origins(16, origin);
+    std::vector<Vec3r> directions(16);
+    std::vector<EmbreeHit> hits(16);
 
-    // std::cout << "hfov: " << hfov_deg << " vfov: " << vfov_deg << " angle_incr: " << angle_increment<< std::endl;
-    for (Real h_angle = -hfov_deg/2.0; h_angle < hfov_deg/2.0; h_angle += angle_increment)
+    for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
-        for (Real v_angle = -vfov_deg/2.0; v_angle < vfov_deg/2.0; v_angle += angle_increment)
+        Real h_angle_start = -hfov_deg/2.0 + angle_increment * h_ind;
+        
+        for (int v_ind = 0; v_ind < v_ind_max; v_ind += 4)
         {
-            Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            Real y_local = std::sin(v_angle * M_PI/180.0);
-            Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            const Vec3r dir_local(x_local, y_local, z_local);
-            const Vec3r ray_dir = R_camera * dir_local;
+            Real v_angle_start = -vfov_deg/2.0 + angle_increment * v_ind;
 
-            // std::cout << "Ray dir: " << ray_dir[0] << ", " << ray_dir[1] << ", " << ray_dir[2] << std::endl;
-            EmbreeHit hit = castRay(origin, ray_dir);
-            if (hit.obj)
+            // 4x4 block of rays
+            directions.clear();
+            for (int dh = 0; dh < 4; dh++)
             {
-                // std::cout << "Hit!" << std::endl;
-                hit_points.push_back(hit.hit_point);
+                Real h_angle = h_angle_start + angle_increment * dh;
+                for (int dv = 0; dv < 4; dv++)
+                {
+                    if (h_ind + dh >= h_ind_max || v_ind + dv >= v_ind_max)
+                        continue;
+                    
+                    Real v_angle = v_angle_start + angle_increment * dv;
+
+                    Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+                    Real y_local = std::sin(v_angle * M_PI/180.0);
+                    Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+
+                    const Vec3r dir_local(x_local, y_local, z_local);
+                    const Vec3r ray_dir = R_camera * dir_local;
+                    directions.push_back(ray_dir);
+                }
+            }
+            origins.resize(directions.size(), origin);
+            castRays(origins, directions, hits);
+
+            for (const auto& hit : hits)
+            {
+                if (hit.obj)
+                {
+                    hit_points.push_back(hit.hit_point);
+                }
             }
         }
     }
@@ -451,68 +582,100 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
     // store point clouds
     std::vector<PointsWithClass> point_clouds;
 
-    for (Real h_angle = -hfov_deg/2.0; h_angle < hfov_deg/2.0; h_angle += angle_increment)
+    // create rays by sampling spherical coordinates and transforming into local frame
+    int h_ind_max = static_cast<int>(hfov_deg / angle_increment);
+    int v_ind_max = static_cast<int>(vfov_deg / angle_increment);
+    
+    std::vector<Vec3r> origins(16, origin);
+    std::vector<Vec3r> directions(16);
+    std::vector<EmbreeHit> hits(16);
+
+    for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
-        for (Real v_angle = -vfov_deg/2.0; v_angle < vfov_deg/2.0; v_angle += angle_increment)
+        Real h_angle_start = -hfov_deg/2.0 + angle_increment * h_ind;
+        
+        for (int v_ind = 0; v_ind < v_ind_max; v_ind += 4)
         {
-            Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            Real y_local = std::sin(v_angle * M_PI/180.0);
-            Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            const Vec3r dir_local(x_local, y_local, z_local);
-            const Vec3r ray_dir = R_camera * dir_local;
+            Real v_angle_start = -vfov_deg/2.0 + angle_increment * v_ind;
 
-            EmbreeHit hit = castRay(origin, ray_dir);
-            if (hit.obj)
+            // 4x4 block of rays
+            directions.clear();
+            for (int dh = 0; dh < 4; dh++)
             {
-                // get the class of the face that we hit
-                std::string classification = "";
-                if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                Real h_angle = h_angle_start + angle_increment * dh;
+                for (int dv = 0; dv < 4; dv++)
                 {
-                    int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
-                    /** TODO: dynamic_cast = yucky, can we do better?
-                     * 
-                     * 
-                     */
-                    if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
-                    {
-                        classification = xpbd_obj->materialClasses()[class_num]->label();
-                    }
-                    else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
-                    {
-                        classification = xpbd_obj->materialClasses()[class_num]->label();
-                    }
-                    else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                    {
-                        classification = obj->materialClass()->label();
-                    }
-                }
-                else
-                {
-                    if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                    {
-                        classification = obj->materialClass()->label();
-                    } 
-                }
+                    if (h_ind + dh >= h_ind_max || v_ind + dv >= v_ind_max)
+                        continue;
                     
+                    Real v_angle = v_angle_start + angle_increment * dv;
 
-                // put the point in the appropriate vector
-                auto map_it = class_to_vector_index.find(classification);
-                if (map_it != class_to_vector_index.end())  // we already have a points vector started for this class
-                {
-                    point_clouds[map_it->second].points.push_back(hit.hit_point);
+                    Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+                    Real y_local = std::sin(v_angle * M_PI/180.0);
+                    Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+
+                    const Vec3r dir_local(x_local, y_local, z_local);
+                    const Vec3r ray_dir = R_camera * dir_local;
+                    directions.push_back(ray_dir);
                 }
-                else
+            }
+            origins.resize(directions.size(), origin);
+            castRays(origins, directions, hits);
+
+            for (const auto& hit : hits)
+            {
+                if (hit.obj)
                 {
-                    // create a point cloud and conservatively reserve space for the points that will go in it
-                    PointsWithClass point_cloud;
-                    point_cloud.classification = classification;
-                    point_cloud.points.reserve(hfov_deg * vfov_deg * sample_density * sample_density);
-                    point_cloud.points.push_back(hit.hit_point);
+                    // get the class of the face that we hit
+                    std::string classification = "";
+                    if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                    {
+                        int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
+                        /** TODO: dynamic_cast = yucky, can we do better?
+                         * 
+                         * 
+                         */
+                        if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
+                        {
+                            classification = xpbd_obj->materialClasses()[class_num]->label();
+                        }
+                        else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
+                        {
+                            classification = xpbd_obj->materialClasses()[class_num]->label();
+                        }
+                        else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                        {
+                            classification = obj->materialClass()->label();
+                        }
+                    }
+                    else
+                    {
+                        if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                        {
+                            classification = obj->materialClass()->label();
+                        } 
+                    }
+                        
 
-                    point_clouds.push_back(std::move(point_cloud));
+                    // put the point in the appropriate vector
+                    auto map_it = class_to_vector_index.find(classification);
+                    if (map_it != class_to_vector_index.end())  // we already have a points vector started for this class
+                    {
+                        point_clouds[map_it->second].points.push_back(hit.hit_point);
+                    }
+                    else
+                    {
+                        // create a point cloud and conservatively reserve space for the points that will go in it
+                        PointsWithClass point_cloud;
+                        point_cloud.classification = classification;
+                        point_cloud.points.reserve(hfov_deg * vfov_deg * sample_density * sample_density);
+                        point_cloud.points.push_back(hit.hit_point);
 
-                    // add an entry to the map so we know which index in the vector is associated with this class
-                    class_to_vector_index[classification] = point_clouds.size()-1;
+                        point_clouds.push_back(std::move(point_cloud));
+
+                        // add an entry to the map so we know which index in the vector is associated with this class
+                        class_to_vector_index[classification] = point_clouds.size()-1;
+                    }
                 }
             }
         }

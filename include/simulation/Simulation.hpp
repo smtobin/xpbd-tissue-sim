@@ -79,6 +79,7 @@ class Simulation
         const Graphics::GraphicsScene* graphicsScene() const { return _graphics_scene.get(); }
         const Geometry::EmbreeScene* embreeScene() const { return _embree_scene.get(); }
         void updateEmbreeScene() { _embree_scene->update(); }
+        void updateEmbreeRayScene() { _embree_scene->updateRayScene(); }
         const CollisionScene* collisionScene() const { return _collision_scene.get(); }
 
         const ObjectVectorType& objects() const { return _objects; }

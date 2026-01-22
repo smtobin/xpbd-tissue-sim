@@ -21,13 +21,13 @@ class EmbreeTetMeshGeometry : public EmbreeMeshGeometry
     void setTetMeshGeomID(unsigned id) { _tet_mesh_geom_id = id; }
 
     RTCScene tetScene() const { return _tet_scene; }
-    void setTetScene(RTCScene scene) { _tet_scene = scene; }
+    // void setTetScene(RTCScene scene) { _tet_scene = scene; }
+    void createTetScene(RTCDevice device);
 
-    /** Returns a pointer to element indices (4 consecutive indices make up an element) */
-    // const int* elementIndices() const { return _tet_mesh->elements().data(); }
+    void updateTetScene(RTCDevice device);
 
-    static bool isPointInTetrahedron(const float p[3], const float *v0, const float *v1, const float *v2, const float *v3);
-    static float squaredDistanceToTetrahedron(const float p[3], const float* v0, const float* v1, const float* v2, const float* v3);
+    static bool isPointInTetrahedron(const Vec3r& p, const Vec3r& v0, const Vec3r& v1, const Vec3r& v2, const Vec3r& v3);
+    static Real squaredDistanceToTetrahedron(const Vec3r& p, const Vec3r& v0, const Vec3r& v1, const Vec3r& v2, const Vec3r& v3);
     static void boundsFuncTetrahedra(const struct RTCBoundsFunctionArguments *args);
     static void intersectFuncTetrahedra(const RTCIntersectFunctionNArguments *args);
     static bool pointQueryFuncTetrahedra(RTCPointQueryFunctionArguments *args);
@@ -35,6 +35,8 @@ class EmbreeTetMeshGeometry : public EmbreeMeshGeometry
     private:
     const Geometry::TetMesh* _tet_mesh;      // the volumetric (tetrahedral) mesh to create the BVH for
     unsigned _tet_mesh_geom_id;                        // Embree geometry ID in the scene
+
+    unsigned long _prev_topology_version;
 
     RTCScene _tet_scene;    // Embree scene specifically for this tet mesh - used for point-in-tetrahedron queries
 };

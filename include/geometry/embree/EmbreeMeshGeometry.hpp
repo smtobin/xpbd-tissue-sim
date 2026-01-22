@@ -29,17 +29,13 @@ class EmbreeMeshGeometry
     RTCScene undeformedScene() const { return _undeformed_scene; }
     void setUndeformedScene(RTCScene scene) { _undeformed_scene = scene; }
 
-    /** Returns a pointer to face indices (3 consecutive indices make up a face). */
-    // const int* faceIndices() const { return _mesh->faces().data(); }
+    /** Returns the initial vertices of the mesh. */
+    const Geometry::Mesh::vertices_vec_type& initialVertices() const { return _initial_vertices; }
 
-    /** Returns a pointer to the vertices. */
-    const float* vertices() const;
-
-    /** Returns a pointer to the initial vertices of the mesh. */
-    const float* initialVertices() const { return _initial_vertex_buffer.data(); }
-
-    /** Copies mesh vertices to float vertex buffer. */
-    void copyVertices();
+    /** Updates the triangle geometry associated with this mesh.
+     * Note: does not commit the geometry!
+     */
+    void updateSurfaceMeshGeometryBuffers(RTCGeometry geom);
 
     static void boundsFuncTriangle(const struct RTCBoundsFunctionArguments *args);
     static void intersectFuncTriangle(const RTCIntersectFunctionNArguments *args);
@@ -51,19 +47,17 @@ class EmbreeMeshGeometry
 
     protected:
 
-    static void _closestPointTriangle(const float p_in[3], const float v0[3], const float v1[3], const float v2[3], float p_out[3]);
+    static Vec3r _closestPointTriangle(const Vec3r& p, const Vec3r& a, const Vec3r& b, const Vec3r& c);
 
     private:
 
     /** Performs a ray-triangle intersection test.
      * Returns whether or not there is a hit. If there is a hit, the distance and hit_point outputs are filled out.
      */
-    static bool _rayTriangleIntersect(RTCRay* ray, RTCHit* hit,
-    const float a_[3], const float b_[3], const float c_[3]);
+    static bool _rayTriangleIntersect(RTCRay* ray, RTCHit* hit, const Vec3r& a, const Vec3r& b, const Vec3r& c);
 
     const Geometry::Mesh* _mesh;
-    std::vector<float> _vertex_buffer;
-    std::vector<float> _initial_vertex_buffer;
+    Geometry::Mesh::vertices_vec_type _initial_vertices;
     unsigned _mesh_geom_id;
 
     unsigned _undeformed_mesh_geom_id;

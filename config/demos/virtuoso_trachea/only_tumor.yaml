@@ -104,21 +104,23 @@ objects:
 
     collisions: true
     self-collisions: false
+    adaptive-mesh-refinement: true
+    compute-heat-conduction: false
 
-  -
-    name: "Trachea"
-    type: "RigidMeshObject"
-    # type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    material: "Human Trachea"
-    # max-size: 0.095
-    scaling: [1e-3, 1e-3, 1e-3]
-    position: [0.110, 0.141, 0.07]
-    velocity: [0, 0, 0]
-    rotation: [0, 0, 0]
+  # -
+  #   name: "Trachea"
+  #   type: "RigidMeshObject"
+  #   # type: "FirstOrderXPBDMeshObject"
+  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+  #   material: "Human Trachea"
+  #   # max-size: 0.095
+  #   scaling: [1e-3, 1e-3, 1e-3]
+  #   position: [0.110, 0.141, 0.07]
+  #   velocity: [0, 0, 0]
+  #   rotation: [0, 0, 0]
 
-    collisions: true
-    fixed: true
+  #   collisions: false
+  #   fixed: true
 
   -
     name: "Robot"
@@ -134,8 +136,7 @@ objects:
       name: "Arm1"
       type: "VirtuosoArm"
       tool-type: "cautery"
-      cutting-model: "timer"
-      time-threshold: 100e-3  # the threshold to be used when the "timer" cut model is used
+      cutting-model: "instant"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
@@ -143,7 +144,7 @@ objects:
       outer-tube-rotation: 60
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 8e-3
+      inner-tube-translation: 6e-3
 
     -
       name: "Arm2"

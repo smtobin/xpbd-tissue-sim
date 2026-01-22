@@ -43,7 +43,7 @@ cd $DEPS_SRC_DIR
 git clone -b release https://gitlab.com/petsc/petsc.git petsc
 cd petsc
 export PETSC_DIR=$DEPS_SRC_DIR/petsc
-./configure --with-cc=gcc --with-cxx=g++ --with-fc=gfortran --download-f2cblaslapack --download-mpich
+./configure --with-cc=gcc --with-cxx=g++ --download-f2cblaslapack --download-mpich
 make PETSC_DIR=$DEPS_SRC_DIR/petsc PETSC_ARCH=arch-linux-c-debug all
 
 

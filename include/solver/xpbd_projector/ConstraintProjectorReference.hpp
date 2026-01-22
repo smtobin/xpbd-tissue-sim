@@ -60,6 +60,15 @@ class ConstraintProjectorReference
         return _vec.at(_index);
     }
 
+    /** Whether this projector reference exists at all */
+    bool exists() const
+    {
+        return (_index < _vec.size()) && (_index >= 0);
+    }
+
+    /** Get the index */
+    int index() const { return _index; }
+
     private:
     vector_type& _vec;
     int _index;
@@ -147,6 +156,11 @@ public:
     lambda_type lambda() const
     {
         return std::visit([](const auto& obj) { return obj->lambda(); }, _variant);
+    }
+
+    bool exists() const
+    {
+        return std::visit([](const auto& obj) { return obj.exists(); }, _variant);
     }
 
     /** Constraint accessor for single projectors (NUM_CONSTRAINTS = 1) */

@@ -9,6 +9,8 @@ namespace Geometry
 EmbreeTetMeshGeometry::EmbreeTetMeshGeometry(const Geometry::TetMesh* tet_mesh)
     : EmbreeMeshGeometry(tet_mesh), _tet_mesh(tet_mesh), _tet_scene(nullptr)
 {
+    // set the topology version to some arbitrary large number, so we update initially
+    _prev_topology_version = std::numeric_limits<unsigned long>::max();
 }
 
 EmbreeTetMeshGeometry::~EmbreeTetMeshGeometry()
@@ -17,24 +19,79 @@ EmbreeTetMeshGeometry::~EmbreeTetMeshGeometry()
         rtcReleaseScene(_tet_scene);
 }
 
-bool EmbreeTetMeshGeometry::isPointInTetrahedron(const float p[3], const float *v0, const float *v1, const float *v2, const float *v3)
+void EmbreeTetMeshGeometry::createTetScene(RTCDevice device)
+{
+    // make sure that the scene hasn't already been created
+    assert(_tet_scene == nullptr);
+
+    // create the scene
+    _tet_scene = rtcNewScene(device);
+    rtcSetSceneFlags(_tet_scene, RTC_SCENE_FLAG_DYNAMIC);
+
+    // create an initial dummy geometry
+    _tet_mesh_geom_id = RTC_INVALID_GEOMETRY_ID;
+    rtcCommitScene(_tet_scene);
+}
+
+void EmbreeTetMeshGeometry::updateTetScene(RTCDevice device)
+{
+    bool topology_changed = _prev_topology_version != _tet_mesh->topologyVersion();
+    
+    if (topology_changed)
+    {
+        // If primitive count changed, we need to recreate the geometry
+        if (_tet_mesh_geom_id != RTC_INVALID_GEOMETRY_ID)
+        {
+            RTCGeometry old_geom = rtcGetGeometry(_tet_scene, _tet_mesh_geom_id);
+            rtcDetachGeometry(_tet_scene, _tet_mesh_geom_id);
+        }
+
+        // create a user-geometry type
+        RTCGeometry new_geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_USER);
+
+        rtcSetGeometryBuildQuality(new_geom, RTC_BUILD_QUALITY_REFIT);
+
+        // set custom user data
+        rtcSetGeometryUserPrimitiveCount(new_geom, _tet_mesh->elements().totalSize());
+        rtcSetGeometryUserData(new_geom, this);
+
+        // set custom callbacks
+        rtcSetGeometryBoundsFunction(new_geom, EmbreeTetMeshGeometry::boundsFuncTetrahedra, this);
+        rtcSetGeometryIntersectFunction(new_geom, EmbreeTetMeshGeometry::intersectFuncTetrahedra);
+        rtcSetGeometryPointQueryFunction(new_geom, EmbreeTetMeshGeometry::pointQueryFuncTetrahedra);
+
+        _tet_mesh_geom_id = rtcAttachGeometry(_tet_scene, new_geom);
+        rtcCommitGeometry(new_geom);
+        rtcReleaseGeometry(new_geom);
+
+        _prev_topology_version = _tet_mesh->topologyVersion();
+        rtcCommitScene(_tet_scene);
+    }
+    else
+    {
+        RTCGeometry rtc_geom = rtcGetGeometry(_tet_scene, _tet_mesh_geom_id);
+        rtcCommitGeometry(rtc_geom);
+        rtcCommitScene(_tet_scene);
+    }
+}
+
+bool EmbreeTetMeshGeometry::isPointInTetrahedron(const Vec3r& p, const Vec3r& v0, const Vec3r& v1, const Vec3r& v2, const Vec3r& v3)
 {
 
     // Helper function to compute normal and check same side
-    auto sameSide = [](const float p[3], const float a[3], const float b[3],
-                       const float c[3], const float d[3]) -> bool
+    auto sameSide = [](const Vec3r& p, const Vec3r& a, const Vec3r& b, const Vec3r& c, const Vec3r& d) -> bool
     {
         // Compute normal vector of face (a,b,c)
-        float ab[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
-        float ac[3] = {c[0] - a[0], c[1] - a[1], c[2] - a[2]};
-        float normal[3] = {
+        Real ab[3] = {b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+        Real ac[3] = {c[0] - a[0], c[1] - a[1], c[2] - a[2]};
+        Real normal[3] = {
             ab[1] * ac[2] - ab[2] * ac[1],
             ab[2] * ac[0] - ab[0] * ac[2],
             ab[0] * ac[1] - ab[1] * ac[0]};
 
         // Compute dot products to check if p and d are on same side
-        float dotP = normal[0] * (p[0] - a[0]) + normal[1] * (p[1] - a[1]) + normal[2] * (p[2] - a[2]);
-        float dotD = normal[0] * (d[0] - a[0]) + normal[1] * (d[1] - a[1]) + normal[2] * (d[2] - a[2]);
+        Real dotP = normal[0] * (p[0] - a[0]) + normal[1] * (p[1] - a[1]) + normal[2] * (p[2] - a[2]);
+        Real dotD = normal[0] * (d[0] - a[0]) + normal[1] * (d[1] - a[1]) + normal[2] * (d[2] - a[2]);
 
         return (dotP * dotD >= 0);
     };
@@ -46,30 +103,29 @@ bool EmbreeTetMeshGeometry::isPointInTetrahedron(const float p[3], const float *
            sameSide(p, v1, v2, v3, v0);
 }
 
-float EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(const float p[3], const float* v0, const float* v1, const float* v2, const float* v3)
+Real EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(const Vec3r& p, const Vec3r& v0, const Vec3r& v1, const Vec3r& v2, const Vec3r& v3)
 {
     if (isPointInTetrahedron(p, v0, v1, v2, v3))
         return 0.0f;
     
-    float p_out1[3], p_out2[3], p_out3[3], p_out4[3];
-    EmbreeMeshGeometry::_closestPointTriangle(p, v0, v1, v2, p_out1);
-    EmbreeMeshGeometry::_closestPointTriangle(p, v0, v3, v1, p_out2);
-    EmbreeMeshGeometry::_closestPointTriangle(p, v0, v2, v3, p_out3);
-    EmbreeMeshGeometry::_closestPointTriangle(p, v1, v3, v2, p_out4);
+    Vec3r p_out1 = EmbreeMeshGeometry::_closestPointTriangle(p, v0, v1, v2);
+    Vec3r p_out2 = EmbreeMeshGeometry::_closestPointTriangle(p, v0, v3, v1);
+    Vec3r p_out3 = EmbreeMeshGeometry::_closestPointTriangle(p, v0, v2, v3);
+    Vec3r p_out4 = EmbreeMeshGeometry::_closestPointTriangle(p, v1, v3, v2);
 
-    auto sq_dist = [](const float p1[3], const float p2[3]) -> float
+    auto sq_dist = [](const Vec3r& p1, const Vec3r& p2) -> Real
     {
-        float p_diff[3];
+        Real p_diff[3];
         p_diff[0] = p1[0] - p2[0];
         p_diff[1] = p1[1] - p2[1];
         p_diff[2] = p1[2] - p2[2];
         return p_diff[0]*p_diff[0] + p_diff[1]*p_diff[1] + p_diff[2]*p_diff[2];
     };
 
-    float d1 = sq_dist(p, p_out1);
-    float d2 = sq_dist(p, p_out2);
-    float d3 = sq_dist(p, p_out3);
-    float d4 = sq_dist(p, p_out4);
+    Real d1 = sq_dist(p, p_out1);
+    Real d2 = sq_dist(p, p_out2);
+    Real d3 = sq_dist(p, p_out3);
+    Real d4 = sq_dist(p, p_out4);
 
     return std::min({d1, d2, d3, d4});
 
@@ -78,20 +134,34 @@ float EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(const float p[3], cons
 void EmbreeTetMeshGeometry::boundsFuncTetrahedra(const struct RTCBoundsFunctionArguments *args)
 {
     const EmbreeTetMeshGeometry *geom = static_cast<const EmbreeTetMeshGeometry *>(args->geometryUserPtr);
-    const Vec4i& indices = geom->tetMesh()->element(args->primID);
-    const float *v1 = geom->vertices() + 3 * indices[0];
-    const float *v2 = geom->vertices() + 3 * indices[1];
-    const float *v3 = geom->vertices() + 3 * indices[2];
-    const float *v4 = geom->vertices() + 3 * indices[3];
+    if (geom->tetMesh()->elementValid(args->primID))
+    {
+        const Vec4i& indices = geom->tetMesh()->element(args->primID);
+        const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+        const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+        const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
+        const Vec3r& v4 = geom->mesh()->vertex(indices[3]);
 
-    RTCBounds* bounds = args->bounds_o;
-    bounds->lower_x = std::min({v1[0], v2[0], v3[0], v4[0]});
-    bounds->lower_y = std::min({v1[1], v2[1], v3[1], v4[1]});
-    bounds->lower_z = std::min({v1[2], v2[2], v3[2], v4[2]});
+        RTCBounds* bounds = args->bounds_o;
+        bounds->lower_x = std::min({v1[0], v2[0], v3[0], v4[0]});
+        bounds->lower_y = std::min({v1[1], v2[1], v3[1], v4[1]});
+        bounds->lower_z = std::min({v1[2], v2[2], v3[2], v4[2]});
 
-    bounds->upper_x = std::max({v1[0], v2[0], v3[0], v4[0]});
-    bounds->upper_y = std::max({v1[1], v2[1], v3[1], v4[1]});
-    bounds->upper_z = std::max({v1[2], v2[2], v3[2], v4[2]});
+        bounds->upper_x = std::max({v1[0], v2[0], v3[0], v4[0]});
+        bounds->upper_y = std::max({v1[1], v2[1], v3[1], v4[1]});
+        bounds->upper_z = std::max({v1[2], v2[2], v3[2], v4[2]});
+    }
+    else
+    {
+        RTCBounds* bounds = args->bounds_o;
+        bounds->lower_x = 0;
+        bounds->lower_y = 0;
+        bounds->lower_z = 0;
+
+        bounds->upper_x = 0;
+        bounds->upper_y = 0;
+        bounds->upper_z = 0;
+    }
 }
 
 void EmbreeTetMeshGeometry::intersectFuncTetrahedra(const RTCIntersectFunctionNArguments *args)
@@ -115,12 +185,10 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
 
     
     const Vec4i& indices = geom->tetMesh()->element(args->primID);
-    const float *v1 = geom->vertices() + 3 * indices[0];
-    const float *v2 = geom->vertices() + 3 * indices[1];
-    const float *v3 = geom->vertices() + 3 * indices[2];
-    const float *v4 = geom->vertices() + 3 * indices[3];
-
-    const float *point = userData->point;
+    const Vec3r& v1 = geom->mesh()->vertex(indices[0]);
+    const Vec3r& v2 = geom->mesh()->vertex(indices[1]);
+    const Vec3r& v3 = geom->mesh()->vertex(indices[2]);
+    const Vec3r& v4 = geom->mesh()->vertex(indices[3]);
 
     // std::cout << "Point query: " << point[0] << ", " << point[1] << ", " << point[2] << std::endl;
 
@@ -137,7 +205,7 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
     // std::cout << "Testing element " << args->primID << "..." << std::endl;
 
     // Check if the point is inside this tetrahedron
-    if (userData->radius == 0.0f && isPointInTetrahedron(point, v1, v2, v3, v4))
+    if (userData->radius == 0.0f && isPointInTetrahedron(userData->point, v1, v2, v3, v4))
     {
         EmbreeHit hit;
         hit.obj = userData->obj_ptr;
@@ -149,7 +217,7 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
         // done searching
         return false;
     }
-    else if (userData->radius != 0.0f && squaredDistanceToTetrahedron(point, v1, v2, v3, v4) <= userData->radius*userData->radius)
+    else if (userData->radius != 0.0f && squaredDistanceToTetrahedron(userData->point, v1, v2, v3, v4) <= userData->radius*userData->radius)
     {
         EmbreeHit hit;
         hit.obj = userData->obj_ptr;

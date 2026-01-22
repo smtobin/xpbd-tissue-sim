@@ -183,7 +183,16 @@ void Simulation::setup()
                         //     verts_to_refine.insert(f[2]);
 
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                        {
                             elems_to_refine.insert(element_with_face);
+
+                            // add all elements that share a face with this surface element
+                            // std::vector<int> face_adjacent_elems = xpbd_obj->tetMesh()->faceAdjacentElements(element_with_face);
+                            // for (const auto& adj_elem : face_adjacent_elems)
+                            //     elems_to_refine.insert(adj_elem);
+                        }
+
+                        
                     }
                     else if (min_dist > 5e-3)
                     {
@@ -200,15 +209,15 @@ void Simulation::setup()
 
                 auto t2 = std::chrono::high_resolution_clock::now();
 
-                std::cout << "\nRefining + Coarsening..." << std::endl;
+                // std::cout << "\nRefining + Coarsening..." << std::endl;
                 for (const auto& elem : elems_to_refine)
                 {
-                    std::cout << "Refining element " << elem << "..." << std::endl;
+                    // std::cout << "Refining element " << elem << "..." << std::endl;
                     xpbd_obj->refineElement(elem, 2, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
-                    std::cout << "Coarsening element " << elem << "..." << std::endl;
+                    // std::cout << "Coarsening element " << elem << "..." << std::endl;
                     xpbd_obj->coarsenElement(elem, 2, false);
                 }
 

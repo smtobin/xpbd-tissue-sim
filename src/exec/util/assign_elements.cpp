@@ -118,13 +118,8 @@ int main(int argc, char* argv[])
                 const Vec3r& v2 = class_mesh.vertex(class_element[1]);
                 const Vec3r& v3 = class_mesh.vertex(class_element[2]);
                 const Vec3r& v4 = class_mesh.vertex(class_element[3]);
-
-                float p[3] = {(float)c[0], (float)c[1], (float)c[2]};
-                float f1[3] = {(float)v1[0], (float)v1[1], (float)v1[2]};
-                float f2[3] = {(float)v2[0], (float)v2[1], (float)v2[2]};
-                float f3[3] = {(float)v3[0], (float)v3[1], (float)v3[2]};
-                float f4[3] = {(float)v4[0], (float)v4[1], (float)v4[2]};
-                bool in_tet = Geometry::EmbreeTetMeshGeometry::isPointInTetrahedron(p, f1, f2, f3, f4);
+                
+                bool in_tet = Geometry::EmbreeTetMeshGeometry::isPointInTetrahedron(c, v1, v2, v3, v4);
                 if (in_tet)
                 {
                     num_hits++;
