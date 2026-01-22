@@ -88,7 +88,6 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
             this->_sim->updateEmbreeRayScene();
             std::vector<Geometry::PointsWithClass> point_clouds = 
                 this->_sim->embreeScene()->partialViewPointCloudsWithClass(cam_position, cam_view_dir, cam_up_dir, hfov_deg, vfov_deg, sample_density);
-
             // go through returned point clouds and find the ones that match the trachea and tumor classes
             for (auto& pc : point_clouds)
             {

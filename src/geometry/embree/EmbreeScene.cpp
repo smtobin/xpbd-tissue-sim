@@ -257,8 +257,8 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
 
     if (_hasAVX512)
     {
-        RTCRayHit16 packet;
-        int valid[16];
+        alignas(64) RTCRayHit16 packet;
+        alignas(64) int valid[16];
         for (unsigned i = 0; i < total_num_rays; i += 16)
         {
             unsigned rays_in_packet = std::min(16u, total_num_rays - i);
@@ -281,7 +281,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
                 packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
 
-                valid[ri] = 1;
+                valid[ri] = -1;
             }
             for (unsigned ri = rays_in_packet; ri < 16; ri++)
             {
@@ -314,8 +314,8 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
     }
     else if (_hasAVX)
     {
-        RTCRayHit8 packet;
-        int valid[8];
+        alignas(32) RTCRayHit8 packet;
+        alignas(32) int valid[8];
         for (unsigned i = 0; i < total_num_rays; i += 8)
         {
             unsigned rays_in_packet = std::min(8u, total_num_rays - i);
@@ -338,7 +338,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
                 packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
 
-                valid[ri] = 1;
+                valid[ri] = -1;
             }
             for (unsigned ri = rays_in_packet; ri < 8; ri++)
             {
@@ -568,68 +568,99 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
     // store point clouds
     std::vector<PointsWithClass> point_clouds;
 
-    for (Real h_angle = -hfov_deg/2.0; h_angle < hfov_deg/2.0; h_angle += angle_increment)
+    // create rays by sampling spherical coordinates and transforming into local frame
+    int h_ind_max = static_cast<int>(hfov_deg / angle_increment);
+    int v_ind_max = static_cast<int>(vfov_deg / angle_increment);
+    
+    std::vector<Vec3r> origins(16, origin);
+    std::vector<Vec3r> directions(16);
+    std::vector<EmbreeHit> hits(16);
+
+    for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
-        for (Real v_angle = -vfov_deg/2.0; v_angle < vfov_deg/2.0; v_angle += angle_increment)
+        Real h_angle_start = -hfov_deg/2.0 + angle_increment * h_ind;
+        
+        for (int v_ind = 0; v_ind < v_ind_max; v_ind += 4)
         {
-            Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            Real y_local = std::sin(v_angle * M_PI/180.0);
-            Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
-            const Vec3r dir_local(x_local, y_local, z_local);
-            const Vec3r ray_dir = R_camera * dir_local;
+            Real v_angle_start = -vfov_deg/2.0 + angle_increment * v_ind;
 
-            EmbreeHit hit = castRay(origin, ray_dir);
-            if (hit.obj)
+            // 4x4 block of rays
+            directions.clear();
+            for (int dh = 0; dh < 4; dh++)
             {
-                // get the class of the face that we hit
-                std::string classification = "";
-                if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                Real h_angle = h_angle_start + angle_increment * dh;
+                for (int dv = 0; dv < 4; dv++)
                 {
-                    int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
-                    /** TODO: dynamic_cast = yucky, can we do better?
-                     * 
-                     * 
-                     */
-                    if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
-                    {
-                        classification = xpbd_obj->materialClasses()[class_num]->label();
-                    }
-                    else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
-                    {
-                        classification = xpbd_obj->materialClasses()[class_num]->label();
-                    }
-                    else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                    {
-                        classification = obj->materialClass()->label();
-                    }
-                }
-                else
-                {
-                    if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                    {
-                        classification = obj->materialClass()->label();
-                    } 
-                }
+                    if (h_ind + dh >= h_ind_max || v_ind + dv >= v_ind_max)
+                        continue;
                     
+                    Real v_angle = v_angle_start + angle_increment * dv;
 
-                // put the point in the appropriate vector
-                auto map_it = class_to_vector_index.find(classification);
-                if (map_it != class_to_vector_index.end())  // we already have a points vector started for this class
-                {
-                    point_clouds[map_it->second].points.push_back(hit.hit_point);
+                    Real x_local = std::sin(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+                    Real y_local = std::sin(v_angle * M_PI/180.0);
+                    Real z_local = std::cos(h_angle * M_PI/180.0) * std::cos(v_angle * M_PI/180.0);
+
+                    const Vec3r dir_local(x_local, y_local, z_local);
+                    const Vec3r ray_dir = R_camera * dir_local;
+                    directions.push_back(ray_dir);
                 }
-                else
+            }
+            castRays(origins, directions, hits);
+
+            for (const auto& hit : hits)
+            {
+                if (hit.obj)
                 {
-                    // create a point cloud and conservatively reserve space for the points that will go in it
-                    PointsWithClass point_cloud;
-                    point_cloud.classification = classification;
-                    point_cloud.points.reserve(hfov_deg * vfov_deg * sample_density * sample_density);
-                    point_cloud.points.push_back(hit.hit_point);
+                    // get the class of the face that we hit
+                    std::string classification = "";
+                    if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                    {
+                        int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
+                        /** TODO: dynamic_cast = yucky, can we do better?
+                         * 
+                         * 
+                         */
+                        if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
+                        {
+                            classification = xpbd_obj->materialClasses()[class_num]->label();
+                        }
+                        else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
+                        {
+                            classification = xpbd_obj->materialClasses()[class_num]->label();
+                        }
+                        else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                        {
+                            classification = obj->materialClass()->label();
+                        }
+                    }
+                    else
+                    {
+                        if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
+                        {
+                            classification = obj->materialClass()->label();
+                        } 
+                    }
+                        
 
-                    point_clouds.push_back(std::move(point_cloud));
+                    // put the point in the appropriate vector
+                    auto map_it = class_to_vector_index.find(classification);
+                    if (map_it != class_to_vector_index.end())  // we already have a points vector started for this class
+                    {
+                        point_clouds[map_it->second].points.push_back(hit.hit_point);
+                    }
+                    else
+                    {
+                        // create a point cloud and conservatively reserve space for the points that will go in it
+                        PointsWithClass point_cloud;
+                        point_cloud.classification = classification;
+                        point_cloud.points.reserve(hfov_deg * vfov_deg * sample_density * sample_density);
+                        point_cloud.points.push_back(hit.hit_point);
 
-                    // add an entry to the map so we know which index in the vector is associated with this class
-                    class_to_vector_index[classification] = point_clouds.size()-1;
+                        point_clouds.push_back(std::move(point_cloud));
+
+                        // add an entry to the map so we know which index in the vector is associated with this class
+                        class_to_vector_index[classification] = point_clouds.size()-1;
+                    }
                 }
             }
         }

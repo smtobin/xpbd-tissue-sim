@@ -158,12 +158,6 @@ private:
     {
         std::string topic_name = "/output/stiffness_mat_" + std::to_string(index);
         _stiffness_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
-
-        // std_msgs::msg::Float64MultiArray& mat_msg = _stiffness_mat_messages[index];
-        // mat_msg.layout.dim.resize(2);
-        // mat_msg.layout.dim[0].label = "rows";
-        // mat_msg.layout.dim[1].label = "cols";
-        // mat_msg.layout.data_offset = 0;
         
         auto mat_callback = 
             [this, index, xpbd_obj]() -> void {
@@ -186,16 +180,6 @@ private:
                         msg.values.push_back(it.value());
                     }
                 }
-
-                // make sure size is correct based on number of vertices
-                // _stiffness_mat_messages[index].layout.dim[0].size = stiffness_mat.rows();
-                // _stiffness_mat_messages[index].layout.dim[0].stride = stiffness_mat.size();
-                // _stiffness_mat_messages[index].layout.dim[1].size = stiffness_mat.cols();
-                // _stiffness_mat_messages[index].layout.dim[1].stride = stiffness_mat.rows();
-
-                // _stiffness_mat_messages[index].data.resize(stiffness_mat.size());
-                // // update vertices
-                // memcpy(this->_stiffness_mat_messages[index].data.data(), stiffness_mat.data(), this->_stiffness_mat_messages[index].data.size());
 
                 this->_stiffness_mat_publishers[index]->publish(msg);
             };
