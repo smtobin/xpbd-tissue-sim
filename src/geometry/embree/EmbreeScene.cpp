@@ -25,6 +25,9 @@ EmbreeScene::EmbreeScene()
     _hasAVX512 = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY16_SUPPORTED);
     _hasAVX = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY8_SUPPORTED);
     _hasSSE = rtcGetDeviceProperty(_device, RTC_DEVICE_PROPERTY_NATIVE_RAY4_SUPPORTED);
+
+    // _hasAVX512 = false;
+    // _hasAVX = false;
 }
 
 EmbreeScene::~EmbreeScene()
@@ -253,15 +256,19 @@ EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) co
 void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeHit>& hits) const
 {
     hits.clear();
-    unsigned total_num_rays = origins.size();
+    unsigned total_num_rays = dirs.size();
 
     if (_hasAVX512)
     {
         alignas(64) RTCRayHit16 packet;
         alignas(64) int valid[16];
+        // initialize the memory
+        std::memset(&packet, 0, sizeof(packet));
+
         for (unsigned i = 0; i < total_num_rays; i += 16)
         {
             unsigned rays_in_packet = std::min(16u, total_num_rays - i);
+            // active rays
             for (unsigned ri = 0; ri < rays_in_packet; ri++)
             {
                 packet.ray.org_x[ri] = origins[i+ri][0];
@@ -279,11 +286,11 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 packet.ray.mask[ri] = -1;
 
                 packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
-                packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
 
                 valid[ri] = -1;
             }
-            for (unsigned ri = rays_in_packet; ri < 16; ri++)
+            // inactive rays
+            for (unsigned ri = rays_in_packet; ri < 16u; ri++)
             {
                 valid[ri] = 0;
             }
@@ -292,6 +299,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
 
             for (unsigned ri = 0; ri < rays_in_packet; ri++)
             {
+                // process hits
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
                     const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
@@ -303,6 +311,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                     hit.hit_point = origins[i+ri] + t*dirs[i+ri];
                     hits.push_back(hit);
                 }
+                // ray did not hit
                 else
                 {
                     EmbreeHit hit;
@@ -316,6 +325,10 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
     {
         alignas(32) RTCRayHit8 packet;
         alignas(32) int valid[8];
+
+        // initialize the memory
+        std::memset(&packet, 0, sizeof(packet));
+
         for (unsigned i = 0; i < total_num_rays; i += 8)
         {
             unsigned rays_in_packet = std::min(8u, total_num_rays - i);
@@ -535,6 +548,7 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
                     directions.push_back(ray_dir);
                 }
             }
+            origins.resize(directions.size(), origin);
             castRays(origins, directions, hits);
 
             for (const auto& hit : hits)
@@ -605,6 +619,7 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                     directions.push_back(ray_dir);
                 }
             }
+            origins.resize(directions.size(), origin);
             castRays(origins, directions, hits);
 
             for (const auto& hit : hits)
