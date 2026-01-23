@@ -24,6 +24,8 @@
 
 #include "geometry/DeformableMeshSDF.hpp"
 
+#include <deque>
+
 #ifdef HAVE_CUDA
 #include "gpu/resource/XPBDMeshObjectGPUResource.hpp"
 #endif
@@ -1465,6 +1467,15 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
     using StaticCollisionProjectorTypeRef = Solver::ConstraintProjectorReference<StaticCollisionProjectorType>;
     std::vector<StaticCollisionProjectorType>& collision_projectors = _solver.template getConstraintProjectorsOfType<StaticCollisionProjectorType>();
 
+    // int ring_size = 2;
+
+    // the list of elements to whose elastic constraints we need to reproject
+    // std::unordered_set<int> elements_to_reproject;
+    // keep track of vertices we have already visited
+    // std::unordered_set<int> visited_vertices;
+    // keep track of vertices we need to visit
+    // std::deque<std::pair<int, int>> vertices_to_visit;
+
     for (unsigned i = 0; i < collision_projectors.size(); i++)
     {
         // add all collision constraints to be re-projected - this is necessary to maintain a consistent contact set
@@ -1475,6 +1486,12 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
         {
             // get the vertices affected by this collision constraint
             const std::vector<Solver::PositionReference>& positions = collision_projectors[i].positions();
+
+            // for each of the vertices in the collision face, add them to the stack to be processed
+            // for (const auto& position : positions)
+            // {
+            //     vertices_to_visit.push_back({position.index, 0});
+            // }
 
             if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
             {
@@ -1512,6 +1529,60 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
             }
         }
     }
+
+    // iterate through all the vertices to visit
+    // while (!vertices_to_visit.empty())
+    // {
+    //     auto [vertex_index, ring] = vertices_to_visit.front();
+    //     vertices_to_visit.pop_front();
+
+    //     // try insertion into the vertices we've visited
+    //     auto [it, success] = visited_vertices.insert(vertex_index);
+
+    //     // if vertex already was visited, move on
+    //     if (!success)
+    //         continue;
+
+    //     // get attached elements
+    //     for (const auto& element_index : tetMesh()->vertexAttachedElements(vertex_index))
+    //     {
+    //         elements_to_reproject.insert(element_index);
+    //     }
+
+    //     // get all adjacent vertices
+    //     if (ring < ring_size)
+    //     {
+    //         for (const auto& adj_vert_index : tetMesh()->vertexAdjacentVertices(vertex_index))
+    //         {
+    //             vertices_to_visit.push_back({adj_vert_index, ring+1});
+    //         }
+    //     }
+    // }
+
+    // // now we have a list of elements to reproject
+    // for (const auto& element_index : elements_to_reproject)
+    // {
+    //     if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    //     {
+    //         using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+    //         using DevHydProjectorTypeRef = Solver::ConstraintProjectorReference<DevHydProjectorType>;
+    //         std::vector<DevHydProjectorType>& elastic_projectors = _solver.template getConstraintProjectorsOfType<DevHydProjectorType>();
+
+    //         proj_to_reproject.template emplace_back<DevHydProjectorTypeRef>(elastic_projectors, element_index);
+    //     }
+    //     else if (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookean::projector_type_list>)
+    //     {
+    //         using DevProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint>;
+    //         using DevProjectorTypeRef = Solver::ConstraintProjectorReference<DevProjectorType>;
+    //         using HydProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::HydrostaticConstraint>;
+    //         using HydProjectorTypeRef = Solver::ConstraintProjectorReference<HydProjectorType>;
+
+    //         std::vector<DevProjectorType>& dev_projectors = _solver.template getConstraintProjectorsOfType<DevProjectorType>();
+    //         std::vector<HydProjectorType>& hyd_projectors = _solver.template getConstraintProjectorsOfType<HydProjectorType>();
+    //         proj_to_reproject.template emplace_back<DevProjectorTypeRef>(dev_projectors, element_index);
+    //         proj_to_reproject.template emplace_back<HydProjectorTypeRef>(hyd_projectors, element_index);
+    //     }
+    // }
 
     return proj_to_reproject;
 }
