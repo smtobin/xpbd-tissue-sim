@@ -19,7 +19,7 @@ VirtuosoTissueGraspingSimulation::VirtuosoTissueGraspingSimulation(const Config:
 {
     // extract parameters from config object
     _input_device = config->inputDevice();
-    _express_meshes_in_vb_frame = config->expressMeshesInVBFrame();
+    _ct_to_vb_transform = config->CTtoVBTransform();
 }
 
 void VirtuosoTissueGraspingSimulation::setup()
@@ -38,33 +38,45 @@ void VirtuosoTissueGraspingSimulation::setup()
         assert((xpbd_objs.size() + fo_xpbd_objs.size() > 0) && "There must be at least 1 XPBDMeshObject or FirstOrderXPBDMeshObject in the simulation (there is no tissue object!).");
     
 
-    // go through all objects that are not the virtuoso robot
-    if (_express_meshes_in_vb_frame)
-    {
-        _objects.for_each_element([&](auto& obj){
-            
-            const Geometry::CoordinateFrame& vb_frame = _virtuoso_robot->VBFrame();
-            if constexpr (std::is_base_of_v<Sim::RigidMeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
-            {
-                /** 12/5/25 TODO: this needs to work for initial rotations of VB frame. Right now, only works if VB orientation is identity. */
-                std::cout << "Moving RigidMeshObject to express it in VB frame..." << std::endl;
-                Vec3r dp = obj->mesh()->massCenter() - obj->mesh()->meshOrigin();
-                obj->setPosition(obj->position() + dp);
-                obj->rotateAboutOrigin(vb_frame.transform().rotMat());
-                obj->setPosition(obj->position() + vb_frame.transform().translation());
-            }
-            else if constexpr (std::is_base_of_v<Sim::MeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
-            {
-                std::cout << "Moving mesh to express it in VB frame..." << std::endl;
-                // move the mesh so that it's prescribed position is w.r.t its mesh origin rather than its center of mass
-                Vec3r com = obj->mesh()->massCenter();
-                obj->mesh()->moveTogether(-obj->mesh()->meshOrigin() + com);
+    // go through all objects that are not the virtuoso robot and transform them to be w.r.t. the VB frame
+    _objects.for_each_element([&](auto& obj){
+        
+        // VB -> sim world
+        const Geometry::CoordinateFrame& vb_frame = _virtuoso_robot->VBFrame();
+        // CT -> sim world
+        Geometry::TransformationMatrix ct_to_sim = vb_frame.transform() * _ct_to_vb_transform;
 
-                obj->mesh()->rotateAbout(Vec3r::Zero(), vb_frame.transform().rotMat());
-                obj->mesh()->moveTogether(vb_frame.transform().translation());
-            }
-        });
-    }
+        if constexpr (std::is_base_of_v<Sim::RigidMeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
+        {
+            /** 12/5/25 TODO: this needs to work for initial rotations of VB frame. Right now, only works if VB orientation is identity. */
+            std::cout << "Moving RigidMeshObject to express it in VB frame..." << std::endl;
+
+            // by default, when we load meshes into the sim, we center their positions about the mesh's center of mass
+            // (this normally makes meshes easier to position in the sim)
+            // however, since we're assuming these meshes were loaded from a CT scan (with a defined CT origin), we need to 
+            //  move the meshes back to recover the original positioning
+            Vec3r dp = obj->mesh()->massCenter() - obj->mesh()->meshOrigin();
+            obj->setPosition(obj->position() + dp);
+
+            // now, use the CT -> sim world transform to put the mesh in the appropriate place
+            obj->rotateAboutOrigin(ct_to_sim.rotMat());
+            obj->setPosition(obj->position() + ct_to_sim.translation());
+        }
+        else if constexpr (std::is_base_of_v<Sim::MeshObject, typename std::remove_reference_t<decltype(obj)>::element_type>)
+        {
+            std::cout << "Moving mesh to express it in VB frame..." << std::endl;
+            // by default, when we load meshes into the sim, we center their positions about the mesh's center of mass
+            // (this normally makes meshes easier to position in the sim)
+            // however, since we're assuming these meshes were loaded from a CT scan (with a defined CT origin), we need to 
+            //  move the meshes back to recover the original positioning
+            Vec3r dp = obj->mesh()->massCenter() - obj->mesh()->meshOrigin();
+            obj->mesh()->moveTogether(dp);
+
+            // now, use the CT -> sim world transform to put the mesh in the appropriate place
+            obj->mesh()->rotateAbout(Vec3r::Zero(), ct_to_sim.rotMat());
+            obj->mesh()->moveTogether(ct_to_sim.translation());
+        }
+    });
 
     // once we've found the tissue object, make sure that each virtuoso arm knows that this is the object that they're manipulating
     // (the VirtuosoArm class handles the grasping logic)
