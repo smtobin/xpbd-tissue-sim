@@ -1,28 +1,63 @@
+# === Simulation parameters ===
+# name of the simulation
 name: "Virtuoso Trachea"
+# visualization backend to use ("VTK" or "Easy3D")
 visualization: "VTK"
 
-# Tissue grasping simulation-specific parameters
-input-device: "Mouse" # the input device for interactivity - "Mouse" or "Haptic" (Phantom Omni)
+# the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Mouse"
+# show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: true
+# whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
 enable-mouse-interaction: true
+# scale the force feedback tot he haptic device (0 means no force feedback)
 haptic-force-scaling: 0
 
-express-meshes-in-vb-frame: true
-
+# device names for haptic devices
+# these can be set using the OpenHaptics setup program
 # device-name1: "LeftOmni"
 # device-name2: "RightOmni"
 # device-name1: "Omni"
 
+# acceleration due to gravity
 g-accel: 0 # m/s2
-# sim-mode: "Visualization"
-# sim-mode: "Frame-by-frame"
+
+# simulation "mode" - should always use As Fast As Possible ("AFAP") with 1st order sims
 sim-mode: "AFAP"
-time-step: 3.33e-3 # for FO XPBD
-# time-step: 3.33e-5 # for normal XPBD
+# the "time step" (doesn't correspond to physical time for 1st order sims)
+time-step: 3.33e-3
+# the rate (Hz) at which to do collision detection
 collision-rate: 100
+# the rate (Hz) at which to draw to the screen
 fps: 30
+# the simulation end time
 end-time: 5000
 
+# === Specific to VirtuosoCTAnatomySimulation ===
+# - we assume that all meshes that are loaded in the sim originated from CT scans
+#    and we want to position these meshes w.r.t. the base of the left Virtuoso arm (VB)
+# - manually prescribe the transform from the CT origin frame to the VB frame
+# - this can correspond to some physical setup (i.e. a registration) or some setup that enables suitable mesh interaction
+# - to be very clear: this specifies the CT -> VB transform, i.e. it transforms a point in the CT frame into the VB frame
+#     (this is the robotics convention, opposite the convention that tf uses)
+# - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
+CT-to-VB-transform-translation: [0.110, 0.141, 0.07]  # in meters
+CT-to-VB-transform-rotation: [0, 0, 0]  # XYZ Euler angle convention
+
+
+# === Simulation rendering settings ===
+# global exposure for PBR rendering
+exposure: 0.2
+# filename to the HDR image used for lighting in the PBR model
+hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
+# whether or not to create a skybox from the HDR image
+create-skybox: true
+# width and height of the window created for the sim
+window-width: 1000
+window-height: 1000
+
+# === Specify materials used by objects in the sim ===
+# these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
 materials:
   -
     name: "Human Trachea"
@@ -31,7 +66,6 @@ materials:
     density: 1030
     E: 5e6
     nu: 0.49
-
     # rendering settings
     color: [1.0, 0.3, 0.2]
     render-type: "PBR"
@@ -49,7 +83,6 @@ materials:
     density: 1060
     E: 0.07e6
     nu: 0.4
-
     # rendering settings
     color: [1.0, 0.4, 0.3]
     render-type: "PBR"
@@ -68,42 +101,30 @@ materials:
     metallic: 1.0
     roughness: 0.2
 
-# rendering settings
-exposure: 0.2
-hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
-create-skybox: true
-window-width: 1000
-window-height: 1000
 
+# === Objects in the sim ===
 objects:
-
   -
     name: "Tumor"
-    # type: "XPBDMeshObject"
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
     fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-    # element-classes-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r_element_classes.txt"
     material: "Raw Chicken Breast"
-    # max-size: 0.017
-    scaling: [1e-3, 1e-3, 1e-3]
-    position: [0.110, 0.141, 0.07]
-    velocity: [0, 0, 0]
-    rotation: [0, 0, 0]
+
+    scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+
     num-solver-iters: 1
     num-local-collision-iters: 5
     residual-policy: "Never"
     solver-type: "Gauss-Seidel"
-    # solver-type: "Jacobi"
-    # solver-type: "Parallel-Jacobi"
     constraint-type: "Stable-Neohookean-Combined"
     damping-multiplier: 2e5
-    # damping-multiplier: 6000000000
-    # damping-multiplier: 40000000000
     adjust-damping-to-material: True
 
     collisions: true
     self-collisions: false
+
     adaptive-mesh-refinement: true
     max-refinement-level: 2
     compute-heat-conduction: false
@@ -111,14 +132,10 @@ objects:
   -
     name: "Trachea"
     type: "RigidMeshObject"
-    # type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
     material: "Human Trachea"
-    # max-size: 0.095
-    scaling: [1e-3, 1e-3, 1e-3]
-    position: [0.110, 0.141, 0.07]
-    velocity: [0, 0, 0]
-    rotation: [0, 0, 0]
+    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
     collisions: false
     fixed: true
@@ -127,9 +144,8 @@ objects:
     name: "Robot"
     type: "VirtuosoRobot"
     material: "Nitinol"
-    # position: [0, -0.035, -0.0015] #"close position"
-    position: [0, 0, 0]
-    rotation: [0, 0, 0] # TODO: fix bug where changing VB orientation causes misalignment. 12/5
+    # don't prescribe any initial position or rotation - it is completely arbitrary since we are positioning meshes to be in the VB frame
+
     collisions: true
 
     arms:
@@ -143,13 +159,13 @@ objects:
       outer-tube-rotation: 60
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 6e-3
+      inner-tube-translation: 12e-3
 
-    -
+    - # right arm has the cautery tool for cutting
       name: "Arm2"
       type: "VirtuosoArm"
       tool-type: "cautery"
-      cutting-model: "instant"
+      cutting-model: "instant"  # the type of cutting model employed - "instant", "timer", or "thermal"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
@@ -157,7 +173,7 @@ objects:
       outer-tube-rotation: -45
       inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 12e-3
+      inner-tube-translation: 10e-3
 
   
 

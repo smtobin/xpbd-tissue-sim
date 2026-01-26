@@ -79,12 +79,12 @@ install(FILES ${GRASPING_SIMULATION_HEADERS}
 ######################################
 set(VIRTUOSO_SIMULATION_HEADERS
     "${SIMULATION_INCLUDE_DIR}/VirtuosoSimulation.hpp"
-    "${SIMULATION_INCLUDE_DIR}/VirtuosoTissueGraspingSimulation.hpp"
+    "${SIMULATION_INCLUDE_DIR}/VirtuosoCTAnatomySimulation.hpp"
 )
 
 set(VIRTUOSO_SIMULATION_SOURCES
     "${SIMULATION_SRC_DIR}/VirtuosoSimulation.cpp"
-    "${SIMULATION_SRC_DIR}/VirtuosoTissueGraspingSimulation.cpp"
+    "${SIMULATION_SRC_DIR}/VirtuosoCTAnatomySimulation.cpp"
 )
 
 target_sources(VirtuosoSimulation

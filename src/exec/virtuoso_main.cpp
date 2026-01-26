@@ -1,4 +1,4 @@
-#include "simulation/VirtuosoTissueGraspingSimulation.hpp"
+#include "simulation/VirtuosoCTAnatomySimulation.hpp"
 
 
 int main(int argc, char **argv) 
@@ -6,8 +6,8 @@ int main(int argc, char **argv)
     if (argc > 1)
     {
         std::string config_filename(argv[1]);
-        Config::VirtuosoTissueGraspingSimulationConfig config(YAML::LoadFile(config_filename));
-        Sim::VirtuosoTissueGraspingSimulation sim(&config);
+        Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
+        Sim::VirtuosoCTAnatomySimulation sim(&config);
         return sim.run();
     }
     else

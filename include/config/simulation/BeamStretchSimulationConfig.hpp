@@ -1,7 +1,7 @@
 #ifndef __BEAM_STRETCH_SIMULATION_CONFIG_HPP
 #define __BEAM_STRETCH_SIMULATION_CONFIG_HPP
 
-#include "config/simulation/OutputSimulationConfig.hpp"
+#include "config/simulation/sim/outputSimulationConfig.hpp"
 
 namespace Config
 {

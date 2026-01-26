@@ -17,7 +17,7 @@ public:
 private:
     void _setupPartialViewPointCloudPublisher()
     {
-        _partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/partial_view_pc", 3);
+        _partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/partial_view_pc", 3);
         
         this->declare_parameter("partial_view_pc", true);
         this->declare_parameter("partial_view_pc_hfov", 80.0);

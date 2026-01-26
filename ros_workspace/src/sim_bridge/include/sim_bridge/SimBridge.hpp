@@ -88,7 +88,7 @@ private:
 
     void _setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
-        std::string topic_name = "/output/mesh_vertices_pc_" + std::to_string(index);
+        std::string topic_name = "/sim/output/mesh_vertices_pc_" + std::to_string(index);
         _mesh_pcl_publishers[index] = this->create_publisher<sensor_msgs::msg::PointCloud2>(topic_name, 3);
 
         // set header
@@ -156,7 +156,7 @@ private:
     template <typename XPBDMeshObject_BaseType>
     void _setupStiffnessMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/stiffness_mat_" + std::to_string(index);
+        std::string topic_name = "/sim/output/stiffness_mat_" + std::to_string(index);
         _stiffness_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
         
         auto mat_callback = 
@@ -192,7 +192,7 @@ private:
     template <typename XPBDMeshObject_BaseType>
     void _setupVerticesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/vertices_mat_" + std::to_string(index);
+        std::string topic_name = "/sim/output/vertices_mat_" + std::to_string(index);
         _vertices_mat_publishers[index] = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 3);
 
         std_msgs::msg::Float64MultiArray& mat_msg = _vertices_mat_messages[index];
@@ -230,7 +230,7 @@ private:
     template <typename XPBDMeshObject_BaseType>
     void _setupFacesMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/faces_mat_" + std::to_string(index);
+        std::string topic_name = "/sim/output/faces_mat_" + std::to_string(index);
         _faces_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
 
         std_msgs::msg::Int32MultiArray& mat_msg = _faces_mat_messages[index];
@@ -267,7 +267,7 @@ private:
     template <typename XPBDMeshObject_BaseType>
     void _setupElementsMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
-        std::string topic_name = "/output/elements_mat_" + std::to_string(index);
+        std::string topic_name = "/sim/output/elements_mat_" + std::to_string(index);
         _elements_mat_publishers[index] = this->create_publisher<std_msgs::msg::Int32MultiArray>(topic_name, 3);
 
         std_msgs::msg::Int32MultiArray& mat_msg = _elements_mat_messages[index];

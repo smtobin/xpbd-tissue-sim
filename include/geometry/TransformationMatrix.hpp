@@ -26,6 +26,11 @@ class TransformationMatrix
         : _matrix(t_mat)
     {}
 
+    bool operator==(const TransformationMatrix& other) const
+    {
+        return _matrix.isApprox(other._matrix, 1e-8);
+    }
+
     TransformationMatrix operator*(const TransformationMatrix& other) const
     {
         const Mat4r res = _matrix * other._matrix;

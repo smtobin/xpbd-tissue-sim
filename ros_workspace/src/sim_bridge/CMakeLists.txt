@@ -146,7 +146,7 @@ link_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/lib")
 add_executable(${PROJECT_NAME}_node 
   src/sim_bridge_node.cpp 
   src/VirtuosoSimBridge.cpp 
-  src/VirtuosoTissueGraspingSimBridge.cpp
+  src/VirtuosoCTAnatomySimBridge.cpp
 )
 
 # === Link Dependencies ===

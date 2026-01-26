@@ -154,11 +154,11 @@ void VirtuosoSimBridge::_setupPublishers()
     {
         const Sim::VirtuosoArm* arm1 = _sim->virtuosoRobot()->arm1();
 
-        _arm1_joint_state_publisher = this->create_publisher<sensor_msgs::msg::JointState>("/output/arm1_joint_state", 10);
-        _arm1_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/output/arm1_frames", 10);
-        _arm1_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm1_tip_frame", 10);
-        _arm1_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm1_commanded_tip_frame", 10);
-        _arm1_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/output/arm1_net_force", 10);
+        _arm1_joint_state_publisher = this->create_publisher<sensor_msgs::msg::JointState>("/sim/output/arm1_joint_state", 10);
+        _arm1_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/sim/output/arm1_frames", 10);
+        _arm1_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm1_tip_frame", 10);
+        _arm1_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm1_commanded_tip_frame", 10);
+        _arm1_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/sim/output/arm1_net_force", 10);
 
 
         _setupArmJointStatePublisher(arm1, _arm1_joint_state_publisher);
@@ -169,7 +169,7 @@ void VirtuosoSimBridge::_setupPublishers()
 
         if (arm1->hasTool())
         {
-            _arm1_tool_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm1_tool_tip_frame", 10);
+            _arm1_tool_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm1_tool_tip_frame", 10);
             _setupArmToolTipFramePublisher(arm1, _arm1_tool_tip_frame_publisher);
         }
     }
@@ -179,11 +179,11 @@ void VirtuosoSimBridge::_setupPublishers()
     {
         const Sim::VirtuosoArm* arm2 = _sim->virtuosoRobot()->arm2();
 
-        _arm2_joint_state_publisher = this->create_publisher<sensor_msgs::msg::JointState>("/output/arm2_joint_state", 10);
-        _arm2_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/output/arm2_frames", 10);
-        _arm2_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm2_tip_frame", 10);
-        _arm2_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm2_commanded_tip_frame", 10);
-        _arm2_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/output/arm2_net_force", 10);
+        _arm2_joint_state_publisher = this->create_publisher<sensor_msgs::msg::JointState>("/sim/output/arm2_joint_state", 10);
+        _arm2_frames_publisher = this->create_publisher<geometry_msgs::msg::PoseArray>("/sim/output/arm2_frames", 10);
+        _arm2_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm2_tip_frame", 10);
+        _arm2_commanded_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm2_commanded_tip_frame", 10);
+        _arm2_net_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/sim/output/arm2_net_force", 10);
 
         _setupArmJointStatePublisher(arm2, _arm2_joint_state_publisher);
         _setupArmFramesPublisher(arm2, _arm2_frames_publisher);
@@ -193,7 +193,7 @@ void VirtuosoSimBridge::_setupPublishers()
 
         if (arm2->hasTool())
         {
-            _arm2_tool_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/output/arm2_tool_tip_frame", 10);
+            _arm2_tool_tip_frame_publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("/sim/output/arm2_tool_tip_frame", 10);
             _setupArmToolTipFramePublisher(arm2, _arm2_tool_tip_frame_publisher);
         }
     }
@@ -380,7 +380,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm1JointState(ot_rot, ot_trans, it_rot, it_trans, tool);
         };
 
-        _arm1_joint_state_subscriber = this->create_subscription<sensor_msgs::msg::JointState>("/input/arm1_joint_state", 10, arm1_state_callback);
+        _arm1_joint_state_subscriber = this->create_subscription<sensor_msgs::msg::JointState>("/sim/input/arm1_joint_state", 10, arm1_state_callback);
     }
     
     // set up subscriber callback to take in joint state for arm 2
@@ -393,7 +393,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm2JointState(ot_rot, ot_trans, it_rot, it_trans, tool);
         };
 
-        _arm2_joint_state_subscriber = this->create_subscription<sensor_msgs::msg::JointState>("/input/arm2_joint_state", 10, arm2_state_callback);
+        _arm2_joint_state_subscriber = this->create_subscription<sensor_msgs::msg::JointState>("/sim/input/arm2_joint_state", 10, arm2_state_callback);
     }
 
     // set up subscriber callback to take in tip position for arm 1
@@ -408,7 +408,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm1TipPosition(global_pos);
         };
 
-        _arm1_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/input/arm1_tip_pos", 10, arm1_tip_pos_callback);
+        _arm1_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/sim/input/arm1_tip_pos", 10, arm1_tip_pos_callback);
     }
 
     // set up subscriber callback to take in tip position for arm2
@@ -424,7 +424,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm2TipPosition(global_pos);
         };
 
-        _arm2_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/input/arm2_tip_pos", 10, arm2_tip_pos_callback);
+        _arm2_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/sim/input/arm2_tip_pos", 10, arm2_tip_pos_callback);
     }
 
     // set up subscriber callback to take in tool state for arm 1
@@ -435,7 +435,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm1ToolState(msg->data);
         };
 
-        _arm1_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/input/arm1_tool_state", 10, arm1_tool_state_callback);
+        _arm1_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/sim/input/arm1_tool_state", 10, arm1_tool_state_callback);
     }
 
     // set up subscriber callback to take in tool state for arm 2
@@ -446,7 +446,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 this->_sim->setArm2ToolState(msg->data);
         };
 
-        _arm2_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/intput/arm2_tool_state", 10, arm2_tool_state_callback);
+        _arm2_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/sim/input/arm2_tool_state", 10, arm2_tool_state_callback);
     }
     
 }
