@@ -63,6 +63,12 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
 
     _stale_frames = true;
 
+    // set the characteristic dimension to the minimum diameter being used
+    if (_tool_type == ToolType::NONE)
+        _char_dim = _it_outer_dia;
+    else
+        _char_dim = _tool_tube.outer_dia;
+
 }
 
 std::string VirtuosoArm::toString(const int indent) const

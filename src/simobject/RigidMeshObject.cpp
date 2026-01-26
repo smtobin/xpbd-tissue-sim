@@ -43,6 +43,10 @@ void RigidMeshObject::setup()
     _initial_mesh = std::make_unique<Geometry::Mesh>(mesh_copy);
     std::tie(_m, std::ignore, _I) = mesh_copy.massProperties(_density);
     _I_inv = _I.inverse();
+
+    // set the characteristic dimension as the smallest dim in the AABB
+    Geometry::AABB bbox = _initial_mesh->boundingBox();
+    _char_dim = bbox.size().minCoeff();
 }
 
 void RigidMeshObject::update()

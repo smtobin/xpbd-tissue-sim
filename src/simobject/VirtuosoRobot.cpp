@@ -59,6 +59,8 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt), Vec3r(0, _optic_vertical_dist, 0));
     _cam_frame = _endoscope_frame * cam_rel_transform;
 
+    // set the characteristic dimension to the minimum between the endoscope diameter and length
+    _char_dim = std::min(_endoscope_dia, _endoscope_length);
 }
 
 std::string VirtuosoRobot::toString(int indent) const

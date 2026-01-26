@@ -241,6 +241,7 @@ class VirtuosoArm : public Object
     Real outerTubeDistalStraightLength() const { return _ot_distal_straight_length; }
     int toolState() const { return _tool_state; }
     bool hasTool() const { return (_tool_type != ToolType::NONE); }
+    ToolType toolType() const { return _tool_type; }
     const VirtuosoArmTool& toolTube() const { return _tool_tube; }
 
     void setInnerTubeTranslation(double t) { _it_translation = (t >= 0) ? t : 0; _stale_frames = true; }

@@ -239,6 +239,7 @@ public:
     const FEM::HeatConductionFEMSolver& heatSolver() const { return *_heat_solver; }
 
     bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement; }
+    int maxRefinementLevel() const { return _max_refinement_level; }
 
 
     /** === Miscellaneous useful methods === */
@@ -299,6 +300,9 @@ protected:
 
     /** Whether or not to adaptively refine the mesh. Set by the config. */
     bool _adaptive_mesh_refinement;
+
+    /** When adaptive mesh refinement is enabled, the maximum number of recursive refinements of base elements that are allowed. Set by the config. */
+    int _max_refinement_level;
 
 
     /** === Class members specific to when the object is 1st-order === */

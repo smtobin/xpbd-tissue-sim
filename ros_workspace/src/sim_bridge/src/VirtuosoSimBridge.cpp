@@ -3,7 +3,7 @@
 VirtuosoSimBridge::VirtuosoSimBridge(Sim::VirtuosoSimulation* sim)
     : SimBridge<Sim::VirtuosoSimulation>(sim)
 {
-    // _setupTransformBroadcaster();
+    _setupTransformBroadcaster();
 
     _setupPublishers();
 

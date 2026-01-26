@@ -18,6 +18,9 @@ RigidSphere::RigidSphere(const Simulation* sim, const ConfigType* config)
     _I(2,2) = 2.0/5.0 * _m * _radius * _radius;
 
     _I_inv = _I.inverse();
+
+    // set the characteristic dimension to the diameter
+    _char_dim = 2*_radius;
 }
 
 std::string RigidSphere::toString(const int indent) const
@@ -63,6 +66,9 @@ RigidBox::RigidBox(const Simulation* sim, const ConfigType* config)
     _origin_bbox_points.col(5) = Vec3r({ _size[0]/2, -_size[1]/2,  _size[2]/2});
     _origin_bbox_points.col(6) = Vec3r({ _size[0]/2,  _size[1]/2,  _size[2]/2});
     _origin_bbox_points.col(7) = Vec3r({-_size[0]/2,  _size[1]/2,  _size[2]/2});
+
+    // set the characteristic dimension to the minimum side length
+    _char_dim = _size.minCoeff();
 }
 
 std::string RigidBox::toString(const int indent) const
@@ -122,6 +128,8 @@ RigidCylinder::RigidCylinder(const Simulation* sim, const ConfigType* config)
     _origin_bbox_points.col(6) = Vec3r({ _radius,  _radius,  _height/2});
     _origin_bbox_points.col(7) = Vec3r({-_radius,  _radius,  _height/2});
 
+    // set the characteristic dimension to the smaller between the diameter and the height
+    _char_dim = std::min(_height, _radius*2);
 }
 
 std::string RigidCylinder::toString(const int indent) const

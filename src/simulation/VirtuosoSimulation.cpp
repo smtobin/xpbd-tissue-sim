@@ -187,7 +187,7 @@ void VirtuosoSimulation::notifyMouseScrolled(double dx, double dy)
     {
         if (_keys_held[SimulationInput::Key::SPACE] > 0) // space bar = clutch
         {
-            const Real scaling = 0.0003;
+            const Real scaling = 0.001;
             const Vec3r view_dir = _graphics_scene->cameraViewDirection();
 
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();

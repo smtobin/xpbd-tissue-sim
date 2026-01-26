@@ -142,10 +142,12 @@ void Simulation::setup()
             this->addCallback(0.1, [&xpbd_obj, &robot]() {
                 auto t1 = std::chrono::high_resolution_clock::now();
 
+                int max_refinement_level = xpbd_obj->maxRefinementLevel();
+
                 const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
                 const typename Sim::VirtuosoArm::SDFType* sdf2 = nullptr;
-                if (robot->hasArm1())   sdf1 = robot->arm1()->SDF();
-                if (robot->hasArm2())   sdf2 = robot->arm2()->SDF();
+                if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->SDF();
+                if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->SDF();
                 const Geometry::Mesh* mesh = xpbd_obj->mesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
@@ -163,84 +165,57 @@ void Simulation::setup()
                     Real sdf_dist2 = std::numeric_limits<Real>::max();
 
                     int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
+
+                    // only refine around cautery tool tip (i.e. not the whole tube)
                     if (sdf1)
-                        sdf_dist1 = sdf1->evaluate((p1+p2+p3)/3);
+                    {
+                        auto result = sdf1->evaluateWithGradientAndNodeInfo((p1+p2+p3)/3);
+                        // only store the resulting distance if the closest point on the VirtuosoArm is found to be on the cautery tool tip
+                        if (result.node_index >= std::tuple_size_v<VirtuosoArm::OuterTubeFramesArray> + std::tuple_size_v<VirtuosoArm::InnerTubeFramesArray>)
+                            sdf_dist1 = result.distance;
+                    }
                     if (sdf2)
-                        sdf_dist2 = sdf2->evaluate((p1+p2+p3)/3);
+                    {
+                        auto result = sdf2->evaluateWithGradientAndNodeInfo((p1+p2+p3)/3);
+                        // only store the resulting distance if the closest point on the VirtuosoArm is found to be on the cautery tool tip
+                        if (result.node_index >= std::tuple_size_v<VirtuosoArm::OuterTubeFramesArray> + std::tuple_size_v<VirtuosoArm::InnerTubeFramesArray>)
+                            sdf_dist2 = result.distance;
+                    }
 
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);
-                    if (min_dist < 2e-3)
+                    if (min_dist < 1e-3)
                     {
-                        /** TODO: account for sdf2 as well */
-                        // Real dist1 = sdf1->evaluate(p1);
-                        // Real dist2 = sdf1->evaluate(p2);
-                        // Real dist3 = sdf1->evaluate(p3);
-                        // if (dist1 <= dist2 && dist1 <= dist3)
-                        //     verts_to_refine.insert(f[0]);
-                        // else if (dist2 <= dist1 && dist2 <= dist3)
-                        //     verts_to_refine.insert(f[1]);
-                        // else
-                        //     verts_to_refine.insert(f[2]);
 
-                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) < max_refinement_level)
                         {
                             elems_to_refine.insert(element_with_face);
-
-                            // add all elements that share a face with this surface element
-                            // std::vector<int> face_adjacent_elems = xpbd_obj->tetMesh()->faceAdjacentElements(element_with_face);
-                            // for (const auto& adj_elem : face_adjacent_elems)
-                            //     elems_to_refine.insert(adj_elem);
                         }
 
                         
                     }
-                    else if (min_dist > 5e-3)
+                    else if (min_dist > 3e-3)
                     {
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                         {
-                            // std::cout << "Element " << element_with_face << " has refinement level " << xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) << std::endl;
                             elems_to_coarsen.insert(element_with_face);
                         }
-                        // verts_to_coarsen.insert(f[0]);
-                        // verts_to_coarsen.insert(f[1]);
-                        // verts_to_coarsen.insert(f[2]);
                     }
                 }
 
                 auto t2 = std::chrono::high_resolution_clock::now();
 
-                // std::cout << "\nRefining + Coarsening..." << std::endl;
                 for (const auto& elem : elems_to_refine)
                 {
-                    // std::cout << "Refining element " << elem << "..." << std::endl;
-                    xpbd_obj->refineElement(elem, 2, true);
+                    xpbd_obj->refineElement(elem, max_refinement_level, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
-                    // std::cout << "Coarsening element " << elem << "..." << std::endl;
-                    xpbd_obj->coarsenElement(elem, 2, false);
+                    xpbd_obj->coarsenElement(elem, max_refinement_level, false);
                 }
 
-                // for (const auto& vert : verts_to_refine)
-                // {
-                //     auto attached_elems = xpbd_obj->tetMesh()->vertexAttachedElements(vert);
-                //     for (const auto& elem : attached_elems)
-                //     {
-                //         xpbd_obj->refineElement(elem, 2, true);
-                //     }
-                // }
-                // for (const auto& vert : verts_to_coarsen)
-                // {
-                //     auto attached_elems = xpbd_obj->tetMesh()->vertexAttachedElements(vert);
-                //     for (const auto& elem : attached_elems)
-                //     {
-                //         xpbd_obj->coarsenElement(elem, 2, false);
-                //     }
-                // }
-
                 auto t3 = std::chrono::high_resolution_clock::now();
-                double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-                double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
+                // double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+                // double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
                 // std::cout << "Time for searching over faces: " << search_ms << " ms" << std::endl;
                 // std::cout << "Time for refining " << elems_to_refine.size() << " elements: " << refine_ms << " ms" << std::endl;
                 
@@ -358,7 +333,7 @@ void Simulation::_timeStep()
 
 
         _collision_scene->collideObjects();
-        auto t2 = std::chrono::steady_clock::now();
+        // auto t2 = std::chrono::steady_clock::now();
         // std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
 
         
