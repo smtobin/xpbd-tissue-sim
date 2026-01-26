@@ -185,8 +185,8 @@ from the `ros_workspace/` directory.
 ### Launch Files
 
 Two launch files are provided:
-* `ros_workspace/launch/sim_bridge.launch.py` - launches the `SimBridge` ROS node by itself.
-* `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - launches the `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
+* `ros_workspace/launch/sim_bridge_with_rosbridge_server.launch.py` - generic launch file. Launches the appropriate `SimBridge` ROS node and starts a `rosbridge` WebSocket connection on port 9090 (useful for visualizing with Foxglove).
+* `ros_workspace/launch/virtuoso_sim_bridge.launch.py` - launch file specifically for `VirtuosoCTAnatomySimulation`. Includes topic remappings for Virtuoso topics, extra parameters for configuring partial view point clouds, etc.
 
 The launch files provide a few launch arguments:
 * Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
