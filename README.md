@@ -9,6 +9,7 @@ Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with 
   * [Nodes](#nodes)
     * [Any Simulation](#any-simulation)
     * [`VirtuosoSimulation`](#virtuososimulation)
+    * [`VirtuosoCTAnatomySimulation`](#virtuosoctanatomysimulation)
     * [`FixedObjectSimulation`](#fixedobjectsimulation)
   * [API Changes](#api-changes)
 * [Installation](#installation)
@@ -195,7 +196,11 @@ The launch files provide a few launch arguments:
 
 Launching the Virtuoso robot + trachea demo:
 ```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml simulation_type:=VirtuosoCTAnatomySimulation
+ros2 launch launch/virtuoso_sim_bridge.launch.py
+```
+To use a different config file with the trachea demo (e.g. a config file that loads a prostate mesh):
+```
+ros2 launch launch/virtuoso_sim_bridge.launch.py config_filename:=<path to config .yaml file>
 ```
 Launching the simple grasping demo:
 ```
