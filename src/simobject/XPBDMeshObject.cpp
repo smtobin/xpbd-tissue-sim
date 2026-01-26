@@ -1467,9 +1467,10 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
     using StaticCollisionProjectorTypeRef = Solver::ConstraintProjectorReference<StaticCollisionProjectorType>;
     std::vector<StaticCollisionProjectorType>& collision_projectors = _solver.template getConstraintProjectorsOfType<StaticCollisionProjectorType>();
 
-    // int ring_size = 2;
+    // int ring_size = 1;
 
     // the list of elements to whose elastic constraints we need to reproject
+    // std::unordered_set<int> elements_to_reproject_old;
     // std::unordered_set<int> elements_to_reproject;
     // keep track of vertices we have already visited
     // std::unordered_set<int> visited_vertices;
@@ -1505,6 +1506,7 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
                 {
                     for (const auto& element_index : tetMesh()->vertexAttachedElements(position.index))
                     {
+                        // elements_to_reproject_old.insert(element_index);
                         proj_to_reproject.template emplace_back<DevHydProjectorTypeRef>(elastic_projectors, element_index);
                     }
                 }
@@ -1559,7 +1561,19 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_gather
     //     }
     // }
 
-    // // now we have a list of elements to reproject
+    // std::cout << "Old elements: ";
+    // for (const auto& element_index : elements_to_reproject_old)
+    // {
+    //     std::cout << element_index << ", ";
+    // }
+    // std::cout << "\nNew elements: ";
+    // for (const auto& element_index : elements_to_reproject)
+    // {
+    //     std::cout << element_index << ", ";
+    // }
+    // std::cout << std::endl;
+
+    // now we have a list of elements to reproject
     // for (const auto& element_index : elements_to_reproject)
     // {
     //     if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)

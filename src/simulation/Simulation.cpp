@@ -144,8 +144,8 @@ void Simulation::setup()
 
                 const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
                 const typename Sim::VirtuosoArm::SDFType* sdf2 = nullptr;
-                if (robot->hasArm1())   sdf1 = robot->arm1()->SDF();
-                if (robot->hasArm2())   sdf2 = robot->arm2()->SDF();
+                if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->SDF();
+                if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->SDF();
                 const Geometry::Mesh* mesh = xpbd_obj->mesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
@@ -239,8 +239,8 @@ void Simulation::setup()
                 // }
 
                 auto t3 = std::chrono::high_resolution_clock::now();
-                double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
-                double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
+                // double search_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
+                // double refine_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t3 - t2).count() / 1.0e6;
                 // std::cout << "Time for searching over faces: " << search_ms << " ms" << std::endl;
                 // std::cout << "Time for refining " << elems_to_refine.size() << " elements: " << refine_ms << " ms" << std::endl;
                 

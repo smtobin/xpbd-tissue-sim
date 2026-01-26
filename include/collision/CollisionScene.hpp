@@ -39,13 +39,18 @@ class CollisionScene
     explicit CollisionScene(const Sim::Simulation* sim, Geometry::EmbreeScene* embree_scene);
 
     /** Adds a new object to the CollisionScene.
-     * Creates a SDF for the object and adds the object's pointer to the vector of objects in the CollisionScene.
+     * Creates a SDF for the object and adds the object's pointer to the vector of objects in the CollisionScene,
+     *   but only if collisions = true.
      * 
      * @param obj - the pointer to the new simulation object to be added to the scene
+     * @param collisions - whether or not collisions are enabled for this object. If collisions are not enabled, still add to the Embree ray scene for ray-tracing queries.
     */
     template <typename ObjectType>
-    void addObject(ObjectType* obj)
+    void addObject(ObjectType* obj, bool collisions=true)
     {
+        if (!collisions)
+            return;
+
         obj->createSDF();
         
 #ifdef HAVE_CUDA
@@ -94,37 +99,48 @@ class CollisionScene
     /** Specialization for VirtuosoRobot - for now, we just add its arms separately to the CollisionScene.
      * (we don't care about collisions between the endoscope and the tissue)
      */
-    void addObject(Sim::VirtuosoRobot* virtuoso_robot)
+    void addObject(Sim::VirtuosoRobot* virtuoso_robot, bool collisions=true)
     {
-        if (virtuoso_robot->hasArm1())
-            addObject(virtuoso_robot->arm1());
-        if (virtuoso_robot->hasArm2())
-            addObject(virtuoso_robot->arm2());
+        if (collisions)
+        {
+            if (virtuoso_robot->hasArm1())
+                addObject(virtuoso_robot->arm1(), collisions);
+            if (virtuoso_robot->hasArm2())
+                addObject(virtuoso_robot->arm2(), collisions);
+        }
     }
 
     /** TODO: Add specializations for rigid objects that add them to the Embree scene */
 
     /** Specialization for XPBDMeshObject */
     template<bool IsFirstOrder>
-    void addObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_obj, bool self_collisions=false)
+    void addObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_obj, bool collisions=true, bool self_collisions=false)
     {
-        xpbd_obj->createSDF();
-        _objects.template push_back<Sim::XPBDMeshObject_Base_<IsFirstOrder>*>(xpbd_obj);
+        if (collisions)
+        {
+            xpbd_obj->createSDF();
+            _objects.template push_back<Sim::XPBDMeshObject_Base_<IsFirstOrder>*>(xpbd_obj);
+        }
+
+            if (self_collisions)
+                _self_collision_objects.emplace_back(xpbd_obj);
 
         // add to EmbreeScene since collisions are enabled
         _embree_scene->addObject( (Sim::TetMeshObject*)xpbd_obj );  // explicitly cast to TetMeshObject* so the correct overload of addObject() is called
 
-        if (self_collisions)
-            _self_collision_objects.emplace_back(xpbd_obj);
+        
     }
 
     /** Specialization for RigidMeshObject */
-    void addObject(Sim::RigidMeshObject* rigid_mesh_obj)
+    void addObject(Sim::RigidMeshObject* rigid_mesh_obj, bool collisions=true)
     {
-        rigid_mesh_obj->createSDF();
-        _objects.template push_back<Sim::RigidMeshObject*>(rigid_mesh_obj);
+        if (collisions)
+        {
+            rigid_mesh_obj->createSDF();
+            _objects.template push_back<Sim::RigidMeshObject*>(rigid_mesh_obj);
+        }
 
-        // add to EmbreeScene since collisions are enabled
+        // add to EmbreeScene for ray queries (regardless of whether collisions are enabled)
         _embree_scene->addObject( (Sim::MeshObject*)rigid_mesh_obj );
     }
 
