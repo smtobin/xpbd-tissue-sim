@@ -2,20 +2,20 @@
 #define __VIRTUOSO_TISSUE_GRASPING_SIMULATION_HPP
 
 #include "simulation/VirtuosoSimulation.hpp"
-#include "config/simulation/VirtuosoTissueGraspingSimulationConfig.hpp"
+#include "config/simulation/VirtuosoCTAnatomySimulationConfig.hpp"
 
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
 
 namespace Sim
 {
 
-class VirtuosoTissueGraspingSimulation : public VirtuosoSimulation
+class VirtuosoCTAnatomySimulation : public VirtuosoSimulation
 {
 public:
 
-    VirtuosoTissueGraspingSimulation(const Config::VirtuosoTissueGraspingSimulationConfig* config);
+    VirtuosoCTAnatomySimulation(const Config::VirtuosoCTAnatomySimulationConfig* config);
 
-    virtual std::string type() const override { return "VirtuosoTissueGraspingSimulation"; }
+    virtual std::string type() const override { return "VirtuosoCTAnatomySimulation"; }
 
     virtual void setup() override;
 

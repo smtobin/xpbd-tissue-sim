@@ -33,7 +33,7 @@ fps: 30
 # the simulation end time
 end-time: 5000
 
-# === Specific to VirtuosoTissueGraspingSimulation ===
+# === Specific to VirtuosoCTAnatomySimulation ===
 # - we assume that all meshes that are loaded in the sim originated from CT scans
 #    and we want to position these meshes w.r.t. the base of the left Virtuoso arm (VB)
 # - manually prescribe the transform from the CT origin frame to the VB frame

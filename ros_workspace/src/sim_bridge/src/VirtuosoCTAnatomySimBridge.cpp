@@ -1,16 +1,16 @@
-#include "sim_bridge/VirtuosoTissueGraspingSimBridge.hpp"
+#include "sim_bridge/VirtuosoCTAnatomySimBridge.hpp"
 
-VirtuosoTissueGraspingSimBridge::VirtuosoTissueGraspingSimBridge(Sim::VirtuosoTissueGraspingSimulation* sim)
+VirtuosoCTAnatomySimBridge::VirtuosoCTAnatomySimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
     : VirtuosoSimBridge(sim)
 {
     _setupPartialViewPointCloudPublishers();
     _setupCTtoVBTransformListener();
 
-    std::cout << "VirtuosoTissueGraspingSimBridge constructor" << std::endl;
+    std::cout << "VirtuosoCTAnatomySimBridge constructor" << std::endl;
 }
 
 
-void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
+void VirtuosoCTAnatomySimBridge::_setupPartialViewPointCloudPublishers()
 {
     _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/trachea_partial_view_pc", 10);
     _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/tumor_partial_view_pc", 10);
@@ -145,7 +145,7 @@ void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
 }
 
 
-void VirtuosoTissueGraspingSimBridge::_setupCTtoVBTransformListener()
+void VirtuosoCTAnatomySimBridge::_setupCTtoVBTransformListener()
 {
     _tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     _tf_listener = std::make_shared<tf2_ros::TransformListener>(*_tf_buffer);
@@ -171,7 +171,7 @@ void VirtuosoTissueGraspingSimBridge::_setupCTtoVBTransformListener()
                 Mat3r rot_mat = GeometryUtils::quatToMat(quat);
                 Geometry::TransformationMatrix ct_to_vb(rot_mat, origin);
                 
-                Sim::VirtuosoTissueGraspingSimulation* vtg_sim = dynamic_cast<Sim::VirtuosoTissueGraspingSimulation*>(this->_sim);
+                Sim::VirtuosoCTAnatomySimulation* vtg_sim = dynamic_cast<Sim::VirtuosoCTAnatomySimulation*>(this->_sim);
                 assert(vtg_sim);
 
                 vtg_sim->setCTtoVBTransform(ct_to_vb);

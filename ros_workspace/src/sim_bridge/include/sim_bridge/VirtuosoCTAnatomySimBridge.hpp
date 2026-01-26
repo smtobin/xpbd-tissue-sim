@@ -3,16 +3,16 @@
 
 #include "sim_bridge/VirtuosoSimBridge.hpp"
 
-#include "simulation/VirtuosoTissueGraspingSimulation.hpp"
+#include "simulation/VirtuosoCTAnatomySimulation.hpp"
 
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
-class VirtuosoTissueGraspingSimBridge : public VirtuosoSimBridge
+class VirtuosoCTAnatomySimBridge : public VirtuosoSimBridge
 {
 public:
-    VirtuosoTissueGraspingSimBridge(Sim::VirtuosoTissueGraspingSimulation* sim);
+    VirtuosoCTAnatomySimBridge(Sim::VirtuosoCTAnatomySimulation* sim);
 
 private:
 

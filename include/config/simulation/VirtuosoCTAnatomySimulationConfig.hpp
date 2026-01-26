@@ -6,11 +6,11 @@
 namespace Config
 {
 
-class VirtuosoTissueGraspingSimulationConfig : public VirtuosoSimulationConfig
+class VirtuosoCTAnatomySimulationConfig : public VirtuosoSimulationConfig
 {
 
     public:
-    explicit VirtuosoTissueGraspingSimulationConfig(const YAML::Node& node)
+    explicit VirtuosoCTAnatomySimulationConfig(const YAML::Node& node)
         : VirtuosoSimulationConfig(node)
     {
 

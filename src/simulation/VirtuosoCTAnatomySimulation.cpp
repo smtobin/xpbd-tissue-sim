@@ -1,5 +1,5 @@
-#include "simulation/VirtuosoTissueGraspingSimulation.hpp"
-#include "config/simulation/VirtuosoTissueGraspingSimulationConfig.hpp"
+#include "simulation/VirtuosoCTAnatomySimulation.hpp"
+#include "config/simulation/VirtuosoCTAnatomySimulationConfig.hpp"
 
 #include "simulation/VirtuosoSimulation.hpp"
 
@@ -14,7 +14,7 @@
 namespace Sim
 {
 
-VirtuosoTissueGraspingSimulation::VirtuosoTissueGraspingSimulation(const Config::VirtuosoTissueGraspingSimulationConfig* config)
+VirtuosoCTAnatomySimulation::VirtuosoCTAnatomySimulation(const Config::VirtuosoCTAnatomySimulationConfig* config)
 : VirtuosoSimulation(config)
 {
     // extract parameters from config object
@@ -22,7 +22,7 @@ VirtuosoTissueGraspingSimulation::VirtuosoTissueGraspingSimulation(const Config:
     _ct_to_vb_transform = config->CTtoVBTransform();
 }
 
-void VirtuosoTissueGraspingSimulation::setup()
+void VirtuosoCTAnatomySimulation::setup()
 {
     VirtuosoSimulation::setup();
 
@@ -71,7 +71,7 @@ void VirtuosoTissueGraspingSimulation::setup()
     
 }
 
-void VirtuosoTissueGraspingSimulation::setCTtoVBTransform(const Geometry::TransformationMatrix& new_transform)
+void VirtuosoCTAnatomySimulation::setCTtoVBTransform(const Geometry::TransformationMatrix& new_transform)
 {
     if (new_transform == _ct_to_vb_transform)
         return;
@@ -84,7 +84,7 @@ void VirtuosoTissueGraspingSimulation::setCTtoVBTransform(const Geometry::Transf
     _ct_to_vb_transform = new_transform;
 }
 
-void VirtuosoTissueGraspingSimulation::_transformMeshes(const Geometry::TransformationMatrix& transform)
+void VirtuosoCTAnatomySimulation::_transformMeshes(const Geometry::TransformationMatrix& transform)
 {
     // go through all objects that are not the virtuoso robot and transform them to be w.r.t. the VB frame
     _objects.for_each_element([&](auto& obj){
@@ -103,7 +103,7 @@ void VirtuosoTissueGraspingSimulation::_transformMeshes(const Geometry::Transfor
     });
 }
 
-void VirtuosoTissueGraspingSimulation::notifyMouseButtonPressed(SimulationInput::MouseButton button, SimulationInput::MouseAction action, int modifiers)
+void VirtuosoCTAnatomySimulation::notifyMouseButtonPressed(SimulationInput::MouseButton button, SimulationInput::MouseAction action, int modifiers)
 {   
     if (_input_device == SimulationInput::Device::MOUSE && button == SimulationInput::MouseButton::LEFT && action == SimulationInput::MouseAction::PRESS)
     {
@@ -115,12 +115,12 @@ void VirtuosoTissueGraspingSimulation::notifyMouseButtonPressed(SimulationInput:
 
 }
 
-void VirtuosoTissueGraspingSimulation::notifyMouseMoved(double x, double y)
+void VirtuosoCTAnatomySimulation::notifyMouseMoved(double x, double y)
 {
     VirtuosoSimulation::notifyMouseMoved(x, y);
 }
 
-void VirtuosoTissueGraspingSimulation::notifyKeyPressed(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers)
+void VirtuosoCTAnatomySimulation::notifyKeyPressed(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers)
 {
 
     // if input mode is keyboard, space bar grasps
@@ -133,18 +133,18 @@ void VirtuosoTissueGraspingSimulation::notifyKeyPressed(SimulationInput::Key key
 
 }
 
-void VirtuosoTissueGraspingSimulation::notifyMouseScrolled(double dx, double dy)
+void VirtuosoCTAnatomySimulation::notifyMouseScrolled(double dx, double dy)
 {
     VirtuosoSimulation::notifyMouseScrolled(dx, dy);
 }
 
-void VirtuosoTissueGraspingSimulation::_updateGraphics()
+void VirtuosoCTAnatomySimulation::_updateGraphics()
 {
 
     Simulation::_updateGraphics();
 }
 
-void VirtuosoTissueGraspingSimulation::_timeStep()
+void VirtuosoCTAnatomySimulation::_timeStep()
 {
 
     VirtuosoSimulation::_timeStep();

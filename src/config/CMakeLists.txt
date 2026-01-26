@@ -15,7 +15,7 @@ set(CONFIG_HEADERS
     ${CONFIG_INCLUDE_DIR}/simulation/SimulationConfig.hpp
     ${CONFIG_INCLUDE_DIR}/simulation/GraspingSimulationConfig.hpp
     ${CONFIG_INCLUDE_DIR}/simulation/VirtuosoSimulationConfig.hpp
-    ${CONFIG_INCLUDE_DIR}/simulation/VirtuosoTissueGraspingSimulationConfig.hpp
+    ${CONFIG_INCLUDE_DIR}/simulation/VirtuosoCTAnatomySimulationConfig.hpp
     
     ${CONFIG_INCLUDE_DIR}/simobject/ElasticMaterialConfig.hpp
     ${CONFIG_INCLUDE_DIR}/simobject/FirstOrderXPBDMeshObjectConfig.hpp

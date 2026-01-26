@@ -184,13 +184,13 @@ Two launch files are provided:
 
 The launch files provide a few launch arguments:
 * Launch argument `config_filename` - the absolute path to the config filename to be used to launch the simulation. Default: `/worksapce/config/demos/virtuoso_trachea/virtuoso_trachea.yaml`.
-* Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoTissueGraspingSimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
+* Launch argument `simulation_type` - the "type" of simulation to be launched. Corresponds to the camel-case class name of the type of simulation to be launched. Default: `VirtuosoCTAnatomySimulation`. Other options: `GraspingSimulation`, `VirtuosoSimulation`, `Simulation`.
 
 ### Example usage
 
 Launching the Virtuoso robot + trachea demo:
 ```
-ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml simulation_type:=VirtuosoTissueGraspingSimulation
+ros2 launch launch/sim_bridge_with_rosbridge_server.launch.py config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml simulation_type:=VirtuosoCTAnatomySimulation
 ```
 Launching the simple grasping demo:
 ```

@@ -2,14 +2,14 @@
 
 #include "sim_bridge/SimBridge.hpp"
 #include "sim_bridge/VirtuosoSimBridge.hpp"
-#include "sim_bridge/VirtuosoTissueGraspingSimBridge.hpp"
+#include "sim_bridge/VirtuosoCTAnatomySimBridge.hpp"
 #include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
-#include "config/simulation/VirtuosoTissueGraspingSimulationConfig.hpp"
+#include "config/simulation/VirtuosoCTAnatomySimulationConfig.hpp"
 #include "config/simulation/PalpationSimulationConfig.hpp"
 #include "config/simulation/FixedObjectSimulationConfig.hpp"
-#include "simulation/VirtuosoTissueGraspingSimulation.hpp"
+#include "simulation/VirtuosoCTAnatomySimulation.hpp"
 #include "simulation/PalpationSimulation.hpp"
 #include "simulation/GraspingSimulation.hpp"
 #include "simulation/FixedObjectSimulation.hpp"
@@ -82,14 +82,14 @@ int main(int argc, char ** argv)
         }
     }
 
-    if (simulation_type == "VirtuosoTissueGraspingSimulation")
+    if (simulation_type == "VirtuosoCTAnatomySimulation")
     {
         // create the simulation config object from the yaml config file
-        Config::VirtuosoTissueGraspingSimulationConfig config(YAML::LoadFile(config_filename));
+        Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
         // create the simulation from the config object
-        Sim::VirtuosoTissueGraspingSimulation sim(&config);
+        Sim::VirtuosoCTAnatomySimulation sim(&config);
 
-        startNode<Sim::VirtuosoTissueGraspingSimulation, VirtuosoTissueGraspingSimBridge>(&sim);
+        startNode<Sim::VirtuosoCTAnatomySimulation, VirtuosoCTAnatomySimBridge>(&sim);
     }
     else if (simulation_type == "VirtuosoSimulation")
     {

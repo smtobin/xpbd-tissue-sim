@@ -20,7 +20,7 @@ def generate_launch_description():
 
     simulation_type_arg = DeclareLaunchArgument(
         'simulation_type',
-        default_value=TextSubstitution(text='VirtuosoTissueGraspingSimulation'),
+        default_value=TextSubstitution(text='VirtuosoCTAnatomySimulation'),
         description='The type of simulation to create.'
     )
 
