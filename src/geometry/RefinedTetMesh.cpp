@@ -275,8 +275,8 @@ void RefinedTetMesh::removeElement(int elem_index)
     std::vector<int> adj_elems = faceAdjacentElements(elem_index);
     for (const auto& e : adj_elems)
     {
-        int elem_node_index = _element_to_tree_node_map.at(e);
-        _markParentsAsIncomplete(elem_node_index);
+        if (auto search = _element_to_tree_node_map.find(e); search != _element_to_tree_node_map.end())
+            _markParentsAsIncomplete(search->second);
     }
 
     // do this first - this will update the vertex, edge, and face maps for removing this element
@@ -994,7 +994,6 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
         _latest_new_hanging_vertices.clear();
         _latest_removed_hanging_vertices.clear();
     }
-
 
     // what we really care about is the RELATIVE refinement level
     // when absolute=true, the specified refinement level is the absolute depth to refine to ==> it is possible we are already there!

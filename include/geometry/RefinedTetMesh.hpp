@@ -77,7 +77,7 @@ public:
         int element_index = INVALID_INDEX;  // the index of the element in the _elements vector (only applicable for leaf nodes)
         int parent = INVALID_INDEX;         // the index of the parent TreeNode
         std::vector<int> children;  // the TreeNode children indices - up to 8 children
-        int level;          // the level of refinement this node is at. Level 0 = base tetrahedron
+        int level = 0;          // the level of refinement this node is at. Level 0 = base tetrahedron
         bool incomplete = false;    // true if there is a direct descendant element that has been removed
 
         // the edge nodes corresponding to the edges in this element

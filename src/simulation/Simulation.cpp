@@ -139,10 +139,10 @@ void Simulation::setup()
             if (!xpbd_obj->adaptiveMeshRefinement())
                 return;
 
-            int max_refinement_level = xpbd_obj->maxRefinementLevel();
-
-            this->addCallback(0.1, [&xpbd_obj, &robot, &max_refinement_level]() {
+            this->addCallback(0.1, [&xpbd_obj, &robot]() {
                 auto t1 = std::chrono::high_resolution_clock::now();
+
+                int max_refinement_level = xpbd_obj->maxRefinementLevel();
 
                 const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
                 const typename Sim::VirtuosoArm::SDFType* sdf2 = nullptr;
@@ -206,7 +206,6 @@ void Simulation::setup()
 
                 for (const auto& elem : elems_to_refine)
                 {
-                    std::cout << "Refining element " << elem << std::endl;
                     xpbd_obj->refineElement(elem, max_refinement_level, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
