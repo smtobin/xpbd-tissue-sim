@@ -38,6 +38,8 @@ public:
 
 protected:
 
+    void _transformMeshes(const Geometry::TransformationMatrix& transform);
+
     void _updateGraphics() override;
     
     void _timeStep() override;
@@ -48,7 +50,7 @@ protected:
 
     bool _express_meshes_in_vb_frame;   // if true, all meshes loaded into the scene will be put into the base frame of the Virtuoso robot in the scene
 
-    
+
     /** All meshes in the sim are assumed to be expressed in the VB frame, with a common origin corresponding to the origin of the CT frame.
      * The transform from the CT origin frame to the VB frame.
      * This is set by the config initially, but can be set with the setCTtoVBTransform() function also (i.e. from the ROS bridge).
