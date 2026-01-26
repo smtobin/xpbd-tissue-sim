@@ -136,8 +136,6 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
-      tool-type: "cautery"
-      cutting-model: "instant"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
@@ -150,6 +148,8 @@ objects:
     -
       name: "Arm2"
       type: "VirtuosoArm"
+      tool-type: "cautery"
+      cutting-model: "instant"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
