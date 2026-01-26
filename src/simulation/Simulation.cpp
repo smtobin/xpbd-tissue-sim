@@ -139,7 +139,9 @@ void Simulation::setup()
             if (!xpbd_obj->adaptiveMeshRefinement())
                 return;
 
-            this->addCallback(0.1, [&xpbd_obj, &robot]() {
+            int max_refinement_level = xpbd_obj->maxRefinementLevel();
+
+            this->addCallback(0.1, [&xpbd_obj, &robot, &max_refinement_level]() {
                 auto t1 = std::chrono::high_resolution_clock::now();
 
                 const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
@@ -184,7 +186,7 @@ void Simulation::setup()
                     if (min_dist < 1e-3)
                     {
 
-                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) == 0)
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) < max_refinement_level)
                         {
                             elems_to_refine.insert(element_with_face);
                         }
@@ -204,11 +206,12 @@ void Simulation::setup()
 
                 for (const auto& elem : elems_to_refine)
                 {
-                    xpbd_obj->refineElement(elem, 2, true);
+                    std::cout << "Refining element " << elem << std::endl;
+                    xpbd_obj->refineElement(elem, max_refinement_level, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
-                    xpbd_obj->coarsenElement(elem, 2, false);
+                    xpbd_obj->coarsenElement(elem, max_refinement_level, false);
                 }
 
                 auto t3 = std::chrono::high_resolution_clock::now();

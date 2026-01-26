@@ -105,6 +105,7 @@ objects:
     collisions: true
     self-collisions: false
     adaptive-mesh-refinement: true
+    max-refinement-level: 2
     compute-heat-conduction: false
 
   -

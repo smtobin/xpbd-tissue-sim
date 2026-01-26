@@ -102,6 +102,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // whether or not to adaptively refine the mesh
     _adaptive_mesh_refinement = config->adaptiveMeshRefinement();
 
+    // deepest level to refine to
+    _max_refinement_level = config->maxRefinementLevel();
+
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
     {
