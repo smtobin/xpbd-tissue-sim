@@ -11,19 +11,19 @@ class MatrixSubscriber(Node):
         super().__init__('matrix_subscriber')
         self.vertices_subscription = self.create_subscription(
             Float64MultiArray,
-            '/output/vertices_mat_0',
+            '/sim/output/vertices_mat_0',
             self.matrix_callback,
             10)
         self.elements_subscription = self.create_subscription(
             Int32MultiArray,
-            '/output/elements_mat_0',
+            '/sim/output/elements_mat_0',
             self.matrix_callback,
             10
         )
 
         self.stiffness_mat_subscription = self.create_subscription(
             SparseMatrix,
-            '/output/stiffness_mat_0',
+            '/sim/output/stiffness_mat_0',
             self.sparse_matrix_callback,
             10
         )

@@ -43,11 +43,11 @@ Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with 
 In general, the `sim_bridge` node publishes the vertices for any deformable mesh in the simulation. The list of topics can be found below:
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
-| `/output/mesh_vertices_pc_<i>` | N/A | Vertices of the ith deformable mesh in the simulation, as a point cloud. This is primarily for visualization purposes in RViz or Foxglove. | `/sim/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
-| `/output/stiffness_mat_<i>` | N/A | Stiffness matrix for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. Computing the stiffness matrix (right now) is very slow. Should only be enabled for small meshes and when integrating with factor graph. |
-| `/output/vertices_mat_<i>` | N/A | Nx3 matrix of current vertex positions for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
-| `/output/faces_mat_<i>` | N/A | Nx3 matrix of the current **surface** faces for the ith deformable mesh in the simulation. The faces are specified as 3-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
-|`/output/elements_mat_<i>` | N/A | Nx4 matrix of current elements for the ith deformable mesh in the simulation. The elements are specified as 4-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true. |
+| `/sim/output/mesh_vertices_pc_<i>` | N/A | Vertices of the ith deformable mesh in the simulation, as a point cloud. This is primarily for visualization purposes in RViz or Foxglove. | `/sim/world` | `sensor_msgs/PointCloud2` | Purely for visualization purposes. |
+| `/sim/output/stiffness_mat_<i>` | N/A | Stiffness matrix for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. Computing the stiffness matrix (right now) is very slow. Should only be enabled for small meshes and when integrating with factor graph. |
+| `/sim/output/vertices_mat_<i>` | N/A | Nx3 matrix of current vertex positions for the ith deformable mesh in the simulation. | `/sim/world` | `std_msgs/Float64MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
+| `/sim/output/faces_mat_<i>` | N/A | Nx3 matrix of the current **surface** faces for the ith deformable mesh in the simulation. The faces are specified as 3-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true`. |
+|`/sim/output/elements_mat_<i>` | N/A | Nx4 matrix of current elements for the ith deformable mesh in the simulation. The elements are specified as 4-vectors of vertex indices, 0-indexed. | N/A | `std_msgs/Int32MultiArray` | Optional, enabled by setting the `publish_matrices` parameter to `true. |
 
 **Node parameters:**
 Every simulation has the following parameters
@@ -62,31 +62,31 @@ Every simulation has the following parameters
 Any simulation that involves a Virtuoso robot publishes the following additional topics:
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
-| `/output/arm1_tip_frame` | `/ves/left/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/left/joint/measured_cp`. |
-| `/output/arm2_tip_frame` | `/ves/right/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/right/joint/measured_cp`. |
-| `/output/arm1_commanded_tip_frame` | `/ves/left/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso left arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/left/joint/setpoint_cp`. |
-| `/output/arm1_commanded_tip_frame` | `/ves/right/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso right arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/right/joint/setpoint_cp`. |
-| `/output/arm1_joint_state` | N/A | The current (simulated) joint state of the Virtuoso left arm. | N/A | `sensor_msgs/JointState` | |
-| `/output/arm2_joint_state` | N/A | The current (simulated) joint state of the Virtuoso right arm. | N/A | `sensor_msgs/JointState` | |
-| `/output/arm1_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/PoseArray` | The frames are those at the integration points used in statics model of the Virtuoso arm. |
-| `/output/arm2_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/PoseArray` | |
-| `/output/arm1_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This is only publishes when there is actually a tool tube in use (i.e. the palpation tube) that extends past the inner tube. |
-| `/output/arm2_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | | 
-| `/output/arm1_net_force` | N/A | The current (simulated) net force on the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` | The net force is determined by summing all of the forces from individual collisions between the Virtuoso arm and the tissue. |
-| `/output/arm2_net_force` | N/A | The current (simulated) net force on the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` |  |
-| `/output/trachea_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the trachea. | `ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Enabled by setting the `partial_view_pc` parameter to `true`. Requires some computation time, since the Embree ray collision scene must be updated. Also requires that a tissue mesh be in the scene that has labels for trachea and tumor parts. |
-| `/output/tumor_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the tumor. | `/ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Same as above. |
+| `/sim/output/arm1_tip_frame` | `/ves/left/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/left/joint/measured_cp`. |
+| `/sim/output/arm2_tip_frame` | `/ves/right/joint/measured_cp` | The real (inner tube) tip frame of the simulated Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `/ves/right/joint/measured_cp`. |
+| `/sim/output/arm1_commanded_tip_frame` | `/ves/left/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso left arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/left/joint/setpoint_cp`. |
+| `/sim/output/arm1_commanded_tip_frame` | `/ves/right/joint/setpoint_cp` | The commanded (inner tube) tip position of the simulated Virtuoso right arm. Contains only position. | `ves/left/base` | `geometry_msgs/PoseStamped` | This should align with the definition of `ves/right/joint/setpoint_cp`. |
+| `/sim/output/arm1_joint_state` | N/A | The current (simulated) joint state of the Virtuoso left arm. | N/A | `sensor_msgs/JointState` | |
+| `/sim/output/arm2_joint_state` | N/A | The current (simulated) joint state of the Virtuoso right arm. | N/A | `sensor_msgs/JointState` | |
+| `/sim/output/arm1_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/PoseArray` | The frames are those at the integration points used in statics model of the Virtuoso arm. |
+| `/sim/output/arm2_frames` | N/A | The current (simulated) coordinate frames along the backbone of the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/PoseArray` | |
+| `/sim/output/arm1_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso left arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | This is only publishes when there is actually a tool tube in use (i.e. the palpation tube) that extends past the inner tube. |
+| `/sim/output/arm2_tool_tip_frame` | N/A | The current (simulated) tip frame of the tool tube of the Virtuoso right arm. Has both position and orientation. | `ves/left/base` | `geometry_msgs/PoseStamped` | | 
+| `/sim/output/arm1_net_force` | N/A | The current (simulated) net force on the Virtuoso left arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` | The net force is determined by summing all of the forces from individual collisions between the Virtuoso arm and the tissue. |
+| `/sim/output/arm2_net_force` | N/A | The current (simulated) net force on the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` |  |
+| `/sim/output/trachea_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the trachea. | `ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Enabled by setting the `partial_view_pc` parameter to `true`. Requires some computation time, since the Embree ray collision scene must be updated. Also requires that a tissue mesh be in the scene that has labels for trachea and tumor parts. |
+| `/sim/output/tumor_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the tumor. | `/ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Same as above. |
 
 **Subscriptions:**
 Any simulation that involves a Virtuoso robot subscribes to the following topics for inputting commandes to the robot. The interface was designed to try to be identical to that of `ves_ros_interface`. (i.e. controlling the simulated Virtuoso arm over ROS should be the same as controlling the real Virtuoso arm over ROS).
 | Topic        | Mapped To | Description | Frame | Type | Notes |
 |--------------|-----------|-------------|-------|------|-------|
-| `/input/arm1_joint_state` | `/ves/left/joint/servo_jp` | Input joint state for the simulated Virtuoso left arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
-| `/input/arm2_joint_state` | `/ves/right/joint/servo_jp` | Input joint state for the simualted Virtuoso right arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
-| `/input/arm1_tip_pos` | `/ves/left/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso left arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
-| `/input/arm2_tip_pos` | `/ves/right/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso right arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
-| `/input/arm1_tool_state` | `/ves/left/set_tool` | Input tool state for the simulated Virtuoso left arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
-| `/input/arm2_tool_state` | `/ves/right/set_tool` | Input tool state for the simualte Virtuoso right arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
+| `/sim/input/arm1_joint_state` | `/ves/left/joint/servo_jp` | Input joint state for the simulated Virtuoso left arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
+| `/sim/input/arm2_joint_state` | `/ves/right/joint/servo_jp` | Input joint state for the simualted Virtuoso right arm. Expects the same format as in `ves_ros_interface`. | N/A | `sensor_msgs/JointState` | |
+| `/sim/input/arm1_tip_pos` | `/ves/left/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso left arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
+| `/sim/input/arm2_tip_pos` | `/ves/right/joint/servo_cp` | Input commanded tip position for the simulated Virtuoso right arm. Only position will be used. | `ves/left/base` | `geometry_msgs/PoseStamped` | |
+| `/sim/input/arm1_tool_state` | `/ves/left/set_tool` | Input tool state for the simulated Virtuoso left arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
+| `/sim/input/arm2_tool_state` | `/ves/right/set_tool` | Input tool state for the simualte Virtuoso right arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 
 **Node parameters:**
 The `VirtuosoSimulation` has the following extra parameters, mostly for configuring the partial view point clouds:

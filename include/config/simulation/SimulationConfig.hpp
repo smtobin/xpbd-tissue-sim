@@ -189,7 +189,7 @@ class SimulationConfig : public Config
     ConfigParameter<Visualization> _visualization = ConfigParameter<Visualization>(Visualization::VTK);
     ConfigParameter<bool> _enable_mouse_interaction = ConfigParameter<bool>(true);
     ConfigParameter<bool> _logging = ConfigParameter<bool>(false);
-    ConfigParameter<std::string> _logging_output_dir = ConfigParameter<std::string>("../output/");
+    ConfigParameter<std::string> _logging_output_dir = ConfigParameter<std::string>("../sim/output/");
     ConfigParameter<Real> _g_accel = ConfigParameter<Real>(9.81);
     ConfigParameter<Real> _fps = ConfigParameter<Real>(30.0);
     ConfigParameter<Real> _collision_rate = ConfigParameter<Real>(100);

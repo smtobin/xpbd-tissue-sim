@@ -12,8 +12,8 @@ VirtuosoTissueGraspingSimBridge::VirtuosoTissueGraspingSimBridge(Sim::VirtuosoTi
 
 void VirtuosoTissueGraspingSimBridge::_setupPartialViewPointCloudPublishers()
 {
-    _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/trachea_partial_view_pc", 10);
-    _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/output/tumor_partial_view_pc", 10);
+    _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/trachea_partial_view_pc", 10);
+    _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/tumor_partial_view_pc", 10);
     
     this->declare_parameter("partial_view_pc", true);
     this->declare_parameter("partial_view_pc_hfov", 80.0);

@@ -1,7 +1,7 @@
 #ifndef __BEAM_STRETCH_SIMULATION_HPP
 #define __BEAM_STRETCH_SIMULATION_HPP
 
-#include "simulation/OutputSimulation.hpp"
+#include "simulation/sim/outputSimulation.hpp"
 #include "common/types.hpp"
 
 namespace Sim
