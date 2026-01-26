@@ -88,20 +88,25 @@ Any simulation that involves a Virtuoso robot subscribes to the following topics
 | `/sim/input/arm1_tool_state` | `/ves/left/set_tool` | Input tool state for the simulated Virtuoso left arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 | `/sim/input/arm2_tool_state` | `/ves/right/set_tool` | Input tool state for the simualte Virtuoso right arm. Same as `ves_ros_interface`. | N/A | `std_msgs/Int8` | 0 = off, 1 = on |
 
+### `VirtuosoCTAnatomySimulation`
+**Publishers:**
+Any simulation that involves a Virtuoso robot interacting with anatomical meshes has the following additional publishers:
+| Topic        | Mapped To | Description | Frame | Type | Notes |
+|--------------|-----------|-------------|-------|------|-------|
+| `/sim/output/arm2_net_force` | N/A | The current (simulated) net force on the Virtuoso right arm. | `ves/left/base` | `geometry_msgs/Vector3Stamped` |  |
+| `/sim/output/trachea_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the trachea. | `ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Enabled by setting the `partial_view_pc` parameter to `true`. Requires some computation time, since the Embree ray collision scene must be updated. Also requires that a tissue mesh be in the scene that has labels for trachea and tumor parts. |
+| `/sim/output/tumor_partial_view_pc` | N/A | A partial view point cloud from the endoscope camera view of just the tumor. | `/ves/left/base` | `sensor_msgs/PointCloud2` | Optional. Same as above. |
+
 **Node parameters:**
-The `VirtuosoSimulation` has the following extra parameters, mostly for configuring the partial view point clouds:
+The `VirtuosoCTAnatomySimulation` has the following extra parameters, mostly for configuring the partial view point clouds:
 | Parameter    | Type | Default | Description |
 |--------------|------|---------|-------------|
 | `partial_view_pc` | `bool` | `true` | Whether or not to publish the partial view point clouds from the endoscope camera view. |
 | `partial_view_pc_hfov` | `double` | 80 | The horizontal field-of-view (in degrees) of the rays cast for computing the point cloud. I.e. for 80 degrees, rays will be cast between [-40, +40] degrees in angle left to right. |
 | `partial_view_pc_vfov` | `double` | 30 | The vertical field-of-view (in degrees) of the rays cast for computing the point cloud. |
 | `partial_view_pc_sample_density` | `double` | 1 | The density of rays (per degree) cast when computing the point cloud. Higher number = denser point cloud. Note: this doesn't really correspond to anything physical (like sensor parameters), it's just a way to get a denser point cloud if you want it. |
+| `CT_frame_name` | `string` | `CT/kuka` | The name of the CT origin frame in the `tf` tree. The simulation listens to the transform between `CT_frame_name` and `ves/left/base` to dictate the position of meshes in the simulation. |
 
-**`tf` transforms:**
-`VirtuosoSimulation` also broadcasts the following `tf` transforms:
-| Frame | Child Frame | Description |
-|-------|-------------|-------------|
-| `sim/world` | `ves/left/base` | The VB frame w.r.t. the simulation's world frame. |
 
 ### `FixedObjectSimulation`
 **TODO**
@@ -205,7 +210,7 @@ This demo consists of a life-size trachea mesh with a tumor and a Virtuoso robot
 
 **Running the demo:**
 ```
-./VirtuosoTracheaDemo ../config/demos/virtuoso_trachea/virtuoso_trachea.yaml
+./VirtuosoTracheaDemo ../config/demos/virtuoso_trachea/only_tumor.yaml
 ```
 
 **Controls:**
@@ -219,16 +224,16 @@ _Mouse_: Controls the tip of the robot (joint variables computed through inverse
 
 _Haptic_: Controls the tip of the robot. Hold the first button and move the input device to move the active arm tip position. Press and hold the second button to grasp (note: you need to continually hold the second button to keep grasping -- hold both buttons to grasp and move at the same time).
 
-**With collisions:**
-Collisions between the tissue and the Virtuoso arm can be enabled by running
-```
-./VirtuosoTracheaDemo ../config/demos/virtuoso_trachea/virtuoso_trachea_collision.yaml
-```
-
 **Screenshots:**
 
 <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/2a1d9b68-c79e-40c7-8379-1f263de73069"/>
 
+**Config file parameters:**
+
+- _CT-to-VB-transform-translation_: the translation part of the transfrom from `CT -> VB` (i.e. from the CT origin frame to the base of the left Virtuoso arm). Note that the **"robotics"** convention is used here, meaning that the `CT -> VB` transform will transform a point expressed in the CT frame into a point expressed in the VB frame.
+- _CT-to-VB-transform-rotation_: the rotational part of the transform from `CT -> VB`, expressed as XYZ Euler angles.
+
+In the config file, just the `CT -> VB` transform should dictate the positions of the meshes (if the meshes were created from CT scans). No positional/rotational offsets for individual objects should be necessary.
 
 ### Simple grasping demo
 This demo is basically a simpler version of the above demo, without the Virtuoso arm. The yellow sphere at the tip of the robot represents the grasping radius -- when grasping is toggled to be active, all tissue mesh nodes inside the sphere will be "grasped" and move around with the tip of the robot. When grasping is toggled to be inactive, any grasped mesh nodes are released. The bottom face of the mesh is optionally fixed to better see the effects of deformation.
