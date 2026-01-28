@@ -429,6 +429,18 @@ std::pair<bool, Geometry::RefinedTetMesh> test10()
 /** Output from real mesh cutting example that went wrong. */
 std::pair<bool, Geometry::RefinedTetMesh> test11();
 
+std::pair<bool, Geometry::RefinedTetMesh> test12()
+{
+    Geometry::TetMesh mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/double.msh");
+    Geometry::RefinedTetMesh refined_mesh(mesh);
+    refined_mesh.setCurrentStateAsUndeformedState();
+
+    refined_mesh.refineElement(0, 2, true);
+    refined_mesh.removeElement(1);
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+}
+
 
 void visualizeMesh(const Geometry::RefinedTetMesh& refined_mesh)
 {
@@ -470,7 +482,7 @@ int main()
     gmsh::initialize();
 
     using TestFuncType = std::function<std::pair<bool, Geometry::RefinedTetMesh> ()>;
-    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11};
+    std::vector<TestFuncType> test_funcs = {test0, test1, test2, test3, test4, test5, test6, test7, test8, test9, test10, test11, test12};
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
@@ -494,7 +506,7 @@ int main()
         std::cout << " Test " << i << ": " << true_false << std::endl;
     }
 
-    if (visualize_index > 0 && visualize_index < refined_meshes.size())
+    if (visualize_index >= 0 && visualize_index < refined_meshes.size())
     {
         std::cout << "\n=== Visualized mesh stats ===" << std::endl;
         std::cout << " Num vertices: " << refined_meshes[visualize_index].numVertices() << std::endl;

@@ -237,6 +237,7 @@ int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_l
 
 void RefinedTetMesh::removeElement(int elem_index)
 {
+    std::cout << "\n=== Removing element " << elem_index << std::endl;
     // clear the latest added vertices and elements
     _latest_new_vertices.clear();
     _latest_removed_vertices.clear();
@@ -249,7 +250,7 @@ void RefinedTetMesh::removeElement(int elem_index)
     // std::cout << "refined_mesh.removeElement(" << elem_index << ");" << std::endl;
 
     // check all the vertices of the tet we are removing to see if they are hanging
-    const Vec4i& elem_to_remove = element(elem_index);
+    Vec4i elem_to_remove = element(elem_index);     // important: make a copy of the vertices here
     std::cout << "Removing element " << elem_index << ": " << elem_to_remove.transpose() << std::endl;
     int elem_to_remove_refinement_level = elementRefinementLevel(elem_index);
     std::vector<int> elem_hanging_verts;
@@ -290,25 +291,13 @@ void RefinedTetMesh::removeElement(int elem_index)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
     {
         int node_index = search->second;
-        const ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
+        ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
 
         // mark parent nodes as incomplete
         _markParentsAsIncomplete(node_index);
 
-        // since this element is being removed, all of its faces (if they are still in the mesh after the element is removed) will now be on the surface
-        // so update the face nodes of the element to reflect this
-        // Likely, most of the face nodes associated with the element will be removed, but the ones that are left behind (because they are still in the mesh)
-        //   will correctly be marked on the surface
-        for (const auto& face_node_index : node_to_remove.face_nodes)
-        {
-            if (face_node_index == ElementTreeNode::INVALID_INDEX)
-                continue;
-
-            _face_nodes[face_node_index].on_surface = true;
-        }
-
         // update the feature hierarchy (i.e. remove edge nodes and face nodes that are no longer in the mesh)
-        _updateFeatureHierarchyForRemovedElementTreeNode(node_index);
+        _updateFeatureHierarchyForRemovedElementTreeNode(node_to_remove);
 
         // remove the leaf tree node from its parent's list of children
         if (node_to_remove.parent != ElementTreeNode::INVALID_INDEX)
@@ -328,13 +317,45 @@ void RefinedTetMesh::removeElement(int elem_index)
     }
     else
     {
-        std::cout << "  Removed an element without an associated ElementTreeNode!" << std::endl;
+        // create a temporary ElementTreeNode that has the necessary information
+        ElementTreeNode temp_tree_node(elem_to_remove, ElementTreeNode::INVALID_INDEX, 0);
+        // edge nodes
+        int num_edge_nodes = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = i+1; j < 4; j++)
+            {
+                if (auto it = _edge_to_edge_node_map.find(Edge(elem_to_remove[i], elem_to_remove[j])); it != _edge_to_edge_node_map.end())
+                {
+                    temp_tree_node.edge_nodes[num_edge_nodes] = it->second;
+                    num_edge_nodes++;
+                }
+            }
+        }
+        // face nodes
+        int num_face_nodes = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = i+1; j < 4; j++)
+            {
+                for (int k = j+1; k < 4; k++)
+                {
+                    if (auto it = _face_to_face_node_map.find(Face(elem_to_remove[i], elem_to_remove[j], elem_to_remove[k])); it != _face_to_face_node_map.end())
+                    {
+                        temp_tree_node.face_nodes[num_face_nodes] = it->second;
+                        num_face_nodes++;
+                    }
+                }
+            }
+        }
+
+        _updateFeatureHierarchyForRemovedElementTreeNode(temp_tree_node);
     }
 }
 
-void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index)
+void RefinedTetMesh::_removeFeaturesForRemovedElementTreeNode(ElementTreeNode& node)
 {
-    ElementTreeNode& node = _element_tree_nodes[element_tree_node_index];
+    // ElementTreeNode& node = _element_tree_nodes[element_tree_node_index];
 
     // update the feature hierarchy
     // for an edge or face to be removed, it must:
@@ -346,7 +367,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
     for (const auto& edge_node_index : node.edge_nodes)
     {
         if (edge_node_index == ElementTreeNode::INVALID_INDEX)
-            assert(0);  // this shouldn't happen
+            continue;
         
         EdgeNode& edge_node = _edge_nodes[edge_node_index];
 
@@ -356,29 +377,16 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
             continue;
         }
 
-        // we are removing the edge in the element, and if we got to here, another element does not have this exact edge
-        // thus, we need to update the vertex adjacency lists
-        // i.e. the vertices that make up the edge are no longer adjacent
-        // _vertex_adjacent_vertices[edge_node.edge.index1].erase(edge_node.edge.index2);
-        // _vertex_adjacent_vertices[edge_node.edge.index2].erase(edge_node.edge.index1);
-
         // move on if the edge node is not a leaf
         if (!edge_node.is_leaf)
-        {
-            assert(edge_node.child_vertex != ElementTreeNode::INVALID_INDEX);
-            edge_node.in_mesh = true;
-            const auto [it, success] = _hanging_vertices.insert({edge_node.child_vertex, edge_node.edge});
-            if (success)
-                _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
             continue;
-        }
 
         // if we get to here, it is safe to remove this edge node
         // edit the parent
         if (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX)
         {
             EdgeNode& parent_edge_node = _edge_nodes[edge_node.parent_edge_node];
-            // std::cout "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
+            // std::cout << "  setting child vertex of EdgeNode " << edge_node.parent_edge_node << " to -1! Used to be " << parent_edge_node.child_vertex << std::endl;
             parent_edge_node.child_vertex = ElementTreeNode::INVALID_INDEX;
             parent_edge_node.is_leaf = true;
             
@@ -412,7 +420,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
     for (const auto& face_node_index : node.face_nodes)
     {
         if (face_node_index == ElementTreeNode::INVALID_INDEX)
-            assert(0);      // this shouldn't happen
+            continue;
         
         FaceNode& face_node = _face_nodes[face_node_index];
 
@@ -449,6 +457,153 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
     }
 }
 
+void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& node, int depth)
+{
+    /** First, figure out if any updates need to be made */
+
+    // store the edges and faces that need to be updated 
+    // (first int = node index, second int = depth)
+    std::stack<std::pair<int,int>> face_nodes_to_update;
+    std::stack<std::pair<int,int>> edge_nodes_to_update;
+
+    // iterate through the root's face nodes and look for faces whose parent feature has
+    // in_mesh = false and the face itself is not part of another element
+    for (const auto& face_node_index : node.face_nodes)
+    {
+        if (face_node_index == ElementTreeNode::INVALID_INDEX)
+            continue;
+        
+        FaceNode& face_node = _face_nodes[face_node_index];
+        // std::cout "    checking if face " << face_node.face.index1 << ", " << face_node.face.index2 << ", " << face_node.face.index3 << " needs to be updated" << std::endl;
+        if (_face_to_elements_map.count(face_node.face) == 0)
+        {
+            if (face_node.parent_face_node != ElementTreeNode::INVALID_INDEX && _face_nodes[face_node.parent_face_node].in_mesh)
+            {
+                // the parent feature is still in the mesh, so no updates need to be made
+            }
+            else
+            {
+                // std::cout "      updates needed!" << std::endl;
+                // the parent feature is not in the mesh, so we need to update the face_node's children to the specified depth
+                face_nodes_to_update.push({face_node_index, depth});
+            }
+            
+        }
+    }
+
+    // iterate through the root's edge nodes and look for edges whose parent feature has
+    // in_mesh = false and the edge itself is not part of another element - these are the edges that need to be updated 
+    for (const auto& edge_node_index : node.edge_nodes)
+    {
+        if (edge_node_index == ElementTreeNode::INVALID_INDEX)
+            continue;
+
+        EdgeNode& edge_node = _edge_nodes[edge_node_index];
+        // std::cout << "    checking if edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " needs to be updated" << std::endl;
+        if (_edge_to_elements_map.count(edge_node.edge) == 0)
+        {
+            if ( (edge_node.parent_edge_node != ElementTreeNode::INVALID_INDEX && _edge_nodes[edge_node.parent_edge_node].in_mesh ) ||
+                 (edge_node.parent_face_node != ElementTreeNode::INVALID_INDEX && _face_nodes[edge_node.parent_face_node].in_mesh ) )
+            {
+                // the parent feature is still in the mesh, so no updates need to be made
+            }
+            else
+            {
+                // std::cout << "      updates needed!" << std::endl;
+                // the parent feature is not in the mesh, so we need to update the edge_node's children to the specified depth
+                edge_nodes_to_update.push({edge_node_index, depth});
+            }
+        }
+    }
+
+
+
+    /** Now, update the branches marked for updates to the specified depth */
+    // update branches starting with a face node
+    while (!face_nodes_to_update.empty())
+    {
+        auto [node_index, d] = face_nodes_to_update.top();
+        FaceNode& face_node = _face_nodes[node_index];
+        face_node.in_mesh = false;
+
+        face_nodes_to_update.pop();
+
+        if (!face_node.is_leaf && d > 0)
+        {
+            // push the child faces and edges to be updated if they exist, and they do not belong to another element in the mesh
+            for (const auto& child_face_node_index : face_node.child_face_nodes)
+            {
+                if (child_face_node_index != ElementTreeNode::INVALID_INDEX && _face_to_elements_map.count(_face_nodes.at(child_face_node_index).face) == 0)
+                {
+                    face_nodes_to_update.push({child_face_node_index, d-1});
+                }
+            }
+
+            for (const auto& child_edge_node_index : face_node.child_edge_nodes)
+            {
+                if (child_edge_node_index != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(child_edge_node_index).edge) == 0)
+                {
+                    edge_nodes_to_update.push({child_edge_node_index, d-1});
+                }
+            }
+        }
+    }
+
+    // update branches starting with an edge node
+    while (!edge_nodes_to_update.empty())
+    {
+        auto [node_index, d] = edge_nodes_to_update.top();
+        EdgeNode& edge_node = _edge_nodes[node_index];
+
+        std::cout << " Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
+        edge_node.in_mesh = false;
+
+        edge_nodes_to_update.pop();
+
+        if (!edge_node.is_leaf && d > 0)
+        {
+            // since the parent edge is no longer in the mesh, the child vertex (if it exists) is no longer hanging
+            if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
+            {
+                int hanging_vert_removed = _hanging_vertices.erase(edge_node.child_vertex);
+                if (hanging_vert_removed)
+                {
+                    std::cout << "   _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes Removed vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
+                    _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
+                }
+            }
+
+            // push the child edges to be updated if they exist, and they do not belong to another element in the mesh
+            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node1).edge) == 0)
+            {
+                edge_nodes_to_update.push({edge_node.child_edge_node1, d-1});
+            }
+            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node2).edge) == 0)
+            {
+                edge_nodes_to_update.push({edge_node.child_edge_node2, d-1});
+            }
+        }
+    }
+}
+
+void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(ElementTreeNode& node)
+{
+    // since this element is being removed, all of its faces (if they are still in the mesh after the element is removed) will now be on the surface
+    // so update the face nodes of the element to reflect this
+    // Likely, most of the face nodes associated with the element will be removed, but the ones that are left behind (because they are still in the mesh)
+    //   will correctly be marked on the surface
+    for (const auto& face_node_index : node.face_nodes)
+    {
+        if (face_node_index == ElementTreeNode::INVALID_INDEX)
+            continue;
+
+        _face_nodes[face_node_index].on_surface = true;
+    }
+
+    _removeFeaturesForRemovedElementTreeNode(node);
+    _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(node, 1000);
+}
+
 void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 {
     // this is the same code as for TetMesh, but with extra logic to update the list of hanging vertices
@@ -469,7 +624,10 @@ void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)
 
             int hanging_vert_removed = _hanging_vertices.erase(elem_to_remove[k]);
             if (hanging_vert_removed)
+            {
+                std::cout << " _updateVertexElementMapForRemovedElement remove vertex " << elem_to_remove[k] << " from hanging vertices!" << std::endl;
                 _latest_removed_hanging_vertices.push_back(elem_to_remove[k]);
+            }
             
             // vertex no longer in mesh, so clear its adjacent vertices list
             _vertex_adjacent_vertices[elem_to_remove[k]].clear();
@@ -500,6 +658,23 @@ int RefinedTetMesh::_addNewElementFromElementTreeNode(int tree_node_index)
 
     // update the element -> tree node map
     _element_to_tree_node_map.insert({elem_index, tree_node_index});
+
+    // the edge nodes and face node are in the mesh
+    /** TODO: need to edit "in_mesh" of children? */
+    for (const auto& edge_node_index : node.edge_nodes)
+    {
+        if (edge_node_index == ElementTreeNode::INVALID_INDEX)
+            continue;
+        
+        _edge_nodes[edge_node_index].in_mesh = true;
+    }
+    for (const auto& face_node_index : node.face_nodes)
+    {
+        if (face_node_index == ElementTreeNode::INVALID_INDEX)
+            continue;
+
+        _face_nodes[face_node_index].in_mesh = true;
+    }
 
     return elem_index;
 }
@@ -711,7 +886,7 @@ void RefinedTetMesh::_prepareFeatureTreeForRefinedElement(int element_tree_node_
             // since the parent edge is no longer in the mesh, the child vertex (if it exists) is no longer hanging
             if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
             {
-                // std::cout "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
+                std::cout << "Removing vertex " << edge_node.child_vertex << " from hanging vertices!" << std::endl;
                 int hanging_vert_removed = _hanging_vertices.erase(edge_node.child_vertex);
                 if (hanging_vert_removed)
                     _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
@@ -984,7 +1159,7 @@ std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices
 
 bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute, bool clear_latest)
 {
-    
+    std::cout << "\n=== Refining element " << element_index << std::endl;
     assert(elementValid(element_index));
 
 
@@ -1490,6 +1665,7 @@ void RefinedTetMesh::_distributeVertexFieldsToRootTreeNode(int root_tree_node_in
 
 bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, bool absolute, bool clear_latest)
 {
+    std::cout << "\n=== Coarsening element " << element_index << ": " << element(element_index).transpose() << std::endl;
     // clear the latest added vertices and elements
     if (clear_latest)
     {
@@ -1571,6 +1747,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     // add the element associated with root_node to the mesh
     // do this before we remove child elements so that the vertices associated with the root element don't get deleted
     ElementTreeNode& root_node = _element_tree_nodes[root_index];
+    std::cout << "Root node vertices: " << root_node.vertices.transpose() << std::endl;
     int new_node_index = _addNewElementFromElementTreeNode(root_index);
 
     // distribute vertex field variables (temperature, etc.) from refined vertices back to the coarse vertices
@@ -1658,6 +1835,7 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                         /** TODO: somehow get the parent vertices of this removed vertex? Is this necessary? */
                         _latest_removed_vertices.emplace_back(node.vertices[k], -1, -1);
 
+                        std::cout << "Removing vertex " << node.vertices[k] << " from hanging vertices!" << std::endl;
                         int hanging_vert_removed = _hanging_vertices.erase(node.vertices[k]);
                         if (hanging_vert_removed)
                             _latest_removed_hanging_vertices.push_back(node.vertices[k]);
@@ -1669,7 +1847,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                 
             }
 
-            _updateFeatureHierarchyForRemovedElementTreeNode(node_index);
+            // _updateFeatureHierarchyForRemovedElementTreeNode(node);
+            _removeFeaturesForRemovedElementTreeNode(node);
 
             // remove the node
             _element_tree_nodes.erase(node_index);
@@ -1679,17 +1858,94 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     // we have removed all the children so update the root node to reflect this
     root_node.children.clear();
 
-    // the edge nodes that are not leaves in the root node now have hanging vertices
-    for (const auto& edge_node_vertex : root_node.edge_nodes)
+    // starting at the root node, traverse down the feature tree
+    // any non-leaf edge nodes have hanging vertices at their midpoint
+
+    // store the edges and faces that need to be updated 
+    // (first int = node index, second int = depth)
+    std::stack<std::pair<int,int>> face_nodes_to_update;
+    std::stack<std::pair<int,int>> edge_nodes_to_update;
+
+    // iterate through the root's face nodes and look for faces whose parent feature has
+    // in_mesh = false and the face itself is not part of another element
+    for (const auto& face_node_index : root_node.face_nodes)
     {
-        EdgeNode& edge_node = _edge_nodes[edge_node_vertex];
-        if (!edge_node.is_leaf)
+        if (face_node_index != ElementTreeNode::INVALID_INDEX)
+            face_nodes_to_update.push({face_node_index, rel_coarsening_level+1});
+    }
+
+    // iterate through the root's edge nodes and look for faces whose parent feature has
+    // in_mesh = false and the edge itself is not part of another element - these are the edges that need to be updated 
+    for (const auto& edge_node_index : root_node.edge_nodes)
+    {
+        if (edge_node_index != ElementTreeNode::INVALID_INDEX)
+            edge_nodes_to_update.push({edge_node_index, rel_coarsening_level+1});
+    }
+
+
+
+    /** Now, update the branches marked for updates to the specified depth */
+    // update branches starting with a face node
+    while (!face_nodes_to_update.empty())
+    {
+        auto [node_index, d] = face_nodes_to_update.top();
+        FaceNode& face_node = _face_nodes[node_index];
+        face_node.in_mesh = true;
+
+        face_nodes_to_update.pop();
+
+        if (!face_node.is_leaf && d > 0)
         {
-            const auto [it, success] = _hanging_vertices.insert({edge_node.child_vertex, edge_node.edge});
-            if (success)
-                _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
+            // push the child faces and edges to be updated if they exist, and they do not belong to another element in the mesh
+            for (const auto& child_face_node_index : face_node.child_face_nodes)
+            {
+                if (child_face_node_index != ElementTreeNode::INVALID_INDEX)
+                    face_nodes_to_update.push({child_face_node_index, d-1});
+            }
+
+            for (const auto& child_edge_node_index : face_node.child_edge_nodes)
+            {
+                if (child_edge_node_index != ElementTreeNode::INVALID_INDEX)
+                    edge_nodes_to_update.push({child_edge_node_index, d-1});
+            }
         }
+    }
+
+    // update branches starting with an edge node
+    while (!edge_nodes_to_update.empty())
+    {
+        auto [node_index, d] = edge_nodes_to_update.top();
+        EdgeNode& edge_node = _edge_nodes[node_index];
+
+        // std::cout "Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
         edge_node.in_mesh = true;
+
+        edge_nodes_to_update.pop();
+
+        if (!edge_node.is_leaf && d > 0)
+        {
+            // since the parent edge is no longer in the mesh, the child vertex (if it exists) is no longer hanging
+            if (edge_node.child_vertex != ElementTreeNode::INVALID_INDEX)
+            {
+                
+                const auto [it, success] = _hanging_vertices.insert({edge_node.child_vertex, edge_node.edge});
+                if (success)
+                {
+                    std::cout << "Added vertex " << edge_node.child_vertex << " to hanging vertices!" << std::endl;
+                    _latest_new_hanging_vertices.emplace_back(edge_node.child_vertex, edge_node.edge.index1, edge_node.edge.index2);
+                }
+            }
+
+            // push the child edges to be updated if they exist, and they do not belong to another element in the mesh
+            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX)
+            {
+                edge_nodes_to_update.push({edge_node.child_edge_node1, d-1});
+            }
+            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX)
+            {
+                edge_nodes_to_update.push({edge_node.child_edge_node2, d-1});
+            }
+        }
     }
 
     // for field-type element properties, divide by the number of leaf elements (we are averaging the leaf elements)

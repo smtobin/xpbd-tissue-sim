@@ -295,13 +295,19 @@ protected:
 
 private:
 
+    void _removeFeaturesForRemovedElementTreeNode(ElementTreeNode& element_tree_node);
+    void _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& element_tree_node, int depth);
+
     /** Updates the feature hierarchy for a removed element tree node.
      * 
      * For an edge or face to be removed, it must:
      *   - not have any children (i.e. it is a leaf)
      *   - not be in the mesh itself
      */
-    void _updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index);
+    void _updateFeatureHierarchyForRemovedElementTreeNode(ElementTreeNode& element_tree_node);
+
+    /** Updates the feature hierarchy for a removed element that does not have an associated element tree node. */
+    // void _updateFeatureHierarchyForRemovedElementWithNoTreeNode(int elem_index);
 
     /** Adds a new element to the mesh given an ElementTreeNode.
      * An element tree node has all the information we need to add a new element to the mesh.
