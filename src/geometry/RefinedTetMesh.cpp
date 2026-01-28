@@ -457,7 +457,7 @@ void RefinedTetMesh::_removeFeaturesForRemovedElementTreeNode(ElementTreeNode& n
     }
 }
 
-void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& node, int depth)
+void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& node)
 {
     /** First, figure out if any updates need to be made */
 
@@ -485,7 +485,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(El
             {
                 // std::cout "      updates needed!" << std::endl;
                 // the parent feature is not in the mesh, so we need to update the face_node's children to the specified depth
-                face_nodes_to_update.push({face_node_index, depth});
+                face_nodes_to_update.push({face_node_index, 10});   /** TODO: replace with max_depth */
             }
             
         }
@@ -511,7 +511,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(El
             {
                 // std::cout << "      updates needed!" << std::endl;
                 // the parent feature is not in the mesh, so we need to update the edge_node's children to the specified depth
-                edge_nodes_to_update.push({edge_node_index, depth});
+                edge_nodes_to_update.push({edge_node_index, 10});   /** TODO: replace with max_depth */
             }
         }
     }
@@ -524,29 +524,45 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(El
     {
         auto [node_index, d] = face_nodes_to_update.top();
         FaceNode& face_node = _face_nodes[node_index];
-        face_node.in_mesh = false;
-
         face_nodes_to_update.pop();
 
-        if (!face_node.is_leaf && d > 0)
+        // face does not belong to another element in the mesh
+        auto element_range = _face_to_elements_map.equal_range(face_node.face);
+        int num_elements_with_face = std::distance(element_range.first, element_range.second);
+        if (num_elements_with_face == 0)
         {
-            // push the child faces and edges to be updated if they exist, and they do not belong to another element in the mesh
-            for (const auto& child_face_node_index : face_node.child_face_nodes)
-            {
-                if (child_face_node_index != ElementTreeNode::INVALID_INDEX && _face_to_elements_map.count(_face_nodes.at(child_face_node_index).face) == 0)
-                {
-                    face_nodes_to_update.push({child_face_node_index, d-1});
-                }
-            }
+            face_node.in_mesh = false;
 
-            for (const auto& child_edge_node_index : face_node.child_edge_nodes)
+            if (!face_node.is_leaf && d > 0)
             {
-                if (child_edge_node_index != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(child_edge_node_index).edge) == 0)
+                // push the child faces and edges to be updated if they exist
+                for (const auto& child_face_node_index : face_node.child_face_nodes)
                 {
-                    edge_nodes_to_update.push({child_edge_node_index, d-1});
+                    if (child_face_node_index != ElementTreeNode::INVALID_INDEX)
+                        face_nodes_to_update.push({child_face_node_index, d-1});
+                }
+
+                for (const auto& child_edge_node_index : face_node.child_edge_nodes)
+                {
+                    if (child_edge_node_index != ElementTreeNode::INVALID_INDEX)
+                        edge_nodes_to_update.push({child_edge_node_index, d-1});
                 }
             }
         }
+        else
+        {
+            // we've reached the level where there are adjacent elements
+            // so add a new face
+
+            int element_index_with_face = element_range.first->second;  // (there should only be one element with this face)
+            int new_face_index = _addFace(Vec3i(face_node.face.index1, face_node.face.index2, face_node.face.index3));
+            face_node.on_surface = true;
+            _element_to_surface_faces_map.insert({element_index_with_face, new_face_index});
+
+            _surface_face_to_element_map.resize(_faces.totalSize());
+            _surface_face_to_element_map[new_face_index] = element_index_with_face;
+        }
+        
     }
 
     // update branches starting with an edge node
@@ -554,11 +570,12 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(El
     {
         auto [node_index, d] = edge_nodes_to_update.top();
         EdgeNode& edge_node = _edge_nodes[node_index];
-
-        std::cout << " Setting edge " << edge_node.edge.index1 << ", " << edge_node.edge.index2 << " to not be in_mesh!" << std::endl;
-        edge_node.in_mesh = false;
-
         edge_nodes_to_update.pop();
+
+        if (_edge_to_elements_map.count(edge_node.edge) > 0)
+            continue;
+
+        edge_node.in_mesh = false;
 
         if (!edge_node.is_leaf && d > 0)
         {
@@ -572,16 +589,12 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(El
                     _latest_removed_hanging_vertices.push_back(edge_node.child_vertex);
                 }
             }
-
-            // push the child edges to be updated if they exist, and they do not belong to another element in the mesh
-            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node1).edge) == 0)
-            {
+            // push the child edges to be updated if they exist
+            if (edge_node.child_edge_node1 != ElementTreeNode::INVALID_INDEX)
                 edge_nodes_to_update.push({edge_node.child_edge_node1, d-1});
-            }
-            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX && _edge_to_elements_map.count(_edge_nodes.at(edge_node.child_edge_node2).edge) == 0)
-            {
+
+            if (edge_node.child_edge_node2 != ElementTreeNode::INVALID_INDEX)
                 edge_nodes_to_update.push({edge_node.child_edge_node2, d-1});
-            }
         }
     }
 }
@@ -601,7 +614,7 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(ElementTre
     }
 
     _removeFeaturesForRemovedElementTreeNode(node);
-    _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(node, 1000);
+    _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(node);
 }
 
 void RefinedTetMesh::_updateVertexElementMapForRemovedElement(int element_index)

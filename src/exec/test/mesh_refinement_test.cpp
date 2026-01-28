@@ -1089,7 +1089,7 @@ std::pair<bool, Geometry::RefinedTetMesh> test11()
     refined_mesh.removeElement(2062);
     // 0
     refined_mesh.removeElement(1166);
-    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
+    // return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
     // 1 hanging vert
     refined_mesh.removeElement(1916);
     refined_mesh.removeElement(1978);
@@ -4707,4 +4707,6 @@ std::pair<bool, Geometry::RefinedTetMesh> test11()
     refined_mesh.removeElement(2464);
     refined_mesh.removeElement(2884);
     refined_mesh.removeElement(1306);
+
+    return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }

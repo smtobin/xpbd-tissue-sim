@@ -296,7 +296,7 @@ protected:
 private:
 
     void _removeFeaturesForRemovedElementTreeNode(ElementTreeNode& element_tree_node);
-    void _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& element_tree_node, int depth);
+    void _updateFeatureHierarchyForRemovedElementEdgeAndFaceNodes(ElementTreeNode& element_tree_node);
 
     /** Updates the feature hierarchy for a removed element tree node.
      * 
