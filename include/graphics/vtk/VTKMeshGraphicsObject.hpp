@@ -30,6 +30,8 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     void _setFaces(const RenderInfo* rmesh);
     void _setColors(const RenderInfo* rmesh);
 
+    unsigned long _latest_topology_version = 0;
+
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
 
     vtkSmartPointer<vtkPolyData> _front_poly_data;

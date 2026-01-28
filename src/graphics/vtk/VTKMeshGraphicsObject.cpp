@@ -183,8 +183,7 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     int old_num_points = _front_poly_data->GetNumberOfPoints();
     int old_num_cells = _front_poly_data->GetNumberOfCells();
     
-    bool topology_changed = (rmesh->vertices.totalSize() != old_num_points) ||
-                           (rmesh->faces.size() != old_num_cells);
+    bool topology_changed = (rmesh->topology_version != _latest_topology_version);
 
     _setVertices(rmesh);
     
@@ -196,6 +195,8 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 
         _front_poly_data->BuildCells();
         _front_poly_data->BuildLinks();
+
+        _latest_topology_version = rmesh->topology_version;
     }
 
     
