@@ -724,7 +724,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         return;
     }
 
-    std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
+    // std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
 
     /** Get the newest added/removed vertices/hanging vertices/faces/elements */
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();

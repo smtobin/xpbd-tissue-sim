@@ -246,8 +246,11 @@ void RefinedTetMesh::removeElement(int elem_index)
     _latest_new_hanging_vertices.clear();
     _latest_removed_hanging_vertices.clear();
 
+    // std::cout << "refined_mesh.removeElement(" << elem_index << ");" << std::endl;
+
     // check all the vertices of the tet we are removing to see if they are hanging
     const Vec4i& elem_to_remove = element(elem_index);
+    std::cout << "Removing element " << elem_index << ": " << elem_to_remove.transpose() << std::endl;
     int elem_to_remove_refinement_level = elementRefinementLevel(elem_index);
     std::vector<int> elem_hanging_verts;
     for (const auto& v : elem_to_remove)
@@ -323,6 +326,10 @@ void RefinedTetMesh::removeElement(int elem_index)
         // remove the element from the element -> tree node map
         _element_to_tree_node_map.erase(elem_index);
     }
+    else
+    {
+        std::cout << "  Removed an element without an associated ElementTreeNode!" << std::endl;
+    }
 }
 
 void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index)
@@ -352,8 +359,8 @@ void RefinedTetMesh::_updateFeatureHierarchyForRemovedElementTreeNode(int elemen
         // we are removing the edge in the element, and if we got to here, another element does not have this exact edge
         // thus, we need to update the vertex adjacency lists
         // i.e. the vertices that make up the edge are no longer adjacent
-        _vertex_adjacent_vertices[edge_node.edge.index1].erase(edge_node.edge.index2);
-        _vertex_adjacent_vertices[edge_node.edge.index2].erase(edge_node.edge.index1);
+        // _vertex_adjacent_vertices[edge_node.edge.index1].erase(edge_node.edge.index2);
+        // _vertex_adjacent_vertices[edge_node.edge.index2].erase(edge_node.edge.index1);
 
         // move on if the edge node is not a leaf
         if (!edge_node.is_leaf)
@@ -996,6 +1003,8 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
         _latest_removed_elements.clear();
         _latest_new_hanging_vertices.clear();
         _latest_removed_hanging_vertices.clear();
+
+        // std::cout << "refined_mesh.refineElement(" << element_index << ", " << refinement_level << ", " << absolute << ", " << clear_latest << ");" << std::endl;
     }
 
     // what we really care about is the RELATIVE refinement level
@@ -1506,8 +1515,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     // if the element doesn't have a parent (for some reason), remove it and do nothing
     if (leaf_node.parent == ElementTreeNode::INVALID_INDEX)
     {
-        std::cout << "Leaf element tree node does not have a parent!!" << std::endl;
-        std::cout << "Leaf node level: " << leaf_node.level << std::endl;
+        // std::cout << "Leaf element tree node does not have a parent!!" << std::endl;
+        // std::cout << "Leaf node level: " << leaf_node.level << std::endl;
         // assert(0);  // this shouldn't happen
         if (leaf_node.isLeaf())
         {
@@ -1553,6 +1562,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     // if the parent is not complete, we're not coarsening anything
     if (root_index == leaf_node_index)
         return false;
+
+    // std::cout << "refined_mesh.coarsenElement(" << element_index << ", " << coarsening_level << ", " << absolute << ", " << clear_latest << ");" << std::endl;
 
     // increment the topology version
     _topology_version++;

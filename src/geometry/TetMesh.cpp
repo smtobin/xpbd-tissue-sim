@@ -348,7 +348,19 @@ void TetMesh::_updateEdgeElementMapForRemovedElement(int element_index)
     {
         for (int k2 = k1+1; k2 < 4; k2++)
         {
-            auto range = _edge_to_elements_map.equal_range(Edge(elem_to_remove[k1], elem_to_remove[k2]));
+            // get all elements that currently share the edge (this will include the element we are removing)
+            Edge edge(elem_to_remove[k1], elem_to_remove[k2]);
+            auto range = _edge_to_elements_map.equal_range(edge);
+            int num_elements_with_edge = std::distance(range.first, range.second);
+            
+            // if only one element (i.e. the one we are removing) shares this edge, we need to update the adjacent vertices list
+            if (num_elements_with_edge <= 1)
+            {
+                _vertex_adjacent_vertices[edge.index1].erase(edge.index2);
+                _vertex_adjacent_vertices[edge.index2].erase(edge.index1);
+            }
+
+            // remove the element from being associated with the edge
             for (auto it = range.first; it != range.second; it++)
             {
                 if (it->second == element_index) {
