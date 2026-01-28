@@ -23,7 +23,7 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
 
     // set the initial vertices
     _initial_vertices.resize(_vertices.totalSize());
-    for (int i = 0; i < _vertices.totalSize(); i++)
+    for (unsigned i = 0; i < _vertices.totalSize(); i++)
     {
         _initial_vertices[i] = _vertices[i];
     }
@@ -288,7 +288,6 @@ void RefinedTetMesh::removeElement(int elem_index)
     {
         int node_index = search->second;
         const ElementTreeNode& node_to_remove = _element_tree_nodes[node_index];
-        ElementTreeNode& parent_tree_node = _element_tree_nodes[node_to_remove.parent];
 
         // mark parent nodes as incomplete
         _markParentsAsIncomplete(node_index);
@@ -309,10 +308,14 @@ void RefinedTetMesh::removeElement(int elem_index)
         _updateFeatureHierarchyForRemovedElementTreeNode(node_index);
 
         // remove the leaf tree node from its parent's list of children
-        parent_tree_node.children.erase(
-            std::remove(parent_tree_node.children.begin(), parent_tree_node.children.end(), node_index),
-            parent_tree_node.children.end()
-        );
+        if (node_to_remove.parent != ElementTreeNode::INVALID_INDEX)
+        {
+            ElementTreeNode& parent_tree_node = _element_tree_nodes[node_to_remove.parent];
+            parent_tree_node.children.erase(
+                std::remove(parent_tree_node.children.begin(), parent_tree_node.children.end(), node_index),
+                parent_tree_node.children.end()
+            );
+        }
 
         // remove the leaf tree node
         _element_tree_nodes.erase(node_index);
