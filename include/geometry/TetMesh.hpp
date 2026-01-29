@@ -167,6 +167,15 @@ class TetMesh : public Mesh
     }
 
     protected:
+
+    /** Helper function to add a new surface face to the mesh.
+     *   - Updates the surface face -> element map and the element -> surface face map.
+     *   - Resizes face properties.
+     * 
+     * Returns the index of the new face.
+     */
+    virtual int _addFace(const Vec3i& new_face, int elem_with_face);
+
     /** Finds adjacent vertices for each vertex in the mesh.
      * Two vertices are "adjacent" if they are connected by a face or element.
      * 

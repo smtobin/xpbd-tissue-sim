@@ -437,6 +437,7 @@ std::pair<bool, Geometry::RefinedTetMesh> test12()
 
     refined_mesh.refineElement(0, 2, true);
     refined_mesh.removeElement(1);
+    refined_mesh.removeElement(4);
 
     return std::make_pair(testCorrectness(refined_mesh), refined_mesh);
 }
@@ -486,7 +487,7 @@ int main()
     std::vector<bool> successes(test_funcs.size(), false);
     std::vector<Geometry::RefinedTetMesh> refined_meshes;
 
-    unsigned visualize_index = test_funcs.size()-1;
+    int visualize_index = test_funcs.size()-1;
 
     std::cout << "\n=== Running tests ===" << std::endl;
     for (unsigned i = 0; i < test_funcs.size(); i++)

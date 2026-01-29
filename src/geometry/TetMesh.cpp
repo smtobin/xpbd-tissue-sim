@@ -426,6 +426,25 @@ void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
     _element_to_surface_faces_map.erase(element_index);
 }
 
+int TetMesh::_addFace(const Vec3i& new_face, int elem_with_face)
+{
+    // finally add the new face
+    int new_face_index = _faces.push_back(new_face);
+
+    // update surface elements vector
+    _surface_face_to_element_map.resize(_faces.totalSize());
+    _surface_face_to_element_map[new_face_index] = elem_with_face;
+
+    _element_to_surface_faces_map.insert({elem_with_face, new_face_index});
+
+    // resize face properties after adding the face
+    _face_properties.for_each_element([&](auto& prop) {
+        prop.resize(_faces.totalSize());
+    });
+
+    return new_face_index;
+}
+
 void TetMesh::removeElementWithFace(int face_index)
 {
     // get the element corresponding to the surface face
@@ -508,14 +527,8 @@ void TetMesh::removeElement(int elem_index)
             new_face[2] = tmp;
         }
 
-        // finally add the new face
-        size_t new_face_index = _faces.push_back(std::move(new_face));
-
-        // update surface elements vector
-        _surface_face_to_element_map.resize(_faces.totalSize());
-        _surface_face_to_element_map[new_face_index] = adj_elem_index;
-
-        _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
+        // finally add the face
+        _addFace(new_face, adj_elem_index);
     };
 
 
@@ -525,11 +538,6 @@ void TetMesh::removeElement(int elem_index)
     add_surface_face(Vec3i(elem_to_remove[0], elem_to_remove[1], elem_to_remove[3]));
     add_surface_face(Vec3i(elem_to_remove[0], elem_to_remove[2], elem_to_remove[3]));
     add_surface_face(Vec3i(elem_to_remove[1], elem_to_remove[2], elem_to_remove[3]));
-
-    // resize face properties after adding some faces
-    _face_properties.for_each_element([&](auto& prop) {
-        prop.resize(_faces.totalSize());
-    });
 
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);
