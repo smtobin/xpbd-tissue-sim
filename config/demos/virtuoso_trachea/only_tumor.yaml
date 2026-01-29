@@ -85,9 +85,10 @@ materials:
     nu: 0.4
     # rendering settings
     color: [1.0, 0.4, 0.3]
+    cut-color: [0.12, 0.08, 0.0]
     render-type: "PBR"
     metallic: 0.0
-    roughness: 0.3
+    roughness: 0.2
     smooth-normals: false
     draw-points: false
     draw-edges: true
@@ -126,7 +127,7 @@ objects:
     self-collisions: false
 
     adaptive-mesh-refinement: true
-    max-refinement-level: 1
+    max-refinement-level: 2
     compute-heat-conduction: false
 
   -
