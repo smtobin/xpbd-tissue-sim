@@ -428,8 +428,48 @@ void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
 
 int TetMesh::_addFace(const Vec3i& new_face, int elem_with_face)
 {
+    // the new face (nominally) is the same as the element face
+    // but we likely have to flip the normal
+    Vec3i new_face_copy = new_face;
+
+    const Vec4i& elem_verts = element(elem_with_face);
+
+    // get the vertex of this adjacent element that is not in the face
+    int elem_4th_vertex = -1;
+    for (const auto& v : elem_verts)
+    {
+        if (v == new_face[0] || v == new_face[1] || v == new_face[2])
+            continue;
+        
+        elem_4th_vertex = v;
+        break;
+    }
+    assert(elem_4th_vertex != -1);
+
+    // make sure normal is correct
+    const Vec3r& v0 = vertex(new_face[0]);
+    const Vec3r& v1 = vertex(new_face[1]);
+    const Vec3r& v2 = vertex(new_face[2]);
+    
+    // edge 0->1
+    const Vec3r e01 = v1 - v0;
+    // edge 0->2
+    const Vec3r e02 = v2 - v0;
+    const Vec3r n = e01.cross(e02);
+
+    const Vec3r c = (v0 + v1 + v2) / 3.0;
+
+    // the dot product of the new face normal and the vertex of the element that is not in this new face should be positive
+    // (assuming the element is not inverted)
+    // if it's not, simply flip vertices 1 and 2 in the new face
+    if (n.dot(c - vertex(elem_4th_vertex)) < 0)
+    {
+        new_face_copy[1] = new_face[2];
+        new_face_copy[2] = new_face[1];
+    }
+
     // finally add the new face
-    int new_face_index = _faces.push_back(new_face);
+    int new_face_index = _faces.push_back(new_face_copy);
 
     // update surface elements vector
     _surface_face_to_element_map.resize(_faces.totalSize());
@@ -494,41 +534,9 @@ void TetMesh::removeElement(int elem_index)
 
         // we have found an element that shares the face!
         const Vec4i& adj_elem = element(adj_elem_index);
-        // get the vertex of this adjacent element that is not in the face
-        int adj_elem_4th_vertex = -1;
-        for (const auto& v : adj_elem)
-        {
-            if (v == elem_face[0] || v == elem_face[1] || v == elem_face[2])
-                continue;
-            
-            adj_elem_4th_vertex = v;
-            break;
-        }
-        assert(adj_elem_4th_vertex != -1);
-
-        // the new face (nominally) is the same as the element face
-        // but we likely have to flip the normal
-        Vec3i new_face = elem_face;
-
-        // make sure normal is correct
-        // edge 0->1
-        const Vec3r e01 = vertex(new_face[1]) - vertex(new_face[0]);
-        // edge 0->2
-        const Vec3r e02 = vertex(new_face[2]) - vertex(new_face[0]);
-        const Vec3r n = e01.cross(e02);
-
-        // the dot product of the new face normal and the vertex of the element that is not in this new face should be positive
-        // (assuming the element is not inverted)
-        // if it's not, simply flip vertices 1 and 2 in the new face
-        if (n.dot(vertex(adj_elem_4th_vertex)) < 0)
-        {
-            int tmp = new_face[1];
-            new_face[1] = new_face[2];
-            new_face[2] = tmp;
-        }
 
         // finally add the face
-        _addFace(new_face, adj_elem_index);
+        _addFace(elem_face, adj_elem_index);
     };
 
 

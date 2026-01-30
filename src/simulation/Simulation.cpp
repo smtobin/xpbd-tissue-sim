@@ -378,6 +378,19 @@ void Simulation::_updateGraphics()
 {
     if (_graphics_scene)
     {
+        // for meshes, we need to update all mesh normals
+        _objects.for_each_element([&](auto& obj) {
+            // get type of obj
+            using UniquePtrType = std::remove_reference_t<decltype(obj)>;
+            using ObjType = typename UniquePtrType::element_type;
+
+            // make sure that ObjType is a derived class of mesh obj
+            if constexpr (std::is_base_of_v<MeshObject, ObjType>)
+            {
+                obj->mesh()->updateVertexNormals();
+            }
+        });
+
         _graphics_scene->update();
     }
     // update the sim time text

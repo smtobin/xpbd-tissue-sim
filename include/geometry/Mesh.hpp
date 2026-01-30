@@ -145,7 +145,9 @@ public:
     void updateVertexNormals();
 
     /** Returns the vertex normal at vertex i */
-    Vec3r vertexNormal(int index);
+    Vec3r vertexNormal(int index) { return _vertex_normals[index]; }
+
+    const std::vector<Vec3r>& vertexNormals() const { return _vertex_normals; }
 
     /** Returns a single vertex as an Eigen 3-vector, given the vertex index.
      * This assumes that the index used is a valid index (i.e. the vertex we are trying to access has not been removed).
@@ -424,7 +426,7 @@ protected:
 protected:
     vertices_vec_type _vertices; // the vertices of the mesh
     faces_vec_type _faces;       // the faces of the mesh
-    vertices_vec_type _vertex_normals; // vertex normals of the mesh
+    std::vector<Vec3r> _vertex_normals; // vertex normals of the mesh
 
     std::vector<std::unordered_set<int>> _vertex_adjacent_vertices;
 

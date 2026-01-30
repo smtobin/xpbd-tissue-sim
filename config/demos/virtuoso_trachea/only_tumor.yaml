@@ -94,7 +94,7 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
     draw-edges: true
     draw-faces: true

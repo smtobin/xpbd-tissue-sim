@@ -56,6 +56,8 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
     _front_poly_data->SetPoints(vtk_points);
     _front_poly_data->SetPolys(vtk_faces);
 
+    _smooth_normals = render_config.smoothNormals();
+
     if (render_config.drawEdges())
     {
         
@@ -70,33 +72,13 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
         _edges_vtk_actor->SetMapper(_edge_mapper);
 
         _edges_vtk_actor->GetProperty()->SetColor(0.0, 0.0, 0.0);
+        _edges_vtk_actor->GetProperty()->LightingOff();
     }
 
     if (render_config.drawFaces())
     {
         _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        if (render_config.smoothNormals())
-        {
-            // smooth normals
-            _normals_generator = vtkSmartPointer<vtkPolyDataNormals>::New();
-            _normals_generator->SetInputData(_front_poly_data);
-            _normals_generator->SetFeatureAngle(30.0);
-            _normals_generator->SplittingOff();
-            // normal_generator->ConsistencyOn();
-            _normals_generator->ComputePointNormalsOn();
-            _normals_generator->ComputeCellNormalsOff();
-            _normals_generator->Update();
-
-            // vtkNew<vtkPolyDataTangents> tangents;
-            // tangents->SetInputConnection(normal_generator->GetOutputPort());
-            // tangents->Update();
-
-            _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
-        }
-        else
-        {
-            _face_mapper->SetInputData(_front_poly_data);
-        }
+        _face_mapper->SetInputData(_front_poly_data);
         
         _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
         _faces_vtk_actor->SetMapper(_face_mapper);
@@ -190,6 +172,26 @@ void VTKMeshGraphicsObject::_setVertices(const RenderInfo* rmesh)
     points->Modified();
 }
 
+void VTKMeshGraphicsObject::_setNormals(const RenderInfo* rmesh)
+{
+    // copy normals from rmesh buffer into VTK buffer
+    vtkNew<vtkFloatArray> normals;
+    normals->SetNumberOfComponents(3);
+    normals->SetNumberOfTuples(rmesh->vertices.totalSize());
+    normals->SetName("Normals");
+
+    float* n = normals->GetPointer(0);
+
+    for (unsigned i = 0; i < rmesh->vertices.totalSize(); i++)
+    {
+        float* ni = n + 3*i;
+        const Vec3r& normal = rmesh->vertex_normals[i];
+        ni[0] = static_cast<float>(normal[0]);
+        ni[1] = static_cast<float>(normal[1]);
+        ni[2] = static_cast<float>(normal[2]);
+    }
+    _front_poly_data->GetPointData()->SetNormals(normals);
+}
 
 void VTKMeshGraphicsObject::updateGraphicsBuffers() 
 {
@@ -202,6 +204,9 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     bool topology_changed = (rmesh->topology_version != _latest_topology_version);
 
     _setVertices(rmesh);
+
+    if (_smooth_normals)
+        _setNormals(rmesh);
     
     _setColorsForCutSurface(rmesh);
 
@@ -222,18 +227,6 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     {
         _edge_extractor->Update();
     }
-    
-    if (_normals_generator)
-    {
-        _normals_generator->Update();
-    }
-    
-    
-    // if (_normals_generator)
-    // {
-    //     _normals_generator->Modified();
-    //     _normals_generator->Update();
-    // }
 }
 
 void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)

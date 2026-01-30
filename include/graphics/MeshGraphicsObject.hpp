@@ -27,6 +27,7 @@ class MeshGraphicsObject : public GraphicsObject
     {
         Geometry::Mesh::vertices_vec_type vertices;
         Geometry::Mesh::faces_vec_type faces;
+        std::vector<Vec3r> vertex_normals;
         Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> vertex_properties;
         Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> face_properties;
         unsigned long topology_version;
