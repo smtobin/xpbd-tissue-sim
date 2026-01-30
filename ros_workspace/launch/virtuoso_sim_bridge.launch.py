@@ -62,6 +62,8 @@ def generate_launch_description():
             {"use_wall_time_for_publishing": True},   # if true, the rate of publishing will be in terms of the wall time (which may not align with simulated time)
             {"publish_rate_hz": 10.0},      # publish rate of topics
             {"publish_matrices": False},     # whether or not to publish mesh matrices, i.e. stiffness matrix, vertices, faces, and elements
+            {"image_publish_rate_hz": 5.0},    # publish rate of the image topic
+            {"publish_images": True},       # whether or not to publish the rendered simulation image
             {"partial_view_pc": True},      # whether or not to publish partial-view point cloud
             {"partial_view_pc_hfov": 80.0},   # degrees
             {"partial_view_pc_vfov": 50.0},   # degrees

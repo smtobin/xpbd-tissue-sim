@@ -77,6 +77,7 @@ class Simulation
         Real gAccel() const { return _g_accel; }
 
         const Graphics::GraphicsScene* graphicsScene() const { return _graphics_scene.get(); }
+        Graphics::GraphicsScene* graphicsScene() { return _graphics_scene.get(); }
         const Geometry::EmbreeScene* embreeScene() const { return _embree_scene.get(); }
         void updateEmbreeScene() { _embree_scene->update(); }
         void updateEmbreeRayScene() { _embree_scene->updateRayScene(); }

@@ -11,12 +11,15 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "sensor_msgs/msg/image.hpp"
 
 #include "sim_bridge/msg/sparse_matrix.hpp"
 
 #include "geometry/Mesh.hpp"
 #include "simobject/XPBDMeshObjectBase.hpp"
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
+
+#include "graphics/vtk/VTKViewer.hpp"
 
 #include <chrono>
 #include <thread>
@@ -31,6 +34,8 @@ class SimBridge : public rclcpp::Node
         this->declare_parameter("use_wall_time_for_publishing", true);
         this->declare_parameter("publish_rate_hz", 30.0);
         this->declare_parameter("publish_matrices", false);
+        this->declare_parameter("image_publish_rate_hz", 10.0);
+        this->declare_parameter("publish_images", false);
 
         // assume that setup() has already been called on the Simulation object
         // then we can probe how many deformable objects are in the Sim
@@ -64,6 +69,11 @@ class SimBridge : public rclcpp::Node
             std::cout << "Done." << std::endl;
         }
 
+        if (this->get_parameter("publish_images").as_bool())
+        {
+            _setupImagePublisher();
+        }
+
         // set up callbacks to publish mesh as Mesh msg and PCL point cloud msg
         int index = 0;
         sim_objects.template for_each_element<std::unique_ptr<Sim::XPBDMeshObject_Base>, std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>([&index, this](auto& obj){
@@ -85,6 +95,59 @@ class SimBridge : public rclcpp::Node
     }
 
 private:
+    void _setupImagePublisher()
+    {
+        std::string topic_name  = "/sim/output/image";
+        _image_publisher = this->create_publisher<sensor_msgs::msg::Image>(topic_name, 3);
+
+        // make sure that VTK is being used as the graphics backend
+        Graphics::VTKViewer* viewer = dynamic_cast<Graphics::VTKViewer*>(_sim->graphicsScene()->viewer());
+        if (!viewer)
+        {
+            std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "VTK graphics must be used to publish images over ROS2." << RST << std::endl;
+            assert(0);
+            return;
+        }
+
+        // configure initial image
+        _image_msg.header.frame_id = "sim/camera";
+        _image_msg.height = viewer->height();
+        _image_msg.width = viewer->width();
+        _image_msg.encoding = "rgb8";
+        _image_msg.is_bigendian = false;
+        _image_msg.step = _image_msg.width * 3;
+
+        size_t num_bytes = _image_msg.width * _image_msg.height * 3;
+        _image_msg.data.resize(num_bytes, 0);
+
+        // create the flipped buffer
+        _flipped_image_buffer.resize(num_bytes, 0);
+
+        auto image_callback = [this, viewer]() -> void {
+            this->_image_msg.height = viewer->height();
+            this->_image_msg.width = viewer->width();
+
+            // resize fliplped image buffer and image messge data based on the current size of the viewer
+            size_t num_bytes = this->_image_msg.height * this->_image_msg.width * 3;
+            this->_flipped_image_buffer.resize(num_bytes);
+            this->_image_msg.data.resize(num_bytes);
+
+            // copy VTK image into flipped buffer (VTK uses a different coordinate system where bottom-left is (0,0), so the image is flipped vertically)
+            viewer->copyImageBufferToExternalBuffer(this->_flipped_image_buffer.data());
+
+            // copy row by row, flipping vertically
+            size_t row_bytes = this->_image_msg.width * 3;
+            for (unsigned y = 0; y < this->_image_msg.height; ++y) {
+                unsigned char* src_row = this->_flipped_image_buffer.data() + y * row_bytes;
+                unsigned char* dst_row = this->_image_msg.data.data() + (this->_image_msg.height - 1 - y) * row_bytes;
+                std::memcpy(dst_row, src_row, row_bytes);
+            }
+
+            this->_image_publisher->publish(this->_image_msg);
+        };
+
+        _sim->addCallback(1.0/this->get_parameter("image_publish_rate_hz").as_double(), image_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
+    }
 
     void _setupDeformableMeshPclPublisher(int index, const Geometry::Mesh* deformable_mesh)
     {
@@ -315,6 +378,10 @@ private:
 
 protected:
     /** Publishers */
+    std::vector<unsigned char> _flipped_image_buffer;
+    sensor_msgs::msg::Image _image_msg;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _image_publisher;
+
     std::vector<sensor_msgs::msg::PointCloud2> _mesh_pcl_messages;    // pre-allocated mesh point cloud ROS message for speed (assuming number of vertices stays the same)
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 

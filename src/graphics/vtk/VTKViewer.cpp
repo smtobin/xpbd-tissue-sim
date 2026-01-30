@@ -58,6 +58,10 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
     _offscreen_rendering = render_config.offscreenRendering();
     if (_offscreen_rendering)
     {
+        _window_to_image = vtkSmartPointer<vtkWindowToImageFilter>::New();
+        _window_to_image->SetInput(_render_window);
+        _window_to_image->ReadFrontBufferOff();
+        _window_to_image->SetInputBufferTypeToRGB();
         _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
     }
 }
