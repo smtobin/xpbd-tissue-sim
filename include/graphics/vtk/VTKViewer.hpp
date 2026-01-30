@@ -12,10 +12,12 @@
 #include <vtkCallbackCommand.h>
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
+#include <vtkWindowToImageFilter.h>
 
 #include <map>
 #include <atomic>
 #include <functional>
+#include <mutex>
 
 namespace Graphics
 {
@@ -86,6 +88,11 @@ class VTKViewer : public Viewer
     Vec3r cameraUpDirection() const { return _cam_up_dir; }
     Vec3r cameraPosition() const { return _cam_pos; }
 
+    /** Copoies the image buffer to some external buffer. It is assumed that the external buffer has the appropriate amount of space.
+     * This can be ensured by first querying width and height of the viewer.
+     */
+    void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
+
     protected:
     /** Shared viewer behavior on keyboard events. */
     virtual void _processKeyboardEvent(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers) override;
@@ -107,6 +114,18 @@ class VTKViewer : public Viewer
     vtkSmartPointer<vtkOpenGLRenderer> _renderer;
     vtkSmartPointer<vtkRenderWindow> _render_window;
     vtkSmartPointer<vtkRenderWindowInteractor> _interactor;
+
+    /** Whether or not we are doing offscreen rendering. Set by the config. */
+    bool _offscreen_rendering = false;
+
+    /** Renders the current window to a vtkImage */
+    vtkSmartPointer<vtkWindowToImageFilter> _window_to_image;
+    /** Stores the pixel data */
+    std::vector<unsigned char> _image_data;
+
+    /** Guards the pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
+    std::mutex _image_data_mutex;
+
 
     std::map<std::string, vtkSmartPointer<vtkTextActor>> _text_actor_map;
 

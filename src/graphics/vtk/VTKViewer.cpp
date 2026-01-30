@@ -54,6 +54,12 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
     : Viewer(title)
 {
     _setupRenderWindow(render_config);
+
+    _offscreen_rendering = render_config.offscreenRendering();
+    if (_offscreen_rendering)
+    {
+        _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
+    }
 }
 
 void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_config)
@@ -242,6 +248,29 @@ void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_
             viewer->_prerender_callback();
             
         viewer->_render_window->Render();
+
+        if (viewer->_offscreen_rendering)
+        {
+            // update the window -> image object to render offscreen
+            viewer->_window_to_image->Modified();
+            viewer->_window_to_image->Update();
+            // get the latest rendered frame
+            vtkImageData* latest_frame = viewer->_window_to_image->GetOutput();
+            int* dims = latest_frame->GetDimensions();
+            size_t num_bytes = dims[0] * dims[1] * latest_frame->GetNumberOfScalarComponents();     // width * height * num_channels
+
+            unsigned char* pixels = static_cast<unsigned char*>(latest_frame->GetScalarPointer()); 
+            // copy to buffer
+            {
+                std::lock_guard<std::mutex> lock(viewer->_image_data_mutex);
+                
+                // make sure the image buffer has the appropriate amount of space
+                if (viewer->_image_data.size() != num_bytes)
+                    viewer->_image_data.resize(num_bytes);
+                
+                std::memcpy(viewer->_image_data.data(), pixels, num_bytes);
+            }
+        }
     }
 }
 
@@ -325,6 +354,19 @@ void VTKViewer::editText(const std::string& name,
         txt->SetDisplayPosition(new_x, new_y);
         txt->GetTextProperty()->SetFontSize(new_font_size);
     }
+}
+
+void VTKViewer::copyImageBufferToExternalBuffer(unsigned char* external_buffer)
+{
+    if (!_offscreen_rendering)
+    {
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Offscreen rendering must be enabled to copy image buffer." << std::endl;
+        throw std::runtime_error("Offscreen rendering not enabled");
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_image_data_mutex);
+    std::memcpy(external_buffer, _image_data.data(), _image_data.size());
 }
 
 void VTKViewer::_processKeyboardEvent(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers)
