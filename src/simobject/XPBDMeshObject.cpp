@@ -135,9 +135,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     tetMesh()->template addFaceProperty<int>("class", 0);
     tetMesh()->template addVertexProperty<int>("class", 0);
 
-    // add the "cut_surface" vertex property to the mesh, with default value false
-    // this will be turned to true for vertices that are part of the cut surface
-    tetMesh()->template addVertexProperty<bool>("on-cut-surface", false);
+    // add the "cut_surface" face property to the mesh, with default value false
+    // this will be turned to true for faces that are part of the cut surface
+    tetMesh()->template addFaceProperty<bool>("on-cut-surface", false);
 
     if (_element_classes_filename.has_value())
     {
@@ -635,6 +635,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     if (!tetMesh()->elementValid(elem_index))
         return;
 
+    Vec4i removed_element = refinedTetMesh()->element(elem_index);  // get a copy of the element vertices we are about to remove
     refinedTetMesh()->removeElement(elem_index);
 
 
@@ -710,42 +711,34 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
 
     /** Update the 'on_cut_surface' vertex property. */
     // vertices that were part of the removed element, and were not in the set of removed vertices are on the cut surface
-    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
-    for (const auto& removed_elem : latest_removed_elements)
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getFaceProperty<bool>("on-cut-surface");
+    // look for each of the removed element's vertices in the newly added faces
+    for (const auto& new_face_index : latest_added_faces)
     {
-        // only update the vertices for the element we specified to remove at the start
-        // (adjacent elements that are refined and replaced with smaller elements are also marked as 'removed')
-        if (removed_elem.index != elem_index)
-            continue;
-
-        // look for each of the removed element's vertices in the set of removed vertices
-        for (const auto& removed_elem_v : removed_elem.vertices)
+        const Vec3i& face = refinedTetMesh()->face(new_face_index);
+        bool v1_in_elem = (face[0] == removed_element[0] || face[0] == removed_element[1] || face[0] == removed_element[2] || face[0] == removed_element[3]);
+        if (!v1_in_elem)
         {
-            bool found = false;
-            for (const auto& removed_vertex : latest_removed_vertices)
-            {
-                if (removed_vertex.index == removed_elem_v)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            // if we didnt' find it in the set of removed vertices, it is safe to mark as part of the cut surface
-            if (!found)
-            {
-                on_cut_surface_prop.set(removed_elem_v, true);
-            }
+            on_cut_surface_prop.set(new_face_index, false);
+            continue;
         }
-    }
 
-    for (const auto& new_vert : latest_added_vertices)
-    {
-        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // // new vertex on cut surface if either of its parents are
-        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, false);
+        bool v2_in_elem = (face[1] == removed_element[0] || face[1] == removed_element[1] || face[1] == removed_element[2] || face[1] == removed_element[3]);
+        if (!v2_in_elem)
+        {
+            on_cut_surface_prop.set(new_face_index, false);
+            continue;
+        }
+        
+        bool v3_in_elem = (face[2] == removed_element[0] || face[2] == removed_element[1] || face[2] == removed_element[2] || face[2] == removed_element[3]);
+        if (!v3_in_elem)
+        {
+            on_cut_surface_prop.set(new_face_index, false);
+            continue;
+        }
+            
+        // face was part of the element ==> it's on the cut surface
+        on_cut_surface_prop.set(new_face_index, true);
     }
 
 }
@@ -811,15 +804,13 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         class_elem_prop.set(new_elem, refined_elem_class);
     }
 
-    /** Update the 'on_cut_surface' property for new vertices */
-    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
-    for (const auto& new_vert : latest_added_vertices)
+    /** Update the 'on_cut_surface' property for new faces (should always be false when refining).
+     * TODO: UNLESS WE'RE REFINING A FACE ALREADY ON THE CUT SURFACE
+     */
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getFaceProperty<bool>("on-cut-surface");
+    for (const auto& new_face_index : latest_added_faces)
     {
-        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // // new vertex on cut surface if either of its parents are
-        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, false);
+        on_cut_surface_prop.set(new_face_index, false);
     }
     
 }
@@ -887,15 +878,13 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::co
         class_elem_prop.set(new_elem, coarsened_elem_class);
     }
 
-    /** Update the 'on_cut_surface' property for new vertices */
-    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
-    for (const auto& new_vert : latest_added_vertices)
+    /** Update the 'on_cut_surface' property for new faces (should always be false when refining).
+     * TODO: UNLESS WE'RE REFINING A FACE ALREADY ON THE CUT SURFACE
+     */
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getFaceProperty<bool>("on-cut-surface");
+    for (const auto& new_face_index : latest_added_faces)
     {
-        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // // new vertex on cut surface if either of its parents are
-        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, false);
+        on_cut_surface_prop.set(new_face_index, false);
     }
 
 }

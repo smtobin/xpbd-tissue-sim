@@ -404,6 +404,8 @@ public:
         return false;
     }
 
+    const Geometry::PropertyContainer<MeshPropertyTypeList>& faceProperties() const { return _face_properties; }
+
 #ifdef HAVE_CUDA
     virtual void createGPUResource();
     virtual const Sim::HostReadableGPUResource *gpuResource() const
