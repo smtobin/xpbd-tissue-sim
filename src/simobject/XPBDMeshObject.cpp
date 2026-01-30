@@ -741,11 +741,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
 
     for (const auto& new_vert : latest_added_vertices)
     {
-        bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // new vertex on cut surface if either of its parents are
-        bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, new_vert_on_surface);
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
     }
 
 }
@@ -815,11 +815,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
     for (const auto& new_vert : latest_added_vertices)
     {
-        bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // new vertex on cut surface if either of its parents are
-        bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, new_vert_on_surface);
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
     }
     
 }
@@ -891,11 +891,11 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::co
     Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
     for (const auto& new_vert : latest_added_vertices)
     {
-        bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
-        bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
-        // new vertex on cut surface if either of its parents are
-        bool new_vert_on_surface = p1_on_surface || p2_on_surface;
-        on_cut_surface_prop.set(new_vert.index, new_vert_on_surface);
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
     }
 
 }
