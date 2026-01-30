@@ -183,7 +183,7 @@ void Simulation::setup()
                     }
 
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);
-                    if (min_dist < 1e-3)
+                    if (min_dist < 1.5e-3)
                     {
 
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) < max_refinement_level)

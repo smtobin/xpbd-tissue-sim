@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: true
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -85,9 +85,10 @@ materials:
     nu: 0.4
     # rendering settings
     color: [1.0, 0.4, 0.3]
+    cut-color: [0.12, 0.08, 0.0]
     render-type: "PBR"
     metallic: 0.0
-    roughness: 0.3
+    roughness: 0.2
     smooth-normals: false
     draw-points: false
     draw-edges: true
@@ -166,6 +167,7 @@ objects:
       type: "VirtuosoArm"
       tool-type: "cautery"
       cutting-model: "instant"  # the type of cutting model employed - "instant", "timer", or "thermal"
+      time-threshold: 1
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

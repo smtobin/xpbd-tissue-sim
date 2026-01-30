@@ -348,7 +348,19 @@ void TetMesh::_updateEdgeElementMapForRemovedElement(int element_index)
     {
         for (int k2 = k1+1; k2 < 4; k2++)
         {
-            auto range = _edge_to_elements_map.equal_range(Edge(elem_to_remove[k1], elem_to_remove[k2]));
+            // get all elements that currently share the edge (this will include the element we are removing)
+            Edge edge(elem_to_remove[k1], elem_to_remove[k2]);
+            auto range = _edge_to_elements_map.equal_range(edge);
+            int num_elements_with_edge = std::distance(range.first, range.second);
+            
+            // if only one element (i.e. the one we are removing) shares this edge, we need to update the adjacent vertices list
+            if (num_elements_with_edge <= 1)
+            {
+                _vertex_adjacent_vertices[edge.index1].erase(edge.index2);
+                _vertex_adjacent_vertices[edge.index2].erase(edge.index1);
+            }
+
+            // remove the element from being associated with the edge
             for (auto it = range.first; it != range.second; it++)
             {
                 if (it->second == element_index) {
@@ -414,6 +426,25 @@ void TetMesh::_updateElementSurfaceFaceMapForRemovedElement(int element_index)
     _element_to_surface_faces_map.erase(element_index);
 }
 
+int TetMesh::_addFace(const Vec3i& new_face, int elem_with_face)
+{
+    // finally add the new face
+    int new_face_index = _faces.push_back(new_face);
+
+    // update surface elements vector
+    _surface_face_to_element_map.resize(_faces.totalSize());
+    _surface_face_to_element_map[new_face_index] = elem_with_face;
+
+    _element_to_surface_faces_map.insert({elem_with_face, new_face_index});
+
+    // resize face properties after adding the face
+    _face_properties.for_each_element([&](auto& prop) {
+        prop.resize(_faces.totalSize());
+    });
+
+    return new_face_index;
+}
+
 void TetMesh::removeElementWithFace(int face_index)
 {
     // get the element corresponding to the surface face
@@ -430,7 +461,7 @@ void TetMesh::removeElement(int elem_index)
     _updateVertexVolumesForRemovedElement(elem_index);
     
     // get adjacent elements
-    const std::vector<int>& adjacent_elements = faceAdjacentElements(elem_index);
+    // std::vector<int> adjacent_elements = faceAdjacentElements(elem_index);
 
     // remove any surface faces associated with the element we're removing
     auto surface_faces_range = _element_to_surface_faces_map.equal_range(elem_index);
@@ -441,29 +472,43 @@ void TetMesh::removeElement(int elem_index)
 
     // add new surface faces
     // these are the faces that are shared with the adjacent element(s)
-    const Vec4i& elem_to_remove = element(elem_index);
-    for (const auto& adj_elem_index : adjacent_elements)
+    auto add_surface_face = [&](const Vec3i& elem_face)
     {
-        const Vec4i& adj_elem = element(adj_elem_index);
-        int index_in_face = 0;
-        Vec3i new_face;
-        int elem_vertex_not_in_new_face = -1;
-        for (const auto& adj_vert_index : adj_elem)
+        // create a Face object and query the face -> element map
+        Face query_face(elem_face[0], elem_face[1], elem_face[2]);
+        auto faces_range = _face_to_elements_map.equal_range(query_face);
+        // see if there are any adjacent elements (i.e element indices that are not the element we are removing)
+        int adj_elem_index = -1;
+        for (auto it = faces_range.first; it != faces_range.second; it++)
         {
-            bool found = false;
-            for (const auto& vert_index : elem_to_remove)
+            if (it->second != elem_index)
             {
-                if (adj_vert_index == vert_index)
-                {
-                    new_face[index_in_face++] = vert_index;
-                    found = true;
-                    break;
-                }
+                adj_elem_index = it->second;
+                break;
             }
-            if (!found) elem_vertex_not_in_new_face = adj_vert_index;
         }
-        assert(index_in_face == 3);
 
+        // we didn't find any adjacent elements, so we're done here
+        if (adj_elem_index == -1)
+            return;
+
+        // we have found an element that shares the face!
+        const Vec4i& adj_elem = element(adj_elem_index);
+        // get the vertex of this adjacent element that is not in the face
+        int adj_elem_4th_vertex = -1;
+        for (const auto& v : adj_elem)
+        {
+            if (v == elem_face[0] || v == elem_face[1] || v == elem_face[2])
+                continue;
+            
+            adj_elem_4th_vertex = v;
+            break;
+        }
+        assert(adj_elem_4th_vertex != -1);
+
+        // the new face (nominally) is the same as the element face
+        // but we likely have to flip the normal
+        Vec3i new_face = elem_face;
 
         // make sure normal is correct
         // edge 0->1
@@ -475,27 +520,24 @@ void TetMesh::removeElement(int elem_index)
         // the dot product of the new face normal and the vertex of the element that is not in this new face should be positive
         // (assuming the element is not inverted)
         // if it's not, simply flip vertices 1 and 2 in the new face
-        if (n.dot(vertex(elem_vertex_not_in_new_face)) < 0)
+        if (n.dot(vertex(adj_elem_4th_vertex)) < 0)
         {
             int tmp = new_face[1];
             new_face[1] = new_face[2];
             new_face[2] = tmp;
         }
 
+        // finally add the face
+        _addFace(new_face, adj_elem_index);
+    };
 
-        size_t new_face_index = _faces.push_back(std::move(new_face));
 
-        // update surface elements vector
-        _surface_face_to_element_map.resize(_faces.totalSize());
-        _surface_face_to_element_map[new_face_index] = adj_elem_index;
-
-        _element_to_surface_faces_map.insert({adj_elem_index, new_face_index});
-    }
-
-    // resize face properties after adding some faces
-    _face_properties.for_each_element([&](auto& prop) {
-        prop.resize(_faces.totalSize());
-    });
+    // check if we need to add new faces for the 4 faces of the removed element
+    const Vec4i& elem_to_remove = element(elem_index);
+    add_surface_face(Vec3i(elem_to_remove[0], elem_to_remove[1], elem_to_remove[2]));
+    add_surface_face(Vec3i(elem_to_remove[0], elem_to_remove[1], elem_to_remove[3]));
+    add_surface_face(Vec3i(elem_to_remove[0], elem_to_remove[2], elem_to_remove[3]));
+    add_surface_face(Vec3i(elem_to_remove[1], elem_to_remove[2], elem_to_remove[3]));
 
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);

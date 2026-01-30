@@ -28,6 +28,7 @@ class MeshGraphicsObject : public GraphicsObject
         Geometry::Mesh::vertices_vec_type vertices;
         Geometry::Mesh::faces_vec_type faces;
         Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> vertex_properties;
+        unsigned long topology_version;
 
         template <typename T>
         const Geometry::MeshProperty<T>& getVertexProperty(const std::string& name) const

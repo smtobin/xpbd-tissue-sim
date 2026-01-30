@@ -226,12 +226,6 @@ public:
     /** Initializes a refineable tetrahedral mesh from a basic tetrahedral mesh. */
     RefinedTetMesh(const TetMesh& tet_mesh);
 
-    /** Copy constructor */
-    // RefinedTetMesh(const RefinedTetMesh& other);
-
-    /** Move constructor */
-    // RefinedTetMesh(RefinedTetMesh&& other);
-
     virtual ~RefinedTetMesh() = default;
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
@@ -239,8 +233,14 @@ public:
      */
     virtual void setCurrentStateAsUndeformedState() override;
 
+    /** Returns the initial position for a given vertex. */
     Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
 
+    /** Given an element, returns the refinement level of that element.
+     * 0 = the element is an original element in the base tet mesh
+     * 1 = the element's parent is an original element
+     * etc.
+     */
     int elementRefinementLevel(int index) const { return _element_refinement_level[index]; }
 
     /** Recursively subdivides the specified element refinement_level times.
@@ -268,10 +268,14 @@ public:
      */
     std::unordered_set<int> verifyHangingVertices() const;
 
-    /** Removes an element from the mesh. */
+    /** Removes an element from the mesh.
+     * 
+     * If an element is on a refinement boundary (i.e. there are adjacent elements that are coarser than it),
+     * the adjacent, coarser element is automatically refined down to the level of the element we are removing.
+     */
     virtual void removeElement(int elem_index) override;
 
-    /** Accessors for querying info about last refine/coarsen operation. */
+    /** Accessors for querying info about last refine/coarsen/removal operation. */
     const std::vector<NewVertex>& latestAddedVertices() const { return _latest_new_vertices; }
     const std::vector<RemovedVertex>& latestRemovedVertices() const { return _latest_removed_vertices; }
     const std::vector<int>& latestAddedFaces() const { return _latest_new_faces; }
@@ -289,19 +293,59 @@ public:
 protected:
     
     /** Updates the vertex -> element map when we are removing an element with index element_index.
-     * This implements additional logic to update the parent edge -> child vertex map when a vertex is removed from the mesh.
+     * This implements additional logic to update the hanging vertices when a vertex is removed from the mesh.
      */
     virtual void _updateVertexElementMapForRemovedElement(int element_index) override;
 
 private:
 
-    /** Updates the feature hierarchy for a removed element tree node.
+    /** === HELPERS FOR ELEMENT REMOVAL === */
+
+    /** Removes the edge nodes and face nodes that belong to an ElementTreeNode.
+     * Called whenever we remove an ElementTreeNode (e.g. coarsening or removing an element)
      * 
-     * For an edge or face to be removed, it must:
+     * For an edge node or face node to be removed, it must:
      *   - not have any children (i.e. it is a leaf)
      *   - not be in the mesh itself
+    */
+    void _removeFeaturesForRemovedElementTreeNode(ElementTreeNode& element_tree_node);
+
+    /** Starting at the passed in ElementTreeNode, traverses down the feature tree and updates features accordingly.
+     * Called when we remove an element from the mesh with removeElement().
+     * 
+     * The subtree starting at a feature (edge node or face node) of the root ElementTreeNode is traversed if the feature
+     *      (1) does not have a parent
+     *   OR (2) has a parent, but the parent is not in the mesh (i.e. its in_mesh = false)
+     * 
+     * Then, we know that until we hit a descendant feature that is in the mesh (i.e. is owned by another element), the rest of the
+     * features are not "in" the mesh (i.e. their in_mesh properties should be set to false).
+     * 
+     * Additionally, for face nodes, when a descendant face node is reached, since this is called for removeElement(), we add the
+     * descendant face to the mesh (to fill the hole left by the removed element).
+     * 
+     * NOTE: this relies on the element being removed to have already been removed from the edge -> element and face -> element maps
      */
-    void _updateFeatureHierarchyForRemovedElementTreeNode(int element_tree_node_index);
+    void _updateDescendantFeatureHierarchyForRemovedElement(ElementTreeNode& element_tree_node);
+
+    /** Mark an ElementTreeNode (and its parent nodes) as incomplete.
+     * This is used when a refined element is removed, so we must mark the parent nodes as incomplete to know that we can't coarsen these elements anymore
+     * (otherwise we will lose information)
+     */
+    void _markParentsAsIncomplete(int element_tree_node_index);
+
+    /** Given an edge, returns the element (if one exists) who has a face that "contains" this edge.
+     * This is a very specific type of query that is useful for determining if we need to refine adjacent elements when we are removing an element.
+     * Note: this assumes that the edge exists in the mesh (i.e. has an associated edge node)
+     * 
+     * @param edge : the edge to find the element with the parent face for it
+     * @param max_layers_to_traverse : the maximum number of tree layers above the edge to traverse in the search
+     * Returns invalid index (-1) if no such element was found.
+     */
+    int _findElementWithFaceParentOfEdge(const Edge& edge, int max_layers_to_traverse);
+
+
+
+    /** === HELPERS FOR ADDITION/REMOVAL OF VERTICES/FACES/ELEMENTS === */
 
     /** Adds a new element to the mesh given an ElementTreeNode.
      * An element tree node has all the information we need to add a new element to the mesh.
@@ -325,56 +369,109 @@ private:
      */
     int _addVertex(int parent1, int parent2);
 
+    /** Removes a vertex from the mesh.
+     *   - updates list of hanging vertices
+     *   - clears adjacent vertices list
+     */
+    void _removeVertex(int vertex_index);
+
     /** Adds a new face to the mesh. Resizes face properties accordingly.
      * 
      * @returns the new face index
      */
-    int _addFace(const Vec3i& new_face);
+    virtual int _addFace(const Vec3i& new_face, int elem_with_face) override;
 
-    /** Helper functions for element refinement */
 
-    /** When we are preparing to refine an element, we need to update child features (up to the refinement).
+
+    /** === HELPERS FOR ELEMENT REFINEMENT === */
+
+    /** When we are preparing to refine an element, we need to update child features (up to the refinement level).
      * 
      * We update only the child features of the features in the element who either don't have a parent feature or have a parent feature
      * who with in_mesh = false (i.e. features with no ancestor features in the mesh). This means that when we remove this element and
      * replace it with smaller subelements, those features and their children should have in_mesh = false (until we get to the depth of refinement
      * where in_mesh = true because those descendant features will all be in the mesh).
      * 
-     * Ultimately this is needed so that the hanging vertices can be determined appropriately.
+     * Ultimately this is needed so that the hanging vertices can be determined properly.
      * 
      * @param element_tree_node_index : the index of the element tree node that we are about to refine
      * @param depth : the depth of refinement we are preparing to do
      */
     void _prepareFeatureTreeForRefinedElement(int element_tree_node_index, int depth);
 
+    /** Helper function to create (or located existing) midpoint vertices for each of the edge nodes in the element we are refining.
+     * When a new midpoint vertex is created at the middle of an edge node, two child edge nodes are created.
+     * 
+     * The ref
+     */
     void _createMidpointVerticesAndChildEdgeNodesForElement(int element_tree_node_index, std::array<int,6>& midpoint_vertices, bool at_refinement_depth);
 
+    /** Helper function to create child face nodes and child edge nodes for each of the face nodes in the element we are refining.
+     * Each face node will have 4 child face nodes (constructed from adding midpoint vertices at each of the face edges), and
+     * 3 child edge nodes (constructed from connecting the midpoint vertices).
+     * 
+     * If the face node is not a leaf (i.e. it has already been assigned children), it is skipped.
+     * 
+     * If the parent face node is on the surface, the children face nodes are marked as on the surface as well. (new faces are not created here)
+     */
     void _createChildFaceNodesForElement(int element_tree_node_index, const std::array<int,6>& midpoint_vertices, bool at_refinement_depth);
 
+    /** Helper function for matching child edge nodes to a specific vertex.
+     * 
+     * For two adjacent elements that share an edge, the ordering of the edge vertices in the element may be different, resulting in different
+     * edge nodes being classified as "child1" and "child2" when the edge is split.
+     * 
+     * This function takes a vertex index ("lower") and returns the child edge node with this vertex first in the pair.
+     * 
+     * TODO: the need for this function can probably be solved by ordering the vertices with some convention. Need to look into this.
+     */
     std::pair<int,int> _matchChildEdgeNodeIndices(int parent_edge_node_index, int lower);
+
+    /** Helper function for matching child edge nodes (of a face node) to vertex indices.
+     * 
+     * Similar story as _matchChildEdgeNodeIndices: the ordering of child edge nodes for a face node depends on which element was refined first.
+     * 
+     * The edge nodes are returned in the following order:
+     *   - (lower, middle)
+     *   - (lower, high)
+     *   - (middle, high)
+     */
     std::tuple<int,int,int> _matchFaceNodeToChildEdgeNodeIndices(int parent_face_node_index, int lower, int middle);
+
+    /** Helper function for matching child face nodes (of a face node) to vertex indices.
+     * 
+     * Similar story as _matchChildEdgeNodeIndices: the ordering of child face nodes for a face node depends on which element was refined first.
+     * 
+     * The face nodes are returned in the following order:
+     *   - Face(v0, m01, m02)
+     *   - Face(v1, m01, m12)
+     *   - Face(v2, m02, m12)
+     *   - Face(m01, m02, m12)
+     * 
+     * v0, v1, v2 are the vertices of the face
+     * m01, m02, m12 are the midpoint vertices of the face edges (m01 = midpoint of edge 01, etc.)
+     */
     std::tuple<int,int,int,int> _matchFaceNodeToChildFaceNodeIndices(int parent_face_node_index, int v0, int v1, int v2, int m01, int m02, int m12);
+
+
+
+    /** === HELPERS FOR ELEMENT COARSENING === */
 
     /** Distributes field variables (temperature, etc.) defined over the vertices of a refined part of the mesh to their appropriate ancestor vertices during coarsening.
      * 
      */
     void _distributeVertexFieldsToRootTreeNode(int root_tree_node_index);
 
-    /** Mark an ElementTreeNode (and its parent nodes) as incomplete.
-     * This is used when a refined element is removed, so we must mark the parent nodes as incomplete to know that we can't coarsen these elements anymore
-     * (otherwise we will lose information)
-     */
-    void _markParentsAsIncomplete(int element_tree_node_index);
-
-    /** Given an edge, returns the element (if one exists) who has a face that "contains" this edge.
-     * This is a very specific type of query that is useful for determining if we need to refine adjacent elements when we are removing an element.
-     * Note: this assumes that the edge exists in the mesh (i.e. has an associated edge node)
+    /** Starting with the features (edges, faces) at the specified ElementTreeNode, traverse down the feature tree.
+     * Do two things:
+     *   (1) set in_mesh for any encountered feature to true. All these features are descendants of features that are part of this element, which is in the mesh.
+     *   (2) for an edge node, add its midpoint vertex to the set of hanging vertices
      * 
-     * @param edge : the edge to find the element with the parent face for it
-     * @param max_layers_to_traverse : the maximum number of tree layers above the edge to traverse in the search
-     * Returns invalid index (-1) if no such element was found.
-     */
-    int _findElementWithFaceParentOfEdge(const Edge& edge, int max_layers_to_traverse);
+     * This is used during coarsening, after we have removed all the child elements and replaced them with a coarser element.
+     * 
+     * The relative coarsening level is used as an upper bound on the layers visited during tree traversal.
+    */
+    void _addHangingVerticesForNonLeafEdgeNodes(const ElementTreeNode& root_node, int rel_coarsening_level);
 
 protected:
     

@@ -135,6 +135,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     tetMesh()->template addFaceProperty<int>("class", 0);
     tetMesh()->template addVertexProperty<int>("class", 0);
 
+    // add the "cut_surface" vertex property to the mesh, with default value false
+    // this will be turned to true for vertices that are part of the cut surface
+    tetMesh()->template addVertexProperty<bool>("on-cut-surface", false);
+
     if (_element_classes_filename.has_value())
     {
         Geometry::MeshProperty<int>& elem_class_prop = tetMesh()-> template getElementProperty<int>("class");
@@ -631,15 +635,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     if (!tetMesh()->elementValid(elem_index))
         return;
 
-    // if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
-    // {
-    //     // mark the constraint projectors for the elastic constraints invalid
-    //     using DevHydProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
-    //     _solver.template setProjectorValidity<DevHydProjectorType>(elem_index, false);
-
-    //     // remove the element from the mesh
-    //     refinedTetMesh()->removeElement(elem_index);
-    // }
     refinedTetMesh()->removeElement(elem_index);
 
 
@@ -713,6 +708,46 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         class_elem_prop.set(new_elem, refined_elem_class);
     }
 
+    /** Update the 'on_cut_surface' vertex property. */
+    // vertices that were part of the removed element, and were not in the set of removed vertices are on the cut surface
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
+    for (const auto& removed_elem : latest_removed_elements)
+    {
+        // only update the vertices for the element we specified to remove at the start
+        // (adjacent elements that are refined and replaced with smaller elements are also marked as 'removed')
+        if (removed_elem.index != elem_index)
+            continue;
+
+        // look for each of the removed element's vertices in the set of removed vertices
+        for (const auto& removed_elem_v : removed_elem.vertices)
+        {
+            bool found = false;
+            for (const auto& removed_vertex : latest_removed_vertices)
+            {
+                if (removed_vertex.index == removed_elem_v)
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            // if we didnt' find it in the set of removed vertices, it is safe to mark as part of the cut surface
+            if (!found)
+            {
+                on_cut_surface_prop.set(removed_elem_v, true);
+            }
+        }
+    }
+
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
+    }
+
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -724,7 +759,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
         return;
     }
 
-    std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
+    // std::cout << "Element refined! New number of elements: " << tetMesh()->numElements() << std::endl;
 
     /** Get the newest added/removed vertices/hanging vertices/faces/elements */
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_vertices = refinedTetMesh()->latestAddedVertices();
@@ -774,6 +809,17 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     for (const auto& new_elem : latest_added_elements)
     {
         class_elem_prop.set(new_elem, refined_elem_class);
+    }
+
+    /** Update the 'on_cut_surface' property for new vertices */
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
     }
     
 }
@@ -839,6 +885,17 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::co
     for (const auto& new_elem : latest_added_elements)
     {
         class_elem_prop.set(new_elem, coarsened_elem_class);
+    }
+
+    /** Update the 'on_cut_surface' property for new vertices */
+    Geometry::MeshProperty<bool>& on_cut_surface_prop = _mesh->template getVertexProperty<bool>("on-cut-surface");
+    for (const auto& new_vert : latest_added_vertices)
+    {
+        // bool p1_on_surface = on_cut_surface_prop.get(new_vert.parent1);
+        // bool p2_on_surface = on_cut_surface_prop.get(new_vert.parent2);
+        // // new vertex on cut surface if either of its parents are
+        // bool new_vert_on_surface = p1_on_surface || p2_on_surface;
+        on_cut_surface_prop.set(new_vert.index, false);
     }
 
 }

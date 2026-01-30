@@ -28,7 +28,11 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     private:
     void _setVertices(const RenderInfo* rmesh);
     void _setFaces(const RenderInfo* rmesh);
-    void _setColors(const RenderInfo* rmesh);
+
+    void _setColorsForTemperature(const RenderInfo* rmesh);
+    void _setColorsForCutSurface(const RenderInfo* rmesh);
+
+    unsigned long _latest_topology_version = 0;
 
     vtkSmartPointer<vtkPolyData> _vtk_poly_data;
 
@@ -42,6 +46,15 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
 
     vtkSmartPointer<vtkPolyDataMapper> _face_mapper;
     vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
+
+    /** When a mesh has multiple 'classes', multiple colors can be specified for different parts of the mesh. */
+    std::optional<std::vector<Vec3r>> _colors;
+
+    /** The default, bulk color of the mesh. Set by the render config. */
+    Vec3r _bulk_color;
+
+    /** The color of cut portions of the mesh. Set by the render config. */
+    Vec3r _cut_color;
 };
 
 } // namespace Graphics

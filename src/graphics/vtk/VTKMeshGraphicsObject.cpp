@@ -103,6 +103,21 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
         VTKUtils::setupActorFromRenderConfig(_faces_vtk_actor.Get(), render_config);
 
+        // extract the colors from the render config, we need to remember them
+        _colors = render_config.colors();
+        if (render_config.color().has_value())
+            _bulk_color = render_config.color().value();
+        else if (render_config.colors().has_value())
+            _bulk_color = render_config.colors().value()[0];
+        else
+            _bulk_color = Vec3r(1, 0, 0);
+
+        if (render_config.cutColor().has_value())
+            _cut_color = render_config.cutColor().value();
+        else
+            _cut_color = _bulk_color;
+
+
         // if the config file specifies multiple colors, and the mesh has the "class" vertex attribute
         // then we can assign different colors to vertices based on their class
         if (render_config.colors().has_value() && mesh->hasVertexProperty<int>("class"))
@@ -183,12 +198,11 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     int old_num_points = _front_poly_data->GetNumberOfPoints();
     int old_num_cells = _front_poly_data->GetNumberOfCells();
     
-    bool topology_changed = (rmesh->vertices.totalSize() != old_num_points) ||
-                           (rmesh->faces.size() != old_num_cells);
+    bool topology_changed = (rmesh->topology_version != _latest_topology_version);
 
     _setVertices(rmesh);
     
-    _setColors(rmesh);
+    _setColorsForCutSurface(rmesh);
 
     if (topology_changed)
     {
@@ -196,6 +210,8 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 
         _front_poly_data->BuildCells();
         _front_poly_data->BuildLinks();
+
+        _latest_topology_version = rmesh->topology_version;
     }
 
     
@@ -219,7 +235,65 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
     // }
 }
 
-void VTKMeshGraphicsObject::_setColors(const RenderInfo* rmesh)
+void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
+{
+    if (!rmesh->hasVertexProperty<bool>("on-cut-surface"))
+        return;
+    
+    // set colors for each section of the mesh
+    vtkNew<vtkUnsignedCharArray> colors;
+    colors->SetNumberOfComponents(3);
+    colors->SetName("Colors");
+
+    const Geometry::MeshProperty<bool>& on_cut_surface_prop = rmesh->getVertexProperty<bool>("on-cut-surface");
+    for (unsigned vert_index = 0; vert_index < rmesh->vertices.totalSize(); vert_index++)
+    {
+        unsigned char color[3];
+        bool on_cut_surface = on_cut_surface_prop.get(vert_index);
+
+        if (on_cut_surface)
+        {
+            color[0] = static_cast<unsigned char>(_cut_color[0] * 255);
+            color[1] = static_cast<unsigned char>(_cut_color[1] * 255);
+            color[2] = static_cast<unsigned char>(_cut_color[2] * 255);
+        }
+        else
+        {
+            color[0] = static_cast<unsigned char>(_bulk_color[0] * 255);
+            color[1] = static_cast<unsigned char>(_bulk_color[1] * 255);
+            color[2] = static_cast<unsigned char>(_bulk_color[2] * 255);
+        }
+
+        colors->InsertNextTypedTuple(color);
+    }
+
+    // std::vector<Vec3r> colors_f = render_config.colors().value();
+    // const Geometry::MeshProperty<int>& vert_class_prop = mesh->getVertexProperty<int>("class");
+    // for (int i = 0; i < rmesh->vertices.totalSize(); i++)
+    // {
+    //     int vert_class = vert_class_prop.get(i);
+
+    //     // make sure the config file specifies enough colors
+    //     if (static_cast<unsigned>(vert_class) >= colors_f.size())
+    //     {
+    //         std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but vertex " << i <<
+    //         " has class " << vert_class << ". (Specify more colors in the config file)" << RST << std::endl;
+    //     }
+
+    //     Vec3r color_f = colors_f[vert_class];
+    //     unsigned char color[3];
+    //     color[0] = static_cast<unsigned char>(color_f[0] * 255);
+    //     color[1] = static_cast<unsigned char>(color_f[1] * 255);
+    //     color[2] = static_cast<unsigned char>(color_f[2] * 255);
+
+    //     colors->InsertNextTypedTuple(color);
+    // }
+    // // std::cout << "\n\n\n\n\n\n" << std::endl;
+
+    _front_poly_data->GetPointData()->SetScalars(colors);
+}
+
+void VTKMeshGraphicsObject::_setColorsForTemperature(const RenderInfo* rmesh)
 {
     if (!rmesh->hasVertexProperty<Real>("temperature"))
         return;

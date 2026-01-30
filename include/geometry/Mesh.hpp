@@ -118,6 +118,9 @@ public:
 
     virtual ~Mesh() = default;
 
+    /** Returns the latest topology version of the mesh. This gets updated every time the mesh topology is edited (element removed, refined, etc.). */
+    unsigned long topologyVersion() const { return _topology_version; }
+
     /** Returns a const-reference to the vertices of the mesh. */
     const vertices_vec_type &vertices() const { return _vertices; }
     /** Returns a const-reference to the faces of the mesh. */
@@ -430,6 +433,12 @@ protected:
     // mesh properties
     PropertyContainer<MeshPropertyTypeList> _vertex_properties;
     PropertyContainer<MeshPropertyTypeList> _face_properties;
+
+    /** Stores the latest mesh topology "version". 
+     * Every time we edit the topology of the mesh (i.e. remove elements), we increment the version number.
+     * That way, things that depend on the mesh topology being constant (i.e. FEM) know when it changes and can handle it accordingly.
+     */
+    unsigned long _topology_version;
 
 #ifdef HAVE_CUDA
     std::unique_ptr<Sim::HostReadableGPUResource> _gpu_resource;

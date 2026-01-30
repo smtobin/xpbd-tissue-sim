@@ -27,10 +27,6 @@ class TetMesh : public Mesh
 
     virtual ~TetMesh() = default;
 
-    /** Returns the latest topology version of the mesh. This gets updated every time the mesh topology is edited (element removed, refined, etc.). */
-    unsigned long topologyVersion() const { return _topology_version; }
-
-
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.
      */
@@ -171,6 +167,15 @@ class TetMesh : public Mesh
     }
 
     protected:
+
+    /** Helper function to add a new surface face to the mesh.
+     *   - Updates the surface face -> element map and the element -> surface face map.
+     *   - Resizes face properties.
+     * 
+     * Returns the index of the new face.
+     */
+    virtual int _addFace(const Vec3i& new_face, int elem_with_face);
+
     /** Finds adjacent vertices for each vertex in the mesh.
      * Two vertices are "adjacent" if they are connected by a face or element.
      * 
@@ -250,12 +255,6 @@ class TetMesh : public Mesh
      * This is either 0 (key is not in the map), 1, or 2 elements.
      */
     std::unordered_multimap<Face, int, FaceHash> _face_to_elements_map;
-
-    /** Stores the latest mesh topology "version". 
-     * Every time we edit the topology of the mesh (i.e. remove elements), we increment the version number.
-     * That way, things that depend on the mesh topology being constant (i.e. FEM) know when it changes and can handle it accordingly.
-     */
-    unsigned long _topology_version;
 };
 
 } // namespace Geometry
