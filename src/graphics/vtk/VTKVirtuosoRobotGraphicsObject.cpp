@@ -59,7 +59,7 @@ VTKVirtuosoRobotGraphicsObject::VTKVirtuosoRobotGraphicsObject(const std::string
     _endoscope_light->SetConeAngle(90);
     _endoscope_light->SetAttenuationValues(1,0,0);
     _endoscope_light->SetColor(1.0, 1.0, 1.0);
-    _endoscope_light->SetIntensity(10.0);    /** TODO: make this a settable parameter somehow (and potentially other parameters of the lights) */
+    _endoscope_light->SetIntensity(15.0);    /** TODO: make this a settable parameter somehow (and potentially other parameters of the lights) */
 
     _vtk_transform = vtkSmartPointer<vtkTransform>::New();
 

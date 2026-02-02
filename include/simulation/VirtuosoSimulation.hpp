@@ -36,6 +36,7 @@ class VirtuosoSimulation : public Simulation
     virtual void notifyMouseScrolled(double dx, double dy) override;
 
     const VirtuosoRobot* virtuosoRobot() const { return _virtuoso_robot; }
+    VirtuosoRobot* virtuosoRobot() { return _virtuoso_robot; }
     const VirtuosoArm* activeArm() const { return _active_arm; }
     const Vec3r activeTipPosition() const { return _tip_cursor1->position(); }
 
@@ -47,6 +48,9 @@ class VirtuosoSimulation : public Simulation
 
     void setArm1ToolState(int tool);
     void setArm2ToolState(int tool);
+
+    /** Updates the camera position and orientation in the graphics scene to match that of the endoscopic camera on the Virtuoso robot. */
+    void updateGraphicsCameraPoseToRobotCamFrame();
 
     protected:
 

@@ -5,10 +5,6 @@
 
 #include "simulation/VirtuosoCTAnatomySimulation.hpp"
 
-#include <tf2_ros/transform_listener.h>
-#include <tf2_ros/buffer.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-
 class VirtuosoCTAnatomySimBridge : public VirtuosoSimBridge
 {
 public:
@@ -25,9 +21,6 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _trachea_partial_view_pc_publisher;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _tumor_partial_view_pc_publisher;
-
-    std::shared_ptr<tf2_ros::Buffer> _tf_buffer;
-    std::shared_ptr<tf2_ros::TransformListener> _tf_listener;
 };
 
 #endif // __VIRTUOSO_TISSUE_GRASPING_SIM_BRIDGE_HPP

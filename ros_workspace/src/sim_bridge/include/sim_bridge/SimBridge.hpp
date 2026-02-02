@@ -226,7 +226,7 @@ private:
             [this, index, xpbd_obj]() -> void {
                 sim_bridge::msg::SparseMatrix msg;
                 msg.header.stamp = this->now();
-                msg.header.frame_id = "/sim/world";
+                msg.header.frame_id = "sim/world";
                 
                 Eigen::SparseMatrix<Real> stiffness_mat = xpbd_obj->stiffnessMatrix();
                 msg.rows = stiffness_mat.rows();

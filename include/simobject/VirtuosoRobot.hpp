@@ -45,6 +45,8 @@ class VirtuosoRobot : public Object
     const Geometry::CoordinateFrame& VRFrame() const { return _VR_frame; }
     const Geometry::CoordinateFrame& camFrame() const { return _cam_frame; }
 
+    void setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform);
+
     virtual Geometry::AABB boundingBox() const override
     {
         // TODO: valid AABB

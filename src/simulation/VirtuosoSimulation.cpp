@@ -101,6 +101,22 @@ void VirtuosoSimulation::setup()
     
 }
 
+void VirtuosoSimulation::updateGraphicsCameraPoseToRobotCamFrame()
+{
+    if (_graphics_scene)
+    {
+        const Geometry::TransformationMatrix& cam_transform = _virtuoso_robot->camFrame().transform();
+        _graphics_scene->setCameraPosition(cam_transform.translation());
+
+        // find view dir
+        const Vec3r& z_axis_pt = cam_transform.rotMat() * Vec3r(0,0,1) + cam_transform.translation();
+        const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,1,0) + cam_transform.translation();
+        _graphics_scene->setCameraViewDirection(z_axis_pt - cam_transform.translation());
+        _graphics_scene->setCameraUpDirection(y_axis_pt - cam_transform.translation());
+        _graphics_scene->setCameraFOV(80.0);
+    }
+}
+
 void VirtuosoSimulation::notifyMouseButtonPressed(SimulationInput::MouseButton button, SimulationInput::MouseAction action, int modifiers)
 {
 
@@ -162,18 +178,7 @@ void VirtuosoSimulation::notifyKeyPressed(SimulationInput::Key key, SimulationIn
     // when 'TAB' is pressed, switch the camera view to the endoscope view
     else if (key == SimulationInput::Key::TAB && action == SimulationInput::KeyAction::PRESS)
     {
-        if (_graphics_scene)
-        {
-            const Geometry::TransformationMatrix& cam_transform = _virtuoso_robot->camFrame().transform();
-            _graphics_scene->setCameraPosition(cam_transform.translation());
-
-            // find view dir
-            const Vec3r& z_axis_pt = cam_transform.rotMat() * Vec3r(0,0,1) + cam_transform.translation();
-            const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,1,0) + cam_transform.translation();
-            _graphics_scene->setCameraViewDirection(z_axis_pt - cam_transform.translation());
-            _graphics_scene->setCameraUpDirection(y_axis_pt - cam_transform.translation());
-            _graphics_scene->setCameraFOV(80.0);
-        }
+        updateGraphicsCameraPoseToRobotCamFrame();
     }
 
     Simulation::notifyKeyPressed(key, action, modifiers);

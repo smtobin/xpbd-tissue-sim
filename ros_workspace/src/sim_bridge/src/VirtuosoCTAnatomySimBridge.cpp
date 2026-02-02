@@ -147,9 +147,6 @@ void VirtuosoCTAnatomySimBridge::_setupPartialViewPointCloudPublishers()
 
 void VirtuosoCTAnatomySimBridge::_setupCTtoVBTransformListener()
 {
-    _tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-    _tf_listener = std::make_shared<tf2_ros::TransformListener>(*_tf_buffer);
-
     this->declare_parameter("CT_frame_name", "CT/kuka");
 
     auto ct_to_vb_callback = [this] () -> void {

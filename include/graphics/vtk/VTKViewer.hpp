@@ -22,13 +22,23 @@
 namespace Graphics
 {
 
+struct VTKCameraState
+{
+    bool is_orthographic;
+    Real hfov;
+    Real vfov;
+    Vec3r view_dir;
+    Vec3r up_dir;
+    Vec3r pos;
+};
+
 class VTKViewer : public Viewer
 {
     // give CustomVTKInteractorStyle access to protected methods for processing
     // keyboard and mouse events
     friend class CustomVTKInteractorStyle;
 
-    public:
+public:
     static void renderCallback(vtkObject* caller, long unsigned int event_id, void* client_data, void* call_data);
     const vtkSmartPointer<vtkOpenGLRenderer> renderer() const { return _renderer; }
     vtkSmartPointer<vtkOpenGLRenderer> renderer() { return _renderer; }
@@ -84,16 +94,45 @@ class VTKViewer : public Viewer
                   const float& new_y,
                   const float& new_font_size) override;
 
-    Vec3r cameraViewDirection() const { return _cam_view_dir; }
-    Vec3r cameraUpDirection() const { return _cam_up_dir; }
-    Vec3r cameraPosition() const { return _cam_pos; }
+    /** Sets the camera mode to Orthographic */
+    void setCameraOrthographic();
+
+    /** Sets the camera mode to Perspective */
+    void setCameraPerspective();
+
+    /** Sets the FOV of the camera (FOV in degrees). */
+    void setCameraFOV(Real fov);
+
+
+    /** Gets the camera view direction. */
+    Vec3r cameraViewDirection() const;
+    /** Sets the camera view direction */
+    void setCameraViewDirection(const Vec3r& view_dir);
+
+    /** Gets the camera up direction. */
+    Vec3r cameraUpDirection() const;
+    /** Sets the camera up direction */
+    void setCameraUpDirection(const Vec3r& up_dir);
+
+    /** Gets the camera right direction. */
+    Vec3r cameraRightDirection() const;
+    /** Sets the camera right direction. */
+    // virtual void setCameraRightDirection(const Vec3r& right_dir) const = 0;
+
+    /** Gets the camera position. */
+    Vec3r cameraPosition() const;
+    /** Sets the camera position. */
+    void setCameraPosition(const Vec3r& position);
 
     /** Copoies the image buffer to some external buffer. It is assumed that the external buffer has the appropriate amount of space.
      * This can be ensured by first querying width and height of the viewer.
      */
     void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
 
-    protected:
+protected:
+    /** Updates the camera state. Called from the render thread right before rendering. */
+    void _updateCamera();
+
     /** Shared viewer behavior on keyboard events. */
     virtual void _processKeyboardEvent(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers) override;
 
@@ -106,7 +145,7 @@ class VTKViewer : public Viewer
     /** Shared viewer behavior on mouse scroll events. */
     virtual void _processScrollEvent(double dx, double dy);
 
-    private:
+private:
     /** Set up rendering settings */
     void _setupRenderWindow(const Config::SimulationRenderConfig& render_config);
 
@@ -126,6 +165,14 @@ class VTKViewer : public Viewer
     /** Guards the pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
     std::mutex _image_data_mutex;
 
+    /** Stores the current camera state. 
+     * This is updated by the simulation thread, so must be protected by a mutex to avoid a race condition with
+     * the render thread.
+     */
+    VTKCameraState _camera_state;
+
+    /** Guards the camera state. */
+    std::mutex _camera_state_mutex;
 
     std::map<std::string, vtkSmartPointer<vtkTextActor>> _text_actor_map;
 

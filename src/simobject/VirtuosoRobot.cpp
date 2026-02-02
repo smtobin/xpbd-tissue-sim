@@ -69,6 +69,11 @@ std::string VirtuosoRobot::toString(int indent) const
     return Object::toString(indent);
 }
 
+void VirtuosoRobot::setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform)
+{
+    _cam_frame = _VB_frame * new_transform.inverse();
+}
+
 void VirtuosoRobot::setup()
 {
     if (_arm1)

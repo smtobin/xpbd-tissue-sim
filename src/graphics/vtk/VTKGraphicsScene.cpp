@@ -158,50 +158,37 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
 
 void VTKGraphicsScene::setCameraOrthographic()
 {
-    _vtk_viewer->renderer()->GetActiveCamera()->SetParallelProjection(true);
+    _vtk_viewer->setCameraOrthographic();
 }
 
 void VTKGraphicsScene::setCameraPerspective()
 {
-    _vtk_viewer->renderer()->GetActiveCamera()->SetParallelProjection(false);
+    _vtk_viewer->setCameraPerspective();
 }
 
 void VTKGraphicsScene::setCameraFOV(Real fov)
 {
-    _vtk_viewer->renderer()->GetActiveCamera()->UseHorizontalViewAngleOn();
-    _vtk_viewer->renderer()->GetActiveCamera()->SetViewAngle(fov);
-    _vtk_viewer->renderer()->ResetCameraClippingRange();
+    _vtk_viewer->setCameraFOV(fov);
 }
 
 Vec3r VTKGraphicsScene::cameraViewDirection() const
 {
-    // double d1, d2, d3;
-    // _vtk_viewer->renderer()->GetActiveCamera()->GetDirectionOfProjection(d1, d2, d3);
-    // return Vec3r(d1, d2, d3);
     return _vtk_viewer->cameraViewDirection();
 }
 
 void VTKGraphicsScene::setCameraViewDirection(const Vec3r& view_dir)
 {
-    double dist = _vtk_viewer->renderer()->GetActiveCamera()->GetDistance();
-    Vec3r pos = cameraPosition();
-    Vec3r new_focal_point = pos + view_dir*dist;
-    _vtk_viewer->renderer()->GetActiveCamera()->SetFocalPoint(new_focal_point[0], new_focal_point[1], new_focal_point[2]);
-    _vtk_viewer->renderer()->ResetCameraClippingRange();
+    _vtk_viewer->setCameraViewDirection(view_dir);
 }
 
 Vec3r VTKGraphicsScene::cameraUpDirection() const
 {
-    // double d1, d2, d3;
-    // _vtk_viewer->renderer()->GetActiveCamera()->GetViewUp(d1, d2, d3);
-    // return Vec3r(d1, d2, d3);
     return _vtk_viewer->cameraUpDirection();
 }
 
 void VTKGraphicsScene::setCameraUpDirection(const Vec3r& up_dir)
 {
-    _vtk_viewer->renderer()->GetActiveCamera()->SetViewUp(up_dir[0], up_dir[1], up_dir[2]);
-    _vtk_viewer->renderer()->ResetCameraClippingRange();
+    _vtk_viewer->setCameraUpDirection(up_dir);
 }
 
 Vec3r VTKGraphicsScene::cameraRightDirection() const
@@ -211,16 +198,12 @@ Vec3r VTKGraphicsScene::cameraRightDirection() const
 
 Vec3r VTKGraphicsScene::cameraPosition() const
 {
-    // double d1, d2, d3;
-    // _vtk_viewer->renderer()->GetActiveCamera()->GetPosition(d1, d2, d3);
-    // return Vec3r(d1, d2, d3);
     return _vtk_viewer->cameraPosition();
 }
 
 void VTKGraphicsScene::setCameraPosition(const Vec3r& pos)
 {
-    _vtk_viewer->renderer()->GetActiveCamera()->SetPosition(pos[0], pos[1], pos[2]);
-    _vtk_viewer->renderer()->ResetCameraClippingRange();
+    _vtk_viewer->setCameraPosition(pos);
 }
 
 
