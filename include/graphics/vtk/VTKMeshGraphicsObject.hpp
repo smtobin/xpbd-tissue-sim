@@ -26,6 +26,9 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     vtkSmartPointer<vtkActor> edgesActor() { return _edges_vtk_actor; }
 
     private:
+
+    void _setNormals(const RenderInfo* rmesh);
+
     void _setVertices(const RenderInfo* rmesh);
     void _setFaces(const RenderInfo* rmesh);
 
@@ -45,7 +48,7 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     vtkSmartPointer<vtkPolyDataMapper> _edge_mapper;
 
     vtkSmartPointer<vtkPolyDataMapper> _face_mapper;
-    vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
+    // vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
 
     /** When a mesh has multiple 'classes', multiple colors can be specified for different parts of the mesh. */
     std::optional<std::vector<Vec3r>> _colors;
@@ -55,6 +58,9 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
 
     /** The color of cut portions of the mesh. Set by the render config. */
     Vec3r _cut_color;
+
+    /** Whether or not to smooth normals. */
+    bool _smooth_normals;
 };
 
 } // namespace Graphics

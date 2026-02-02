@@ -9,14 +9,18 @@
 #include "std_msgs/msg/int8.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
 #include "simulation/VirtuosoSimulation.hpp"
 
 class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 {
-    public:
+public:
     VirtuosoSimBridge(Sim::VirtuosoSimulation* sim);
 
-    private:
+private:
     /** Parses a ROS JointState message with 5 fields
      * "inner_rotation" - inner tube rotation
      * "outer_rotation" - outer tube rotation
@@ -32,7 +36,11 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 
     geometry_msgs::msg::Pose _poseFromTransformationMatrix(const Geometry::TransformationMatrix& transform) const;
 
+    void _setupTransformBufferAndListener();
+
     void _setupTransformBroadcaster();
+
+    void _setupVBtoCamTransformListener();
 
     void _setupPublishers();
 
@@ -50,7 +58,12 @@ class VirtuosoSimBridge : public SimBridge<Sim::VirtuosoSimulation>
 
     void _setupSubscribers();
 
-    private:
+protected:
+    /** tf listeners */
+    std::shared_ptr<tf2_ros::Buffer> _tf_buffer;
+    std::shared_ptr<tf2_ros::TransformListener> _tf_listener;
+
+private:
     /** Publishers */
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr _arm1_joint_state_publisher;   // publishes the current joint state of arm1
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr _arm2_joint_state_publisher;   // published the current joint state of arm2

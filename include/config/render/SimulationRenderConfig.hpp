@@ -23,6 +23,9 @@ class SimulationRenderConfig : public Config
         _extractParameter("hdr-image-filename", node, _hdr_image_filename);
         _extractParameter("create-skybox", node, _create_skybox);
         _extractParameter("exposure", node, _exposure);
+        _extractParameter("background", node, _background);
+
+        _extractParameter("offscreen-rendering", node, _offscreen_rendering);
 
         _extractParameter("window-width", node, _window_width);
         _extractParameter("window-height", node, _window_height);
@@ -31,6 +34,9 @@ class SimulationRenderConfig : public Config
     const std::optional<std::string>& hdrImageFilename() const { return _hdr_image_filename.value; }
     bool createSkybox() const { return _create_skybox.value; }
     Real exposure() const { return _exposure.value; }
+    Vec3r background() const { return _background.value; }
+
+    bool offscreenRendering() const { return _offscreen_rendering.value; }
 
     int windowWidth() const { return _window_width.value; }
     int windowHeight() const { return _window_height.value; }
@@ -38,7 +44,10 @@ class SimulationRenderConfig : public Config
     protected:
     ConfigParameter<std::optional<std::string>> _hdr_image_filename;
     ConfigParameter<bool> _create_skybox = ConfigParameter<bool>(true);
+    ConfigParameter<Vec3r> _background = ConfigParameter<Vec3r>(Vec3r(0.3, 0.3, 0.3));
     ConfigParameter<Real> _exposure = ConfigParameter<Real>(0.5);
+
+    ConfigParameter<bool> _offscreen_rendering = ConfigParameter<bool>(false);
 
     ConfigParameter<int> _window_width = ConfigParameter<int>(600);
     ConfigParameter<int> _window_height = ConfigParameter<int>(600);

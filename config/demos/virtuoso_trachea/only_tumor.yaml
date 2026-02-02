@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Haptic"
+input-device: "Mouse"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: true
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -51,10 +51,17 @@ exposure: 0.2
 # filename to the HDR image used for lighting in the PBR model
 hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
 # whether or not to create a skybox from the HDR image
-create-skybox: true
+create-skybox: false
+# static color background for the sim
+background: [0.1, 0.1, 0.1] # dark gray
 # width and height of the window created for the sim
 window-width: 1000
 window-height: 1000
+
+# whether or not to render offscreen to an image buffer
+# Note: only possible with VTK graphics
+# Another Note: necessary for publishing images over ROS2
+offscreen-rendering: true
 
 # === Specify materials used by objects in the sim ===
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
@@ -67,13 +74,13 @@ materials:
     E: 5e6
     nu: 0.49
     # rendering settings
-    color: [1.0, 0.3, 0.2]
+    color: [1.0, 0.5, 0.4]
     render-type: "PBR"
     metallic: 0.0
-    roughness: 0.3
-    smooth-normals: false
+    roughness: 0.4
+    smooth-normals: true
     draw-points: false
-    draw-edges: true
+    draw-edges: false
     draw-faces: true
     
   -
@@ -84,14 +91,14 @@ materials:
     E: 0.07e6
     nu: 0.4
     # rendering settings
-    color: [1.0, 0.4, 0.3]
+    color: [1.0, 0.6, 0.5]
     cut-color: [0.12, 0.08, 0.0]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
-    draw-edges: true
+    draw-edges: false
     draw-faces: true
 
   -

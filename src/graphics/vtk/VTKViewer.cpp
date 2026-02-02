@@ -54,6 +54,16 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
     : Viewer(title)
 {
     _setupRenderWindow(render_config);
+
+    _offscreen_rendering = render_config.offscreenRendering();
+    if (_offscreen_rendering)
+    {
+        _window_to_image = vtkSmartPointer<vtkWindowToImageFilter>::New();
+        _window_to_image->SetInput(_render_window);
+        _window_to_image->ReadFrontBufferOff();
+        _window_to_image->SetInputBufferTypeToRGB();
+        _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
+    }
 }
 
 void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_config)
@@ -61,7 +71,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     // create renderer for actors in the scene
     _renderer = vtkSmartPointer<vtkOpenGLRenderer>::New();
 
-    _renderer->SetBackground(0.3, 0.3, 0.3);
+    _renderer->SetBackground(render_config.background()[0], render_config.background()[1], render_config.background()[2]);
     _renderer->SetAutomaticLightCreation(false);
 
     //////////////////////////////////////////////////////////
@@ -185,6 +195,17 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     callback->cam_view_dir = &_cam_view_dir;
     callback->cam_pos = &_cam_pos;
     _renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, callback);
+
+    /////////////////////////////////////////////////////////
+    // Initialize camera state matrix
+    ////////////////////////////////////////////////////////
+    _camera_state.pos = Eigen::Map<Vec3r>(_renderer->GetActiveCamera()->GetPosition());
+    Vec3r focal_point = Eigen::Map<Vec3r>(_renderer->GetActiveCamera()->GetFocalPoint());
+    double dist = _renderer->GetActiveCamera()->GetDistance();
+    _camera_state.view_dir = (focal_point - _camera_state.pos)/dist;
+    _camera_state.up_dir = Eigen::Map<Vec3r>(_renderer->GetActiveCamera()->GetViewUp());
+    _camera_state.hfov = _renderer->GetActiveCamera()->GetViewAngle();
+    _camera_state.is_orthographic = _renderer->GetActiveCamera()->GetParallelProjection();
     
     /////////////////////////////////////////////////////////
     // Create the rendering passes and settings
@@ -238,11 +259,143 @@ void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_
     VTKViewer* viewer = static_cast<VTKViewer*>(client_data);
     if (viewer->_should_render.exchange(false))
     {
+        // call the prerender callback (update the graphics objects for all the sim objects)
         if (viewer->_prerender_callback)
             viewer->_prerender_callback();
+
+        // update the camera
+        viewer->_updateCamera();
             
         viewer->_render_window->Render();
+
+        if (viewer->_offscreen_rendering)
+        {
+            // update the window -> image object to render offscreen
+            viewer->_window_to_image->Modified();
+            viewer->_window_to_image->Update();
+            // get the latest rendered frame
+            vtkImageData* latest_frame = viewer->_window_to_image->GetOutput();
+            int* dims = latest_frame->GetDimensions();
+            size_t num_bytes = dims[0] * dims[1] * latest_frame->GetNumberOfScalarComponents();     // width * height * num_channels
+
+            unsigned char* pixels = static_cast<unsigned char*>(latest_frame->GetScalarPointer()); 
+            // copy to buffer
+            {
+                std::lock_guard<std::mutex> lock(viewer->_image_data_mutex);
+                
+                // make sure the image buffer has the appropriate amount of space
+                if (viewer->_image_data.size() != num_bytes)
+                    viewer->_image_data.resize(num_bytes);
+                
+                std::memcpy(viewer->_image_data.data(), pixels, num_bytes);
+            }
+        }
     }
+}
+
+void VTKViewer::_updateCamera()
+{
+    VTKCameraState new_state;
+    {
+        std::lock_guard<std::mutex> lock(_camera_state_mutex);
+        new_state = _camera_state;
+    }
+
+    // set position
+    _renderer->GetActiveCamera()->SetPosition(new_state.pos[0], new_state.pos[1], new_state.pos[2]);
+    _renderer->ResetCameraClippingRange();
+
+    // set view angle
+    _renderer->GetActiveCamera()->UseHorizontalViewAngleOn();
+    _renderer->GetActiveCamera()->SetViewAngle(new_state.hfov);
+    _renderer->ResetCameraClippingRange();
+
+    // set view direction
+    double dist = _renderer->GetActiveCamera()->GetDistance();
+    Vec3r new_focal_point = new_state.pos + new_state.view_dir*dist;
+    _renderer->GetActiveCamera()->SetFocalPoint(new_focal_point[0], new_focal_point[1], new_focal_point[2]);
+    _renderer->ResetCameraClippingRange();
+
+    // set up direction
+    _renderer->GetActiveCamera()->SetViewUp(new_state.up_dir[0], new_state.up_dir[1], new_state.up_dir[2]);
+    _renderer->ResetCameraClippingRange();
+
+    // set camera orthographic
+    if (new_state.is_orthographic)
+        _renderer->GetActiveCamera()->SetParallelProjection(true);
+    else
+        _renderer->GetActiveCamera()->SetParallelProjection(false);
+}
+
+void VTKViewer::setCameraOrthographic()
+{
+    // _renderer->GetActiveCamera()->SetParallelProjection(true);
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.is_orthographic = true;
+}
+
+void VTKViewer::setCameraPerspective()
+{
+    // _renderer->GetActiveCamera()->SetParallelProjection(false);
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.is_orthographic = false;
+}
+
+void VTKViewer::setCameraFOV(Real fov)
+{
+    // _renderer->GetActiveCamera()->UseHorizontalViewAngleOn();
+    // _renderer->GetActiveCamera()->SetViewAngle(fov);
+    // _renderer->ResetCameraClippingRange();
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.hfov = fov;
+}
+
+Vec3r VTKViewer::cameraViewDirection() const
+{
+    return _camera_state.view_dir;
+}
+
+void VTKViewer::setCameraViewDirection(const Vec3r& view_dir)
+{
+    // double dist = _vtk_viewer->renderer()->GetActiveCamera()->GetDistance();
+    // Vec3r pos = cameraPosition();
+    // Vec3r new_focal_point = pos + view_dir*dist;
+    // _vtk_viewer->renderer()->GetActiveCamera()->SetFocalPoint(new_focal_point[0], new_focal_point[1], new_focal_point[2]);
+    // _vtk_viewer->renderer()->ResetCameraClippingRange();
+
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.view_dir = view_dir;
+}
+
+Vec3r VTKViewer::cameraUpDirection() const
+{
+    return _camera_state.up_dir;
+}
+
+void VTKViewer::setCameraUpDirection(const Vec3r& up_dir)
+{
+    // _vtk_viewer->renderer()->GetActiveCamera()->SetViewUp(up_dir[0], up_dir[1], up_dir[2]);
+    // _vtk_viewer->renderer()->ResetCameraClippingRange();
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.up_dir = up_dir;
+}
+
+Vec3r VTKViewer::cameraRightDirection() const
+{
+    return cameraViewDirection().cross(cameraUpDirection());
+}
+
+Vec3r VTKViewer::cameraPosition() const
+{
+    return _camera_state.pos;
+}
+
+void VTKViewer::setCameraPosition(const Vec3r& pos)
+{
+    // _vtk_viewer->renderer()->GetActiveCamera()->SetPosition(pos[0], pos[1], pos[2]);
+    // _vtk_viewer->renderer()->ResetCameraClippingRange();
+    std::lock_guard<std::mutex> lock(_camera_state_mutex);
+    _camera_state.pos = pos;
 }
 
 void VTKViewer::update()
@@ -325,6 +478,19 @@ void VTKViewer::editText(const std::string& name,
         txt->SetDisplayPosition(new_x, new_y);
         txt->GetTextProperty()->SetFontSize(new_font_size);
     }
+}
+
+void VTKViewer::copyImageBufferToExternalBuffer(unsigned char* external_buffer)
+{
+    if (!_offscreen_rendering)
+    {
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Offscreen rendering must be enabled to copy image buffer." << std::endl;
+        throw std::runtime_error("Offscreen rendering not enabled");
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_image_data_mutex);
+    std::memcpy(external_buffer, _image_data.data(), _image_data.size());
 }
 
 void VTKViewer::_processKeyboardEvent(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers)

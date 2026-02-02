@@ -4,6 +4,8 @@ VirtuosoSimBridge::VirtuosoSimBridge(Sim::VirtuosoSimulation* sim)
     : SimBridge<Sim::VirtuosoSimulation>(sim)
 {
     _setupTransformBroadcaster();
+    _setupTransformBufferAndListener();
+    _setupVBtoCamTransformListener();
 
     _setupPublishers();
 
@@ -110,11 +112,58 @@ geometry_msgs::msg::Pose VirtuosoSimBridge::_poseFromTransformationMatrix(const 
     return pose;
 }
 
-
+void VirtuosoSimBridge::_setupTransformBufferAndListener()
+{
+    _tf_buffer = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    _tf_listener = std::make_shared<tf2_ros::TransformListener>(*_tf_buffer);
+}
 
 
 /** === Publishers === */
 
+void VirtuosoSimBridge::_setupVBtoCamTransformListener()
+{
+    this->declare_parameter("cam_frame_name", "ves/camera");
+
+    auto vb_to_cam_callback = [this] () -> void {
+        std::string source_frame = this->get_parameter("cam_frame_name").as_string();
+        std::string target_frame = "ves/left/base";
+
+        // get the latest transform (if it exists)
+        if (this->_tf_buffer->canTransform(target_frame, source_frame, tf2::TimePointZero))
+        {
+            try
+            {
+                // try getting the transform
+                auto transform_msg = this->_tf_buffer->lookupTransform(
+                    target_frame, source_frame, tf2::TimePointZero);
+                
+                // create TransformationMatrix object from transform
+                Vec3r origin(transform_msg.transform.translation.x, transform_msg.transform.translation.y, transform_msg.transform.translation.z);
+                Vec4r quat(transform_msg.transform.rotation.x, transform_msg.transform.rotation.y, transform_msg.transform.rotation.z, transform_msg.transform.rotation.w);
+                Mat3r rot_mat = GeometryUtils::quatToMat(quat);
+                Geometry::TransformationMatrix vb_to_cam(rot_mat, origin);
+                
+                _sim->virtuosoRobot()->setVBtoCamTransform(vb_to_cam);
+                _sim->updateGraphicsCameraPoseToRobotCamFrame();
+                    
+            }
+            catch (tf2::TransformException& ex)
+            {
+                RCLCPP_WARN(this->get_logger(), "Error getting transform: %s", ex.what());
+            }
+        }
+        else
+        {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                "Transform from %s to %s does not exist yet", 
+                source_frame.c_str(), target_frame.c_str());
+        }
+
+    };
+
+    _sim->addCallback(0.5, vb_to_cam_callback);
+}
 
 void VirtuosoSimBridge::_setupTransformBroadcaster()
 {
@@ -126,8 +175,8 @@ void VirtuosoSimBridge::_setupTransformBroadcaster()
         [this]() -> void {
             geometry_msgs::msg::TransformStamped t;
             t.header.stamp = this->now();
-            t.header.frame_id = "/ves/left/base";
-            t.child_frame_id = "/sim/world";
+            t.header.frame_id = "ves/left/base";
+            t.child_frame_id = "sim/world";
 
             const Geometry::TransformationMatrix& vb_transform_inv = this->_sim->virtuosoRobot()->VBFrame().transform().inverse();
             t.transform.translation.x = vb_transform_inv.translation()[0];
@@ -225,7 +274,7 @@ void VirtuosoSimBridge::_setupArmFramesPublisher(const Sim::VirtuosoArm* arm, rc
 
             auto message = geometry_msgs::msg::PoseArray();
             message.header.stamp = this->now();
-            message.header.frame_id = "/ves/left/base";
+            message.header.frame_id = "ves/left/base";
 
             const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
             const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();
@@ -268,7 +317,7 @@ void VirtuosoSimBridge::_setupArmTipFramePublisher(const Sim::VirtuosoArm* arm, 
 
             auto message = geometry_msgs::msg::PoseStamped();
             message.header.stamp = this->now();
-            message.header.frame_id = "/ves/left/base";
+            message.header.frame_id = "ves/left/base";
 
             const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
             const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();

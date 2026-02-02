@@ -27,7 +27,9 @@ class MeshGraphicsObject : public GraphicsObject
     {
         Geometry::Mesh::vertices_vec_type vertices;
         Geometry::Mesh::faces_vec_type faces;
+        std::vector<Vec3r> vertex_normals;
         Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> vertex_properties;
+        Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> face_properties;
         unsigned long topology_version;
 
         template <typename T>
@@ -52,6 +54,34 @@ class MeshGraphicsObject : public GraphicsObject
             for (auto& vprop : vertex_properties.template get<Geometry::MeshProperty<T>>())
             {
                 if (name == vprop.name())
+                    return true;
+            }
+
+            return false;
+        }
+
+        template <typename T>
+        const Geometry::MeshProperty<T>& getFaceProperty(const std::string& name) const
+        {
+            static_assert(type_list_contains_v<T, Geometry::MeshPropertyTypeList> && "Mesh property type not supported!");
+
+            for (const auto& fprop : face_properties.template get<Geometry::MeshProperty<T>>())
+            {
+                if (name == fprop.name())
+                    return fprop;
+            }
+        
+            assert(0 && "Vertex property not found!");
+        }
+
+        template <typename T>
+        bool hasFaceProperty(const std::string& name) const
+        {
+            static_assert(type_list_contains_v<T, Geometry::MeshPropertyTypeList> && "Mesh property type not supported!");
+
+            for (auto& fprop : face_properties.template get<Geometry::MeshProperty<T>>())
+            {
+                if (name == fprop.name())
                     return true;
             }
 

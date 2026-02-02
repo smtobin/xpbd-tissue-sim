@@ -105,25 +105,55 @@ void Mesh::setCurrentStateAsUndeformedState()
     _unrotated_size_xyz = bbox.size();
 
     _computeAdjacentVertices();
+    updateVertexNormals();
 }
 
 void Mesh::updateVertexNormals()
 {
-    for (auto& vert_norm : _vertex_normals)
-        vert_norm = Vec3r::Zero();
+    // make sure we have enough space
+    _vertex_normals.resize(_vertices.totalSize());
 
+    // zero out all normals
+    for (const auto& vert_index : _vertices.validIndices())
+    {
+        _vertex_normals[vert_index] = Vec3r::Zero();
+    }
+        
+    // iterate through faces and add normal contributions to vertices
     for (const auto& f : _faces)
     {
-        // edge 0->1
-        const Vec3r e01 = vertex(f[1]) - vertex(f[0]);
-        // edge 1->2
-        const Vec3r e12 = vertex(f[2]) - vertex(f[1]);
-        // edge 2->0
-        const Vec3r e20 = vertex(f[2]) - vertex(f[0]);
+        const Vec3r& v0 = vertex(f[0]);
+        const Vec3r& v1 = vertex(f[1]);
+        const Vec3r& v2 = vertex(f[2]);
 
-        _vertex_normals[f[0]] += e20.cross(e01);
-        _vertex_normals[f[1]] += e01.cross(e12);
-        _vertex_normals[f[2]] += e12.cross(e20);
+        // edge 0->1
+        const Vec3r e01 = v1 - v0;
+        // edge 1->2
+        const Vec3r e12 = v2 - v1;
+        // edge 2->0
+        const Vec3r e20 = v0 - v2;
+
+        // edge magnitudes
+        Real e01_mag = e01.norm();
+        Real e12_mag = e12.norm();
+        Real e20_mag = e20.norm();
+
+        // approximate angle at each vertex
+        Real w0 = 1.0 / (e01_mag * e20_mag + 1e-12);
+        Real w1 = 1.0 / (e12_mag * e01_mag + 1e-12);
+        Real w2 = 1.0 / (e20_mag * e12_mag + 1e-12);
+
+        // face normal
+        const Vec3r n = -e01.cross(e20);    // negative because using e20 here
+
+        _vertex_normals[f[0]] += w0 * n;
+        _vertex_normals[f[1]] += w1 * n;
+        _vertex_normals[f[2]] += w2 * n;
+    }
+
+    for (const auto& vert_index : _vertices.validIndices())
+    {
+        _vertex_normals[vert_index] = _vertex_normals[vert_index].normalized();
     }
 }
 

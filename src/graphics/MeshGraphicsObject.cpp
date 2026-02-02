@@ -31,7 +31,9 @@ void MeshGraphicsObject::update()
 
     write_mesh->vertices = _mesh->vertices();
     write_mesh->faces = _mesh->faces();
+    write_mesh->vertex_normals = _mesh->vertexNormals();
     write_mesh->vertex_properties = _mesh->vertexProperties();
+    write_mesh->face_properties = _mesh->faceProperties();
     write_mesh->topology_version = _mesh->topologyVersion();
 
     _latest_rmesh.store(write_mesh, std::memory_order_release);

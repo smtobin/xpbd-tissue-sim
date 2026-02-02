@@ -29,6 +29,8 @@ namespace Graphics
 VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geometry::Mesh* mesh, const Config::ObjectRenderConfig& render_config)
     : MeshGraphicsObject(name, mesh)
 {
+    _latest_topology_version = mesh->topologyVersion();
+
     _front_poly_data = vtkSmartPointer<vtkPolyData>::New();
 
     // create points
@@ -56,6 +58,8 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
     _front_poly_data->SetPoints(vtk_points);
     _front_poly_data->SetPolys(vtk_faces);
 
+    _smooth_normals = render_config.smoothNormals();
+
     if (render_config.drawEdges())
     {
         
@@ -70,33 +74,13 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
         _edges_vtk_actor->SetMapper(_edge_mapper);
 
         _edges_vtk_actor->GetProperty()->SetColor(0.0, 0.0, 0.0);
+        _edges_vtk_actor->GetProperty()->LightingOff();
     }
 
     if (render_config.drawFaces())
     {
         _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-        if (render_config.smoothNormals())
-        {
-            // smooth normals
-            _normals_generator = vtkSmartPointer<vtkPolyDataNormals>::New();
-            _normals_generator->SetInputData(_front_poly_data);
-            _normals_generator->SetFeatureAngle(30.0);
-            _normals_generator->SplittingOff();
-            // normal_generator->ConsistencyOn();
-            _normals_generator->ComputePointNormalsOn();
-            _normals_generator->ComputeCellNormalsOff();
-            _normals_generator->Update();
-
-            // vtkNew<vtkPolyDataTangents> tangents;
-            // tangents->SetInputConnection(normal_generator->GetOutputPort());
-            // tangents->Update();
-
-            _face_mapper->SetInputConnection(_normals_generator->GetOutputPort());
-        }
-        else
-        {
-            _face_mapper->SetInputData(_front_poly_data);
-        }
+        _face_mapper->SetInputData(_front_poly_data);
         
         _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
         _faces_vtk_actor->SetMapper(_face_mapper);
@@ -120,7 +104,7 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
         // if the config file specifies multiple colors, and the mesh has the "class" vertex attribute
         // then we can assign different colors to vertices based on their class
-        if (render_config.colors().has_value() && mesh->hasVertexProperty<int>("class"))
+        if (render_config.colors().has_value() && mesh->hasFaceProperty<int>("class"))
         {
             // set colors for each section of the mesh
             vtkNew<vtkUnsignedCharArray> colors;
@@ -129,18 +113,19 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
 
             std::vector<Vec3r> colors_f = render_config.colors().value();
             const Geometry::MeshProperty<int>& vert_class_prop = mesh->getVertexProperty<int>("class");
-            for (int i = 0; i < mesh->numVertices(); i++)
+            const Geometry::MeshProperty<int>& face_class_prop = mesh->getFaceProperty<int>("class");
+            for (int i = 0; i < mesh->numFaces(); i++)
             {
-                int vert_class = vert_class_prop.get(i);
+                int face_class = face_class_prop.get(i);
 
                 // make sure the config file specifies enough colors
-                if (static_cast<unsigned>(vert_class) >= colors_f.size())
+                if (static_cast<unsigned>(face_class) >= colors_f.size())
                 {
-                    std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but vertex " << i <<
-                    " has class " << vert_class << ". (Specify more colors in the config file)" << RST << std::endl;
+                    std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but face " << i <<
+                    " has class " << face_class << ". (Specify more colors in the config file)" << RST << std::endl;
                 }
 
-                Vec3r color_f = colors_f[vert_class];
+                Vec3r color_f = colors_f[face_class];
                 unsigned char color[3];
                 color[0] = static_cast<unsigned char>(color_f[0] * 255);
                 color[1] = static_cast<unsigned char>(color_f[1] * 255);
@@ -149,7 +134,7 @@ VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geom
                 colors->InsertNextTypedTuple(color);
             }
 
-            _front_poly_data->GetPointData()->SetScalars(colors);
+            _front_poly_data->GetCellData()->SetScalars(colors);
         }
     }
     
@@ -189,55 +174,61 @@ void VTKMeshGraphicsObject::_setVertices(const RenderInfo* rmesh)
     points->Modified();
 }
 
+void VTKMeshGraphicsObject::_setNormals(const RenderInfo* rmesh)
+{
+    // copy normals from rmesh buffer into VTK buffer
+    vtkNew<vtkFloatArray> normals;
+    normals->SetNumberOfComponents(3);
+    normals->SetNumberOfTuples(rmesh->vertices.totalSize());
+    normals->SetName("Normals");
+
+    float* n = normals->GetPointer(0);
+
+    for (unsigned i = 0; i < rmesh->vertices.totalSize(); i++)
+    {
+        float* ni = n + 3*i;
+        const Vec3r& normal = rmesh->vertex_normals[i];
+        ni[0] = static_cast<float>(normal[0]);
+        ni[1] = static_cast<float>(normal[1]);
+        ni[2] = static_cast<float>(normal[2]);
+    }
+    _front_poly_data->GetPointData()->SetNormals(normals);
+}
 
 void VTKMeshGraphicsObject::updateGraphicsBuffers() 
 {
 
     RenderInfo* rmesh = _latest_rmesh.load(std::memory_order_acquire);
-
-    int old_num_points = _front_poly_data->GetNumberOfPoints();
-    int old_num_cells = _front_poly_data->GetNumberOfCells();
     
     bool topology_changed = (rmesh->topology_version != _latest_topology_version);
 
     _setVertices(rmesh);
-    
-    _setColorsForCutSurface(rmesh);
+
+    if (_smooth_normals)
+        _setNormals(rmesh);
 
     if (topology_changed)
     {
         _setFaces(rmesh);
+        _setColorsForCutSurface(rmesh);
 
         _front_poly_data->BuildCells();
         _front_poly_data->BuildLinks();
 
+        if (_edge_extractor)
+        {
+            _edge_extractor->Update();
+        }
+
         _latest_topology_version = rmesh->topology_version;
     }
-
     
     _front_poly_data->Modified();
-
-    if (_edge_extractor)
-    {
-        _edge_extractor->Update();
-    }
-    
-    if (_normals_generator)
-    {
-        _normals_generator->Update();
-    }
-    
-    
-    // if (_normals_generator)
-    // {
-    //     _normals_generator->Modified();
-    //     _normals_generator->Update();
-    // }
 }
 
 void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
 {
-    if (!rmesh->hasVertexProperty<bool>("on-cut-surface"))
+    if (!rmesh->hasFaceProperty<bool>("on-cut-surface"))
         return;
     
     // set colors for each section of the mesh
@@ -245,11 +236,11 @@ void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
     colors->SetNumberOfComponents(3);
     colors->SetName("Colors");
 
-    const Geometry::MeshProperty<bool>& on_cut_surface_prop = rmesh->getVertexProperty<bool>("on-cut-surface");
-    for (unsigned vert_index = 0; vert_index < rmesh->vertices.totalSize(); vert_index++)
+    const Geometry::MeshProperty<bool>& on_cut_surface_prop = rmesh->getFaceProperty<bool>("on-cut-surface");
+    for (const auto& face_index : rmesh->faces.validIndices())
     {
         unsigned char color[3];
-        bool on_cut_surface = on_cut_surface_prop.get(vert_index);
+        bool on_cut_surface = on_cut_surface_prop.get(face_index);
 
         if (on_cut_surface)
         {
@@ -267,30 +258,7 @@ void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
         colors->InsertNextTypedTuple(color);
     }
 
-    // std::vector<Vec3r> colors_f = render_config.colors().value();
-    // const Geometry::MeshProperty<int>& vert_class_prop = mesh->getVertexProperty<int>("class");
-    // for (int i = 0; i < rmesh->vertices.totalSize(); i++)
-    // {
-    //     int vert_class = vert_class_prop.get(i);
-
-    //     // make sure the config file specifies enough colors
-    //     if (static_cast<unsigned>(vert_class) >= colors_f.size())
-    //     {
-    //         std::cout << KYEL << BOLD << "WARNING" << RST << KYEL << ": Only " << colors_f.size() << " colors were specified, but vertex " << i <<
-    //         " has class " << vert_class << ". (Specify more colors in the config file)" << RST << std::endl;
-    //     }
-
-    //     Vec3r color_f = colors_f[vert_class];
-    //     unsigned char color[3];
-    //     color[0] = static_cast<unsigned char>(color_f[0] * 255);
-    //     color[1] = static_cast<unsigned char>(color_f[1] * 255);
-    //     color[2] = static_cast<unsigned char>(color_f[2] * 255);
-
-    //     colors->InsertNextTypedTuple(color);
-    // }
-    // // std::cout << "\n\n\n\n\n\n" << std::endl;
-
-    _front_poly_data->GetPointData()->SetScalars(colors);
+    _front_poly_data->GetCellData()->SetScalars(colors);
 }
 
 void VTKMeshGraphicsObject::_setColorsForTemperature(const RenderInfo* rmesh)
