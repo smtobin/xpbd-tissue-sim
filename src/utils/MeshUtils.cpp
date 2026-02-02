@@ -7,6 +7,12 @@
 Geometry::Mesh MeshUtils::loadSurfaceMeshFromFile(const std::string& filename)
 {
     Assimp::Importer importer;
+    importer.SetPropertyInteger(AI_CONFIG_PP_RVC_FLAGS, 
+        aiComponent_NORMALS | 
+        aiComponent_TANGENTS_AND_BITANGENTS |
+        aiComponent_COLORS |
+        aiComponent_TEXCOORDS
+    );
 
     // And have it read the given file with some example postprocessing
     // Usually - if speed is not the most important aspect for you - you'll
@@ -14,6 +20,7 @@ Geometry::Mesh MeshUtils::loadSurfaceMeshFromFile(const std::string& filename)
     const aiScene* scene = importer.ReadFile( filename,
         aiProcess_Triangulate            |
         aiProcess_JoinIdenticalVertices  |
+        aiProcess_RemoveComponent        |
         aiProcess_SortByPType);
 
     // If the import failed, report it

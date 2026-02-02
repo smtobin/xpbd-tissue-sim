@@ -48,7 +48,7 @@ class VTKMeshGraphicsObject : public MeshGraphicsObject
     vtkSmartPointer<vtkPolyDataMapper> _edge_mapper;
 
     vtkSmartPointer<vtkPolyDataMapper> _face_mapper;
-    vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
+    // vtkSmartPointer<vtkPolyDataNormals> _normals_generator;
 
     /** When a mesh has multiple 'classes', multiple colors can be specified for different parts of the mesh. */
     std::optional<std::vector<Vec3r>> _colors;

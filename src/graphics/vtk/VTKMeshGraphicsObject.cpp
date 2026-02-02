@@ -29,6 +29,8 @@ namespace Graphics
 VTKMeshGraphicsObject::VTKMeshGraphicsObject(const std::string& name, const Geometry::Mesh* mesh, const Config::ObjectRenderConfig& render_config)
     : MeshGraphicsObject(name, mesh)
 {
+    _latest_topology_version = mesh->topologyVersion();
+
     _front_poly_data = vtkSmartPointer<vtkPolyData>::New();
 
     // create points
@@ -197,9 +199,6 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 {
 
     RenderInfo* rmesh = _latest_rmesh.load(std::memory_order_acquire);
-
-    int old_num_points = _front_poly_data->GetNumberOfPoints();
-    int old_num_cells = _front_poly_data->GetNumberOfCells();
     
     bool topology_changed = (rmesh->topology_version != _latest_topology_version);
 
@@ -207,26 +206,24 @@ void VTKMeshGraphicsObject::updateGraphicsBuffers()
 
     if (_smooth_normals)
         _setNormals(rmesh);
-    
-    _setColorsForCutSurface(rmesh);
 
     if (topology_changed)
     {
         _setFaces(rmesh);
+        _setColorsForCutSurface(rmesh);
 
         _front_poly_data->BuildCells();
         _front_poly_data->BuildLinks();
 
+        if (_edge_extractor)
+        {
+            _edge_extractor->Update();
+        }
+
         _latest_topology_version = rmesh->topology_version;
     }
-
     
     _front_poly_data->Modified();
-
-    if (_edge_extractor)
-    {
-        _edge_extractor->Update();
-    }
 }
 
 void VTKMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)

@@ -105,6 +105,7 @@ void Mesh::setCurrentStateAsUndeformedState()
     _unrotated_size_xyz = bbox.size();
 
     _computeAdjacentVertices();
+    updateVertexNormals();
 }
 
 void Mesh::updateVertexNormals()
