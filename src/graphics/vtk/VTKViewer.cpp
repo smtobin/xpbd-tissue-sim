@@ -71,7 +71,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     // create renderer for actors in the scene
     _renderer = vtkSmartPointer<vtkOpenGLRenderer>::New();
 
-    _renderer->SetBackground(0.3, 0.3, 0.3);
+    _renderer->SetBackground(render_config.background()[0], render_config.background()[1], render_config.background()[2]);
     _renderer->SetAutomaticLightCreation(false);
 
     //////////////////////////////////////////////////////////
