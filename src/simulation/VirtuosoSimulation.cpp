@@ -110,7 +110,7 @@ void VirtuosoSimulation::updateGraphicsCameraPoseToRobotCamFrame()
 
         // find view dir
         const Vec3r& z_axis_pt = cam_transform.rotMat() * Vec3r(0,0,1) + cam_transform.translation();
-        const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,1,0) + cam_transform.translation();
+        const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,-1,0) + cam_transform.translation();  // use the negative y direction, since by convention y-axis points down for cam frame
         _graphics_scene->setCameraViewDirection(z_axis_pt - cam_transform.translation());
         _graphics_scene->setCameraUpDirection(y_axis_pt - cam_transform.translation());
         _graphics_scene->setCameraFOV(80.0);
