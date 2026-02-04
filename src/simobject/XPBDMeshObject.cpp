@@ -893,7 +893,7 @@ template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_updateAfterMeshTopologyChange(    
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& /*removed_vertices*/,
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
-    const std::vector<int>& /*added_faces*/,
+    const std::vector<int>& added_faces,
     const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
     const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
 {
@@ -1025,6 +1025,22 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         // remove map entries
         _element_to_collision_proj_index.erase(elem_index.index);
     }
+
+    /** Run collision detection on newly added faces */
+    auto new_proj_ref_wrappers = _sim->collisionScene()->collideObjectsWithFacesOfXPBDMeshObj(this, added_faces);
+    // convert the ConstraintProjectorReferenceWrapper to ConstraintProjectorReferences
+    // TOOD: this kinda sucks. code smell. Needs rewrite.
+    typename SolverType::projector_reference_container_type new_proj_refs;
+    for (const auto& wrapper : new_proj_ref_wrappers)
+    {
+        auto* new_proj_ref = wrapper.template getAs<IsFirstOrder>();
+        using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;
+        using CollisionProjRefType = Solver::ConstraintProjectorReference<CollisionProjectorType>;
+        new_proj_refs.template push_back<CollisionProjRefType>(*new_proj_ref);
+    }
+    _solver.solve(new_proj_refs, 1, true);
+
+    std::cout << "# new collision constraints: " << new_proj_refs.size() << std::endl;
 
     /** Update constraints and constraint projectors. */
     // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
@@ -1302,7 +1318,7 @@ Vec3r XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::e
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrix() const
 {
-    auto t_start = std::chrono::high_resolution_clock::now();
+    // auto t_start = std::chrono::high_resolution_clock::now();
 
     // assemble global delC matrix
     size_t num_elastic_constraints = _constraints.template get<Solver::DeviatoricConstraint>().size() + _constraints.template get<Solver::HydrostaticConstraint>().size();

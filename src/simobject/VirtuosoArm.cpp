@@ -149,9 +149,9 @@ void VirtuosoArm::setJointState(double ot_rotation, double ot_translation, doubl
     _stale_frames = true;
 }
 
-void VirtuosoArm::addCollisionConstraint(VirtuosoArm::CollisionConstraintInfo::ProjectorRefType&& proj_ref, int node_index, Real interp)
+void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp)
 {
-    _collision_constraints.emplace_back(std::move(proj_ref), node_index, interp);
+    _collision_constraints.emplace_back(proj_ref, node_index, interp);
 }
 
 void VirtuosoArm::clearCollisionConstraints()
@@ -217,11 +217,11 @@ void VirtuosoArm::velocityUpdate()
     for (const auto& collision : _collision_constraints)
     {
         
-        if (collision.proj_ref.exists())
+        if (collision.proj_ref.exists() && collision.proj_ref.isValid())
         {
             // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
             std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
-            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());  
+            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());
             new_forces[collision.node_index] += net_force*(1-collision.interp);
             new_forces[collision.node_index+1] += net_force*collision.interp;
 
@@ -420,7 +420,7 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> elements_in_contact;
             for (const auto& collision : _collision_constraints)
             {
-                if (!collision.proj_ref.exists())
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
                     continue;
 
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
@@ -456,7 +456,7 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> high_voltage_verts;
             for (const auto& collision : _collision_constraints)
             {
-                if (!collision.proj_ref.exists())
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
                     continue;
 
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)

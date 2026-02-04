@@ -134,7 +134,7 @@ objects:
     self-collisions: false
 
     adaptive-mesh-refinement: true
-    max-refinement-level: 2
+    max-refinement-level: 1
     compute-heat-conduction: false
 
   # -
@@ -173,7 +173,7 @@ objects:
       name: "Arm2"
       type: "VirtuosoArm"
       tool-type: "cautery"
-      cutting-model: "instant"  # the type of cutting model employed - "instant", "timer", or "thermal"
+      cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
       time-threshold: 1
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2

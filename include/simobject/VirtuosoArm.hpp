@@ -276,7 +276,7 @@ class VirtuosoArm : public Object
     Vec3r unfilteredCollisionForce() const { return _unfiltered_collision_force; }
     Vec3r filteredCollisionForce() const { return _filtered_collision_force; }
 
-    void addCollisionConstraint(CollisionConstraintInfo::ProjectorRefType&& proj_ref, int node_index, Real interp);
+    void addCollisionConstraint(const CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp);
     void clearCollisionConstraints();
 
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }

@@ -149,6 +149,16 @@ class CollisionScene
      */
     void collideObjects();
 
+    /** Collides objects in the CollisionScene with specific faces of an XPBDMeshObject.
+     * When collisions are detected, collision constraints are created and added to the appropriate objects to resolve collisions.
+     * 
+     * This type of query is especially useful for when new faces are created during mesh topology changes (element refinement, removal),
+     * and new collision constraints need to be added.
+     */
+    template<bool IsFirstOrder>
+    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> collideObjectsWithFacesOfXPBDMeshObj(
+        Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, const std::vector<int>& face_indices) const;
+
     protected:
     /** Helper function that checks for collision between a pair of objects.
      * In general, collisions between two arbitrary objects are not supported.
@@ -166,7 +176,15 @@ class CollisionScene
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj);
 
-    void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func);
+    template<bool IsFirstOrder>
+    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> _collideXPBDFaceWithObject(
+        Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const;
+    template<bool IsFirstOrder>
+    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> _collideXPBDFaceWithObject(
+        Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const;
+    
+
+    void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func) const;
 
     /** Implements the Frank-Wolfe optimization algorithm applied to finding a contact point between a SDF and a 3D triangle face. 
      * @param sdf - the signed distance function (SDF) to collide against
