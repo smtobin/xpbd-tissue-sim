@@ -112,8 +112,12 @@ find_package(assimp REQUIRED)
 
 
 # === Include Directories ===
-
+# for some reason, we need to manually include these paths
 include_directories("./include")
+include_directories("./dependencies/src/")
+include_directories("./dependencies/install/gmsh/include")
+include_directories("./dependencies/install/embree/include")
+include_directories("./dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/include")
 
 # include PETSc directories
 # (PETSc does not provide a CMake config file)
@@ -127,7 +131,10 @@ if (HAVE_CUDA AND NOT NO_GPU)
 endif()
 
 # Add Mesh2SDF library install directory to the library search path
+# for some reason, we need to manually link these libraries
 link_directories("${CMAKE_CURRENT_SOURCE_DIR}/dependencies/install/Mesh2SDF/lib")
+link_directories("${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/lib")
+set(HD_LIB "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/lib/libHD.so.3.4.0")
 
 
 # === Add Child CMake Libraries ===
@@ -186,13 +193,16 @@ target_link_libraries(Collision Eigen3::Eigen mesh2sdf Geometry GeometryUtils)
 target_link_libraries(Config Eigen3::Eigen SimObject)
 target_link_libraries(Graphics Eigen3::Eigen easy3d::core easy3d::util easy3d::renderer easy3d::viewer ${VTK_LIBRARIES}) # link Easy3D for Graphics library
 target_link_libraries(Geometry Eigen3::Eigen mesh2sdf SimObject GeometryUtils embree)
-target_link_libraries(Haptics Eigen3::Eigen HD HDU)   # link OpenHaptics API libraries for Haptics library
+target_link_libraries(Haptics Eigen3::Eigen ${HD_LIB} HDU)   # link OpenHaptics API libraries for Haptics library
 target_link_libraries(SimObject Eigen3::Eigen MeshUtils GeometryUtils Geometry Solver Config FEM)   # link MeshUtils and Solver libraries
 target_link_libraries(Solver Eigen3::Eigen SimObject)         # link SimObject library
 target_link_libraries(MeshUtils gmsh::shared assimp Eigen3::Eigen Geometry) # link MeshUtils with gmsh (for volume mesh generation) and assimp (for mesh loading/conversion)
 target_link_libraries(GeometryUtils Eigen3::Eigen Geometry)
 target_link_libraries(FEM Eigen3::Eigen Geometry ${PETSC_LIB})
 
+target_link_options(Haptics PRIVATE
+    -Wl, -rpath, ${HD_LIB}
+)
 
 
 # === Create Simulation Libraries ===
