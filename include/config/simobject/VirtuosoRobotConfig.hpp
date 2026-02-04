@@ -27,6 +27,7 @@ class VirtuosoRobotConfig : public ObjectConfig
         _extractParameter("endoscope-length", node, _endoscope_length);
         _extractParameter("arm-separation-distance", node, _arm_separation_dist);
         _extractParameter("optic-vertical-distance", node, _optic_vertical_dist);
+        _extractParameter("optic-forward-distance", node, _optic_forward_dist);
         _extractParameter("optic-tilt", node, _optic_tilt);
 
         // create a MeshObject for each object specified in the YAML file
@@ -59,7 +60,8 @@ class VirtuosoRobotConfig : public ObjectConfig
 
     explicit VirtuosoRobotConfig( const std::string& name, const std::string& material_class,
         const Vec3r& initial_pos, const Vec3r& initial_rot, const Vec3r& initial_velocity, bool collisions, bool graphics_only,
-        Real endoscope_diameter, Real endoscope_length, Real arm_separation_distance, Real optic_vertical_distance, Real optic_tilt_deg,
+        Real endoscope_diameter, Real endoscope_length, Real arm_separation_distance,
+        Real optic_vertical_distance, Real optic_forward_distance, Real optic_tilt_deg,
         const std::vector<VirtuosoArmConfig>& arm_configs,
         const ObjectRenderConfig& render_config)
         : ObjectConfig(name, material_class, initial_pos, initial_rot, initial_velocity, collisions, graphics_only, render_config),
@@ -69,6 +71,7 @@ class VirtuosoRobotConfig : public ObjectConfig
         _endoscope_length.value = endoscope_length;
         _arm_separation_dist.value = arm_separation_distance;
         _optic_vertical_dist.value = optic_vertical_distance;
+        _optic_forward_dist.value = optic_forward_distance;
         _optic_tilt.value = optic_tilt_deg;
     }
 
@@ -79,6 +82,7 @@ class VirtuosoRobotConfig : public ObjectConfig
     Real endoscopeLength() const { return _endoscope_length.value; }
     Real armSeparationDistance() const { return _arm_separation_dist.value; }
     Real opticVerticalDistance() const { return _optic_vertical_dist.value; }
+    Real opticForwardDistance() const { return _optic_forward_dist.value; }
     Real opticTilt() const { return _optic_tilt.value; }
 
     protected:
@@ -86,6 +90,7 @@ class VirtuosoRobotConfig : public ObjectConfig
     ConfigParameter<Real> _endoscope_length = ConfigParameter<Real>(0.05);
     ConfigParameter<Real> _arm_separation_dist = ConfigParameter<Real>(3.05e-3);
     ConfigParameter<Real> _optic_vertical_dist = ConfigParameter<Real>(3.24e-3);
+    ConfigParameter<Real> _optic_forward_dist = ConfigParameter<Real>(6.52e-3);
     ConfigParameter<Real> _optic_tilt = ConfigParameter<Real>(30);
 
     std::vector<VirtuosoArmConfig> _arm_configs;

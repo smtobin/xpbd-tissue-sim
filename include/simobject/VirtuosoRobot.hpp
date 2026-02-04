@@ -45,7 +45,10 @@ class VirtuosoRobot : public Object
     const Geometry::CoordinateFrame& VRFrame() const { return _VR_frame; }
     const Geometry::CoordinateFrame& camFrame() const { return _cam_frame; }
 
-    void setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform);
+    /** Updates the camera transform based on its relative position to VB.
+     * Returns true if the camera transform is different from before.
+     */
+    bool setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform);
 
     virtual Geometry::AABB boundingBox() const override
     {
@@ -82,6 +85,7 @@ class VirtuosoRobot : public Object
     Real _endoscope_length;           // length (in m) of the endoscope
     Real _arm_separation_dist;        // horizontal distance (in m) between the centers of the two arms
     Real _optic_vertical_dist;        // vertical distance (in m) between the centers of the arms and the optic
+    Real _optic_forward_dist;         // distance along the +z axis (in m) between the optic center and the base of the arms
     Real _optic_tilt;            // rotation (in rad) of the optic around the positive X axis
 
     // frame at the center of the end of the endoscope

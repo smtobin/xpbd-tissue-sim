@@ -1,8 +1,10 @@
 #include "graphics/vtk/VTKViewer.hpp"
 #include "graphics/vtk/CustomVTKInteractorStyle.hpp"
 #include "graphics/vtk/VTKCameraSyncCallback.hpp"
+#include "graphics/vtk/VTKCircleMaskRenderCallback.hpp"
 
 #include <vtkActor.h>
+#include <vtkImageActor.h>
 #include <vtkCamera.h>
 #include <vtkCubeSource.h>
 #include <vtkSphereSource.h>
@@ -64,6 +66,8 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
         _window_to_image->SetInputBufferTypeToRGB();
         _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
     }
+
+    _circle_crop = render_config.circleCrop();
 }
 
 void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_config)
@@ -156,7 +160,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     // Create the render window and interactor
     //////////////////////////////////////////////////////
     _render_window = vtkSmartPointer<vtkRenderWindow>::New();
-    _render_window->SetNumberOfLayers(2);
+    _render_window->SetNumberOfLayers(3);
     _render_window->AddRenderer(_renderer);
     _render_window->SetSize(render_config.windowWidth(), render_config.windowHeight());
     _render_window->SetWindowName(_name.c_str());
@@ -168,33 +172,77 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     _interactor->SetInteractorStyle(style);
     _interactor->SetRenderWindow(_render_window);
 
-    // Create a second renderer for the axes overlay
-    vtkNew<vtkRenderer> axes_renderer;
-    axes_renderer->SetViewport(0.0, 0.0, 0.2, 0.2);  // Top-right corner
-    axes_renderer->SetInteractive(0);  // Don't respond to mouse
-    axes_renderer->SetLayer(1);        // Render on top
 
-    // Clear background is transparent
-    axes_renderer->SetBackground(0, 0, 0);
-    axes_renderer->SetBackgroundAlpha(0.0);
+    // create a renderer for the circle mask (when applicable)
+    if (render_config.circleCrop())
+    {
+        _mask_renderer = vtkSmartPointer<vtkRenderer>::New();
+        _mask_renderer->SetInteractive(0);
+        _mask_renderer->SetViewport(0, 0, 1, 1);
+        _mask_renderer->SetLayer(1);
+        _mask_renderer->SetBackground(0,0,0);
+        _mask_renderer->SetBackgroundAlpha(0.0);
 
-    // Add axes to the overlay renderer
-    vtkNew<vtkAxesActor> axes;
-    axes->SetTotalLength(1.0, 1.0, 1.0);
-    axes->SetShaftType(vtkAxesActor::CYLINDER_SHAFT);
-    axes->SetTipType(vtkAxesActor::CONE_TIP);
-    axes_renderer->AddActor(axes);
+        vtkSmartPointer<vtkImageData> circle_mask = _createCircleMask(render_config.windowWidth(), render_config.windowHeight());
 
-    // Add both renderers to the render window
-    _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 1)
+        _mask_mapper = vtkSmartPointer<vtkImageSliceMapper>::New();
+        _mask_mapper->SetInputData(circle_mask);
+        _mask_mapper->SetOrientationToZ();
+        _mask_mapper->SetSliceNumber(0);
+        _mask_mapper->BorderOff();
 
-    // Sync cameras so axes rotate with main view
-    vtkNew<CameraSyncCallback> callback;
-    callback->axesCamera = axes_renderer->GetActiveCamera();
-    callback->cam_up_dir = &_cam_up_dir;
-    callback->cam_view_dir = &_cam_view_dir;
-    callback->cam_pos = &_cam_pos;
-    _renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, callback);
+        _mask_slice = vtkSmartPointer<vtkImageSlice>::New();
+        _mask_slice->SetMapper(_mask_mapper);
+        _mask_slice->SetPosition(0.0, 0.0, 0.0);
+
+        vtkCamera* cam = _mask_renderer->GetActiveCamera();
+        cam->ParallelProjectionOn();
+
+        int w = render_config.windowWidth();
+        int h = render_config.windowHeight();
+        cam->SetFocalPoint(w/2.0, h/2.0, 0.0);
+        cam->SetPosition(w/2.0, h/2.0, 1.0);
+        cam->SetParallelScale(h/2.0);
+
+        _mask_renderer->AddViewProp(_mask_slice);
+        _render_window->AddRenderer(_mask_renderer);
+
+        vtkNew<VTKCircleMaskRenderCallback> resize_callback;
+        resize_callback->viewer = this;
+        _render_window->AddObserver(vtkCommand::RenderEvent, resize_callback);
+    }
+
+
+    if (render_config.showCameraAxes())
+    {
+        // Create a second renderer for the axes overlay
+        vtkNew<vtkRenderer> axes_renderer;
+        axes_renderer->SetViewport(0.0, 0.0, 0.2, 0.2);  // Top-right corner
+        axes_renderer->SetInteractive(0);  // Don't respond to mouse
+        axes_renderer->SetLayer(2);        // Render on top
+
+        // Clear background is transparent
+        axes_renderer->SetBackground(0, 0, 0);
+        axes_renderer->SetBackgroundAlpha(0.0);
+
+        // Add axes to the overlay renderer
+        vtkNew<vtkAxesActor> axes;
+        axes->SetTotalLength(1.0, 1.0, 1.0);
+        axes->SetShaftType(vtkAxesActor::CYLINDER_SHAFT);
+        axes->SetTipType(vtkAxesActor::CONE_TIP);
+        axes_renderer->AddActor(axes);
+
+        // Add both renderers to the render window
+        _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 2) (on top of the vignette mask, if there is one)
+
+        // Sync cameras so axes rotate with main view
+        vtkNew<CameraSyncCallback> callback;
+        callback->axesCamera = axes_renderer->GetActiveCamera();
+        callback->cam_up_dir = &_cam_up_dir;
+        callback->cam_view_dir = &_cam_view_dir;
+        callback->cam_pos = &_cam_pos;
+        _renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, callback);
+    }
 
     /////////////////////////////////////////////////////////
     // Initialize camera state matrix
@@ -253,6 +301,60 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     _interactor->CreateRepeatingTimer(5);
 }
 
+vtkSmartPointer<vtkImageData> VTKViewer::_createCircleMask(int width, int height)
+{
+    vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
+    image->SetDimensions(width, height, 1);
+    image->SetSpacing(1.0, 1.0, 1.0);
+    image->SetOrigin(0.0, 0.0, 0.0);
+    image->AllocateScalars(VTK_UNSIGNED_CHAR, 4);
+    
+    int centerX = width / 2;
+    int centerY = height / 2;
+    double radius = std::min(width, height) / 2.0;
+    
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            double dx = x - centerX;
+            double dy = y - centerY;
+            double distance = sqrt(dx*dx + dy*dy);
+            
+            unsigned char* pixel = static_cast<unsigned char*>(image->GetScalarPointer(x, y, 0));
+            pixel[0] = 0;   // R
+            pixel[1] = 0;   // G
+            pixel[2] = 0;   // B
+            
+            // Alpha channel: 0 inside circle, 255 outside
+            if (distance <= radius)
+            {
+                pixel[3] = 0;  // Transparent
+            }
+            else
+            {
+                pixel[3] = 255;  // Opaque black
+            }
+        }
+    }
+    
+    return image;
+}
+
+void VTKViewer::updateCircleMask()
+{
+    int w = width();
+    int h = height();
+    vtkSmartPointer<vtkImageData> mask = _createCircleMask(w, h);
+    _mask_mapper->SetInputData(mask);
+    _mask_mapper->Modified();
+
+    vtkCamera* cam = _mask_renderer->GetActiveCamera();
+    cam->SetFocalPoint(w / 2.0, h / 2.0, 0.0);
+    cam->SetPosition  (w / 2.0, h / 2.0, 1.0);
+    cam->SetParallelScale(h / 2.0);
+}
+
 void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_id*/, void* client_data, void* /*call_data*/)
 {
     
@@ -299,7 +401,11 @@ void VTKViewer::_updateCamera()
     {
         std::lock_guard<std::mutex> lock(_camera_state_mutex);
         new_state = _camera_state;
+        _camera_state.updated = false;
     }
+
+    if (!new_state.updated)
+        return;
 
     // set position
     _renderer->GetActiveCamera()->SetPosition(new_state.pos[0], new_state.pos[1], new_state.pos[2]);
@@ -332,6 +438,7 @@ void VTKViewer::setCameraOrthographic()
     // _renderer->GetActiveCamera()->SetParallelProjection(true);
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.is_orthographic = true;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::setCameraPerspective()
@@ -339,6 +446,7 @@ void VTKViewer::setCameraPerspective()
     // _renderer->GetActiveCamera()->SetParallelProjection(false);
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.is_orthographic = false;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::setCameraFOV(Real fov)
@@ -348,6 +456,7 @@ void VTKViewer::setCameraFOV(Real fov)
     // _renderer->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.hfov = fov;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraViewDirection() const
@@ -365,6 +474,7 @@ void VTKViewer::setCameraViewDirection(const Vec3r& view_dir)
 
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.view_dir = view_dir;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraUpDirection() const
@@ -378,6 +488,7 @@ void VTKViewer::setCameraUpDirection(const Vec3r& up_dir)
     // _vtk_viewer->renderer()->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.up_dir = up_dir;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraRightDirection() const
@@ -396,6 +507,7 @@ void VTKViewer::setCameraPosition(const Vec3r& pos)
     // _vtk_viewer->renderer()->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.pos = pos;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::update()

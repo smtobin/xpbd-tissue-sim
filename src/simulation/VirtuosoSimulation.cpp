@@ -110,7 +110,7 @@ void VirtuosoSimulation::updateGraphicsCameraPoseToRobotCamFrame()
 
         // find view dir
         const Vec3r& z_axis_pt = cam_transform.rotMat() * Vec3r(0,0,1) + cam_transform.translation();
-        const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,1,0) + cam_transform.translation();
+        const Vec3r& y_axis_pt = cam_transform.rotMat() * Vec3r(0,-1,0) + cam_transform.translation();  // use the negative y direction, since by convention y-axis points down for cam frame
         _graphics_scene->setCameraViewDirection(z_axis_pt - cam_transform.translation());
         _graphics_scene->setCameraUpDirection(y_axis_pt - cam_transform.translation());
         _graphics_scene->setCameraFOV(80.0);
@@ -130,7 +130,7 @@ void VirtuosoSimulation::notifyMouseMoved(double x, double y)
     {
         if (_keys_held[SimulationInput::Key::SPACE] > 0) // space bar = clutch
         {
-            const Real scaling = 0.00005;
+            const Real scaling = 0.0005;
             Real dx = x - _last_mouse_pos[0];
             Real dy = y - _last_mouse_pos[1];
 
@@ -192,7 +192,7 @@ void VirtuosoSimulation::notifyMouseScrolled(double dx, double dy)
     {
         if (_keys_held[SimulationInput::Key::SPACE] > 0) // space bar = clutch
         {
-            const Real scaling = 0.001;
+            const Real scaling = 0.00005;
             const Vec3r view_dir = _graphics_scene->cameraViewDirection();
 
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
@@ -269,9 +269,10 @@ void VirtuosoSimulation::setArm2ToolState(int tool_state)
 void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, const Vec3r& dp)
 {
     Vec3r dp_clamped = dp;
-    if (dp.norm() > 5e-5)
+    Real max_dp = 1e-4;
+    if (dp.norm() > 1e-4)
     {
-        dp_clamped = dp * (5e-5 / dp.norm());
+        dp_clamped = dp * (1e-4 / dp.norm());
     }
     // move the tip cursor and the active arm tip position
     const Vec3r current_tip_position = arm->commandedTipPosition();

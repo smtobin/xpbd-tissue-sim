@@ -13,6 +13,7 @@
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
 #include <vtkWindowToImageFilter.h>
+#include <vtkImageSliceMapper.h>
 
 #include <map>
 #include <atomic>
@@ -24,11 +25,19 @@ namespace Graphics
 
 struct VTKCameraState
 {
+    /** If the state has been updated recently, and is not reflected in the current camera settings. */
+    bool updated;
+
+    /** If orthographic camera rendering mode should be used. */
     bool is_orthographic;
+    /** FOV, in degrees */
     Real hfov;
     Real vfov;
+    /** View direction */
     Vec3r view_dir;
+    /** Camera up direction */
     Vec3r up_dir;
+    /** Camera position */
     Vec3r pos;
 };
 
@@ -129,6 +138,9 @@ public:
      */
     void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
 
+    /** Updates the circle vignette mask. Used when the viewer changes size. */
+    void updateCircleMask();
+
 protected:
     /** Updates the camera state. Called from the render thread right before rendering. */
     void _updateCamera();
@@ -149,6 +161,9 @@ private:
     /** Set up rendering settings */
     void _setupRenderWindow(const Config::SimulationRenderConfig& render_config);
 
+    /** Create circular vignette mask texture */
+    vtkSmartPointer<vtkImageData> _createCircleMask(int width, int height);
+
     private:
     vtkSmartPointer<vtkOpenGLRenderer> _renderer;
     vtkSmartPointer<vtkRenderWindow> _render_window;
@@ -164,6 +179,15 @@ private:
 
     /** Guards the pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
     std::mutex _image_data_mutex;
+
+    /** Whether or not to crop the center circle of the image using a mask. */
+    bool _circle_crop = false;
+
+    /** Stuff to render the circle vignette mask (when applicable) */
+    vtkSmartPointer<vtkRenderer> _mask_renderer;
+    vtkSmartPointer<vtkImageSlice> _mask_slice;
+    vtkSmartPointer<vtkImageSliceMapper> _mask_mapper;
+
 
     /** Stores the current camera state. 
      * This is updated by the simulation thread, so must be protected by a mutex to avoid a race condition with
