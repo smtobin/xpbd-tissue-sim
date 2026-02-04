@@ -34,7 +34,11 @@ public:
         int* size = rw->GetSize();
 
         if (size[0] != last_w || size[1] != last_h)
+        {
+            last_w = size[0];
+            last_h = size[1];
             viewer->updateCircleMask();
+        }
     }
 };
 

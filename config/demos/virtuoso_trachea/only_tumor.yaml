@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Haptic"
+input-device: "Mouse"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -174,7 +174,7 @@ objects:
       outer-tube-rotation: 60
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 12e-3
+      inner-tube-translation: 15e-3
 
     - # right arm has the cautery tool for cutting
       name: "Arm2"
