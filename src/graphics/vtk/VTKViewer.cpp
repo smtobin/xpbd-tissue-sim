@@ -1,10 +1,10 @@
 #include "graphics/vtk/VTKViewer.hpp"
 #include "graphics/vtk/CustomVTKInteractorStyle.hpp"
 #include "graphics/vtk/VTKCameraSyncCallback.hpp"
+#include "graphics/vtk/VTKCircleMaskRenderCallback.hpp"
 
 #include <vtkActor.h>
 #include <vtkImageActor.h>
-#include <vtkImageSliceMapper.h>
 #include <vtkCamera.h>
 #include <vtkCubeSource.h>
 #include <vtkSphereSource.h>
@@ -176,26 +176,26 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     // create a renderer for the circle mask (when applicable)
     if (render_config.circleCrop())
     {
-        vtkNew<vtkRenderer> mask_renderer;
-        mask_renderer->SetInteractive(0);
-        mask_renderer->SetViewport(0, 0, 1, 1);
-        mask_renderer->SetLayer(1);
-        mask_renderer->SetBackground(0,0,0);
-        mask_renderer->SetBackgroundAlpha(0.0);
+        _mask_renderer = vtkSmartPointer<vtkRenderer>::New();
+        _mask_renderer->SetInteractive(0);
+        _mask_renderer->SetViewport(0, 0, 1, 1);
+        _mask_renderer->SetLayer(1);
+        _mask_renderer->SetBackground(0,0,0);
+        _mask_renderer->SetBackgroundAlpha(0.0);
 
         vtkSmartPointer<vtkImageData> circle_mask = _createCircleMask(render_config.windowWidth(), render_config.windowHeight());
 
-        vtkNew<vtkImageSliceMapper> slice_mapper;
-        slice_mapper->SetInputData(circle_mask);
-        slice_mapper->SetOrientationToZ();
-        slice_mapper->SetSliceNumber(0);
-        slice_mapper->BorderOff();
+        _mask_mapper = vtkSmartPointer<vtkImageSliceMapper>::New();
+        _mask_mapper->SetInputData(circle_mask);
+        _mask_mapper->SetOrientationToZ();
+        _mask_mapper->SetSliceNumber(0);
+        _mask_mapper->BorderOff();
 
-        vtkNew<vtkImageSlice> slice;
-        slice->SetMapper(slice_mapper);
-        slice->SetPosition(0.0, 0.0, 0.0);
+        _mask_slice = vtkSmartPointer<vtkImageSlice>::New();
+        _mask_slice->SetMapper(_mask_mapper);
+        _mask_slice->SetPosition(0.0, 0.0, 0.0);
 
-        vtkCamera* cam = mask_renderer->GetActiveCamera();
+        vtkCamera* cam = _mask_renderer->GetActiveCamera();
         cam->ParallelProjectionOn();
 
         int w = render_config.windowWidth();
@@ -204,8 +204,12 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
         cam->SetPosition(w/2.0, h/2.0, 1.0);
         cam->SetParallelScale(h/2.0);
 
-        mask_renderer->AddViewProp(slice);
-        _render_window->AddRenderer(mask_renderer);
+        _mask_renderer->AddViewProp(_mask_slice);
+        _render_window->AddRenderer(_mask_renderer);
+
+        vtkNew<VTKCircleMaskRenderCallback> resize_callback;
+        resize_callback->viewer = this;
+        _render_window->AddObserver(vtkCommand::RenderEvent, resize_callback);
     }
 
 
@@ -332,6 +336,20 @@ vtkSmartPointer<vtkImageData> VTKViewer::_createCircleMask(int width, int height
     }
     
     return image;
+}
+
+void VTKViewer::updateCircleMask()
+{
+    int w = width();
+    int h = height();
+    vtkSmartPointer<vtkImageData> mask = _createCircleMask(w, h);
+    _mask_mapper->SetInputData(mask);
+    _mask_mapper->Modified();
+
+    vtkCamera* cam = _mask_renderer->GetActiveCamera();
+    cam->SetFocalPoint(w / 2.0, h / 2.0, 0.0);
+    cam->SetPosition  (w / 2.0, h / 2.0, 1.0);
+    cam->SetParallelScale(h / 2.0);
 }
 
 void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_id*/, void* client_data, void* /*call_data*/)

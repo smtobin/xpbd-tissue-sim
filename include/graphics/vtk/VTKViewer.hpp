@@ -13,6 +13,7 @@
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
 #include <vtkWindowToImageFilter.h>
+#include <vtkImageSliceMapper.h>
 
 #include <map>
 #include <atomic>
@@ -137,6 +138,9 @@ public:
      */
     void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
 
+    /** Updates the circle vignette mask. Used when the viewer changes size. */
+    void updateCircleMask();
+
 protected:
     /** Updates the camera state. Called from the render thread right before rendering. */
     void _updateCamera();
@@ -168,9 +172,6 @@ private:
     /** Whether or not we are doing offscreen rendering. Set by the config. */
     bool _offscreen_rendering = false;
 
-    /** Whether or not to crop the center circle of the image using a mask. */
-    bool _circle_crop = false;
-
     /** Renders the current window to a vtkImage */
     vtkSmartPointer<vtkWindowToImageFilter> _window_to_image;
     /** Stores the pixel data */
@@ -178,6 +179,15 @@ private:
 
     /** Guards the pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
     std::mutex _image_data_mutex;
+
+    /** Whether or not to crop the center circle of the image using a mask. */
+    bool _circle_crop = false;
+
+    /** Stuff to render the circle vignette mask (when applicable) */
+    vtkSmartPointer<vtkRenderer> _mask_renderer;
+    vtkSmartPointer<vtkImageSlice> _mask_slice;
+    vtkSmartPointer<vtkImageSliceMapper> _mask_mapper;
+
 
     /** Stores the current camera state. 
      * This is updated by the simulation thread, so must be protected by a mutex to avoid a race condition with
