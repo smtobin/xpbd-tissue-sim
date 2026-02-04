@@ -24,11 +24,19 @@ namespace Graphics
 
 struct VTKCameraState
 {
+    /** If the state has been updated recently, and is not reflected in the current camera settings. */
+    bool updated;
+
+    /** If orthographic camera rendering mode should be used. */
     bool is_orthographic;
+    /** FOV, in degrees */
     Real hfov;
     Real vfov;
+    /** View direction */
     Vec3r view_dir;
+    /** Camera up direction */
     Vec3r up_dir;
+    /** Camera position */
     Vec3r pos;
 };
 

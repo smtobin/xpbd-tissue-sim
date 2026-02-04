@@ -57,6 +57,7 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     }
 
     // compute cam frame
+    // NOTE: Y-axis points down (opposite that of the VirtuosoRobot), by convention
     Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt) * GeometryUtils::Rz(M_PI), Vec3r(0, _optic_vertical_dist, _optic_forward_dist));
     _cam_frame = _endoscope_frame * cam_rel_transform;
 
@@ -70,9 +71,12 @@ std::string VirtuosoRobot::toString(int indent) const
     return Object::toString(indent);
 }
 
-void VirtuosoRobot::setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform)
+bool VirtuosoRobot::setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform)
 {
+    Mat4r old_cam_frame = _cam_frame.transform().asMatrix();
     _cam_frame = _VB_frame * new_transform.inverse();
+
+    return !_cam_frame.transform().asMatrix().isApprox(old_cam_frame, 1e-8);
 }
 
 void VirtuosoRobot::setup()

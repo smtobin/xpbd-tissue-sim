@@ -299,7 +299,11 @@ void VTKViewer::_updateCamera()
     {
         std::lock_guard<std::mutex> lock(_camera_state_mutex);
         new_state = _camera_state;
+        _camera_state.updated = false;
     }
+
+    if (!new_state.updated)
+        return;
 
     // set position
     _renderer->GetActiveCamera()->SetPosition(new_state.pos[0], new_state.pos[1], new_state.pos[2]);
@@ -332,6 +336,7 @@ void VTKViewer::setCameraOrthographic()
     // _renderer->GetActiveCamera()->SetParallelProjection(true);
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.is_orthographic = true;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::setCameraPerspective()
@@ -339,6 +344,7 @@ void VTKViewer::setCameraPerspective()
     // _renderer->GetActiveCamera()->SetParallelProjection(false);
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.is_orthographic = false;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::setCameraFOV(Real fov)
@@ -348,6 +354,7 @@ void VTKViewer::setCameraFOV(Real fov)
     // _renderer->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.hfov = fov;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraViewDirection() const
@@ -365,6 +372,7 @@ void VTKViewer::setCameraViewDirection(const Vec3r& view_dir)
 
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.view_dir = view_dir;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraUpDirection() const
@@ -378,6 +386,7 @@ void VTKViewer::setCameraUpDirection(const Vec3r& up_dir)
     // _vtk_viewer->renderer()->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.up_dir = up_dir;
+    _camera_state.updated = true;
 }
 
 Vec3r VTKViewer::cameraRightDirection() const
@@ -396,6 +405,7 @@ void VTKViewer::setCameraPosition(const Vec3r& pos)
     // _vtk_viewer->renderer()->ResetCameraClippingRange();
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.pos = pos;
+    _camera_state.updated = true;
 }
 
 void VTKViewer::update()
