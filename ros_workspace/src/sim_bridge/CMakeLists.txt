@@ -22,11 +22,13 @@ set(SIM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 # Explicitly add your dependency library paths
 set(CMAKE_INSTALL_RPATH 
     "${SIM_DIR}/build"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/install/gmsh/lib")
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/install/gmsh/lib"
+    "${SIM_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/lib")
 
 set(CMAKE_BUILD_RPATH 
     "${SIM_DIR}/build"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/install/gmsh/lib")
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../dependencies/install/gmsh/lib"
+    "${SIM_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/lib")
 
 # === Find ROS Dependencies ===
 find_package(ament_cmake REQUIRED)
@@ -85,7 +87,7 @@ message(STATUS "gmsh found at: ${gmsh_DIR}")
 
 # find Easy3D
 message(STATUS "\nFinding Easy3D...")
-find_package(Easy3D COMPONENTS viewer fileio renderer core util REQUIRED)  # request Easy3D (recommended to request only needed components)
+find_package(Easy3D COMPONENTS viewer fileio renderer core util REQUIRED)
 message(STATUS "Easy3D found at: ${Easy3D_DIR}")
 message(STATUS "Easy3D include: ${Easy3D_INCLUDE_DIRS}")
 
@@ -93,7 +95,7 @@ message(STATUS "Easy3D include: ${Easy3D_INCLUDE_DIRS}")
 message(STATUS "\nFinding Eigen3...")
 find_package(Eigen3 REQUIRED
     PATHS ${Eigen3_DIR}
-    NO_DEFAULT_PATH)   # find Eigen
+    NO_DEFAULT_PATH)
 message(STATUS "Eigen3 found at: ${Eigen3_DIR}")
 
 # find embree
@@ -142,6 +144,9 @@ set(PETSC_LIB "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
 # Add Mesh2SDF library install directory to the library search path
 link_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/lib")
 
+# Add OpenHaptics library directory
+link_directories("${SIM_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/lib")
+
 # === Create Node Executable ===
 add_executable(${PROJECT_NAME}_node 
   src/sim_bridge_node.cpp 
@@ -151,6 +156,12 @@ add_executable(${PROJECT_NAME}_node
 
 # === Link Dependencies ===
 include_directories("${SIM_DIR}/include")
+# Add Mesh2SDF include directory
+include_directories("${SIM_DIR}/dependencies/src/")
+include_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/include")
+# Add OpenHaptics include directory
+include_directories("${SIM_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/include")
+
 # ROS dependencies
 ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs geometry_msgs shape_msgs sensor_msgs tf2_ros tf2)
 # sim dependencies
@@ -196,7 +207,7 @@ vtk_module_autoinit(
 target_include_directories(${PROJECT_NAME}_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_compile_features(${PROJECT_NAME}_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(${PROJECT_NAME}_node PUBLIC c_std_99 cxx_std_17)
 
 install(TARGETS ${PROJECT_NAME}_node
   DESTINATION lib/${PROJECT_NAME})
