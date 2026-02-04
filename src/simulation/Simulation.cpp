@@ -160,6 +160,8 @@ void Simulation::setup()
                     const Vec3r& p2 = mesh->vertex(f[1]);
                     const Vec3r& p3 = mesh->vertex(f[2]);
 
+                    std::array<Vec3r, 4> pts_to_test = {p1, p2, p3, (p1+p2+p3)/3.0};
+
                     // check if face centroid is close to either arm by querying each SDF
                     Real sdf_dist1 = std::numeric_limits<Real>::max();
                     Real sdf_dist2 = std::numeric_limits<Real>::max();
@@ -169,17 +171,27 @@ void Simulation::setup()
                     // only refine around cautery tool tip (i.e. not the whole tube)
                     if (sdf1)
                     {
-                        auto result = sdf1->evaluateWithGradientAndNodeInfo((p1+p2+p3)/3);
-                        // only store the resulting distance if the closest point on the VirtuosoArm is found to be on the cautery tool tip
-                        if (result.node_index >= std::tuple_size_v<VirtuosoArm::OuterTubeFramesArray> + std::tuple_size_v<VirtuosoArm::InnerTubeFramesArray>)
-                            sdf_dist1 = result.distance;
+                        Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo best_result;
+                        best_result.distance = std::numeric_limits<Real>::max();
+                        for (const auto& pt : pts_to_test)
+                        {
+                            auto result = sdf1->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
+                            if (result.distance < best_result.distance)
+                                best_result = result;
+                        }
+                        sdf_dist1 = best_result.distance;
                     }
                     if (sdf2)
                     {
-                        auto result = sdf2->evaluateWithGradientAndNodeInfo((p1+p2+p3)/3);
-                        // only store the resulting distance if the closest point on the VirtuosoArm is found to be on the cautery tool tip
-                        if (result.node_index >= std::tuple_size_v<VirtuosoArm::OuterTubeFramesArray> + std::tuple_size_v<VirtuosoArm::InnerTubeFramesArray>)
-                            sdf_dist2 = result.distance;
+                        Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo best_result;
+                        best_result.distance = std::numeric_limits<Real>::max();
+                        for (const auto& pt : pts_to_test)
+                        {
+                            auto result = sdf2->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
+                            if (result.distance < best_result.distance)
+                                best_result = result;
+                        }
+                        sdf_dist2 = best_result.distance;
                     }
 
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);
@@ -193,7 +205,7 @@ void Simulation::setup()
 
                         
                     }
-                    else if (min_dist > 3e-3)
+                    else if (min_dist > 5e-3)
                     {
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
                         {

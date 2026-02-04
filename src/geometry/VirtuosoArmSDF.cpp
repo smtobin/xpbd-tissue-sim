@@ -44,7 +44,7 @@ Vec3r VirtuosoArmSDF::gradient(const Vec3r& x) const
     // return _capsuleSDFDistanceAndGradient(x, it_frames.front().origin(), it_frames.back().origin(), 0.5*_virtuoso_arm->innerTubeOuterDiameter()).second;
 }
 
-VirtuosoArmSDF::DistanceAndGradientWithNodeInfo VirtuosoArmSDF::evaluateWithGradientAndNodeInfo(const Vec3r& x) const
+VirtuosoArmSDF::DistanceAndGradientWithNodeInfo VirtuosoArmSDF::evaluateWithGradientAndNodeInfo(const Vec3r& x, bool only_tool) const
 {
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = _virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = _virtuoso_arm->innerTubeFrames();
@@ -81,6 +81,9 @@ VirtuosoArmSDF::DistanceAndGradientWithNodeInfo VirtuosoArmSDF::evaluateWithGrad
                 return result;
         }
     }
+
+    if (only_tool)
+        return result;
     
 
     // iterate through inner tube segments
