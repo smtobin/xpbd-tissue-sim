@@ -157,6 +157,9 @@ private:
     /** Set up rendering settings */
     void _setupRenderWindow(const Config::SimulationRenderConfig& render_config);
 
+    /** Create circular vignette mask texture */
+    vtkSmartPointer<vtkImageData> _createCircleMask(int width, int height);
+
     private:
     vtkSmartPointer<vtkOpenGLRenderer> _renderer;
     vtkSmartPointer<vtkRenderWindow> _render_window;
@@ -164,6 +167,9 @@ private:
 
     /** Whether or not we are doing offscreen rendering. Set by the config. */
     bool _offscreen_rendering = false;
+
+    /** Whether or not to crop the center circle of the image using a mask. */
+    bool _circle_crop = false;
 
     /** Renders the current window to a vtkImage */
     vtkSmartPointer<vtkWindowToImageFilter> _window_to_image;

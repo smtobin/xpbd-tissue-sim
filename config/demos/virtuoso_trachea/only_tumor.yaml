@@ -7,7 +7,7 @@ visualization: "VTK"
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
 input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
-show-tip-cursor: true
+show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
 enable-mouse-interaction: true
 # scale the force feedback tot he haptic device (0 means no force feedback)
@@ -62,6 +62,10 @@ window-height: 1000
 # Note: only possible with VTK graphics
 # Another Note: necessary for publishing images over ROS2
 offscreen-rendering: true
+
+# whether or not to add the circle vignette to the rendered image
+# this mimics the output of the actual Virtuoso endoscope image
+circle-crop: true
 
 # === Specify materials used by objects in the sim ===
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties

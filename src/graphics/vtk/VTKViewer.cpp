@@ -3,6 +3,8 @@
 #include "graphics/vtk/VTKCameraSyncCallback.hpp"
 
 #include <vtkActor.h>
+#include <vtkImageActor.h>
+#include <vtkImageSliceMapper.h>
 #include <vtkCamera.h>
 #include <vtkCubeSource.h>
 #include <vtkSphereSource.h>
@@ -64,6 +66,8 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
         _window_to_image->SetInputBufferTypeToRGB();
         _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
     }
+
+    _circle_crop = render_config.circleCrop();
 }
 
 void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_config)
@@ -156,7 +160,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     // Create the render window and interactor
     //////////////////////////////////////////////////////
     _render_window = vtkSmartPointer<vtkRenderWindow>::New();
-    _render_window->SetNumberOfLayers(2);
+    _render_window->SetNumberOfLayers(3);
     _render_window->AddRenderer(_renderer);
     _render_window->SetSize(render_config.windowWidth(), render_config.windowHeight());
     _render_window->SetWindowName(_name.c_str());
@@ -168,11 +172,48 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     _interactor->SetInteractorStyle(style);
     _interactor->SetRenderWindow(_render_window);
 
+
+    // create a renderer for the circle mask (when applicable)
+    if (render_config.circleCrop())
+    {
+        vtkNew<vtkRenderer> mask_renderer;
+        mask_renderer->SetInteractive(0);
+        mask_renderer->SetViewport(0, 0, 1, 1);
+        mask_renderer->SetLayer(1);
+        mask_renderer->SetBackground(0,0,0);
+        mask_renderer->SetBackgroundAlpha(0.0);
+
+        vtkSmartPointer<vtkImageData> circle_mask = _createCircleMask(render_config.windowWidth(), render_config.windowHeight());
+
+        vtkNew<vtkImageSliceMapper> slice_mapper;
+        slice_mapper->SetInputData(circle_mask);
+        slice_mapper->SetOrientationToZ();
+        slice_mapper->SetSliceNumber(0);
+        slice_mapper->BorderOff();
+
+        vtkNew<vtkImageSlice> slice;
+        slice->SetMapper(slice_mapper);
+        slice->SetPosition(0.0, 0.0, 0.0);
+
+        vtkCamera* cam = mask_renderer->GetActiveCamera();
+        cam->ParallelProjectionOn();
+
+        int w = render_config.windowWidth();
+        int h = render_config.windowHeight();
+        cam->SetFocalPoint(w/2.0, h/2.0, 0.0);
+        cam->SetPosition(w/2.0, h/2.0, 1.0);
+        cam->SetParallelScale(h/2.0);
+
+        mask_renderer->AddViewProp(slice);
+        _render_window->AddRenderer(mask_renderer);
+    }
+
+
     // Create a second renderer for the axes overlay
     vtkNew<vtkRenderer> axes_renderer;
     axes_renderer->SetViewport(0.0, 0.0, 0.2, 0.2);  // Top-right corner
     axes_renderer->SetInteractive(0);  // Don't respond to mouse
-    axes_renderer->SetLayer(1);        // Render on top
+    axes_renderer->SetLayer(2);        // Render on top
 
     // Clear background is transparent
     axes_renderer->SetBackground(0, 0, 0);
@@ -186,7 +227,7 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     axes_renderer->AddActor(axes);
 
     // Add both renderers to the render window
-    _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 1)
+    _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 2)
 
     // Sync cameras so axes rotate with main view
     vtkNew<CameraSyncCallback> callback;
@@ -251,6 +292,46 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     _interactor->Initialize();
     _interactor->AddObserver(vtkCommand::TimerEvent, render_callback);
     _interactor->CreateRepeatingTimer(5);
+}
+
+vtkSmartPointer<vtkImageData> VTKViewer::_createCircleMask(int width, int height)
+{
+    vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
+    image->SetDimensions(width, height, 1);
+    image->SetSpacing(1.0, 1.0, 1.0);
+    image->SetOrigin(0.0, 0.0, 0.0);
+    image->AllocateScalars(VTK_UNSIGNED_CHAR, 4);
+    
+    int centerX = width / 2;
+    int centerY = height / 2;
+    double radius = std::min(width, height) / 2.0;
+    
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            double dx = x - centerX;
+            double dy = y - centerY;
+            double distance = sqrt(dx*dx + dy*dy);
+            
+            unsigned char* pixel = static_cast<unsigned char*>(image->GetScalarPointer(x, y, 0));
+            pixel[0] = 0;   // R
+            pixel[1] = 0;   // G
+            pixel[2] = 0;   // B
+            
+            // Alpha channel: 0 inside circle, 255 outside
+            if (distance <= radius)
+            {
+                pixel[3] = 0;  // Transparent
+            }
+            else
+            {
+                pixel[3] = 255;  // Opaque black
+            }
+        }
+    }
+    
+    return image;
 }
 
 void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_id*/, void* client_data, void* /*call_data*/)
