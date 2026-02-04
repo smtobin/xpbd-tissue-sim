@@ -33,6 +33,7 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     _endoscope_length = config->endoscopeLength();
     _arm_separation_dist = config->armSeparationDistance();
     _optic_vertical_dist = config->opticVerticalDistance();
+    _optic_forward_dist = config->opticForwardDistance();
     _optic_tilt = config->opticTilt() * M_PI / 180.0;
 
     // origin of VirtuosoRobot frame is at the center of the end of the endoscope
@@ -56,7 +57,7 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     }
 
     // compute cam frame
-    Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt), Vec3r(0, _optic_vertical_dist, 0));
+    Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt), Vec3r(0, _optic_vertical_dist, _optic_forward_dist));
     _cam_frame = _endoscope_frame * cam_rel_transform;
 
     // set the characteristic dimension to the minimum between the endoscope diameter and length

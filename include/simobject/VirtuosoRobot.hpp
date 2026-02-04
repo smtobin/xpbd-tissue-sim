@@ -82,6 +82,7 @@ class VirtuosoRobot : public Object
     Real _endoscope_length;           // length (in m) of the endoscope
     Real _arm_separation_dist;        // horizontal distance (in m) between the centers of the two arms
     Real _optic_vertical_dist;        // vertical distance (in m) between the centers of the arms and the optic
+    Real _optic_forward_dist;         // distance along the +z axis (in m) between the optic center and the base of the arms
     Real _optic_tilt;            // rotation (in rad) of the optic around the positive X axis
 
     // frame at the center of the end of the endoscope
