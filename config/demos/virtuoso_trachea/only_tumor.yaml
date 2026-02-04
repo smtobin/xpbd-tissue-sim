@@ -67,6 +67,9 @@ offscreen-rendering: true
 # this mimics the output of the actual Virtuoso endoscope image
 circle-crop: true
 
+# whether or not to display camera axes in the bottom left corner
+show-camera-axes: false
+
 # === Specify materials used by objects in the sim ===
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
 materials:

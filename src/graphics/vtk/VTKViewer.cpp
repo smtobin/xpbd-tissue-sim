@@ -213,33 +213,36 @@ void VTKViewer::_setupRenderWindow(const Config::SimulationRenderConfig& render_
     }
 
 
-    // Create a second renderer for the axes overlay
-    vtkNew<vtkRenderer> axes_renderer;
-    axes_renderer->SetViewport(0.0, 0.0, 0.2, 0.2);  // Top-right corner
-    axes_renderer->SetInteractive(0);  // Don't respond to mouse
-    axes_renderer->SetLayer(2);        // Render on top
+    if (render_config.showCameraAxes())
+    {
+        // Create a second renderer for the axes overlay
+        vtkNew<vtkRenderer> axes_renderer;
+        axes_renderer->SetViewport(0.0, 0.0, 0.2, 0.2);  // Top-right corner
+        axes_renderer->SetInteractive(0);  // Don't respond to mouse
+        axes_renderer->SetLayer(2);        // Render on top
 
-    // Clear background is transparent
-    axes_renderer->SetBackground(0, 0, 0);
-    axes_renderer->SetBackgroundAlpha(0.0);
+        // Clear background is transparent
+        axes_renderer->SetBackground(0, 0, 0);
+        axes_renderer->SetBackgroundAlpha(0.0);
 
-    // Add axes to the overlay renderer
-    vtkNew<vtkAxesActor> axes;
-    axes->SetTotalLength(1.0, 1.0, 1.0);
-    axes->SetShaftType(vtkAxesActor::CYLINDER_SHAFT);
-    axes->SetTipType(vtkAxesActor::CONE_TIP);
-    axes_renderer->AddActor(axes);
+        // Add axes to the overlay renderer
+        vtkNew<vtkAxesActor> axes;
+        axes->SetTotalLength(1.0, 1.0, 1.0);
+        axes->SetShaftType(vtkAxesActor::CYLINDER_SHAFT);
+        axes->SetTipType(vtkAxesActor::CONE_TIP);
+        axes_renderer->AddActor(axes);
 
-    // Add both renderers to the render window
-    _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 2)
+        // Add both renderers to the render window
+        _render_window->AddRenderer(axes_renderer);  // Axes overlay (layer 2) (on top of the vignette mask, if there is one)
 
-    // Sync cameras so axes rotate with main view
-    vtkNew<CameraSyncCallback> callback;
-    callback->axesCamera = axes_renderer->GetActiveCamera();
-    callback->cam_up_dir = &_cam_up_dir;
-    callback->cam_view_dir = &_cam_view_dir;
-    callback->cam_pos = &_cam_pos;
-    _renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, callback);
+        // Sync cameras so axes rotate with main view
+        vtkNew<CameraSyncCallback> callback;
+        callback->axesCamera = axes_renderer->GetActiveCamera();
+        callback->cam_up_dir = &_cam_up_dir;
+        callback->cam_view_dir = &_cam_view_dir;
+        callback->cam_pos = &_cam_pos;
+        _renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, callback);
+    }
 
     /////////////////////////////////////////////////////////
     // Initialize camera state matrix
