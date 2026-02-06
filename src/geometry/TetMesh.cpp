@@ -150,6 +150,7 @@ void TetMesh::setCurrentStateAsUndeformedState()
     // find surface elements
     // for now, just do a dumb O(n^2) search
     _surface_face_to_element_map.clear();
+    _surface_face_to_element_map.resize(_faces.totalSize(), -1);
     _element_to_surface_faces_map.clear();
     for (const auto& face_ind : _faces.validIndices())
     {
@@ -162,17 +163,28 @@ void TetMesh::setCurrentStateAsUndeformedState()
                     (f[1] == elem[0] || f[1] == elem[1] || f[1] == elem[2] || f[1] == elem[3]) &&
                     (f[2] == elem[0] || f[2] == elem[1] || f[2] == elem[2] || f[2] == elem[3]) )
             {
-                _surface_face_to_element_map.push_back(elem_ind);
+                _surface_face_to_element_map[face_ind] = elem_ind;
                 _element_to_surface_faces_map.insert({elem_ind, face_ind});
                 break;
             }
         }
     }
 
+    bool face_with_no_element = false;
+    for (const auto& face_index : _faces.validIndices())
+    {
+        if (_surface_face_to_element_map[face_index] == -1)
+        {
+            std::cerr << "  Face " << face_index << " has no associated element." << std::endl;
+            face_with_no_element = true;
+        }
+    }
+
     // make sure that we found an element that corresponds to each surface face
-    if (_surface_face_to_element_map.size() != static_cast<unsigned>(numFaces()))
+    if (face_with_no_element)
     {
         std::cerr << KRED << BOLD << "FATAL" << RST << KRED << ": Some surface faces do not have elements associated with them!" << RST << std::endl;
+        
         std::cerr << "Double check your .msh file for floating faces." << std::endl;
         assert(0);
     }
