@@ -78,7 +78,7 @@ void VirtuosoCTAnatomySimulation::setCTtoVBTransform(const Geometry::Transformat
 
     // transform is different, so we need to move meshes accordingly
     // get the transform corresponding to the difference between the new transform and the old one
-    const Geometry::TransformationMatrix diff = _ct_to_vb_transform.inverse() * new_transform;
+    const Geometry::TransformationMatrix diff = new_transform * _ct_to_vb_transform.inverse();
     _transformMeshes(diff);
 
     _ct_to_vb_transform = new_transform;
