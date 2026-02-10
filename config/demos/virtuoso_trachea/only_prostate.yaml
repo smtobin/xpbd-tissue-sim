@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Keyboard"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -74,35 +74,18 @@ show-camera-axes: false
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
 materials:
   -
-    name: "Human Trachea"
-    label: "Trachea"
-    # material parameters
-    density: 1030
-    E: 5e6
-    nu: 0.49
-    # rendering settings
-    color: [1.0, 0.5, 0.4]
-    render-type: "PBR"
-    metallic: 0.0
-    roughness: 0.4
-    smooth-normals: true
-    draw-points: false
-    draw-edges: false
-    draw-faces: true
-    
-  -
-    name: "Raw Chicken Breast"
+    name: "BPH Phantom"
     label: "Tumor"
     # material parameters
     density: 1060
-    E: 0.07e6
+    E: 45e3
     nu: 0.4
     # rendering settings
-    color: [1.0, 0.6, 0.5]
+    color: [1.0, 0.25, 0.2]
     cut-color: [0.12, 0.08, 0.0]
     render-type: "PBR"
     metallic: 0.0
-    roughness: 0.2
+    roughness: 0.3
     smooth-normals: true
     draw-points: false
     draw-edges: false
@@ -120,11 +103,11 @@ materials:
 # === Objects in the sim ===
 objects:
   -
-    name: "Tumor"
+    name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-    material: "Raw Chicken Breast"
+    filename: "/home/reach-lab/Data/ARPA-H/Prostate/2026_02_03/BPH_2_itksnap_processed.msh"
+    fixed-faces-filename: "/home/reach-lab/Data/ARPA-H/Prostate/2026_02_03/BPH_2_itksnap_processed_fixed_faces.txt"
+    material: "BPH Phantom"
 
     scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
@@ -140,20 +123,9 @@ objects:
     collisions: true
     self-collisions: false
 
-    adaptive-mesh-refinement: true
+    adaptive-mesh-refinement: false
     max-refinement-level: 2
     compute-heat-conduction: false
-
-  -
-    name: "Trachea"
-    type: "RigidMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    material: "Human Trachea"
-    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
-
-    collisions: false
-    fixed: true
 
   -
     name: "Robot"

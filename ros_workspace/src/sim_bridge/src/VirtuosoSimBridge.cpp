@@ -144,8 +144,8 @@ void VirtuosoSimBridge::_setupVBtoCamTransformListener()
                 Mat3r rot_mat = GeometryUtils::quatToMat(quat);
                 Geometry::TransformationMatrix vb_to_cam(rot_mat, origin);
                 
-                _sim->virtuosoRobot()->setVBtoCamTransform(vb_to_cam);
-                _sim->updateGraphicsCameraPoseToRobotCamFrame();
+                bool updated = _sim->virtuosoRobot()->setVBtoCamTransform(vb_to_cam);
+                if (updated) _sim->updateGraphicsCameraPoseToRobotCamFrame();   // only update the viewer if a change was actually made
                     
             }
             catch (tf2::TransformException& ex)

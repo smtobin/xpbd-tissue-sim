@@ -29,6 +29,11 @@ class SimulationRenderConfig : public Config
 
         _extractParameter("window-width", node, _window_width);
         _extractParameter("window-height", node, _window_height);
+
+        _extractParameter("circle-crop", node, _circle_crop);
+
+        _extractParameter("show-camera-axes", node, _show_camera_axes);
+
     }
 
     const std::optional<std::string>& hdrImageFilename() const { return _hdr_image_filename.value; }
@@ -41,6 +46,10 @@ class SimulationRenderConfig : public Config
     int windowWidth() const { return _window_width.value; }
     int windowHeight() const { return _window_height.value; }
 
+    bool circleCrop() const { return _circle_crop.value; }
+
+    bool showCameraAxes() const { return _show_camera_axes.value; }
+
     protected:
     ConfigParameter<std::optional<std::string>> _hdr_image_filename;
     ConfigParameter<bool> _create_skybox = ConfigParameter<bool>(true);
@@ -51,6 +60,10 @@ class SimulationRenderConfig : public Config
 
     ConfigParameter<int> _window_width = ConfigParameter<int>(600);
     ConfigParameter<int> _window_height = ConfigParameter<int>(600);
+
+    ConfigParameter<bool> _circle_crop = ConfigParameter<bool>(false);
+
+    ConfigParameter<bool> _show_camera_axes = ConfigParameter<bool>(true);
 
 };
 

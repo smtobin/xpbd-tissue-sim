@@ -147,7 +147,7 @@ void VirtuosoCTAnatomySimBridge::_setupPartialViewPointCloudPublishers()
 
 void VirtuosoCTAnatomySimBridge::_setupCTtoVBTransformListener()
 {
-    this->declare_parameter("CT_frame_name", "CT/kuka");
+    this->declare_parameter("CT_frame_name", "ct/base");
 
     auto ct_to_vb_callback = [this] () -> void {
         std::string source_frame = this->get_parameter("CT_frame_name").as_string();
@@ -188,5 +188,5 @@ void VirtuosoCTAnatomySimBridge::_setupCTtoVBTransformListener()
 
     };
 
-    _sim->addCallback(0.5, ct_to_vb_callback);
+    _sim->addCallback(0.05, ct_to_vb_callback);
 }

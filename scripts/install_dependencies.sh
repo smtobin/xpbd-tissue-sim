@@ -142,7 +142,7 @@ wget https://s3.amazonaws.com/dl.3dsystems.com/binaries/Sensable/Linux/TouchDriv
 tar -xvf TouchDriver_2023_11_15.tgz
 
 # copied from OpenHaptics ./install script
-cd $DEPS_DIR
+cd $DEPS_SRC_DIR
 cd openhaptics_3.4-0-developer-edition-amd64
 sudo cp -R opt/* /opt                                                                                                                                             
 sudo cp -R usr/lib/* /usr/lib                                                                                                                                     

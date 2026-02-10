@@ -33,6 +33,7 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     _endoscope_length = config->endoscopeLength();
     _arm_separation_dist = config->armSeparationDistance();
     _optic_vertical_dist = config->opticVerticalDistance();
+    _optic_forward_dist = config->opticForwardDistance();
     _optic_tilt = config->opticTilt() * M_PI / 180.0;
 
     // origin of VirtuosoRobot frame is at the center of the end of the endoscope
@@ -56,7 +57,8 @@ VirtuosoRobot::VirtuosoRobot(const Simulation* sim, const ConfigType* config)
     }
 
     // compute cam frame
-    Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt), Vec3r(0, _optic_vertical_dist, 0));
+    // NOTE: Y-axis points down (opposite that of the VirtuosoRobot), by convention
+    Geometry::TransformationMatrix cam_rel_transform(GeometryUtils::Rx(_optic_tilt) * GeometryUtils::Rz(M_PI), Vec3r(0, _optic_vertical_dist, _optic_forward_dist));
     _cam_frame = _endoscope_frame * cam_rel_transform;
 
     // set the characteristic dimension to the minimum between the endoscope diameter and length
@@ -69,9 +71,12 @@ std::string VirtuosoRobot::toString(int indent) const
     return Object::toString(indent);
 }
 
-void VirtuosoRobot::setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform)
+bool VirtuosoRobot::setVBtoCamTransform(const Geometry::TransformationMatrix& new_transform)
 {
+    Mat4r old_cam_frame = _cam_frame.transform().asMatrix();
     _cam_frame = _VB_frame * new_transform.inverse();
+
+    return !_cam_frame.transform().asMatrix().isApprox(old_cam_frame, 1e-8);
 }
 
 void VirtuosoRobot::setup()
