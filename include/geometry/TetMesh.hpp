@@ -16,6 +16,19 @@ namespace Geometry
 class TetMesh : public Mesh
 {
     public:
+
+    /** Simple struct to store information about an element that was removed. */
+    struct RemovedElement
+    {
+        int index;
+        const Vec4i vertices;
+        Real rest_volume;
+
+        RemovedElement(int index_, const Vec4i& vertices_, Real rest_volume_)
+            : index(index_), vertices(vertices_), rest_volume(rest_volume_)
+        {}
+    };
+
     /** Constructs a tetrahedral mesh from a set of vertices, faces, and elements.
      * This is usually done using the helper methods in the MeshUtils library.
      */
@@ -89,6 +102,17 @@ class TetMesh : public Mesh
      * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
      */
     virtual void removeElement(int elem_index);
+
+    /** Returns the cache of recently removed elements.
+     * This is ONLY info about elements that have been removed from a call to removeElement().
+     * 
+     * The main use for this is publishing information about cuts over ROS. The ROS publisher will query the removed elements
+     * at a fixed rate, and publish the information. The cache will then be cleared, so that only newly removed elements will
+     * be published.
+     * 
+     * @param clear_cache : clear the cache after retrieving the information
+     */
+    std::vector<RemovedElement> recentlyRemovedElements(bool clear_cache);
 
     /** Returns the number of edges along with the average edge length in the tetrahedra of the mesh.
      * Note that this is different from averageFaceEdgeLength, which only returns the average edge length in the faces (i.e. the surface) of the mesh.
@@ -259,6 +283,20 @@ class TetMesh : public Mesh
      * This is either 0 (key is not in the map), 1, or 2 elements.
      */
     std::unordered_multimap<Face, int, FaceHash> _face_to_elements_map;
+
+    /** Caches information about recently removed elements.
+     * As elements are removed (i.e. successful calls to removeElement() are made), their information will be added
+     * to the vector.
+     * 
+     * The vector, queried using recentlyRemovedElements(), will be cleared if 'clear_cache' is true.
+     * 
+     * This is useful for publishing information about elements that have been cut (removed) over ROS.
+     * 
+     * NOTE: this is distinct from _latest_removed_elements in the derived RefinedTetMesh class. _latest_removed_elements is only concerned
+     * with a single refine/coarsen/remove operation, while _recently_removed_elements aggregates multiple removeElement() calls. Additionally,
+     * _recently_removed_elements is ONLY concerned with calls to removeElements.
+     */
+    std::vector<RemovedElement> _recently_removed_elements;
 };
 
 } // namespace Geometry

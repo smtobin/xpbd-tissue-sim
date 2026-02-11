@@ -574,6 +574,8 @@ void TetMesh::removeElement(int elem_index)
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);
 
+    _recently_removed_elements.emplace_back(elem_index, elem_to_remove, elementRestVolume(elem_index));
+
     // remove element
     _elements.erase(elem_index);
 }
@@ -585,6 +587,20 @@ void TetMesh::_updateVertexVolumesForRemovedElement(int element_index)
     for (const auto& v : elem)
     {
         _vertex_rest_volumes[v] -= 0.25*rest_volume;
+    }
+}
+
+std::vector<TetMesh::RemovedElement> TetMesh::recentlyRemovedElements(bool clear_cache)
+{
+    if (clear_cache)
+    {
+        auto tmp = _recently_removed_elements;
+        _recently_removed_elements.clear();
+        return tmp;
+    }
+    else
+    {
+        return _recently_removed_elements;
     }
 }
 

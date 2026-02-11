@@ -647,7 +647,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
     const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
     const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
-    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::TetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
@@ -762,7 +762,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
     const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
     const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
-    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::TetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
@@ -837,7 +837,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::co
     const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& latest_removed_vertices = refinedTetMesh()->latestRemovedVertices();
     const std::vector<int>& latest_added_faces = refinedTetMesh()->latestAddedFaces();
     const std::vector<int>& latest_added_elements = refinedTetMesh()->latestAddedElements();
-    const std::vector<Geometry::RefinedTetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
+    const std::vector<Geometry::TetMesh::RemovedElement>& latest_removed_elements = refinedTetMesh()->latestRemovedElements();
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& latest_added_hanging_vertices = refinedTetMesh()->latestAddedHangingVertices();
     const std::vector<int>& latest_removed_hanging_vertices = refinedTetMesh()->latestRemovedHangingVertices();
 
@@ -897,7 +897,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& /*removed_vertices*/,
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
     const std::vector<int>& added_faces,
-    const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
+    const std::vector<int>& added_elements, const std::vector<Geometry::TetMesh::RemovedElement>& removed_elements,
     const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes)
 {
     /** Resize per-vertex vectors */
@@ -937,7 +937,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     // first, for the element that was refined, subtract 1/4 the nominal element volume from the vertices it touches
     for (unsigned i = 0; i < removed_elements.size(); i++)
     {
-        const Geometry::RefinedTetMesh::RemovedElement& removed_elem = removed_elements[i];
+        const Geometry::TetMesh::RemovedElement& removed_elem = removed_elements[i];
         int removed_elem_class = removed_element_classes[i];
 
         // get the removed element mass from the volume * density

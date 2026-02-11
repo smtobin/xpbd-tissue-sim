@@ -182,18 +182,6 @@ public:
         }
     };
 
-    /** Simple struct to store information about an element that was removed. */
-    struct RemovedElement
-    {
-        int index;
-        const Vec4i vertices;
-        Real rest_volume;
-
-        RemovedElement(int index_, const Vec4i& vertices_, Real rest_volume_)
-            : index(index_), vertices(vertices_), rest_volume(rest_volume_)
-        {}
-    };
-
     /** Simple struct to store information about a vertex that was added. */
     struct NewVertex
     {
