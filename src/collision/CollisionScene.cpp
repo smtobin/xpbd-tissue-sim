@@ -51,27 +51,18 @@ void CollisionScene::collideObjects()
 }
 
 template<bool IsFirstOrder>
-std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(
+void CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, const std::vector<int>& face_indices) const
 {
-    std::cout << "\n=== collideObjectsWithFacesOfXPBDMeshObj ===" << std::endl;
-
-    using ProjRef = Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>;
-    using ProjRefVec = std::vector<ProjRef>;
-    ProjRefVec total_new_proj_refs;
-    _objects.for_each_element([this, &xpbd_mesh_obj, &face_indices, &total_new_proj_refs](auto obj){
+    _objects.for_each_element([this, &xpbd_mesh_obj, &face_indices](auto obj){
         if ((void*)obj == (void*)xpbd_mesh_obj)
             return;
         
         for (const auto& face_ind : face_indices)
         {
-            std::cout << "  Testing face " << face_ind << "..." << std::endl;
-            ProjRefVec new_proj_refs = this->_collideXPBDFaceWithObject(xpbd_mesh_obj, obj, face_ind);
-            total_new_proj_refs.insert(total_new_proj_refs.end(), new_proj_refs.begin(), new_proj_refs.end());
+            this->_collideXPBDFaceWithObject(xpbd_mesh_obj, obj, face_ind);
         }
     });
-
-    return total_new_proj_refs;
 }
 
 void CollisionScene::_lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func) const
@@ -140,14 +131,13 @@ void CollisionScene::_lowDiscrepancySampling(Real char_dim, const Vec3r& p1, con
 
 
 template<bool IsFirstOrder>
-std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> CollisionScene::_collideXPBDFaceWithObject(
+void CollisionScene::_collideXPBDFaceWithObject(
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
-    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> new_proj_refs;
     if (!mesh->faceValid(face_ind))
-        return new_proj_refs;
+        return;
 
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     Real char_dim = virtuoso_arm->characteristicDimension();
@@ -167,12 +157,11 @@ std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformable
 
     const Real max_edge = std::max({p1p2, p1p3, p2p3});
     if (centroid_dist > max_edge/2)
-        return new_proj_refs;
+        return;
     
     int elem_ind = mesh->elementWithFace(face_ind);
-    int test = 0;
 
-    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm, &new_proj_refs](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm](const Vec3r& x, const Vec3r& bary_coords) {
         auto result = sdf->evaluateWithGradientAndNodeInfo(x);
         if (result.distance <= char_dim)
         {
@@ -184,9 +173,7 @@ std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformable
                     elem_ind, face_ind
                 );
             
-            virtuoso_arm->addCollisionConstraint(proj_ref, result.node_index, result.interp_factor);
-
-            new_proj_refs.push_back(proj_ref);
+            virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
         }
     };
 
@@ -205,7 +192,6 @@ std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformable
     Real detF = mesh->elementDeformationGradient(elem_ind).determinant();
     if (detF < 0.1)
     {
-        // std::cout << "Surface element has detF < 0.1" << std::endl;
         face_ind = -1;  // the face we are about to test does not correspond to a surface face
         
         std::vector<int> surface_faces = mesh->elementSurfaceFaces(elem_ind);
@@ -235,28 +221,21 @@ std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformable
                         continue;
                     
                     // test the face
-                    // std::cout << "Testing face " << v1 << ", " << v2 << ", " << v3 << std::endl;
                     _lowDiscrepancySampling(char_dim, mesh->vertex(v1), mesh->vertex(v2), mesh->vertex(v3), test_func);
                     
                 }
             }
         }
     }
-
-    
-
-    return new_proj_refs;
 }
 
 template<bool IsFirstOrder>
-std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> CollisionScene::_collideXPBDFaceWithObject(
-    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const
+void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
-    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> new_proj_refs;
     if (!mesh->faceValid(face_ind))
-        return new_proj_refs;
+        return;
 
     const Geometry::SDF* sdf = obj->SDF();
 
@@ -275,29 +254,26 @@ std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformable
     const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
     // skip faces that are sufficiently far away
     if (centroid_dist*centroid_dist > max_edge/4)
-        return new_proj_refs;
+        return;
 
     int elem_ind = mesh->elementWithFace(face_ind);
 
-    auto test_func = [&face_ind, &f, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &new_proj_refs](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &f, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj](const Vec3r& x, const Vec3r& bary_coords) {
         Real dist = sdf->evaluate(x);
         if (dist <= 1e-4)   // some arbitrary distance threshold
         {
             const Vec3r grad = sdf->gradient(x);
             const Vec3r surface_x = x - grad*dist;
-            Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, 
-                    f[0], f[1], f[2], bary_coords[0], bary_coords[1], bary_coords[2],
-                    elem_ind, face_ind
-                );
-
-            new_proj_refs.push_back(std::move(proj_ref));
+            xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, 
+                f[0], f[1], f[2], bary_coords[0], bary_coords[1], bary_coords[2],
+                elem_ind, face_ind
+            );
         }
     };
 
     _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
 
-    return new_proj_refs;
+    return;
 }
 
 void CollisionScene::_collideObjectPair(Sim::Object* /*obj1*/, Sim::Object* /*obj2*/)
@@ -424,9 +400,7 @@ Vec3r CollisionScene::_frankWolfe(const Geometry::SDF* sdf, const Vec3r& p1, con
     return x;
 }
 
-template std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>>
-    CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(Sim::XPBDMeshObject_Base_<true>*, const std::vector<int>&) const;
-template std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>>
-    CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(Sim::XPBDMeshObject_Base_<false>*, const std::vector<int>&) const;
+template void CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(Sim::XPBDMeshObject_Base_<true>*, const std::vector<int>&) const;
+template void CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(Sim::XPBDMeshObject_Base_<false>*, const std::vector<int>&) const;
 
 // } // namespace Collision

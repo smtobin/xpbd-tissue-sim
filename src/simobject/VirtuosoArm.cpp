@@ -185,33 +185,6 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
-    return;
-
-    // refine tissue mesh around tool tip
-    if (_tool_manipulated_object)
-    {
-        // std::unordered_set<int> elements_to_refine;
-        // for (const auto& collision : _collision_constraints)
-        // {
-        //     // get element 
-        //     int face_index = collision.proj_ref.constraint()->faceIndex();
-        //     if (!_tool_manipulated_object.mesh()->faceValid(face_index))
-        //         continue;
-            
-        //     int elem_index_to_refine = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-        //     elements_to_refine.insert(elem_index_to_refine);
-        // }
-
-        // if (elements_to_refine.size() > 0)
-        //     std::cout << "\nREFINING ELEMENTS..." << std::endl;
-
-        // for (const auto& elem_index : elements_to_refine)
-        // {
-        //     std::cout << "  Refining element " << elem_index << std::endl;
-        //     _tool_manipulated_object.refineElement(elem_index, 1, true);
-        // }
-    }
-
     // apply forces from collision constraints
     std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
     _unfiltered_collision_force = Vec3r::Zero();
@@ -232,8 +205,8 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0;//0.005;
-    const Real unload_frac = 0;//0.005;//0.1;
+    const Real load_frac = 0.005;
+    const Real unload_frac = 0.005;//0.1;
     for (int i = 0; i < NUM_OT_FRAMES; i++)
     {
         const Vec3r& cur_force = outerTubeNodalForce(i);

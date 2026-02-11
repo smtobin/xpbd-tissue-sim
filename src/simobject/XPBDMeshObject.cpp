@@ -638,8 +638,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
     if (!tetMesh()->elementValid(elem_index))
         return;
 
-    std::cout << "Removing element " << elem_index << " with current det(F)=" << refinedTetMesh()->elementDeformationGradient(elem_index).determinant() << std::endl;
-
     Vec4i removed_element = refinedTetMesh()->element(elem_index);  // get a copy of the element vertices we are about to remove
     refinedTetMesh()->removeElement(elem_index);
 
@@ -1032,21 +1030,21 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     }
 
     /** Run collision detection on newly added faces */
-    auto new_proj_ref_wrappers = _sim->collisionScene()->collideObjectsWithFacesOfXPBDMeshObj(this, added_faces);
+    _sim->collisionScene()->collideObjectsWithFacesOfXPBDMeshObj(this, added_faces);
     // convert the ConstraintProjectorReferenceWrapper to ConstraintProjectorReferences
     // TOOD: this kinda sucks. code smell. Needs rewrite.
-    typename SolverType::projector_reference_container_type new_proj_refs;
-    for (const auto& wrapper : new_proj_ref_wrappers)
-    {
-        auto* new_proj_ref = wrapper.template getAs<IsFirstOrder>();
-        using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;
-        using CollisionProjRefType = Solver::ConstraintProjectorReference<CollisionProjectorType>;
-        new_proj_refs.template push_back<CollisionProjRefType>(*new_proj_ref);
-    }
-    _solver.solve(new_proj_refs, 1, true);
+    // typename SolverType::projector_reference_container_type new_proj_refs;
+    // for (const auto& wrapper : new_proj_ref_wrappers)
+    // {
+    //     auto* new_proj_ref = wrapper.template getAs<IsFirstOrder>();
+    //     using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>;
+    //     using CollisionProjRefType = Solver::ConstraintProjectorReference<CollisionProjectorType>;
+    //     new_proj_refs.template push_back<CollisionProjRefType>(*new_proj_ref);
+    // }
+    // _solver.solve(new_proj_refs, 1, true);
 
-    std::cout << "# added faces: " << added_faces.size() << std::endl;
-    std::cout << "# new collision constraints: " << new_proj_ref_wrappers.size() << std::endl;
+    // std::cout << "# added faces: " << added_faces.size() << std::endl;
+    // std::cout << "# new collision constraints: " << new_proj_ref_wrappers.size() << std::endl;
 
     /** Update constraints and constraint projectors. */
     // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
@@ -1228,38 +1226,6 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
         _solver.template setProjectorValidity<MidProjector>(vector_index, false);
 
         // don't have to explicitly remove the constraint from the constraint vector - we will just overwrite later
-    }
-
-    // std::cout << "\nHanging vertices from refinedTetMesh: (";
-    // for (const auto& v : refinedTetMesh()->hangingVertices())
-    // {
-    //     std::cout << v << ", ";
-    // }
-    // std::cout << ")" << std::endl;
-
-    // int num_hanging = 0;
-    // std::cout << "Hanging vertices vector: (";
-    // for (const auto& v : _hanging_vertices_vec)
-    // {
-    //     std::cout << v << ", ";
-    //     num_hanging++;
-    // }
-    // std::cout << ")" << std::endl;
-
-    // std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
-
-    // temporary: clear all constraints and re-add them
-    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
-    {
-        // using ProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
-        // _solver.template setAllProjectorsOfTypeInvalid<ProjectorType>();
-        // _solver.template setAllProjectorsOfTypeInvalid<Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>>();
-        // _solver.template setAllProjectorsOfTypeInvalid<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>();
-        // _constraints.template clear<Solver::HydrostaticConstraint>();
-        // _constraints.template clear<Solver::DeviatoricConstraint>();
-        // _constraints.template clear<Solver::StaticDeformableCollisionConstraint>();
-        // _constraints.template clear<Solver::MidpointConstraint>();
-        // _constraints.template clear<Solver::AttachmentConstraint>();
     }
 }
 
