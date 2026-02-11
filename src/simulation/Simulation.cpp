@@ -382,7 +382,8 @@ void Simulation::_timeStep()
     // increment the time by the time step
     _time += _time_step;
 
-    // auto t2 = std::chrono::steady_clock::now();
+    auto t2 = std::chrono::steady_clock::now();
+    _wall_clock_dt = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e9;
     // std::cout << "Time step took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us" << std::endl;
 }
 

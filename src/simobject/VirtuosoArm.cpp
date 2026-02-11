@@ -411,10 +411,10 @@ void VirtuosoArm::_cauteryToolAction()
             for (const auto& elem_index : elements_in_contact)
             {
                 Real old_time = time_prop.get(elem_index);
-                time_prop.set(elem_index, old_time + _sim->dt());
+                time_prop.set(elem_index, old_time + _sim->wallClockdt());
 
                 // if we've exceeded the threshold, remove the element
-                if (old_time + _sim->dt() > _cutting_model_time_threshold)
+                if (old_time + _sim->wallClockdt() > _cutting_model_time_threshold)
                 {
                     _tool_manipulated_object.removeElement(elem_index);
                     return;
