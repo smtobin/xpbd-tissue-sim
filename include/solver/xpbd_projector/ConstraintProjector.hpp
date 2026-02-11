@@ -41,8 +41,10 @@ class ConstraintProjector
     public:
     /** Constructor */
     explicit ConstraintProjector(Real dt, ConstraintReference<Constraint>&& constraint_ref)
-        : _dt(dt), _constraint(constraint_ref), _valid(true)
+        : _dt(dt), _lambda(0), _constraint(constraint_ref), _valid(true)
     {
+        for (int i = 0; i < Constraint::NUM_COORDINATES; i++)
+            _delC[i] = 0;
     }
 
     /** Default constructor - projector marked invalid */

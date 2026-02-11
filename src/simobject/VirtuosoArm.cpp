@@ -149,9 +149,9 @@ void VirtuosoArm::setJointState(double ot_rotation, double ot_translation, doubl
     _stale_frames = true;
 }
 
-void VirtuosoArm::addCollisionConstraint(VirtuosoArm::CollisionConstraintInfo::ProjectorRefType&& proj_ref, int node_index, Real interp)
+void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp)
 {
-    _collision_constraints.emplace_back(std::move(proj_ref), node_index, interp);
+    _collision_constraints.emplace_back(proj_ref, node_index, interp);
 }
 
 void VirtuosoArm::clearCollisionConstraints()
@@ -185,31 +185,6 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
-    // refine tissue mesh around tool tip
-    if (_tool_manipulated_object)
-    {
-        // std::unordered_set<int> elements_to_refine;
-        // for (const auto& collision : _collision_constraints)
-        // {
-        //     // get element 
-        //     int face_index = collision.proj_ref.constraint()->faceIndex();
-        //     if (!_tool_manipulated_object.mesh()->faceValid(face_index))
-        //         continue;
-            
-        //     int elem_index_to_refine = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-        //     elements_to_refine.insert(elem_index_to_refine);
-        // }
-
-        // if (elements_to_refine.size() > 0)
-        //     std::cout << "\nREFINING ELEMENTS..." << std::endl;
-
-        // for (const auto& elem_index : elements_to_refine)
-        // {
-        //     std::cout << "  Refining element " << elem_index << std::endl;
-        //     _tool_manipulated_object.refineElement(elem_index, 1, true);
-        // }
-    }
-
     // apply forces from collision constraints
     std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
     _unfiltered_collision_force = Vec3r::Zero();
@@ -217,11 +192,11 @@ void VirtuosoArm::velocityUpdate()
     for (const auto& collision : _collision_constraints)
     {
         
-        if (collision.proj_ref.exists())
+        if (collision.proj_ref.exists() && collision.proj_ref.isValid())
         {
             // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
             std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
-            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());  
+            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());
             new_forces[collision.node_index] += net_force*(1-collision.interp);
             new_forces[collision.node_index+1] += net_force*collision.interp;
 
@@ -392,12 +367,11 @@ void VirtuosoArm::_cauteryToolAction()
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
                     
-                    int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_to_remove.insert( elem_index_to_remove );                
+                    elements_to_remove.insert( element_index );                
                 }
             }
 
@@ -420,30 +394,30 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> elements_in_contact;
             for (const auto& collision : _collision_constraints)
             {
-                if (!collision.proj_ref.exists())
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
                     continue;
 
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
                     
-                    int elem_index_in_contact = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_in_contact.insert(elem_index_in_contact);                
+                    elements_in_contact.insert(element_index);                
                 }
             }
 
             for (const auto& elem_index : elements_in_contact)
             {
                 Real old_time = time_prop.get(elem_index);
-                time_prop.set(elem_index, old_time + _sim->dt());
+                time_prop.set(elem_index, old_time + _sim->wallClockdt());
 
                 // if we've exceeded the threshold, remove the element
-                if (old_time + _sim->dt() > _cutting_model_time_threshold)
+                if (old_time + _sim->wallClockdt() > _cutting_model_time_threshold)
                 {
                     _tool_manipulated_object.removeElement(elem_index);
+                    return;
                 }
                 
             }
@@ -456,17 +430,19 @@ void VirtuosoArm::_cauteryToolAction()
             std::unordered_set<int> high_voltage_verts;
             for (const auto& collision : _collision_constraints)
             {
-                if (!collision.proj_ref.exists())
+                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
                     continue;
 
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
 
                     // set voltage at the face in collision
+                    /** TODO: get the face index */
+                    int face_index = -1;
                     const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
                     if (_tool_manipulated_object.hasHeatSolver())
                     {

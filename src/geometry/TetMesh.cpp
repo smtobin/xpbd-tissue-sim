@@ -228,6 +228,18 @@ Mat3r TetMesh::elementDeformationGradient(int index) const
     return deformed_basis * _element_inv_undeformed_basis[index];
 }
 
+std::vector<int> TetMesh::elementSurfaceFaces(int element_index) const
+{
+    std::vector<int> surface_faces;
+    auto range = _element_to_surface_faces_map.equal_range(element_index);
+    for (auto it = range.first; it != range.second; it++)
+    {
+        surface_faces.push_back(it->second);
+    }
+
+    return surface_faces;
+}
+
 std::vector<int> TetMesh::faceAdjacentElements(int element_index)
 {
     const Vec4i& elem = element(element_index);

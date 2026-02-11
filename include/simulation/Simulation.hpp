@@ -74,6 +74,8 @@ class Simulation
 
         Real dt() const { return _time_step; }
         
+        Real wallClockdt() const { return _wall_clock_dt; }
+        
         Real gAccel() const { return _g_accel; }
 
         const Graphics::GraphicsScene* graphicsScene() const { return _graphics_scene.get(); }
@@ -244,6 +246,9 @@ class Simulation
         Real _time_between_collision_checks;
 
         Real _last_collision_detection_time;
+
+        /** The wall clock time taken for the last simulation time step. */
+        Real _wall_clock_dt;
 
         /** scheduled callbacks */
         std::vector<CallbackInfo> _callbacks;

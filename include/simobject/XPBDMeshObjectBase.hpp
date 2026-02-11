@@ -149,8 +149,11 @@ public:
      * @returns a reference to the constraint projector that was added for the collision constraint
      */
     virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>>
-    addStaticCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& surface_point, const Vec3r& collision_normal,
-        int face_ind, const Real u, const Real v, const Real w) = 0;
+    addStaticCollisionConstraint(
+        const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
+        int v1, int v2, int v3, const Real u, const Real v, const Real w,
+        int element_ind, int face_ind
+    ) = 0;
 
     /** Adds a collision constraint between a face on this object and a point on a rigid object in the scene.
      * @param sdf : the SDF of the rigid object

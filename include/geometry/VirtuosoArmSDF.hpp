@@ -53,8 +53,11 @@ class VirtuosoArmSDF : public SDF
      * The interpolation parameter is between 0 and 1, and represents how far along the segment the closest surface point to the
      * queried point is. E.g. a value of 0 means that the closest surface point to x is on the oriented circle around the base of the closest segment,
      * and a value of 0.5 means the the closest surface point is "halfway" between the base and tip of the closest segment.
+     * 
+     * When only_tool = true, only the tool tube is considered. This is useful e.g. for mesh refinement around the cautery tool tip.
+     * If there is no tool tube and only_tool = true, no collisions will be detected (a very large postiive distance will be returned).
      */
-    DistanceAndGradientWithNodeInfo evaluateWithGradientAndNodeInfo(const Vec3r& x) const;
+    DistanceAndGradientWithNodeInfo evaluateWithGradientAndNodeInfo(const Vec3r& x, bool only_tool=false) const;
 
     #ifdef HAVE_CUDA
     virtual void createGPUResource() override { assert(0); /* not implemented */ }

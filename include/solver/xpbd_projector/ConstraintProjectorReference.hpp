@@ -23,7 +23,7 @@ class ConstraintProjectorReference
     using vector_type = std::vector<constraint_projector_type>;
     public:
     ConstraintProjectorReference(vector_type& vec, int index)
-        : _vec(vec), _index(index)
+        : _vec(&vec), _index(index)
     {
 
     }
@@ -39,12 +39,12 @@ class ConstraintProjectorReference
 
     const constraint_projector_type* operator->() const
     {
-        return &_vec.at(_index);
+        return &(*_vec).at(_index);
     } 
 
     constraint_projector_type* operator->()
     {
-        return &_vec.at(_index);
+        return &(*_vec).at(_index);
     }
 
 
@@ -52,25 +52,25 @@ class ConstraintProjectorReference
 
     const constraint_projector_type& operator*() const
     {
-        return _vec.at(_index);
+        return (*_vec).at(_index);
     }
 
     constraint_projector_type& operator*()
     {
-        return _vec.at(_index);
+        return (*_vec).at(_index);
     }
 
     /** Whether this projector reference exists at all */
     bool exists() const
     {
-        return (_index < _vec.size()) && (_index >= 0);
+        return ((unsigned)_index < _vec->size()) && (_index >= 0);
     }
 
     /** Get the index */
     int index() const { return _index; }
 
     private:
-    vector_type& _vec;
+    vector_type* _vec;
     int _index;
 };
 
@@ -112,11 +112,13 @@ public:
      * If the type doesn't match, return nullptr
      */
     template<bool IsFirstOrder>
-    typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type* getAs()
+    ConstraintProjectorReference<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>* getAs()
     {
-        if (std::holds_alternative<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>(_variant))
+        using ProjectorType = typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type;
+        using ProjectorRefType = ConstraintProjectorReference<ProjectorType>;
+        if (std::holds_alternative<ProjectorRefType>(_variant))
         {
-            return std::get<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>(_variant);
+            return &std::get<ProjectorRefType>(_variant);
         }
         else
         {
@@ -125,11 +127,13 @@ public:
     }
 
     template<bool IsFirstOrder>
-    const typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type* getAs() const
+    const ConstraintProjectorReference<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>* getAs() const
     {
-        if (std::holds_alternative<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>(_variant))
+        using ProjectorType = typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type;
+        using ProjectorRefType = ConstraintProjectorReference<ProjectorType>;
+        if (std::holds_alternative<ProjectorRefType>(_variant))
         {
-            return std::get<typename ConstraintProjectorTraits<IsFirstOrder, Constraints...>::type>(_variant);
+            return &std::get<ProjectorRefType>(_variant);
         }
         else
         {
