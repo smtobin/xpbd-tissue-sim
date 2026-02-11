@@ -3,6 +3,7 @@
 #include "sim_bridge/SimBridge.hpp"
 #include "sim_bridge/VirtuosoSimBridge.hpp"
 #include "sim_bridge/VirtuosoCTAnatomySimBridge.hpp"
+#include "sim_bridge/CAOSimBridge.hpp"
 #include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
@@ -82,7 +83,16 @@ int main(int argc, char ** argv)
         }
     }
 
-    if (simulation_type == "VirtuosoCTAnatomySimulation")
+    if (simulation_type == "CAOSimulation")
+    {
+        // create the simulation config object from the yaml config file
+        Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
+        // create the simulation from the config object
+        Sim::VirtuosoCTAnatomySimulation sim(&config);
+
+        startNode<Sim::VirtuosoCTAnatomySimulation, CAOSimBridge>(&sim);
+    }
+    else if (simulation_type == "VirtuosoCTAnatomySimulation")
     {
         // create the simulation config object from the yaml config file
         Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
