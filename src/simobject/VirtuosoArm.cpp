@@ -185,6 +185,8 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
+    return;
+
     // refine tissue mesh around tool tip
     if (_tool_manipulated_object)
     {
@@ -230,8 +232,8 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0.005;
-    const Real unload_frac = 0.005;//0.1;
+    const Real load_frac = 0;//0.005;
+    const Real unload_frac = 0;//0.005;//0.1;
     for (int i = 0; i < NUM_OT_FRAMES; i++)
     {
         const Vec3r& cur_force = outerTubeNodalForce(i);
@@ -392,12 +394,11 @@ void VirtuosoArm::_cauteryToolAction()
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
                     
-                    int elem_index_to_remove = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_to_remove.insert( elem_index_to_remove );                
+                    elements_to_remove.insert( element_index );                
                 }
             }
 
@@ -426,12 +427,11 @@ void VirtuosoArm::_cauteryToolAction()
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
                     
-                    int elem_index_in_contact = _tool_manipulated_object.tetMesh()->elementWithFace(face_index);
-                    elements_in_contact.insert(elem_index_in_contact);                
+                    elements_in_contact.insert(element_index);                
                 }
             }
 
@@ -444,6 +444,7 @@ void VirtuosoArm::_cauteryToolAction()
                 if (old_time + _sim->dt() > _cutting_model_time_threshold)
                 {
                     _tool_manipulated_object.removeElement(elem_index);
+                    return;
                 }
                 
             }
@@ -462,11 +463,13 @@ void VirtuosoArm::_cauteryToolAction()
                 if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
                 {
                     // get element 
-                    int face_index = collision.proj_ref.constraint()->faceIndex();
-                    if (!_tool_manipulated_object.mesh()->faceValid(face_index))
+                    int element_index = collision.proj_ref.constraint()->elementIndex();
+                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
                         continue;
 
                     // set voltage at the face in collision
+                    /** TODO: get the face index */
+                    int face_index = -1;
                     const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
                     if (_tool_manipulated_object.hasHeatSolver())
                     {

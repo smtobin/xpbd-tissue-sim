@@ -31,7 +31,7 @@ collision-rate: 100
 # the rate (Hz) at which to draw to the screen
 fps: 30
 # the simulation end time
-end-time: 5000
+end-time: 5000000000000
 
 # === Specific to VirtuosoCTAnatomySimulation ===
 # - we assume that all meshes that are loaded in the sim originated from CT scans

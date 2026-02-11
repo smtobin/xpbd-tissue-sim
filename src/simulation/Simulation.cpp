@@ -310,7 +310,7 @@ void Simulation::_timeStep()
     // std::cout << "\n===Time step===" << std::endl;
     auto t1 = std::chrono::steady_clock::now();
 
-    if (_time - _last_collision_detection_time > _time_between_collision_checks)
+    if (true || _time - _last_collision_detection_time > _time_between_collision_checks)
     {
         // run collision detection
         auto t1 = std::chrono::steady_clock::now();

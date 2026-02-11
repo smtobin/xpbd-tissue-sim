@@ -24,13 +24,16 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
                                         int v2, PositionReference::VecType* vec_ptr2, Real m2,
                                         int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                         Real u, Real v, Real w,
-                                        int face_index=-1);
+                                        int element_index=-1, int face_index=-1);
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
 
-    /** Returns the index of the face in contact. */
-    int faceIndex() const { return _face_index; }
+    /** Returns the index of the element with the face in contact. */
+    int elementIndex() const { return _element_index; }
+
+    /** Returns the index of the face in contact in the mesh. This may be -1 if the face associated with this collision constraint is not a surface face. */
+    bool faceIndex() const { return _face_index; }
 
     /** Returns the barycentric coordinates (u,v,w) of the face contact point.
      * u corresponds to the first vertex, v the second, w the third.
@@ -161,6 +164,7 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
     Real _u;
     Real _v;
     Real _w;
+    int _element_index;
     int _face_index;
 
 };

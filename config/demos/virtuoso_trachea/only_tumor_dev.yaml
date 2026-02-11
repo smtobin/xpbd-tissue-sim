@@ -31,7 +31,7 @@ collision-rate: 100
 # the rate (Hz) at which to draw to the screen
 fps: 30
 # the simulation end time
-end-time: 5000
+end-time: 50000000
 
 # === Specific to VirtuosoCTAnatomySimulation ===
 # - we assume that all meshes that are loaded in the sim originated from CT scans
@@ -92,7 +92,7 @@ materials:
     nu: 0.4
     # rendering settings
     color: [1.0, 0.6, 0.5]
-    cut-color: [0.12, 0.08, 0.0]
+    cut-color: [1.0, 0.4, 0.3]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
@@ -174,7 +174,7 @@ objects:
       type: "VirtuosoArm"
       tool-type: "cautery"
       cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
-      time-threshold: 1
+      time-threshold: 2
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

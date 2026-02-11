@@ -245,6 +245,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     // set the characteristic dimension as the smallest dim in the AABB
     Geometry::AABB bbox = _mesh->boundingBox();
     this->_char_dim = bbox.size().minCoeff();
+
+    // test: refine all elements in the mesh uniformly
+    // for (const auto& elem_index : refinedTetMesh()->elements().validIndices())
+    // {
+    //     refineElement(elem_index, 1, true);
+    // }
 }
 
 // template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -267,14 +273,12 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>>
-XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStaticCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
-                                    int face_ind, const Real u, const Real v, const Real w)
+XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStaticCollisionConstraint(
+    const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
+    int v1, int v2, int v3, const Real u, const Real v, const Real w,
+    int element_ind, int face_ind
+)
 {
-    const Eigen::Vector3i face = _mesh->face(face_ind);
-    int v1 = face[0];
-    int v2 = face[1];
-    int v3 = face[2];
-
     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     Real m1 = vertexConstraintInertia(v1);
@@ -282,14 +286,13 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
     Real m3 = vertexConstraintInertia(v3);
 
     std::vector<Solver::StaticDeformableCollisionConstraint>& constraint_vec = _constraints.template get<Solver::StaticDeformableCollisionConstraint>();
-    constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, face_ind);
+    constraint_vec.emplace_back(sdf, p, n, v1, vec_ptr, m1, v2, vec_ptr, m2, v3, vec_ptr, m3, u, v, w, element_ind, face_ind);
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
     auto proj_ref = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
 
     // add an entry in the element -> collision projector index map
-    int element_index = tetMesh()->elementWithFace(face_ind);
-    _element_to_collision_proj_index.insert({element_index, proj_ref.index()});
+    _element_to_collision_proj_index.insert({element_ind, proj_ref.index()});
 
     return proj_ref;
 }
@@ -634,6 +637,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::re
 {
     if (!tetMesh()->elementValid(elem_index))
         return;
+
+    std::cout << "Removing element " << elem_index << " with current det(F)=" << refinedTetMesh()->elementDeformationGradient(elem_index).determinant() << std::endl;
 
     Vec4i removed_element = refinedTetMesh()->element(elem_index);  // get a copy of the element vertices we are about to remove
     refinedTetMesh()->removeElement(elem_index);
@@ -1040,7 +1045,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     }
     _solver.solve(new_proj_refs, 1, true);
 
-    std::cout << "# new collision constraints: " << new_proj_refs.size() << std::endl;
+    std::cout << "# added faces: " << added_faces.size() << std::endl;
+    std::cout << "# new collision constraints: " << new_proj_ref_wrappers.size() << std::endl;
 
     /** Update constraints and constraint projectors. */
     // if the constraint configuration is StableNeohookean, add separate constraint projectors for the hydrostatic and deviatoric constraints
@@ -1241,6 +1247,20 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     // std::cout << ")" << std::endl;
 
     // std::cout << "Hanging verts size: " << refinedTetMesh()->hangingVertices().size() << "   Hanging verts vec size: " << num_hanging << std::endl;
+
+    // temporary: clear all constraints and re-add them
+    if constexpr (std::is_same_v<typename SolverType::projector_type_list, typename XPBDMeshObjectConstraintConfigurations<IsFirstOrder>::StableNeohookeanCombined::projector_type_list>)
+    {
+        // using ProjectorType = Solver::CombinedConstraintProjector<IsFirstOrder, Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>;
+        // _solver.template setAllProjectorsOfTypeInvalid<ProjectorType>();
+        // _solver.template setAllProjectorsOfTypeInvalid<Solver::ConstraintProjector<IsFirstOrder, Solver::StaticDeformableCollisionConstraint>>();
+        // _solver.template setAllProjectorsOfTypeInvalid<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>();
+        // _constraints.template clear<Solver::HydrostaticConstraint>();
+        // _constraints.template clear<Solver::DeviatoricConstraint>();
+        // _constraints.template clear<Solver::StaticDeformableCollisionConstraint>();
+        // _constraints.template clear<Solver::MidpointConstraint>();
+        // _constraints.template clear<Solver::AttachmentConstraint>();
+    }
 }
 
 

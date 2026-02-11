@@ -157,12 +157,13 @@ public:
 
     Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>
     addStaticCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& surface_point, const Vec3r& collision_normal,
-        int face_ind, const Real u, const Real v, const Real w)
+        int v1, int v2, int v3, const Real u, const Real v, const Real w,
+        int element_ind, int face_ind)
     {
         return std::visit([&](auto& obj)
         {
             return Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>(
-                obj->addStaticCollisionConstraint(sdf, surface_point, collision_normal, face_ind, u, v, w)
+                obj->addStaticCollisionConstraint(sdf, surface_point, collision_normal, v1, v2, v3, u, v, w, element_ind, face_ind)
             );
         }, _variant);
     }

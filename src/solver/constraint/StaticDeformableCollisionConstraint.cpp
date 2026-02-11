@@ -8,12 +8,12 @@ StaticDeformableCollisionConstraint::StaticDeformableCollisionConstraint(const G
                                                                         int v2, PositionReference::VecType* vec_ptr2, Real m2,
                                                                         int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                                                         Real u, Real v, Real w,
-                                                                        int face_index)
+                                                                        int element_index, int face_index)
     : CollisionConstraint(std::vector<PositionReference>({
     PositionReference(v1, vec_ptr1, m1),
     PositionReference(v2, vec_ptr2, m2),
     PositionReference(v3, vec_ptr3, m3)}), n),
-    _sdf(sdf), _p(p), _u(u), _v(v), _w(w), _face_index(face_index)
+    _sdf(sdf), _p(p), _u(u), _v(v), _w(w), _element_index(element_index), _face_index(face_index)
 {
 
 }
