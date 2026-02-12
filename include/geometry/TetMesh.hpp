@@ -22,10 +22,12 @@ class TetMesh : public Mesh
     {
         int index;
         const Vec4i vertices;
+        Vec3r current_centroid;
+        Vec3r rest_centroid;
         Real rest_volume;
 
-        RemovedElement(int index_, const Vec4i& vertices_, Real rest_volume_)
-            : index(index_), vertices(vertices_), rest_volume(rest_volume_)
+        RemovedElement(int index_, const Vec4i& vertices_, const Vec3r& current_centroid_, const Vec3r& rest_centroid_, Real rest_volume_)
+            : index(index_), vertices(vertices_), current_centroid(current_centroid_), rest_centroid(rest_centroid_), rest_volume(rest_volume_)
         {}
     };
 
@@ -44,6 +46,9 @@ class TetMesh : public Mesh
      * This should be called after performing the initial translations and rotations setting up the mesh.
      */
     virtual void setCurrentStateAsUndeformedState() override;
+
+    /** Returns the initial position for a given vertex. */
+    Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
 
     /** Returns the rest volume associated with the specified vertex.
      * (1/4 the rest volume of all attached elements to the vertex)
@@ -79,6 +84,12 @@ class TetMesh : public Mesh
      */
     Mat3r elementDeformationGradient(int index) const;
 
+    /** Returns the current centroid of the element. */
+    Vec3r elementCentroid(int elem_index) const;
+
+    /** Returns the centroid of the element in the original (rest) mesh configuration. */
+    Vec3r elementInitialCentroid(int elem_index) const;
+
     /** Returns the element index corresponding to a surface face. */
     int elementWithFace(int face_index) const { return _surface_face_to_element_map.at(face_index); }
 
@@ -101,7 +112,7 @@ class TetMesh : public Mesh
      * All surface faces associated with the removed element are removed.
      * New surface faces are added to fill the hole - these faces will be faces from adjacent elements.
      */
-    virtual void removeElement(int elem_index);
+    virtual RemovedElement removeElement(int elem_index);
 
     /** Returns the cache of recently removed elements.
      * This is ONLY info about elements that have been removed from a call to removeElement().
@@ -239,6 +250,12 @@ class TetMesh : public Mesh
 
     /** Simple helper to subtract 1/4 the element volume from its vertices */
     void _updateVertexVolumesForRemovedElement(int element_index);
+
+    /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
+     * This is useful for calculating the inverse undeformed basis (Q in XPBD) for each new element. (used in deformation gradient computation)
+     * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
+     */
+    std::vector<Vec3r> _initial_vertices;
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
     elements_vec_type _elements;

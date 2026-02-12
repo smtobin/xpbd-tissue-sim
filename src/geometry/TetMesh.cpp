@@ -188,6 +188,14 @@ void TetMesh::setCurrentStateAsUndeformedState()
         std::cerr << "Double check your .msh file for floating faces." << std::endl;
         assert(0);
     }
+
+
+    // set the initial vertices
+    _initial_vertices.resize(_vertices.totalSize());
+    for (unsigned i = 0; i < _vertices.totalSize(); i++)
+    {
+        _initial_vertices[i] = _vertices[i];
+    }
     
 }
 
@@ -238,6 +246,20 @@ std::vector<int> TetMesh::elementSurfaceFaces(int element_index) const
     }
 
     return surface_faces;
+}
+
+Vec3r TetMesh::elementCentroid(int element_index) const
+{
+    const Vec4i& elem_verts = element(element_index);
+    Vec3r sum = vertex(elem_verts[0]) + vertex(elem_verts[1]) + vertex(elem_verts[2]) + vertex(elem_verts[3]);
+    return sum/4.0;
+}
+
+Vec3r TetMesh::elementInitialCentroid(int element_index) const
+{
+    const Vec4i& elem_verts = element(element_index);
+    Vec3r sum = initialVertex(elem_verts[0]) + initialVertex(elem_verts[1]) + initialVertex(elem_verts[2]) + initialVertex(elem_verts[3]);
+    return sum/4.0;
 }
 
 std::vector<int> TetMesh::faceAdjacentElements(int element_index)
@@ -516,7 +538,7 @@ void TetMesh::removeElementWithFace(int face_index)
     removeElement(elem_index);
 }
 
-void TetMesh::removeElement(int elem_index)
+TetMesh::RemovedElement TetMesh::removeElement(int elem_index)
 {
     // increment topology version since the topology is changing
     _topology_version++;
@@ -574,10 +596,19 @@ void TetMesh::removeElement(int elem_index)
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);
 
-    _recently_removed_elements.emplace_back(elem_index, elem_to_remove, elementRestVolume(elem_index));
+    
+    RemovedElement removed_element(
+        elem_index, elem_to_remove, 
+        elementCentroid(elem_index), elementInitialCentroid(elem_index), 
+        elementRestVolume(elem_index)
+    );
+
+    _recently_removed_elements.push_back(removed_element);
 
     // remove element
     _elements.erase(elem_index);
+
+    return removed_element;
 }
 
 void TetMesh::_updateVertexVolumesForRemovedElement(int element_index)
