@@ -16,9 +16,15 @@ class RemovedElementsVisualizer(Node):
         
         self.timer = self.create_timer(0.1, self.publish_markers)
 
-        self.marker_pub = self.create_publisher(
+        self.current_marker_pub = self.create_publisher(
             MarkerArray,
-            'removed_elements_markers',
+            '/removed_elements_current_markers',
+            10
+        )
+
+        self.initial_marker_pub = self.create_publisher(
+            MarkerArray,
+            'removed_elements_initial_markers',
             10
         )
         
@@ -34,7 +40,8 @@ class RemovedElementsVisualizer(Node):
         if not self.all_removed_elements or self.latest_header is None:
             return
         
-        marker_array = MarkerArray()
+        current_marker_array = MarkerArray()
+        initial_marker_array = MarkerArray()
         for idx, element in enumerate(self.all_removed_elements):
             # Calculate sphere radius from rest volume
             # Volume of sphere = (4/3) * pi * r^3
@@ -67,7 +74,7 @@ class RemovedElementsVisualizer(Node):
             current_marker.color.b = 0.0
             current_marker.color.a = 0.7  # Semi-transparent
             
-            marker_array.markers.append(current_marker)
+            current_marker_array.markers.append(current_marker)
             
             # Marker for INITIAL centroid
             initial_marker = Marker()
@@ -92,33 +99,12 @@ class RemovedElementsVisualizer(Node):
             initial_marker.color.b = 1.0
             initial_marker.color.a = 0.5  # More transparent
             
-            marker_array.markers.append(initial_marker)
-
-            # Add a line from initial to current centroid
-            line_marker = Marker()
-            line_marker.header = self.latest_header
-            line_marker.ns = "removed_elements_trajectory"
-            line_marker.id = idx
-            line_marker.type = Marker.LINE_STRIP
-            line_marker.action = Marker.ADD
-            
-            # Add two points: initial and current
-            p1 = Point()
-            p1.x, p1.y, p1.z = element.initial_centroid.x, element.initial_centroid.y, element.initial_centroid.z
-            p2 = Point()
-            p2.x, p2.y, p2.z = element.centroid.x, element.centroid.y, element.centroid.z
-            
-            line_marker.points = [p1, p2]
-            
-            line_marker.scale.x = 0.01  # Line width
-            line_marker.color.r = 1.0
-            line_marker.color.g = 1.0
-            line_marker.color.b = 0.0
-            line_marker.color.a = 0.5
+            initial_marker_array.markers.append(initial_marker)
             
             # self.all_removed_element_markers.markers.append(line_marker)
         
-        self.marker_pub.publish(marker_array)
+        self.current_marker_pub.publish(current_marker_array)
+        self.initial_marker_pub.publish(initial_marker_array)
 
 
 def main(args=None):
