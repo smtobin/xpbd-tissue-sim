@@ -45,7 +45,10 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SparseMatrix.msg"
+  "msg/RemovedElement.msg"
+  "msg/RemovedElementArray.msg"
   DEPENDENCIES std_msgs
+  DEPENDENCIES geometry_msgs
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target

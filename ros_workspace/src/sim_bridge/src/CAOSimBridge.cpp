@@ -4,6 +4,7 @@ CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
     : VirtuosoCTAnatomySimBridge(sim)
 {
     _setupPartialViewPointCloudPublishers();
+    _setupRemovedElementsPublishers();
 }
 
 void CAOSimBridge::_setupPartialViewPointCloudPublishers()
@@ -138,4 +139,65 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
         };
     
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), partial_view_pc_callback);
+}
+
+void CAOSimBridge::_setupRemovedElementsPublishers()
+{
+    // assume that setup() has already been called on the Simulation object
+    // then we can probe how many deformable objects are in the Sim
+    const typename Sim::VirtuosoCTAnatomySimulation::ObjectVectorType& sim_objects = _sim->objects();
+    const std::vector<std::unique_ptr<Sim::XPBDMeshObject_Base>>& xpbd_mesh_objs = sim_objects.template get<std::unique_ptr<Sim::XPBDMeshObject_Base>>();
+    const std::vector<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>& fo_xpbd_mesh_objs = 
+        sim_objects.template get<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>();
+    
+    unsigned num_xpbd_objs = xpbd_mesh_objs.size() + fo_xpbd_mesh_objs.size();
+    _removed_elements_publishers.resize(num_xpbd_objs);
+
+    int index = 0;
+    sim_objects.template for_each_element<std::unique_ptr<Sim::XPBDMeshObject_Base>, std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>([&index, this](auto& obj){
+        _setupRemovedElementsPublisherForMesh(index, obj.get());
+
+        index++;
+    });
+}
+
+template <typename XPBDMeshObject_BaseType>
+void CAOSimBridge::_setupRemovedElementsPublisherForMesh(int index, XPBDMeshObject_BaseType* xpbd_obj)
+{
+    std::string topic_name = "/sim/output/removed_elements_" + std::to_string(index);
+    _removed_elements_publishers[index] = this->create_publisher<sim_bridge::msg::RemovedElementArray>(topic_name, 3);
+    
+    auto callback = 
+        [this, index, xpbd_obj]() -> void {
+            std::vector<Geometry::TetMesh::RemovedElement> recently_removed_elements = xpbd_obj->tetMesh()->recentlyRemovedElements(true);
+            if (recently_removed_elements.empty())
+                return;
+            
+
+            sim_bridge::msg::RemovedElementArray array_msg;
+            array_msg.header.stamp = this->now();
+            array_msg.header.frame_id = "sim/world";
+            array_msg.elements.reserve(recently_removed_elements.size());
+            for (const auto& removed_element : recently_removed_elements)
+            {
+                sim_bridge::msg::RemovedElement msg;
+                msg.header = array_msg.header;
+                msg.centroid.x = removed_element.current_centroid[0];
+                msg.centroid.y = removed_element.current_centroid[1];
+                msg.centroid.z = removed_element.current_centroid[2];
+                msg.initial_centroid.x = removed_element.rest_centroid[0];
+                msg.initial_centroid.y = removed_element.rest_centroid[1];
+                msg.initial_centroid.z = removed_element.rest_centroid[2];
+                msg.rest_volume = static_cast<float>(removed_element.rest_volume);
+
+                array_msg.elements.push_back(msg);
+            }
+
+            std::cout << "Publishing " << recently_removed_elements.size() << " removed elements..." << std::endl;
+            this->_removed_elements_publishers[index]->publish(array_msg);
+        };
+
+    // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
+    // i.e. publish every 10 time steps
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 }
