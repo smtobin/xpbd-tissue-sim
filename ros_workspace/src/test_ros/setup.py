@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'matrix_test = test_ros.matrix_test:main'
+            'matrix_test = test_ros.matrix_test:main',
+            'removed_elements_test = test_ros.removed_elements_test:main'
         ],
     },
 )
