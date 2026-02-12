@@ -172,6 +172,9 @@ public:
 
     const std::unordered_set<int>& vertexAdjacentVertices(int index) const { return _vertex_adjacent_vertices[index]; }
 
+    /** Returns the initial position for a given vertex. */
+    Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
+
     /** Returns a single face as an Eigen 3-vector, given the vertex index.
      * This assumes that the index used is a valid index (i.e. the face we are trying to access has not been removed).
      */
@@ -427,6 +430,12 @@ protected:
     vertices_vec_type _vertices; // the vertices of the mesh
     faces_vec_type _faces;       // the faces of the mesh
     std::vector<Vec3r> _vertex_normals; // vertex normals of the mesh
+
+    /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
+     * This is useful for calculating the inverse undeformed basis (Q in XPBD) for each new element. (used in deformation gradient computation)
+     * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
+     */
+    std::vector<Vec3r> _initial_vertices;
 
     std::vector<std::unordered_set<int>> _vertex_adjacent_vertices;
 

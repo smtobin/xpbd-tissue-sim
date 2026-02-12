@@ -47,9 +47,6 @@ class TetMesh : public Mesh
      */
     virtual void setCurrentStateAsUndeformedState() override;
 
-    /** Returns the initial position for a given vertex. */
-    Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
-
     /** Returns the rest volume associated with the specified vertex.
      * (1/4 the rest volume of all attached elements to the vertex)
      */
@@ -250,12 +247,6 @@ class TetMesh : public Mesh
 
     /** Simple helper to subtract 1/4 the element volume from its vertices */
     void _updateVertexVolumesForRemovedElement(int element_index);
-
-    /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
-     * This is useful for calculating the inverse undeformed basis (Q in XPBD) for each new element. (used in deformation gradient computation)
-     * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
-     */
-    std::vector<Vec3r> _initial_vertices;
 
     /** Matrix of tetrahedral elements - each column is 4 integers corresponding to the vertex indices */
     elements_vec_type _elements;

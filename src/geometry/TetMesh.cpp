@@ -188,14 +188,6 @@ void TetMesh::setCurrentStateAsUndeformedState()
         std::cerr << "Double check your .msh file for floating faces." << std::endl;
         assert(0);
     }
-
-
-    // set the initial vertices
-    _initial_vertices.resize(_vertices.totalSize());
-    for (unsigned i = 0; i < _vertices.totalSize(); i++)
-    {
-        _initial_vertices[i] = _vertices[i];
-    }
     
 }
 
@@ -596,7 +588,6 @@ TetMesh::RemovedElement TetMesh::removeElement(int elem_index)
     // update vertex -> element, edge -> element, face -> element maps, element -> surface face maps
     _updateElementMapsForRemovedElement(elem_index);
 
-    
     RemovedElement removed_element(
         elem_index, elem_to_remove, 
         elementCentroid(elem_index), elementInitialCentroid(elem_index), 
