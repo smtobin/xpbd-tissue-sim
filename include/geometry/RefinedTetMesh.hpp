@@ -182,18 +182,6 @@ public:
         }
     };
 
-    /** Simple struct to store information about an element that was removed. */
-    struct RemovedElement
-    {
-        int index;
-        const Vec4i vertices;
-        Real rest_volume;
-
-        RemovedElement(int index_, const Vec4i& vertices_, Real rest_volume_)
-            : index(index_), vertices(vertices_), rest_volume(rest_volume_)
-        {}
-    };
-
     /** Simple struct to store information about a vertex that was added. */
     struct NewVertex
     {
@@ -233,9 +221,6 @@ public:
      */
     virtual void setCurrentStateAsUndeformedState() override;
 
-    /** Returns the initial position for a given vertex. */
-    Vec3r initialVertex(int index) const { return _initial_vertices[index]; }
-
     /** Given an element, returns the refinement level of that element.
      * 0 = the element is an original element in the base tet mesh
      * 1 = the element's parent is an original element
@@ -273,7 +258,7 @@ public:
      * If an element is on a refinement boundary (i.e. there are adjacent elements that are coarser than it),
      * the adjacent, coarser element is automatically refined down to the level of the element we are removing.
      */
-    virtual void removeElement(int elem_index) override;
+    virtual RemovedElement removeElement(int elem_index) override;
 
     /** Accessors for querying info about last refine/coarsen/removal operation. */
     const std::vector<NewVertex>& latestAddedVertices() const { return _latest_new_vertices; }
@@ -474,12 +459,6 @@ private:
     void _addHangingVerticesForNonLeafEdgeNodes(const ElementTreeNode& root_node, int rel_coarsening_level);
 
 protected:
-    
-    /** Store the initial vertices so that when we add new vertices, we can interpolate where their initial positions would be.
-     * This is useful for calculating the inverse undeformed basis (Q in XPBD) for each new element. (used in deformation gradient computation)
-     * The initial vertices are reset every time setCurrentStateAsUndeformedState() is called.
-     */
-    std::vector<Vec3r> _initial_vertices;
 
     /** Stores the refinement level of each element. Unreefined elements in the base tet mesh have refinement level = 0. */
     std::vector<int> _element_refinement_level;

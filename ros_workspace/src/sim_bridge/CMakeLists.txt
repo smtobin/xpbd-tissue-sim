@@ -45,7 +45,10 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SparseMatrix.msg"
+  "msg/RemovedElement.msg"
+  "msg/RemovedElementArray.msg"
   DEPENDENCIES std_msgs
+  DEPENDENCIES geometry_msgs
 )
 
 rosidl_get_typesupport_target(cpp_typesupport_target
@@ -152,6 +155,7 @@ add_executable(${PROJECT_NAME}_node
   src/sim_bridge_node.cpp 
   src/VirtuosoSimBridge.cpp 
   src/VirtuosoCTAnatomySimBridge.cpp
+  src/CAOSimBridge.cpp
 )
 
 # === Link Dependencies ===

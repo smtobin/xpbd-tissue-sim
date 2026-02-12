@@ -278,7 +278,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     void _updateAfterMeshTopologyChange(    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& removed_vertices,
                                             const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
                                             const std::vector<int>& added_faces,
-                                            const std::vector<int>& added_elements, const std::vector<Geometry::RefinedTetMesh::RemovedElement>& removed_elements,
+                                            const std::vector<int>& added_elements, const std::vector<Geometry::TetMesh::RemovedElement>& removed_elements,
                                             const std::vector<int>& added_element_classes, const std::vector<int>& removed_element_classes);
 
     protected:

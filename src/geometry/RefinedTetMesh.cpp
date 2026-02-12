@@ -21,13 +21,6 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
 {
     TetMesh::setCurrentStateAsUndeformedState();
 
-    // set the initial vertices
-    _initial_vertices.resize(_vertices.totalSize());
-    for (unsigned i = 0; i < _vertices.totalSize(); i++)
-    {
-        _initial_vertices[i] = _vertices[i];
-    }
-
     // set the initial refinement levels
     _element_refinement_level.resize(_elements.totalSize(), 0);
 }
@@ -247,7 +240,7 @@ int RefinedTetMesh::_findElementWithFaceParentOfEdge(const Edge& edge, int max_l
     return parent_elem_index;
 }
 
-void RefinedTetMesh::removeElement(int elem_index)
+TetMesh::RemovedElement RefinedTetMesh::removeElement(int elem_index)
 {
     // std::cout << "\n=== Removing element " << elem_index << std::endl;
     // clear the latest added vertices and elements
@@ -296,8 +289,8 @@ void RefinedTetMesh::removeElement(int elem_index)
     }
 
     // do this first - this will update the vertex, edge, and face maps for removing this element
-    TetMesh::removeElement(elem_index);
-    _latest_removed_elements.emplace_back(elem_index, elem_to_remove, elementRestVolume(elem_index));
+    RemovedElement removed_element = TetMesh::removeElement(elem_index);
+    _latest_removed_elements.push_back(removed_element);
 
     // before we remove the element, we need to update the tree structure (when applicable)
     if (auto search = _element_to_tree_node_map.find(elem_index); search != _element_to_tree_node_map.end())
@@ -365,6 +358,8 @@ void RefinedTetMesh::removeElement(int elem_index)
         _removeFeaturesForRemovedElementTreeNode(temp_tree_node);
         _updateDescendantFeatureHierarchyForRemovedElement(temp_tree_node);
     }
+
+    return removed_element;
 }
 
 void RefinedTetMesh::_removeFeaturesForRemovedElementTreeNode(ElementTreeNode& node)
@@ -1309,7 +1304,9 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     }
 
     // add the removed parent element to the latest removed elements
-    _latest_removed_elements.emplace_back(element_index, base_element, elementRestVolume(element_index));
+    _latest_removed_elements.emplace_back(element_index, base_element, 
+        elementCentroid(element_index), elementInitialCentroid(element_index), 
+        elementRestVolume(element_index));
 
     // update the edge -> element, face -> element, and element -> surface face maps
     // we need to wait to update the vertex -> element map, because if we do it now, we might accidentally remove some of the original tet's vertices!
@@ -1874,7 +1871,9 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
                     // note: we do not need to update the surface face -> element map since that will just be overwritten by whatever new faces are added
                 }
 
-                _latest_removed_elements.emplace_back(node.element_index, node.vertices, elementRestVolume(node.element_index));
+                _latest_removed_elements.emplace_back(node.element_index, node.vertices, 
+                    elementCentroid(node.element_index), elementInitialCentroid(node.element_index),
+                    elementRestVolume(node.element_index));
 
                 _updateVertexVolumesForRemovedElement(node.element_index);
                 _updateElementMapsForRemovedElement(node.element_index);

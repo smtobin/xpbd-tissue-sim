@@ -106,6 +106,13 @@ void Mesh::setCurrentStateAsUndeformedState()
 
     _computeAdjacentVertices();
     updateVertexNormals();
+
+    // set the initial vertices
+    _initial_vertices.resize(_vertices.totalSize());
+    for (unsigned i = 0; i < _vertices.totalSize(); i++)
+    {
+        _initial_vertices[i] = _vertices[i];
+    }
 }
 
 void Mesh::updateVertexNormals()
@@ -311,6 +318,13 @@ void Mesh::resize(const Vec3r& new_size)
         v[2] *= scaling_factor_z;
     }
 
+    for (auto& v : _initial_vertices)
+    {
+        v[0] *= scaling_factor_x;
+        v[1] *= scaling_factor_y;
+        v[2] *= scaling_factor_z;
+    }
+
     _mesh_origin[0] *= scaling_factor_x;
     _mesh_origin[1] *= scaling_factor_y;
     _mesh_origin[2] *= scaling_factor_z;
@@ -325,6 +339,9 @@ void Mesh::resize(const Vec3r& new_size)
 void Mesh::moveTogether(const Vec3r& delta)
 {
     for (auto& v : _vertices)
+        v += delta;
+
+    for (auto& v : _initial_vertices)
         v += delta;
         
     _mesh_origin += delta;
@@ -372,6 +389,9 @@ void Mesh::rotateAbout(const Vec3r& p, const Mat3r& rot_mat)
 {
     moveTogether(-p);
     for (auto& v : _vertices)
+        v = rot_mat * v;
+
+    for (auto& v : _initial_vertices)
         v = rot_mat * v;
 
     _mesh_origin = rot_mat * _mesh_origin;
