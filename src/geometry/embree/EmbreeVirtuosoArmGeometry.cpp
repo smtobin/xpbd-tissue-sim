@@ -11,6 +11,78 @@ EmbreeVirtuosoArmGeometry::EmbreeVirtuosoArmGeometry(const Sim::VirtuosoArm* arm
 
 EmbreeVirtuosoArmGeometry::~EmbreeVirtuosoArmGeometry() = default;
 
+void EmbreeVirtuosoArmGeometry::boundsFuncCapsule(const struct RTCBoundsFunctionArguments *args)
+{
+    const EmbreeVirtuosoArmGeometry *geom = static_cast<const EmbreeVirtuosoArmGeometry *>(args->geometryUserPtr);
+    const Sim::VirtuosoArm* arm = geom->arm();
+    unsigned int primID = args->primID;
+    Capsule segment = arm->segment(primID);
+
+    const Vec3r& p1 = segment.p1();
+    const Vec3r& p2 = segment.p2();
+
+    RTCBounds* bounds = args->bounds_o;
+    bounds->lower_x = std::min(p1[0], p2[0]);
+    bounds->lower_y = std::min(p1[1], p2[1]);
+    bounds->lower_z = std::min(p1[2], p2[2]);
+
+    bounds->upper_x = std::max(p1[0], p2[0]);
+    bounds->upper_y = std::max(p1[1], p2[1]);
+    bounds->upper_z = std::max(p1[2], p2[2]);
+}
+
+void EmbreeVirtuosoArmGeometry::intersectFuncCapsule(const RTCIntersectFunctionNArguments* args)
+{
+    int N = args->N;    // number of rays in packet
+    int* valid = args->valid;
+
+    const EmbreeVirtuosoArmGeometry *geom = static_cast<const EmbreeVirtuosoArmGeometry *>(args->geometryUserPtr);
+    const Sim::VirtuosoArm* arm = geom->arm();
+    unsigned int primID = args->primID;
+    Capsule segment = arm->segment(primID);
+
+    struct RTCRayHitN* rayhit = (struct RTCRayHitN*)args->rayhit;
+    RTCRayN* rays = RTCRayHitN_RayN(rayhit, N);
+    RTCHitN* hits = RTCRayHitN_HitN(rayhit, N);
+
+    for (int i = 0; i < N; i++)
+    {
+        if (!valid[i])
+            continue;
+
+        Vec3r ray_origin(
+            RTCRayN_org_x(rays, N, i),
+            RTCRayN_org_y(rays, N, i),
+            RTCRayN_org_z(rays, N, i)
+        );
+
+        Vec3r ray_dir(
+            RTCRayN_dir_x(rays, N, i),
+            RTCRayN_dir_y(rays, N, i),
+            RTCRayN_dir_z(rays, N, i)  
+        );
+
+        Real ray_tnear = RTCRayN_tnear(rays, N, i);
+        Real ray_tfar = RTCRayN_tfar(rays, N, i);
+
+        Real t_hit;
+        Vec3r normal;
+
+        if (_intersectRayCapsule(ray_origin, ray_dir, ray_tnear, ray_tfar, segment.p1(), segment.p2(), segment.radius(), t_hit, normal) )
+        {
+            RTCRayN_tfar(rays, N, i) = t_hit;
+            RTCHitN_u(hits, N, i) = 0.0f;
+            RTCHitN_v(hits, N, i) = 0.0f;
+            RTCHitN_geomID(hits, N, i) = args->geomID;
+            RTCHitN_primID(hits, N, i) = primID;
+            RTCHitN_Ng_x(hits, N, i) = normal[0];
+            RTCHitN_Ng_y(hits, N, i) = normal[1];
+            RTCHitN_Ng_z(hits, N, i) = normal[2];
+        }
+
+    }
+}
+
 bool EmbreeVirtuosoArmGeometry::_intersectRayCapsule(
     const Vec3r& ray_origin, const Vec3r& ray_dir, Real ray_tnear, Real ray_tfar,
     const Vec3r& cap_p1, const Vec3r& cap_p2, Real cap_radius,

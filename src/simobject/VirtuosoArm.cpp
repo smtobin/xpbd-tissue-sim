@@ -77,6 +77,34 @@ std::string VirtuosoArm::toString(const int indent) const
     return Object::toString(indent);
 }
 
+int VirtuosoArm::numSegments() const
+{
+    if (hasTool())
+        return (NUM_OT_FRAMES-1) + (NUM_IT_FRAMES-1) + (NUM_TT_FRAMES-1);
+    else
+        return (NUM_OT_FRAMES-1) + (NUM_IT_FRAMES-1);
+}
+
+Geometry::Capsule VirtuosoArm::segment(int index) const
+{
+    assert(index < numSegments());
+
+    if (index < NUM_OT_FRAMES-1)
+    {
+        return Geometry::Capsule(_ot_frames[index].origin(), _ot_frames[index+1].origin(), _ot_outer_dia/2.0);
+    }
+    
+    int it_index = index - (NUM_OT_FRAMES-1);
+    if (it_index < NUM_IT_FRAMES-1)
+    {
+        return Geometry::Capsule(_it_frames[it_index].origin(), _it_frames[it_index+1].origin(), _it_outer_dia/2.0);
+    }
+
+    int tt_index = it_index - (NUM_IT_FRAMES-1);
+    return Geometry::Capsule(_tt_frames[tt_index].origin(), _tt_frames[tt_index+1].origin(), _tool_tube.outer_dia/2.0);
+}
+
+
 Vec3r VirtuosoArm::actualTipPosition() const
 {
     if (hasTool())

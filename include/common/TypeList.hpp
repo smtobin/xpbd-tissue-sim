@@ -2,6 +2,7 @@
 #define __TYPE_LIST_HPP
 
 #include <type_traits>
+#include <variant>
 
 /** Empty struct that stores a parameter pack. Very useful for template metaprogramming. */
 template<typename ...Types>
@@ -92,6 +93,21 @@ struct TypeListRemoveDuplicates<TypeList<Head, Tail...>>
     using type = std::conditional_t< TypeListContains<Head, tail_deduped>::value,
         tail_deduped,   // don't include Head if it is already present in tail_deduped
         typename TypeListPrepend<Head, tail_deduped>::type >; // keep Head in the TypeList if not present in tail_deduped
+};
+
+
+///////////////////////////////////////////////////////////////////////////
+// Creating std::variant from a TypeList
+///////////////////////////////////////////////////////////////////////////
+template<typename List>
+struct VariantFromTypeList;
+
+template <typename... Types>
+struct VariantFromTypeList<TypeList<Types...>>
+{
+    using type = std::variant<Types...>;
+    using ptr_type = std::variant<Types*...>;
+    using const_ptr_type = std::variant<const Types*...>;
 };
 
 

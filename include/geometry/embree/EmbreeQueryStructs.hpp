@@ -2,6 +2,7 @@
 #define __EMBREE_QUERY_STRUCTS_HPP
 
 #include "common/types.hpp"
+#include "common/SimulationTypeDefs.hpp"
 
 #include <set>
 
@@ -20,7 +21,8 @@ class EmbreeTetMeshGeometry;
 /** "Hit" result (for either rays or for point queries) */
 struct EmbreeHit
 {
-    const Sim::MeshObject* obj;     // pointer to object in sim being hit
+    // const Sim::MeshObject* obj;     // pointer to object in sim being hit
+    SimulationObjectConstPtrVariantType obj;
     int prim_index;             // index of primitive hit (could be triangle or tetrahedron depending on context)
     Vec3r hit_point;            // where the primitive was hit (really only makes sense for ray intersections)
 

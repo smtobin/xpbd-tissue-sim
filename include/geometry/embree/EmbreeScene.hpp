@@ -8,9 +8,13 @@
 
 #include "geometry/embree/EmbreeMeshGeometry.hpp"
 #include "geometry/embree/EmbreeTetMeshGeometry.hpp"
+#include "geometry/embree/EmbreeVirtuosoArmGeometry.hpp"
 #include "geometry/embree/EmbreeQueryStructs.hpp"
 
 #include "simobject/MeshObject.hpp"
+#include "simobject/VirtuosoArm.hpp"
+
+#include "common/SimulationTypeDefs.hpp"
 
 #include <map>
 #include <set>
@@ -52,6 +56,7 @@ struct PointsWithClass
 class EmbreeScene
 {   
     public:
+
     EmbreeScene();
 
     ~EmbreeScene();
@@ -68,6 +73,9 @@ class EmbreeScene
 
     /** Add a surface mesh object to the EmbreeScene */
     void addObject(const Sim::MeshObject* obj);
+
+    /** Add a Virtuoso arm to the EmbreeScene */
+    void addObject(const Sim::VirtuosoArm* obj);
 
     /** Updates all Embree scenes. */
     void update();
@@ -176,13 +184,15 @@ class EmbreeScene
     /** maps object pointers to their Embree user geometries */ 
     std::map<const Sim::MeshObject*, EmbreeMeshGeometry*> _mesh_to_embree_geom;
     std::map<const Sim::TetMeshObject*, EmbreeTetMeshGeometry*> _tet_mesh_to_embree_geom;
+    std::map<const Sim::VirtuosoArm*, EmbreeVirtuosoArmGeometry*> _arm_to_embree_geom;
 
     /** maps Embree geomID back to object pointers */
-    std::map<unsigned, const Sim::MeshObject*> _geomID_to_mesh_obj;
+    std::map<unsigned, ObjectVariantType> _geomID_to_obj;
 
     /** Stores all the Embree user geometries */
     std::vector<EmbreeMeshGeometry> _embree_mesh_geoms;
     std::vector<EmbreeTetMeshGeometry> _embree_tet_mesh_geoms;
+    std::vector<EmbreeVirtuosoArmGeometry> _embree_arm_geoms;
 
     bool _hasAVX512;
     bool _hasAVX;

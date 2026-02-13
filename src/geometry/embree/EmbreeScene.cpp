@@ -113,7 +113,7 @@ void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
 
     // set up Embree scenes and geometries for the surface mesh
     _setupEmbreeForSurfaceMesh(geom);
-    _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
+    _geomID_to_obj[geom.meshGeomID()] = obj_ptr;
     
 }
 
@@ -133,8 +133,12 @@ void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
 
     // set up Embree scenes and geometries for the tet mesh object
     _setupEmbreeForTetMesh(geom);
-    _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
-    
+    _geomID_to_obj[geom.meshGeomID()] = obj_ptr;
+}
+
+void EmbreeScene::addObject(const Sim::VirtuosoArm* arm_ptr)
+{
+
 }
 
 
@@ -229,11 +233,11 @@ EmbreeHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& orig
     // check if we have a hit
     if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID)
     {
-        const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(rayhit.hit.geomID);
+        auto obj_variant = _geomID_to_obj.at(rayhit.hit.geomID);
         float t = rayhit.ray.tfar;
         
         EmbreeHit hit;
-        hit.obj = obj;
+        hit.obj = obj_variant;
         hit.prim_index = rayhit.hit.primID;
         hit.hit_point = origin + t*dir;
         return hit;
@@ -241,7 +245,7 @@ EmbreeHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& orig
     else
     {
         EmbreeHit hit;
-        hit.obj = nullptr;
+        hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
         return hit;
     }
 }
@@ -302,11 +306,11 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 // process hits
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
-                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
                     EmbreeHit hit;
-                    hit.obj = obj;
+                    hit.obj = obj_variant;
                     hit.prim_index = packet.hit.primID[ri];
                     hit.hit_point = origins[i+ri] + t*dirs[i+ri];
                     hits.push_back(hit);
@@ -315,7 +319,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 else
                 {
                     EmbreeHit hit;
-                    hit.obj = nullptr;
+                    hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
                     hits.push_back(hit);
                 }
             }
@@ -364,11 +368,11 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
             {
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
-                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
                     EmbreeHit hit;
-                    hit.obj = obj;
+                    hit.obj = obj_variant;
                     hit.prim_index = packet.hit.primID[ri];
                     hit.hit_point = origins[i+ri] + t*dirs[i+ri];
                     hits.push_back(hit);
@@ -376,7 +380,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 else
                 {
                     EmbreeHit hit;
-                    hit.obj = nullptr;
+                    hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
                     hits.push_back(hit);
                 }
             }
@@ -553,10 +557,10 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
             for (const auto& hit : hits)
             {
-                if (hit.obj)
-                {
-                    hit_points.push_back(hit.hit_point);
-                }
+                std::visit([&](auto&& hit_obj){
+                    if (hit_obj)    // if hit object is not nullptr, add the hit point
+                        hit_points.push_back(hit.hit_point);
+                }, hit.obj);
             }
         }
     }
@@ -624,13 +628,18 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
 
             for (const auto& hit : hits)
             {
-                if (hit.obj)
-                {
+                std::visit([&](auto* obj) {
+                    if (!obj)
+                        return;
+
+                    using ObjectType = std::remove_pointer_t<std::decay_t<decltype(obj)>>;
+                        
                     // get the class of the face that we hit
                     std::string classification = "";
-                    if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                    if constexpr(/** TODO: */)
+                    if (obj->mesh()->hasFaceProperty<int>("class"))
                     {
-                        int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
+                        int class_num = obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
                         /** TODO: dynamic_cast = yucky, can we do better?
                          * 
                          * 
@@ -676,7 +685,8 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                         // add an entry to the map so we know which index in the vector is associated with this class
                         class_to_vector_index[classification] = point_clouds.size()-1;
                     }
-                }
+                    
+                }, hit.obj);
             }
         }
     }
