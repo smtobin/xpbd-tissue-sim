@@ -83,15 +83,15 @@ int main(int argc, char* argv[])
     // load combined mesh from file
     Config::MeshObjectConfig config(combined_mesh_filename, std::nullopt, std::nullopt, std::nullopt, false, false, false, Vec4r(0,0,0,0));
     Config::ObjectConfig obj_config("combined", "default", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
-
     
-    Sim::TetMeshObject combined_mesh_obj(&config, &obj_config);
-    combined_mesh_obj.loadAndConfigureMesh();
-    std::cout << "bounding box: " << combined_mesh_obj.mesh()->boundingBox().min.transpose() << " to " << combined_mesh_obj.mesh()->boundingBox().max.transpose() << std::endl;
+    Config::XPBDMeshObjectConfig xpbd_config(obj_config, config);
+    auto combined_mesh_obj = xpbd_config.createObject(nullptr);
+    combined_mesh_obj->loadAndConfigureMesh();
+    std::cout << "bounding box: " << combined_mesh_obj->mesh()->boundingBox().min.transpose() << " to " << combined_mesh_obj->mesh()->boundingBox().max.transpose() << std::endl;
 
     // add the combined mesh to the Embree scene
     // this will create a scene for the tetrahedra that we can do point queries on
-    embree_scene.addObject(&combined_mesh_obj);
+    embree_scene.addObject(combined_mesh_obj.get());
     embree_scene.update();
 
     std::vector<int> elem_classes(combined_mesh.numElements(), 0);

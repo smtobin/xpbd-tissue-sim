@@ -48,6 +48,8 @@ class CollisionScene
     template <typename ObjectType>
     void addObject(ObjectType* obj, bool collisions=true)
     {
+        _embree_scene->addObject(obj);
+
         if (!collisions)
             return;
 
@@ -126,23 +128,23 @@ class CollisionScene
                 _self_collision_objects.emplace_back(xpbd_obj);
 
         // add to EmbreeScene since collisions are enabled
-        _embree_scene->addObject( (Sim::TetMeshObject*)xpbd_obj );  // explicitly cast to TetMeshObject* so the correct overload of addObject() is called
+        _embree_scene->addObject(xpbd_obj);
 
         
     }
 
     /** Specialization for RigidMeshObject */
-    void addObject(Sim::RigidMeshObject* rigid_mesh_obj, bool collisions=true)
-    {
-        if (collisions)
-        {
-            rigid_mesh_obj->createSDF();
-            _objects.template push_back<Sim::RigidMeshObject*>(rigid_mesh_obj);
-        }
+    // void addObject(Sim::RigidMeshObject* rigid_mesh_obj, bool collisions=true)
+    // {
+    //     if (collisions)
+    //     {
+    //         rigid_mesh_obj->createSDF();
+    //         _objects.template push_back<Sim::RigidMeshObject*>(rigid_mesh_obj);
+    //     }
 
-        // add to EmbreeScene for ray queries (regardless of whether collisions are enabled)
-        _embree_scene->addObject( (Sim::MeshObject*)rigid_mesh_obj );
-    }
+    //     // add to EmbreeScene for ray queries (regardless of whether collisions are enabled)
+    //     _embree_scene->addObject(rigid_mesh_obj);
+    // }
 
     /** Detects collisions between objects in the CollisionScene.
      * When collisions are detected, collision constraints are created and added to the appropriate objects to resolve collisions.

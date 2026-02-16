@@ -1,4 +1,5 @@
 #include "solver/constraint/RigidDeformableCollisionConstraint.hpp"
+#include "simobject/RigidObject.hpp"
 
 namespace Solver
 {

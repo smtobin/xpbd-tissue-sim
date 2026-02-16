@@ -1454,7 +1454,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
         if (!_mesh->vertexOnSurface(i))
             continue;
 
-        std::set<Geometry::EmbreeHit> hits = embree_scene->tetMeshSelfCollisionQuery(i, this);
+        std::set<Geometry::EmbreePQHit> hits = embree_scene->tetMeshSelfCollisionQuery(i, this);
         if (hits.size() > 0)
         {
             int face_index = _sdf->closestSurfaceFaceToPointInTet(_mesh->vertex(i), hits.begin()->prim_index);

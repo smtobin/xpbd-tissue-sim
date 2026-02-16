@@ -1,6 +1,7 @@
 #ifndef __EMBREE_VIRTUOSO_ARM_GEOMETRY_HPP
 #define __EMBREE_VIRTUOSO_ARM_GEOMETRY_HPP
 
+#include <embree4/rtcore.h>
 #include "simobject/VirtuosoArm.hpp"
 
 namespace Geometry

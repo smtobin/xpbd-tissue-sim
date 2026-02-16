@@ -212,7 +212,7 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangle(RTCPointQueryFunctionArguments *
 
     if (d < args->query->radius)
     {
-        EmbreeHit& hit = userData->result;
+        EmbreePQHit& hit = userData->result;
         args->query->radius = d;
         hit.prim_index = args->primID;
         hit.hit_point = closest_point;
@@ -247,7 +247,7 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
 
     if (d < args->query->radius)
     {
-        EmbreeHit& hit = userData->result;
+        EmbreePQHit& hit = userData->result;
         args->query->radius = d;
         hit.prim_index = args->primID;
         hit.hit_point = closest_point;

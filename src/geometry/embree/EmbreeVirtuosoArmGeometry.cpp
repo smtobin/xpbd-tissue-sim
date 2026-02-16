@@ -1,4 +1,5 @@
 #include "geometry/embree/EmbreeVirtuosoArmGeometry.hpp"
+#include <embree4/rtcore.h>
 
 namespace Geometry
 {

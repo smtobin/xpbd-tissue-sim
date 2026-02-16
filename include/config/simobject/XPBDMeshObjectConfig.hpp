@@ -78,6 +78,10 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
         
     }
 
+    explicit XPBDMeshObjectConfig(const ObjectConfig& object_config, const MeshObjectConfig& mobj_config)
+        : ObjectConfig(object_config), MeshObjectConfig(mobj_config)
+    {}
+
     explicit XPBDMeshObjectConfig(  const std::string& name, const std::string& material_class,
                                     const Vec3r& initial_position, const Vec3r& initial_rotation,                  // Object params
                                     const Vec3r& initial_velocity, bool collisions, bool graphics_only,
