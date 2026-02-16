@@ -23,13 +23,13 @@ void EmbreeVirtuosoArmGeometry::boundsFuncCapsule(const struct RTCBoundsFunction
     const Vec3r& p2 = segment.p2();
 
     RTCBounds* bounds = args->bounds_o;
-    bounds->lower_x = std::min(p1[0], p2[0]);
-    bounds->lower_y = std::min(p1[1], p2[1]);
-    bounds->lower_z = std::min(p1[2], p2[2]);
+    bounds->lower_x = std::min(p1[0], p2[0]) - segment.radius();
+    bounds->lower_y = std::min(p1[1], p2[1]) - segment.radius();
+    bounds->lower_z = std::min(p1[2], p2[2]) - segment.radius();
 
-    bounds->upper_x = std::max(p1[0], p2[0]);
-    bounds->upper_y = std::max(p1[1], p2[1]);
-    bounds->upper_z = std::max(p1[2], p2[2]);
+    bounds->upper_x = std::max(p1[0], p2[0]) + segment.radius();
+    bounds->upper_y = std::max(p1[1], p2[1]) + segment.radius();
+    bounds->upper_z = std::max(p1[2], p2[2]) + segment.radius();
 }
 
 void EmbreeVirtuosoArmGeometry::intersectFuncCapsule(const RTCIntersectFunctionNArguments* args)

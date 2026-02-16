@@ -162,6 +162,7 @@ unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
     // create a user-geometry type
     RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
     unsigned geom_id = rtcAttachGeometry(_ray_scene, rtc_geom);
+    geom.setGeomID(geom_id);
 
     rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
 
@@ -204,6 +205,13 @@ void EmbreeScene::update()
 
         // update the point-in-tet query scene
         geom.updateTetScene(_device);
+    }
+
+    for (auto& geom : _embree_arm_geoms)
+    {
+        // update the ray casting scene
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.geomID());
+        rtcCommitGeometry(rtc_geom);
     }
 
     // commit the ray scene once we've updated all the objects
@@ -437,19 +445,44 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
     
 EmbreePQHit EmbreeScene::closestPointSurfaceMesh(const Vec3r& point, const Sim::MeshObject* obj_ptr) const
 {
-    const EmbreeMeshGeometry* geom = _mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeMeshGeometry* geom;
+    if (auto it = _mesh_to_embree_geom.find(obj_ptr); it != _mesh_to_embree_geom.end())
+        geom = it->second;
+    else
+        return EmbreePQHit();
+
     return _closestPointQuery(point, obj_ptr, geom);
 }
 
 EmbreePQHit EmbreeScene::closestPointTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeTetMeshGeometry* geom;
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return EmbreePQHit();
+    }
+    
+    
     return _closestPointQuery(point, obj_ptr, geom);
 }
 
 EmbreePQHit EmbreeScene::closestPointUndeformedTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeTetMeshGeometry* geom;
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return EmbreePQHit();
+    }
+
+    std::cout << "Found tet mesh! Closest point query undeformed..." << std::endl;
     return _closestPointQueryUndeformed(point, obj_ptr, geom);
 }
 
@@ -497,8 +530,19 @@ EmbreePQHit EmbreeScene::_closestPointQueryUndeformed(const Vec3r& point, const 
 
 std::set<EmbreePQHit> EmbreeScene::pointInTetrahedraQuery(const Vec3r& point, Real radius, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
     EmbreePointQueryUserData point_query_data;
+    const EmbreeTetMeshGeometry* geom;
+
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return point_query_data.result;
+    }
+    
+    
     point_query_data.obj_ptr = obj_ptr;
     point_query_data.geom = geom;
     point_query_data.vertex_ind = -1;

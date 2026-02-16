@@ -3,6 +3,9 @@
 
 #include "utils/MeshUtils.hpp"
 
+#include "config/simulation/SimulationConfig.hpp"
+#include "simulation/Simulation.hpp"
+
 #include <vector>
 #include <set>
 #include <map>
@@ -68,6 +71,10 @@ int main(int argc, char* argv[])
 
     gmsh::initialize();
 
+    // create dummy simulation
+    Config::SimulationConfig sim_config;
+    Sim::Simulation dummy_sim(&sim_config);
+
     // std::string combined_mesh_filename = "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_decimated3_r.msh";
     // std::vector<std::string> class_mesh_filenames = {
     //     "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor.msh",
@@ -85,8 +92,8 @@ int main(int argc, char* argv[])
     Config::ObjectConfig obj_config("combined", "default", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
     
     Config::XPBDMeshObjectConfig xpbd_config(obj_config, config);
-    auto combined_mesh_obj = xpbd_config.createObject(nullptr);
-    combined_mesh_obj->loadAndConfigureMesh();
+    auto combined_mesh_obj = xpbd_config.createObject(&dummy_sim);
+    combined_mesh_obj->setup();
     std::cout << "bounding box: " << combined_mesh_obj->mesh()->boundingBox().min.transpose() << " to " << combined_mesh_obj->mesh()->boundingBox().max.transpose() << std::endl;
 
     // add the combined mesh to the Embree scene

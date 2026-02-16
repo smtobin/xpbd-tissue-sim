@@ -65,7 +65,9 @@ class EmbreeScene
     template<typename ObjectType>
     void addObject(const ObjectType* obj_ptr)
     {
+        std::cout << "Adding object..." << std::endl;
         unsigned geom_id = _setupObject(obj_ptr);
+        std::cout << " new geom_id: " << geom_id << std::endl;
 
         if (geom_id != std::numeric_limits<unsigned>::max())
             _geomID_to_obj[geom_id] = obj_ptr;

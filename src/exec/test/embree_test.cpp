@@ -45,11 +45,19 @@ int main()
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/general/single.msh");
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube16.msh");
 
+
+    Config::VirtuosoArmConfig arm_config;
+    auto arm = arm_config.createObject(&dummy_sim);
+    arm->setup();
+
     // create the EmbreeScene object to interface with Embree
     Geometry::EmbreeScene embree_scene;
 
     // add object(s) to EmbreeScene
+    embree_scene.addObject(arm.get());
     embree_scene.addObject(mesh_obj.get());
+    
+    
 
     // translate object and update the EmbreeScene
     Geometry::Mesh::vertices_vec_type initial_vertices = mesh_obj->mesh()->vertices();
@@ -59,8 +67,14 @@ int main()
     
     mesh_obj->refinedTetMesh()->refineElement(0,2);
 
+    // move the mesh
     Vec3r translation(0,0,-5);
     mesh_obj->mesh()->moveTogether(translation);
+
+    // move the arm
+    arm->setBasePosition(Vec3r(0,0,2));
+    arm->update();
+
     embree_scene.update();
 
     Geometry::AABB bbox = mesh_obj->mesh()->boundingBox();
@@ -93,36 +107,40 @@ int main()
     Geometry::EmbreePQHit cp_result = embree_scene.closestPointTetMesh(cp_query_point, mesh_obj.get());
     
     std::cout << "\n=== Results for closest-point query for query point (" << cp_query_point[0] << ", " << cp_query_point[1] << ", " << cp_query_point[2] << ") ===" << std::endl;
-    const Eigen::Vector3i& face = mesh_obj->tetMesh()->face(cp_result.prim_index);
-    const Vec3r& v1 = mesh_obj->tetMesh()->vertex(face[0]);
-    const Vec3r& v2 = mesh_obj->tetMesh()->vertex(face[1]);
-    const Vec3r& v3 = mesh_obj->tetMesh()->vertex(face[2]);
+    if (cp_result.obj)
+    {
+        const Eigen::Vector3i& face = mesh_obj->tetMesh()->face(cp_result.prim_index);
+        const Vec3r& v1 = mesh_obj->tetMesh()->vertex(face[0]);
+        const Vec3r& v2 = mesh_obj->tetMesh()->vertex(face[1]);
+        const Vec3r& v3 = mesh_obj->tetMesh()->vertex(face[2]);
 
-    std::cout << "Face index: " << cp_result.prim_index << std::endl;
-    std::cout << "Face v1: " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
-    std::cout << "Face v2: " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
-    std::cout << "Face v3: " << v3[0] << ", " << v3[1] << ", " << v3[2] << std::endl;
+        std::cout << "Face index: " << cp_result.prim_index << std::endl;
+        std::cout << "Face v1: " << v1[0] << ", " << v1[1] << ", " << v1[2] << std::endl;
+        std::cout << "Face v2: " << v2[0] << ", " << v2[1] << ", " << v2[2] << std::endl;
+        std::cout << "Face v3: " << v3[0] << ", " << v3[1] << ", " << v3[2] << std::endl;
 
-    std::cout << "closest point: " << cp_result.hit_point[0] << ", " << cp_result.hit_point[1] << ", " << cp_result.hit_point[2] << std::endl;
+        std::cout << "closest point: " << cp_result.hit_point[0] << ", " << cp_result.hit_point[1] << ", " << cp_result.hit_point[2] << std::endl;
+    }
 
     // closest point query on undeformed mesh
     const Vec3r cp_query_point2 = cp_query_point - translation;
     Geometry::EmbreePQHit cp_result2 = embree_scene.closestPointUndeformedTetMesh(cp_query_point2, mesh_obj.get());
     std::cout << "\n=== Results for closest-point query (undeformed mesh) for query point (" << cp_query_point2[0] << ", " << cp_query_point2[1] << ", " << cp_query_point2[2] << ") ===" << std::endl;
     std::cout << "Face index: " << cp_result2.prim_index << std::endl;
+    if (cp_result2.obj)
+    {
+        const Eigen::Vector3i& face2 = mesh_obj->tetMesh()->face(cp_result2.prim_index);
+        const Vec3r& v12 = initial_vertices[face2[0]];
+        const Vec3r& v22 = initial_vertices[face2[1]];
+        const Vec3r& v32 = initial_vertices[face2[2]];
 
-    const Eigen::Vector3i& face2 = mesh_obj->tetMesh()->face(cp_result2.prim_index);
-    const Vec3r& v12 = initial_vertices[face2[0]];
-    const Vec3r& v22 = initial_vertices[face2[1]];
-    const Vec3r& v32 = initial_vertices[face2[2]];
+        
+        std::cout << "Face v1: " << v12[0] << ", " << v12[1] << ", " << v12[2] << std::endl;
+        std::cout << "Face v2: " << v22[0] << ", " << v22[1] << ", " << v22[2] << std::endl;
+        std::cout << "Face v3: " << v32[0] << ", " << v32[1] << ", " << v32[2] << std::endl;
 
-    
-    std::cout << "Face v1: " << v12[0] << ", " << v12[1] << ", " << v12[2] << std::endl;
-    std::cout << "Face v2: " << v22[0] << ", " << v22[1] << ", " << v22[2] << std::endl;
-    std::cout << "Face v3: " << v32[0] << ", " << v32[1] << ", " << v32[2] << std::endl;
-
-    std::cout << "closest point: " << cp_result2.hit_point[0] << ", " << cp_result2.hit_point[1] << ", " << cp_result2.hit_point[2] << std::endl;
-
+        std::cout << "closest point: " << cp_result2.hit_point[0] << ", " << cp_result2.hit_point[1] << ", " << cp_result2.hit_point[2] << std::endl;
+    }
     // ray-tracing
     const Vec3r ray_origin(100, 0.38, 0.31);
     const Vec3r ray_dir(-1, 0, 0);
@@ -151,7 +169,21 @@ int main()
             std::cout << "hit point: " << rt_result.hit_point[0] << ", " << rt_result.hit_point[1] << ", " << rt_result.hit_point[2] << std::endl;
         }
     }, rt_result.obj);
-    
+
+    // ray-tracing w/ collision w/ Virtuoso arm
+    const Vec3r ray_origin2(100, 0, 2.001);
+    const Vec3r ray_dir2(-1, 0, 0);
+    Geometry::EmbreeRayHit rt_result2 = embree_scene.castRay(ray_origin2, ray_dir2);
+    std::cout << "\n=== Results for ray query for ray (" << ray_origin2.transpose() << ") with dir (" << ray_dir2.transpose() << ") ===" << std::endl;
+    std::visit([&](auto* obj) {
+        if (!obj)
+        {
+            std::cout << "  No hit detected!" << std::endl;
+            return;
+        }
+        
+        std::cout << "hit point: (" << rt_result2.hit_point.transpose() << ")" << std::endl;
+    }, rt_result2.obj);
     
     
 

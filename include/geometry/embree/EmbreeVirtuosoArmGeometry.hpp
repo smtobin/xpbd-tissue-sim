@@ -18,6 +18,9 @@ class EmbreeVirtuosoArmGeometry
 
     const Sim::VirtuosoArm* arm() const { return _arm; }
 
+    unsigned geomID() const { return _arm_geom_id; }
+    void setGeomID(unsigned id) { _arm_geom_id = id; }
+
     static void intersectFuncCapsule(const RTCIntersectFunctionNArguments* args);
     static void boundsFuncCapsule(const struct RTCBoundsFunctionArguments *args);
 

@@ -39,8 +39,8 @@ struct EmbreeRayHit
 /** "Hit" result for point queries. */
 struct EmbreePQHit
 {
-    const Sim::MeshObject* obj;     // pointer to the mesh object in sim
-    int prim_index;                 // index of primitive
+    const Sim::MeshObject* obj = nullptr;     // pointer to the mesh object in sim
+    int prim_index = -1;                 // index of primitive
     Vec3r hit_point;                // the result of the point query
 
     bool operator <(const EmbreePQHit& other) const
