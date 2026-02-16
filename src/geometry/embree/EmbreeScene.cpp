@@ -145,7 +145,7 @@ unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
     // make sure that arm has not already been added to Embree scene
     if (_arm_to_embree_geom.count(arm_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
-    
+        
 
     /** Create user geometry */
 
@@ -354,6 +354,7 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 // process hits
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
+                    std::cout << "Hit geom id: " << packet.hit.geomID[ri] << std::endl;
                     auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
@@ -734,6 +735,8 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                                 classification = obj->materialClasses()[class_num]->label();
                         }
                     }
+
+                    std::cout << "Class: " << classification << std::endl;
                         
 
                     // put the point in the appropriate vector

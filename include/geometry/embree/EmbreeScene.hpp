@@ -179,6 +179,12 @@ class EmbreeScene
         return _setupObject((const Sim::TetMeshObject*)xpbd_obj);
     }
 
+    unsigned _setupObject(const Sim::RigidMeshObject* mesh_obj)
+    {
+        // explicitly cast to MeshObject so the correct overload gets called
+        return _setupObject((const Sim::MeshObject*)mesh_obj);
+    }
+
     /** Sets up the Embree geometry and scenes for a surface mesh. The primitive Embree triangle type is used.
      * This includes:
      *   - creating a dynamic RTCGeometry for the surface mesh and adding it to the ray-tracing scene

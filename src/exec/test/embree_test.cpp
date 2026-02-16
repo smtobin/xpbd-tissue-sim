@@ -46,16 +46,21 @@ int main()
     // Geometry::TetMesh tet_mesh = MeshUtils::loadTetMeshFromGmshFile("../resource/cube/cube16.msh");
 
 
-    Config::VirtuosoArmConfig arm_config;
-    auto arm = arm_config.createObject(&dummy_sim);
-    arm->setup();
+    Config::VirtuosoArmConfig arm1_config;
+    auto arm1 = arm1_config.createObject(&dummy_sim);
+    arm1->setup();
+
+    Config::VirtuosoArmConfig arm2_config;
+    auto arm2 = arm2_config.createObject(&dummy_sim);
+    arm2->setup();
 
     // create the EmbreeScene object to interface with Embree
     Geometry::EmbreeScene embree_scene;
 
     // add object(s) to EmbreeScene
-    embree_scene.addObject(arm.get());
-    embree_scene.addObject(mesh_obj.get());
+    embree_scene.addObject(arm1.get());
+    embree_scene.addObject(arm2.get());
+    // embree_scene.addObject(mesh_obj.get());
     
     
 
@@ -72,8 +77,8 @@ int main()
     mesh_obj->mesh()->moveTogether(translation);
 
     // move the arm
-    arm->setBasePosition(Vec3r(0,0,2));
-    arm->update();
+    arm1->setBasePosition(Vec3r(0,0,2));
+    arm1->update();
 
     embree_scene.update();
 

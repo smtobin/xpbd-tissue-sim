@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Haptic"
+input-device: "Mouse"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -110,6 +110,7 @@ materials:
 
   -
     name: "Nitinol"
+    label: "Tool"
     # rendering settings
     color: [0.7, 0.7, 0.7]
     render-type: "PBR"
@@ -119,41 +120,41 @@ materials:
 
 # === Objects in the sim ===
 objects:
-  -
-    name: "Tumor"
-    type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-    material: "Raw Chicken Breast"
+  # -
+  #   name: "Tumor"
+  #   type: "FirstOrderXPBDMeshObject"
+  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+  #   fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+  #   material: "Raw Chicken Breast"
 
-    scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+  #   scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+  #   # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-    num-solver-iters: 1
-    num-local-collision-iters: 5
-    residual-policy: "Never"
-    solver-type: "Gauss-Seidel"
-    constraint-type: "Stable-Neohookean-Combined"
-    damping-multiplier: 2e5
-    adjust-damping-to-material: True
+  #   num-solver-iters: 1
+  #   num-local-collision-iters: 5
+  #   residual-policy: "Never"
+  #   solver-type: "Gauss-Seidel"
+  #   constraint-type: "Stable-Neohookean-Combined"
+  #   damping-multiplier: 2e5
+  #   adjust-damping-to-material: True
 
-    collisions: true
-    self-collisions: false
+  #   collisions: true
+  #   self-collisions: false
 
-    adaptive-mesh-refinement: true
-    max-refinement-level: 2
-    compute-heat-conduction: false
+  #   adaptive-mesh-refinement: true
+  #   max-refinement-level: 2
+  #   compute-heat-conduction: false
 
-  -
-    name: "Trachea"
-    type: "RigidMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    material: "Human Trachea"
-    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+  # -
+  #   name: "Trachea"
+  #   type: "RigidMeshObject"
+  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+  #   material: "Human Trachea"
+  #   scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+  #   # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-    collisions: false
-    fixed: true
+  #   collisions: false
+  #   fixed: true
 
   -
     name: "Robot"
@@ -167,6 +168,7 @@ objects:
     -
       name: "Arm1"
       type: "VirtuosoArm"
+      material: "Nitinol"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
@@ -179,6 +181,7 @@ objects:
     - # right arm has the cautery tool for cutting
       name: "Arm2"
       type: "VirtuosoArm"
+      material: "Nitinol"
       tool-type: "cautery"
       cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
       time-threshold: 0.03  # in seconds of wall-clock time
