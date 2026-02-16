@@ -120,41 +120,41 @@ materials:
 
 # === Objects in the sim ===
 objects:
-  # -
-  #   name: "Tumor"
-  #   type: "FirstOrderXPBDMeshObject"
-  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-  #   fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
-  #   material: "Raw Chicken Breast"
+  -
+    name: "Tumor"
+    type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    material: "Raw Chicken Breast"
 
-  #   scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-  #   # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+    scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-  #   num-solver-iters: 1
-  #   num-local-collision-iters: 5
-  #   residual-policy: "Never"
-  #   solver-type: "Gauss-Seidel"
-  #   constraint-type: "Stable-Neohookean-Combined"
-  #   damping-multiplier: 2e5
-  #   adjust-damping-to-material: True
+    num-solver-iters: 1
+    num-local-collision-iters: 5
+    residual-policy: "Never"
+    solver-type: "Gauss-Seidel"
+    constraint-type: "Stable-Neohookean-Combined"
+    damping-multiplier: 2e5
+    adjust-damping-to-material: True
 
-  #   collisions: true
-  #   self-collisions: false
+    collisions: true
+    self-collisions: false
 
-  #   adaptive-mesh-refinement: true
-  #   max-refinement-level: 2
-  #   compute-heat-conduction: false
+    adaptive-mesh-refinement: true
+    max-refinement-level: 2
+    compute-heat-conduction: false
 
-  # -
-  #   name: "Trachea"
-  #   type: "RigidMeshObject"
-  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-  #   material: "Human Trachea"
-  #   scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-  #   # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+  -
+    name: "Trachea"
+    type: "RigidMeshObject"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+    material: "Human Trachea"
+    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-  #   collisions: false
-  #   fixed: true
+    collisions: false
+    fixed: true
 
   -
     name: "Robot"
