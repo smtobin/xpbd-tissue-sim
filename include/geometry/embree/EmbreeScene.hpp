@@ -215,9 +215,9 @@ class EmbreeScene
     std::map<unsigned, SimulationObjectConstPtrVariantType> _geomID_to_obj;
 
     /** Stores all the Embree user geometries */
-    std::vector<EmbreeMeshGeometry> _embree_mesh_geoms;
-    std::vector<EmbreeTetMeshGeometry> _embree_tet_mesh_geoms;
-    std::vector<EmbreeVirtuosoArmGeometry> _embree_arm_geoms;
+    std::vector<std::unique_ptr<EmbreeMeshGeometry>> _embree_mesh_geoms;
+    std::vector<std::unique_ptr<EmbreeTetMeshGeometry>> _embree_tet_mesh_geoms;
+    std::vector<std::unique_ptr<EmbreeVirtuosoArmGeometry>> _embree_arm_geoms;
 
     bool _hasAVX512;
     bool _hasAVX;

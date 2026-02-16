@@ -113,13 +113,13 @@ unsigned EmbreeScene::_setupObject(const Sim::MeshObject* obj_ptr)
         assert(0 && "Object has already been added to Embree scene!");
 
     // create new EmbreeMeshGeometry for the object
-    _embree_mesh_geoms.emplace_back(obj_ptr->mesh());
-    EmbreeMeshGeometry& geom = _embree_mesh_geoms.back();
+    _embree_mesh_geoms.emplace_back(std::make_unique<EmbreeMeshGeometry>(obj_ptr->mesh()));
+    EmbreeMeshGeometry* geom = _embree_mesh_geoms.back().get();
 
-    _mesh_to_embree_geom[obj_ptr] = &geom;
+    _mesh_to_embree_geom[obj_ptr] = geom;
 
     // set up Embree scenes and geometries for the surface mesh
-    return _setupEmbreeForSurfaceMesh(geom);
+    return _setupEmbreeForSurfaceMesh(*geom);
 }
 
 unsigned EmbreeScene::_setupObject(const Sim::TetMeshObject* obj_ptr)
@@ -129,15 +129,15 @@ unsigned EmbreeScene::_setupObject(const Sim::TetMeshObject* obj_ptr)
         assert(0 && "Object has already been added to Embree scene!");
     
     // create new EmbreeTetMeshGeometry for the object
-    _embree_tet_mesh_geoms.emplace_back(obj_ptr->tetMesh());
-    EmbreeTetMeshGeometry& geom = _embree_tet_mesh_geoms.back();
+    _embree_tet_mesh_geoms.emplace_back(std::make_unique<EmbreeTetMeshGeometry>(obj_ptr->tetMesh()));
+    EmbreeTetMeshGeometry* geom = _embree_tet_mesh_geoms.back().get();
 
     // store the new user geometry by its pointer in the maps
-    _tet_mesh_to_embree_geom[obj_ptr] = &geom;
-    _mesh_to_embree_geom[obj_ptr] = &geom;
+    _tet_mesh_to_embree_geom[obj_ptr] = geom;
+    _mesh_to_embree_geom[obj_ptr] = geom;
 
     // set up Embree scenes and geometries for the tet mesh object
-    return _setupEmbreeForTetMesh(geom);
+    return _setupEmbreeForTetMesh(*geom);
 }
 
 unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
@@ -145,16 +145,16 @@ unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
     // make sure that arm has not already been added to Embree scene
     if (_arm_to_embree_geom.count(arm_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
-        
+
 
     /** Create user geometry */
 
     // create new EmbreeVirtuosoArmGeometry for the arm
-    _embree_arm_geoms.emplace_back(arm_ptr);
-    EmbreeVirtuosoArmGeometry& geom = _embree_arm_geoms.back();
+    _embree_arm_geoms.emplace_back(std::make_unique<EmbreeVirtuosoArmGeometry>(arm_ptr));
+    EmbreeVirtuosoArmGeometry* geom = _embree_arm_geoms.back().get();
 
     // store the new user geometry by its pointer in the maps
-    _arm_to_embree_geom[arm_ptr] = &geom;
+    _arm_to_embree_geom[arm_ptr] = geom;
 
 
     /** Add to ray-casting scene */
@@ -162,16 +162,16 @@ unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
     // create a user-geometry type
     RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
     unsigned geom_id = rtcAttachGeometry(_ray_scene, rtc_geom);
-    geom.setGeomID(geom_id);
+    geom->setGeomID(geom_id);
 
     rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
 
     // set custom user data
     rtcSetGeometryUserPrimitiveCount(rtc_geom, arm_ptr->numSegments());
-    rtcSetGeometryUserData(rtc_geom, &geom);
+    rtcSetGeometryUserData(rtc_geom, geom);
 
     // set custom callbacks
-    rtcSetGeometryBoundsFunction(rtc_geom, EmbreeVirtuosoArmGeometry::boundsFuncCapsule, &geom);
+    rtcSetGeometryBoundsFunction(rtc_geom, EmbreeVirtuosoArmGeometry::boundsFuncCapsule, nullptr);
     rtcSetGeometryIntersectFunction(rtc_geom, EmbreeVirtuosoArmGeometry::intersectFuncCapsule);
 
     // commit geometry to scene
@@ -189,8 +189,8 @@ void EmbreeScene::update()
     // (just the ray-scene)
     for (auto& geom : _embree_mesh_geoms)
     {
-        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
@@ -199,18 +199,18 @@ void EmbreeScene::update()
     for (auto& geom : _embree_tet_mesh_geoms)
     {
         // update the ray casting scene
-        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
+        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
 
         // update the point-in-tet query scene
-        geom.updateTetScene(_device);
+        geom->updateTetScene(_device);
     }
 
     for (auto& geom : _embree_arm_geoms)
     {
         // update the ray casting scene
-        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.geomID());
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->geomID());
         rtcCommitGeometry(rtc_geom);
     }
 
@@ -235,8 +235,8 @@ void EmbreeScene::updateRayScene()
     // update buffers for surface meshes
     for (auto& geom : _embree_mesh_geoms)
     {
-        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
@@ -244,9 +244,16 @@ void EmbreeScene::updateRayScene()
     for (auto& geom : _embree_tet_mesh_geoms)
     {
         // only update the ray scene geometry (not the tetrahedral mesh geometry)
-        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
+        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
+    }
+
+    for (auto& geom : _embree_arm_geoms)
+    {
+        // update the ray casting scene
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->geomID());
+        rtcCommitGeometry(rtc_geom);
     }
 
     // commit the ray scene (rebuild the BVH) after we've updated all the buffers
@@ -354,7 +361,6 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 // process hits
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
-                    std::cout << "Hit geom id: " << packet.hit.geomID[ri] << std::endl;
                     auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
@@ -735,8 +741,6 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                                 classification = obj->materialClasses()[class_num]->label();
                         }
                     }
-
-                    std::cout << "Class: " << classification << std::endl;
                         
 
                     // put the point in the appropriate vector
