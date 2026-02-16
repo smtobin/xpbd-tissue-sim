@@ -1,4 +1,5 @@
 #include "geometry/DeformableMeshSDF.hpp"
+#include "geometry/embree/EmbreeScene.hpp"
 
 #include "utils/GeometryUtils.hpp"
 
@@ -32,11 +33,11 @@ DeformableMeshSDF::DeformableMeshSDF(const Sim::TetMeshObject* mesh_obj, const E
 Real DeformableMeshSDF::evaluate(const Vec3r& x) const
 {
     // find enclosing tetrahedron for query point
-    std::set<EmbreeHit> query_result = _embree_scene->pointInTetrahedraQuery(x, 0, _mesh_obj);
+    std::set<EmbreePQHit> query_result = _embree_scene->pointInTetrahedraQuery(x, 0, _mesh_obj);
 
     // find closest point on surface for query point
     const int sign = (query_result.empty()) ? 1 : -1;
-    EmbreeHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
+    EmbreePQHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
     return (hit.hit_point - x).norm() * sign;
 
     // if (query_result.empty())
@@ -61,7 +62,7 @@ Real DeformableMeshSDF::evaluate(const Vec3r& x) const
 Vec3r DeformableMeshSDF::gradient(const Vec3r& x) const
 {
     // TODO
-    EmbreeHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
+    EmbreePQHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
     return (hit.hit_point - x).normalized();
 }
 
@@ -81,14 +82,14 @@ int DeformableMeshSDF::closestSurfaceFaceToPointInTet(const Vec3r& x, int tet_in
     const Vec3r X_m = F.inverse() * (x - v4) + _initial_vertices[elem[3]];
     // std::cout << "X_m: " << X_m.transpose() << std::endl;
 
-    EmbreeHit cp = _embree_scene->closestPointUndeformedTetMesh(X_m, _mesh_obj);
+    EmbreePQHit cp = _embree_scene->closestPointUndeformedTetMesh(X_m, _mesh_obj);
     // std::cout << "Closest point: " << cp.hit_point.transpose() << std::endl;
     return cp.prim_index;
 }
 
 std::pair<int, Vec3r> DeformableMeshSDF::closestSurfacePoint(const Vec3r& x) const
 {
-    EmbreeHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
+    EmbreePQHit hit = _embree_scene->closestPointTetMesh(x, _mesh_obj);
     return std::make_pair(hit.prim_index, hit.hit_point);
 }
 

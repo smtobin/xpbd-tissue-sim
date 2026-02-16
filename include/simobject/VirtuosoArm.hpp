@@ -6,6 +6,7 @@
 
 #include "geometry/CoordinateFrame.hpp"
 #include "geometry/VirtuosoArmSDF.hpp"
+#include "geometry/Capsule.hpp"
 
 #include <array>
 #include <variant>
@@ -227,6 +228,14 @@ class VirtuosoArm : public Object
     }
 
     virtual const SDFType* SDF() const override { return _sdf.has_value() ? &_sdf.value() : nullptr; }
+
+    /** Returns the number of integration segments, i.e. the number of distinct segments between integration points */
+    int numSegments() const;
+
+    /** Returns a Capsule object for the segment between integration points index and index+1.
+     * Throws an error if the index > number of segments
+     */
+    Geometry::Capsule segment(int index) const;
 
     Real innerTubeOuterDiameter() const { return _it_outer_dia; }
     Real innerTubeInnerDiameter() const { return _it_inner_dia; }

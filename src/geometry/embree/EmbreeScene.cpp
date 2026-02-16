@@ -4,6 +4,9 @@
 #include <math.h>
 
 #include "simobject/XPBDMeshObject.hpp"
+#include "simobject/RigidPrimitives.hpp"
+#include "simobject/RigidMeshObject.hpp"
+#include "simobject/VirtuosoRobot.hpp"
 
 namespace Geometry
 {
@@ -42,7 +45,7 @@ EmbreeScene::~EmbreeScene()
     
 }
 
-void EmbreeScene::_setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom)
+unsigned EmbreeScene::_setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom)
 {
     /** Ray-casting scene */
 
@@ -81,14 +84,16 @@ void EmbreeScene::_setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom)
     rtcCommitGeometry(rtc_undeformed_geom);
     rtcCommitScene(undeformed_mesh_scene);
     rtcReleaseGeometry(rtc_undeformed_geom);
+
+    return mesh_geom.meshGeomID();
 }
 
 
-void EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom)
+unsigned EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom)
 {
 
     /** Setup for surface mesh part of the volume mesh */
-    _setupEmbreeForSurfaceMesh(tet_mesh_geom);
+    unsigned geom_id = _setupEmbreeForSurfaceMesh(tet_mesh_geom);
 
 
 
@@ -97,44 +102,84 @@ void EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom)
     // create a new scene for the TetMesh exclusively for point-in-tetrahedra queries
     tet_mesh_geom.createTetScene(_device);
     tet_mesh_geom.updateTetScene(_device);
+
+    return geom_id;
 }
 
-void EmbreeScene::addObject(const Sim::MeshObject* obj_ptr)
+unsigned EmbreeScene::_setupObject(const Sim::MeshObject* obj_ptr)
 {
     // make sure that object has not already been added to Embree scene
     if (_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
 
     // create new EmbreeMeshGeometry for the object
-    _embree_mesh_geoms.emplace_back(obj_ptr->mesh());
-    EmbreeMeshGeometry& geom = _embree_mesh_geoms.back();
+    _embree_mesh_geoms.emplace_back(std::make_unique<EmbreeMeshGeometry>(obj_ptr->mesh()));
+    EmbreeMeshGeometry* geom = _embree_mesh_geoms.back().get();
 
-    _mesh_to_embree_geom[obj_ptr] = &geom;
+    _mesh_to_embree_geom[obj_ptr] = geom;
 
     // set up Embree scenes and geometries for the surface mesh
-    _setupEmbreeForSurfaceMesh(geom);
-    _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
-    
+    return _setupEmbreeForSurfaceMesh(*geom);
 }
 
-void EmbreeScene::addObject(const Sim::TetMeshObject* obj_ptr)
+unsigned EmbreeScene::_setupObject(const Sim::TetMeshObject* obj_ptr)
 {
     // make sure that object has not already been added to Embree scene
     if (_tet_mesh_to_embree_geom.count(obj_ptr) > 0)
         assert(0 && "Object has already been added to Embree scene!");
     
     // create new EmbreeTetMeshGeometry for the object
-    _embree_tet_mesh_geoms.emplace_back(obj_ptr->tetMesh());
-    EmbreeTetMeshGeometry& geom = _embree_tet_mesh_geoms.back();
+    _embree_tet_mesh_geoms.emplace_back(std::make_unique<EmbreeTetMeshGeometry>(obj_ptr->tetMesh()));
+    EmbreeTetMeshGeometry* geom = _embree_tet_mesh_geoms.back().get();
 
     // store the new user geometry by its pointer in the maps
-    _tet_mesh_to_embree_geom[obj_ptr] = &geom;
-    _mesh_to_embree_geom[obj_ptr] = &geom;
+    _tet_mesh_to_embree_geom[obj_ptr] = geom;
+    _mesh_to_embree_geom[obj_ptr] = geom;
 
     // set up Embree scenes and geometries for the tet mesh object
-    _setupEmbreeForTetMesh(geom);
-    _geomID_to_mesh_obj[geom.meshGeomID()] = obj_ptr;
-    
+    return _setupEmbreeForTetMesh(*geom);
+}
+
+unsigned EmbreeScene::_setupObject(const Sim::VirtuosoArm* arm_ptr)
+{
+    // make sure that arm has not already been added to Embree scene
+    if (_arm_to_embree_geom.count(arm_ptr) > 0)
+        assert(0 && "Object has already been added to Embree scene!");
+
+
+    /** Create user geometry */
+
+    // create new EmbreeVirtuosoArmGeometry for the arm
+    _embree_arm_geoms.emplace_back(std::make_unique<EmbreeVirtuosoArmGeometry>(arm_ptr));
+    EmbreeVirtuosoArmGeometry* geom = _embree_arm_geoms.back().get();
+
+    // store the new user geometry by its pointer in the maps
+    _arm_to_embree_geom[arm_ptr] = geom;
+
+
+    /** Add to ray-casting scene */
+
+    // create a user-geometry type
+    RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
+    unsigned geom_id = rtcAttachGeometry(_ray_scene, rtc_geom);
+    geom->setGeomID(geom_id);
+
+    rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
+
+    // set custom user data
+    rtcSetGeometryUserPrimitiveCount(rtc_geom, arm_ptr->numSegments());
+    rtcSetGeometryUserData(rtc_geom, geom);
+
+    // set custom callbacks
+    rtcSetGeometryBoundsFunction(rtc_geom, EmbreeVirtuosoArmGeometry::boundsFuncCapsule, nullptr);
+    rtcSetGeometryIntersectFunction(rtc_geom, EmbreeVirtuosoArmGeometry::intersectFuncCapsule);
+
+    // commit geometry to scene
+    rtcCommitGeometry(rtc_geom);
+    rtcCommitScene(_ray_scene);     // this will build BVH
+    rtcReleaseGeometry(rtc_geom);
+
+    return geom_id;
 }
 
 
@@ -144,8 +189,8 @@ void EmbreeScene::update()
     // (just the ray-scene)
     for (auto& geom : _embree_mesh_geoms)
     {
-        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
@@ -154,12 +199,19 @@ void EmbreeScene::update()
     for (auto& geom : _embree_tet_mesh_geoms)
     {
         // update the ray casting scene
-        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
+        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
 
         // update the point-in-tet query scene
-        geom.updateTetScene(_device);
+        geom->updateTetScene(_device);
+    }
+
+    for (auto& geom : _embree_arm_geoms)
+    {
+        // update the ray casting scene
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->geomID());
+        rtcCommitGeometry(rtc_geom);
     }
 
     // commit the ray scene once we've updated all the objects
@@ -183,8 +235,8 @@ void EmbreeScene::updateRayScene()
     // update buffers for surface meshes
     for (auto& geom : _embree_mesh_geoms)
     {
-        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_geom);
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_geom);
         rtcCommitGeometry(rtc_geom);
     }
 
@@ -192,9 +244,16 @@ void EmbreeScene::updateRayScene()
     for (auto& geom : _embree_tet_mesh_geoms)
     {
         // only update the ray scene geometry (not the tetrahedral mesh geometry)
-        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom.meshGeomID());
-        geom.updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
+        RTCGeometry rtc_mesh_geom = rtcGetGeometry(_ray_scene, geom->meshGeomID());
+        geom->updateSurfaceMeshGeometryBuffers(rtc_mesh_geom);
         rtcCommitGeometry(rtc_mesh_geom);
+    }
+
+    for (auto& geom : _embree_arm_geoms)
+    {
+        // update the ray casting scene
+        RTCGeometry rtc_geom = rtcGetGeometry(_ray_scene, geom->geomID());
+        rtcCommitGeometry(rtc_geom);
     }
 
     // commit the ray scene (rebuild the BVH) after we've updated all the buffers
@@ -224,36 +283,36 @@ RTCRayHit EmbreeScene::_createRayHit(const Vec3r& origin, const Vec3r& dir) cons
     return rayhit;
 }
 
-EmbreeHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const
+EmbreeRayHit EmbreeScene::_processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const
 {
     // check if we have a hit
     if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID)
     {
-        const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(rayhit.hit.geomID);
+        auto obj_variant = _geomID_to_obj.at(rayhit.hit.geomID);
         float t = rayhit.ray.tfar;
         
-        EmbreeHit hit;
-        hit.obj = obj;
+        EmbreeRayHit hit;
+        hit.obj = obj_variant;
         hit.prim_index = rayhit.hit.primID;
         hit.hit_point = origin + t*dir;
         return hit;
     }
     else
     {
-        EmbreeHit hit;
-        hit.obj = nullptr;
+        EmbreeRayHit hit;
+        hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
         return hit;
     }
 }
 
-EmbreeHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
+EmbreeRayHit EmbreeScene::castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const
 {
     RTCRayHit rayhit = _createRayHit(ray_origin, ray_dir);
     rtcIntersect1(_ray_scene, &rayhit, nullptr);
     return _processRayHit(rayhit, ray_origin, ray_dir);
 }
 
-void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeHit>& hits) const
+void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeRayHit>& hits) const
 {
     hits.clear();
     unsigned total_num_rays = dirs.size();
@@ -302,11 +361,11 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 // process hits
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
-                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
-                    EmbreeHit hit;
-                    hit.obj = obj;
+                    EmbreeRayHit hit;
+                    hit.obj = obj_variant;
                     hit.prim_index = packet.hit.primID[ri];
                     hit.hit_point = origins[i+ri] + t*dirs[i+ri];
                     hits.push_back(hit);
@@ -314,8 +373,8 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
                 // ray did not hit
                 else
                 {
-                    EmbreeHit hit;
-                    hit.obj = nullptr;
+                    EmbreeRayHit hit;
+                    hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
                     hits.push_back(hit);
                 }
             }
@@ -364,19 +423,19 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
             {
                 if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
                 {
-                    const Sim::MeshObject* obj = _geomID_to_mesh_obj.at(packet.hit.geomID[ri]);
+                    auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
                     float t = packet.ray.tfar[ri];
                     
-                    EmbreeHit hit;
-                    hit.obj = obj;
+                    EmbreeRayHit hit;
+                    hit.obj = obj_variant;
                     hit.prim_index = packet.hit.primID[ri];
                     hit.hit_point = origins[i+ri] + t*dirs[i+ri];
                     hits.push_back(hit);
                 }
                 else
                 {
-                    EmbreeHit hit;
-                    hit.obj = nullptr;
+                    EmbreeRayHit hit;
+                    hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
                     hits.push_back(hit);
                 }
             }
@@ -391,25 +450,50 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
     }
 }
     
-EmbreeHit EmbreeScene::closestPointSurfaceMesh(const Vec3r& point, const Sim::MeshObject* obj_ptr) const
+EmbreePQHit EmbreeScene::closestPointSurfaceMesh(const Vec3r& point, const Sim::MeshObject* obj_ptr) const
 {
-    const EmbreeMeshGeometry* geom = _mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeMeshGeometry* geom;
+    if (auto it = _mesh_to_embree_geom.find(obj_ptr); it != _mesh_to_embree_geom.end())
+        geom = it->second;
+    else
+        return EmbreePQHit();
+
     return _closestPointQuery(point, obj_ptr, geom);
 }
 
-EmbreeHit EmbreeScene::closestPointTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
+EmbreePQHit EmbreeScene::closestPointTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeTetMeshGeometry* geom;
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return EmbreePQHit();
+    }
+    
+    
     return _closestPointQuery(point, obj_ptr, geom);
 }
 
-EmbreeHit EmbreeScene::closestPointUndeformedTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
+EmbreePQHit EmbreeScene::closestPointUndeformedTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
+    const EmbreeTetMeshGeometry* geom;
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return EmbreePQHit();
+    }
+
+    std::cout << "Found tet mesh! Closest point query undeformed..." << std::endl;
     return _closestPointQueryUndeformed(point, obj_ptr, geom);
 }
 
-EmbreeHit EmbreeScene::_closestPointQuery(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const
+EmbreePQHit EmbreeScene::_closestPointQuery(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const
 {
     EmbreeClosestPointQueryUserData point_query_data;
     point_query_data.obj_ptr = obj_ptr;
@@ -430,7 +514,7 @@ EmbreeHit EmbreeScene::_closestPointQuery(const Vec3r& point, const Sim::MeshObj
 
 }
 
-EmbreeHit EmbreeScene::_closestPointQueryUndeformed(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const
+EmbreePQHit EmbreeScene::_closestPointQueryUndeformed(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const
 {
     EmbreeClosestPointQueryUserData point_query_data;
     point_query_data.obj_ptr = obj_ptr;
@@ -451,10 +535,21 @@ EmbreeHit EmbreeScene::_closestPointQueryUndeformed(const Vec3r& point, const Si
 
 }
 
-std::set<EmbreeHit> EmbreeScene::pointInTetrahedraQuery(const Vec3r& point, Real radius, const Sim::TetMeshObject* obj_ptr) const
+std::set<EmbreePQHit> EmbreeScene::pointInTetrahedraQuery(const Vec3r& point, Real radius, const Sim::TetMeshObject* obj_ptr) const
 {
-    const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
     EmbreePointQueryUserData point_query_data;
+    const EmbreeTetMeshGeometry* geom;
+
+    if (auto it = _tet_mesh_to_embree_geom.find(obj_ptr); it != _tet_mesh_to_embree_geom.end())
+    {
+        geom = it->second;
+    }
+    else
+    {
+        return point_query_data.result;
+    }
+    
+    
     point_query_data.obj_ptr = obj_ptr;
     point_query_data.geom = geom;
     point_query_data.vertex_ind = -1;
@@ -474,7 +569,7 @@ std::set<EmbreeHit> EmbreeScene::pointInTetrahedraQuery(const Vec3r& point, Real
     return point_query_data.result;
 }
 
-std::set<EmbreeHit> EmbreeScene::tetMeshSelfCollisionQuery(int vertex_index, const Sim::TetMeshObject* obj_ptr) const
+std::set<EmbreePQHit> EmbreeScene::tetMeshSelfCollisionQuery(int vertex_index, const Sim::TetMeshObject* obj_ptr) const
 {
     const EmbreeTetMeshGeometry* geom = _tet_mesh_to_embree_geom.at(obj_ptr);
     EmbreePointQueryUserData point_query_data;
@@ -517,7 +612,7 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
     
     std::vector<Vec3r> origins(16, origin);
     std::vector<Vec3r> directions(16);
-    std::vector<EmbreeHit> hits(16);
+    std::vector<EmbreeRayHit> hits(16);
 
     for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
@@ -553,10 +648,10 @@ std::vector<Vec3r> EmbreeScene::partialViewPointCloud(const Vec3r& origin, const
 
             for (const auto& hit : hits)
             {
-                if (hit.obj)
-                {
-                    hit_points.push_back(hit.hit_point);
-                }
+                std::visit([&](auto&& hit_obj){
+                    if (hit_obj)    // if hit object is not nullptr, add the hit point
+                        hit_points.push_back(hit.hit_point);
+                }, hit.obj);
             }
         }
     }
@@ -588,7 +683,7 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
     
     std::vector<Vec3r> origins(16, origin);
     std::vector<Vec3r> directions(16);
-    std::vector<EmbreeHit> hits(16);
+    std::vector<EmbreeRayHit> hits(16);
 
     for (int h_ind = 0; h_ind < h_ind_max; h_ind += 4)
     {
@@ -624,36 +719,27 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
 
             for (const auto& hit : hits)
             {
-                if (hit.obj)
-                {
+                std::visit([&](auto* obj) {
+                    if (!obj)
+                        return;
+
+                    using ObjectType = std::remove_pointer_t<std::decay_t<decltype(obj)>>;
+                        
                     // get the class of the face that we hit
-                    std::string classification = "";
-                    if (hit.obj->mesh()->hasFaceProperty<int>("class"))
+                    // in most cases, this is the label for the object's material
+                    std::string classification = obj->materialClass()->label();
+
+                    if constexpr(std::is_base_of_v<Sim::MeshObject, ObjectType>)
                     {
-                        int class_num = hit.obj->mesh()->getFaceProperty<int>("class").get(hit.prim_index);
-                        /** TODO: dynamic_cast = yucky, can we do better?
-                         * 
-                         * 
-                         */
-                        if (auto xpbd_obj = dynamic_cast<const Sim::XPBDMeshObject_Base*>(hit.obj))
+                        // special case: the object we hit is a MeshObject, with different "classes" defined for each face
+                        if (obj->mesh()->template hasFaceProperty<int>("class"))
                         {
-                            classification = xpbd_obj->materialClasses()[class_num]->label();
+                            int class_num = obj->mesh()->template getFaceProperty<int>("class").get(hit.prim_index);
+                            if constexpr (std::is_same_v<Sim::XPBDMeshObject_Base, ObjectType>)
+                                classification = obj->materialClasses()[class_num]->label();
+                            else if constexpr (std::is_same_v<Sim::FirstOrderXPBDMeshObject_Base, ObjectType>)
+                                classification = obj->materialClasses()[class_num]->label();
                         }
-                        else if (auto xpbd_obj = dynamic_cast<const Sim::FirstOrderXPBDMeshObject_Base*>(hit.obj))
-                        {
-                            classification = xpbd_obj->materialClasses()[class_num]->label();
-                        }
-                        else if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                        {
-                            classification = obj->materialClass()->label();
-                        }
-                    }
-                    else
-                    {
-                        if (auto obj = dynamic_cast<const Sim::Object*>(hit.obj))
-                        {
-                            classification = obj->materialClass()->label();
-                        } 
                     }
                         
 
@@ -676,7 +762,8 @@ std::vector<PointsWithClass> EmbreeScene::partialViewPointCloudsWithClass(const 
                         // add an entry to the map so we know which index in the vector is associated with this class
                         class_to_vector_index[classification] = point_clouds.size()-1;
                     }
-                }
+                    
+                }, hit.obj);
             }
         }
     }

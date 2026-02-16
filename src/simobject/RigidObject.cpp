@@ -91,15 +91,15 @@ void RigidObject::applyForceAtPoint(const Vec3r& f, const Vec3r& p)
     _q = _q + 0.5 * _sim->dt() * (GeometryUtils::quatMult(w4, _q));
 }
 
-Vec3r RigidObject::globalToBody(const Vec3r& x) const
-{
-    return GeometryUtils::rotateVectorByQuat(x - _p, GeometryUtils::inverseQuat(_q));
-}
+// Vec3r RigidObject::globalToBody(const Vec3r& x) const
+// {
+//     return GeometryUtils::rotateVectorByQuat(x - _p, GeometryUtils::inverseQuat(_q));
+// }
 
-Vec3r RigidObject::bodyToGlobal(const Vec3r& x) const
-{
-    return _p + GeometryUtils::rotateVectorByQuat(x, _q);
-}
+// Vec3r RigidObject::bodyToGlobal(const Vec3r& x) const
+// {
+//     return _p + GeometryUtils::rotateVectorByQuat(x, _q);
+// }
 
 Geometry::TransformationMatrix RigidObject::transform() const
 {

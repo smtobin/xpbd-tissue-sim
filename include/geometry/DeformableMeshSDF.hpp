@@ -9,12 +9,13 @@
 #include <Mesh2SDF/MeshSDF.hpp>
 
 #include "geometry/SDF.hpp"
-#include "geometry/embree/EmbreeScene.hpp"
 
 #include "simobject/MeshObject.hpp"
 
 namespace Geometry
 {
+
+class EmbreeScene;
 
 class DeformableMeshSDF : public SDF
 {

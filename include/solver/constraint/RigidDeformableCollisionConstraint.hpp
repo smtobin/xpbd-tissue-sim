@@ -3,7 +3,6 @@
 
 #include "solver/constraint/RigidBodyConstraint.hpp"
 #include "solver/constraint/CollisionConstraint.hpp"
-#include "simobject/RigidObject.hpp"
 #include "geometry/SDF.hpp"
 
 #ifdef HAVE_CUDA

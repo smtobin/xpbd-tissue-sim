@@ -69,13 +69,19 @@ class RigidObject : public Object
      * @param p : the point expressed in world frame coords
      * @returns the point p expressed in the current body-frame coordinates
     */
-    Vec3r globalToBody(const Vec3r& p) const;
+    Vec3r globalToBody(const Vec3r& x) const
+    {
+        return GeometryUtils::rotateVectorByQuat(x - _p, GeometryUtils::inverseQuat(_q));
+    }
 
     /** Returns the coordinates of p (which is specified in body-frame coords) w.r.t the global XYZ coordinate system.
      * @param p : a point in body-frame coordinates
      * @returns the point p expressed in world frame coords
     */
-    Vec3r bodyToGlobal(const Vec3r& p) const;
+    Vec3r bodyToGlobal(const Vec3r& x) const
+    {
+        return _p + GeometryUtils::rotateVectorByQuat(x, _q);
+    }
 
     protected:
     /** Position of rigid body */

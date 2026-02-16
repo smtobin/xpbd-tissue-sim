@@ -11,6 +11,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
 {
     _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/trachea_partial_view_pc", 10);
     _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/tumor_partial_view_pc", 10);
+    _tool_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sin/output/tool_partial_view_pc", 10);
     
     this->declare_parameter("partial_view_pc", true);
     this->declare_parameter("partial_view_pc_hfov", 80.0);
@@ -19,6 +20,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
 
     this->declare_parameter("trachea_label", "Trachea");
     this->declare_parameter("tumor_label", "Tumor");
+    this->declare_parameter("tool_label", "Tool");
 
     Real hfov_deg = this->get_parameter("partial_view_pc_hfov").as_double();
     Real vfov_deg = this->get_parameter("partial_view_pc_vfov").as_double();
@@ -64,6 +66,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
 
     configure_pcl_message(_trachea_partial_view_pc_message);
     configure_pcl_message(_tumor_partial_view_pc_message);
+    configure_pcl_message(_tool_partial_view_pc_message);
     
 
     auto partial_view_pc_callback = 
@@ -82,6 +85,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
 
             const std::string trachea_label = this->get_parameter("trachea_label").as_string();
             const std::string tumor_label = this->get_parameter("tumor_label").as_string();
+            const std::string tool_label = this->get_parameter("tool_label").as_string();
 
             this->_sim->updateEmbreeRayScene();
             std::vector<Geometry::PointsWithClass> point_clouds = 
@@ -128,14 +132,32 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
                         *(pc_data + 3*i+2) = static_cast<float>(pc.points[i][2]);
                     }
                 }
+
+                else if (pc.classification == tool_label)
+                {
+                    this->_tool_partial_view_pc_message.header.stamp = this->now();
+                    this->_tool_partial_view_pc_message.width = pc.points.size();
+                    this->_tool_partial_view_pc_message.row_step = this->_tool_partial_view_pc_message.width * this->_tool_partial_view_pc_message.point_step;
+                    this->_tool_partial_view_pc_message.data.resize(this->_tool_partial_view_pc_message.row_step);
+
+                    float* pc_data = (float*)this->_tool_partial_view_pc_message.data.data();
+                    for (unsigned i = 0; i < pc.points.size(); i++)
+                    {
+                        *(pc_data + 3*i) = static_cast<float>(pc.points[i][0]);
+                        *(pc_data + 3*i+1) = static_cast<float>(pc.points[i][1]);
+                        *(pc_data + 3*i+2) = static_cast<float>(pc.points[i][2]);
+                    }
+                }
             }
 
             this->_trachea_partial_view_pc_message.header.stamp = this->now();
             this->_tumor_partial_view_pc_message.header.stamp = this->now();
+            this->_tool_partial_view_pc_message.header.stamp = this->now();
 
             // publish the messages
             this->_trachea_partial_view_pc_publisher->publish(this->_trachea_partial_view_pc_message);
             this->_tumor_partial_view_pc_publisher->publish(this->_tumor_partial_view_pc_message);
+            this->_tool_partial_view_pc_publisher->publish(this->_tool_partial_view_pc_message);
         };
     
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), partial_view_pc_callback);

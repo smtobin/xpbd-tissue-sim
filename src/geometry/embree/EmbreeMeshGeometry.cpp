@@ -212,8 +212,9 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangle(RTCPointQueryFunctionArguments *
 
     if (d < args->query->radius)
     {
-        EmbreeHit& hit = userData->result;
+        EmbreePQHit& hit = userData->result;
         args->query->radius = d;
+        hit.obj = userData->obj_ptr;
         hit.prim_index = args->primID;
         hit.hit_point = closest_point;
 
@@ -230,12 +231,6 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
     // Get the geometry data
     const EmbreeMeshGeometry *geom = userData->geom;
 
-    // only consider point queries for the geometry we're interested in
-    // TODO: should we do point queries for 
-    if (args->geomID != geom->meshGeomID())
-        return true;
-
-    
     const Vec3i& indices = geom->mesh()->face(args->primID);
     const Geometry::Mesh::vertices_vec_type& initial_vertices = geom->initialVertices();
     const Vec3r& v1 = initial_vertices[indices[0]];
@@ -247,8 +242,9 @@ bool EmbreeMeshGeometry::pointQueryFuncTriangleInitialVertices(RTCPointQueryFunc
 
     if (d < args->query->radius)
     {
-        EmbreeHit& hit = userData->result;
+        EmbreePQHit& hit = userData->result;
         args->query->radius = d;
+        hit.obj = userData->obj_ptr;
         hit.prim_index = args->primID;
         hit.hit_point = closest_point;
 

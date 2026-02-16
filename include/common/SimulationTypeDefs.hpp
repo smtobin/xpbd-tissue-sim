@@ -35,4 +35,7 @@ struct GetObjectTypesFromConfigTypes<TypeList<ConfigTypes...>>
 /** The types of simulation Objects the Simulation should expect. These come directly from the SimulationObjectconfigTypes. */
 using SimulationObjectTypes = GetObjectTypesFromConfigTypes<SimulationObjectConfigTypes>::deduped_type;
 
+// define std::variant with const ptr types of all object types
+using SimulationObjectConstPtrVariantType = VariantFromTypeList<SimulationObjectTypes>::const_ptr_type;
+
 #endif // __SIMULATION_TYPE_DEFS_HPP

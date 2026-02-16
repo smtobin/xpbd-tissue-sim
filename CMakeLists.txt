@@ -260,7 +260,7 @@ add_executable(TombstoneVectorTest src/exec/test/tombstone_vector_test.cpp)
 target_link_libraries(TombstoneVectorTest Eigen3::Eigen)
 
 add_executable(EmbreeTest src/exec/test/embree_test.cpp)
-target_link_libraries(EmbreeTest embree Geometry MeshUtils)
+target_link_libraries(EmbreeTest embree Config SimObject Simulation Solver Geometry MeshUtils)
 
 add_executable(VirtuosoStaticsModelTest src/exec/test/virtuoso_statics_model_test.cpp)
 target_link_libraries(VirtuosoStaticsModelTest Eigen3::Eigen SimObject Config Graphics ${VTK_LIBRARIES})
@@ -284,7 +284,7 @@ add_executable(RefinedFEMTest src/exec/test/refined_fem_test.cpp)
 target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils Graphics ${PETSC_LIB} ${VTK_LIBRARIES})
 
 add_executable(AssignElements src/exec/util/assign_elements.cpp)
-target_link_libraries(AssignElements Config SimObject Geometry MeshUtils)
+target_link_libraries(AssignElements Config SimObject Simulation Geometry MeshUtils)
 
 vtk_module_autoinit(
   TARGETS Test BeamTest GraspingTest VirtuosoTest VirtuosoTracheaDemo VTKTest VirtuosoStaticsModelTest InitialDeformationTest MeshRefinementTest RefinedFEMTest

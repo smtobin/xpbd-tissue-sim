@@ -8,9 +8,13 @@
 
 #include "geometry/embree/EmbreeMeshGeometry.hpp"
 #include "geometry/embree/EmbreeTetMeshGeometry.hpp"
+#include "geometry/embree/EmbreeVirtuosoArmGeometry.hpp"
 #include "geometry/embree/EmbreeQueryStructs.hpp"
 
 #include "simobject/MeshObject.hpp"
+#include "simobject/VirtuosoArm.hpp"
+
+// #include "common/SimulationTypeDefs.hpp"
 
 #include <map>
 #include <set>
@@ -52,22 +56,31 @@ struct PointsWithClass
 class EmbreeScene
 {   
     public:
+
     EmbreeScene();
 
     ~EmbreeScene();
 
     /** Add a generic object to the EmbreeScene */
     template<typename ObjectType>
-    void addObject(const ObjectType* /*obj_ptr*/)
+    void addObject(const ObjectType* obj_ptr)
     {
-        /** TODO: add AABB's to _collision_scene */
+        std::cout << "Adding object..." << std::endl;
+        unsigned geom_id = _setupObject(obj_ptr);
+        std::cout << " new geom_id: " << geom_id << std::endl;
+
+        if (geom_id != std::numeric_limits<unsigned>::max())
+            _geomID_to_obj[geom_id] = obj_ptr;
     }
 
     /** Add a tetrahedral mesh object to the EmbreeScene */
-    void addObject(const Sim::TetMeshObject* obj);
+    // void addObject(const Sim::TetMeshObject* obj);
 
     /** Add a surface mesh object to the EmbreeScene */
-    void addObject(const Sim::MeshObject* obj);
+    // void addObject(const Sim::MeshObject* obj);
+
+    /** Add a Virtuoso arm to the EmbreeScene */
+    // void addObject(const Sim::VirtuosoArm* obj);
 
     /** Updates all Embree scenes. */
     void update();
@@ -99,7 +112,7 @@ class EmbreeScene
      * @param ray_dir : direction of the ray (a unit vector)
      * @returns a struct with the intersection info
      */
-    EmbreeHit castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const;
+    EmbreeRayHit castRay(const Vec3r& ray_origin, const Vec3r& ray_dir) const;
 
     /** Casts multiple rays and reports their intersections.
      * Selects the highest available SIMD parallelization (1, 4, 8, or 16) depending on what is available on the CPU.
@@ -107,24 +120,24 @@ class EmbreeScene
      * @param dirs : the directions of the rays (unit vectors)
      * @param hits (OUTPUT) : vector of structs with intersection info. This will be initially cleared.
      */
-    void castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeHit>& hits) const;
+    void castRays(const std::vector<Vec3r>& origins, const std::vector<Vec3r>& dirs, std::vector<EmbreeRayHit>& hits) const;
     
     /** Finds the closest point on a surface mesh to the specified point.
      * @param point : the query point
      * @param obj_ptr : a pointer to the MeshObject that we should find the closest point on
      * @returns a struct with the closest point info
      */
-    EmbreeHit closestPointSurfaceMesh(const Vec3r& point, const Sim::MeshObject* obj_ptr) const;
+    EmbreePQHit closestPointSurfaceMesh(const Vec3r& point, const Sim::MeshObject* obj_ptr) const;
 
     /** Finds the closest point on the surface of a tetrahedral mesh to the specified point. 
      * @param point : the query point
      * @param obj_ptr : a poitner to the TetMeshObject that we should find the closest point on
      * @returns a struct with the closest point info
     */
-    EmbreeHit closestPointTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const;
+    EmbreePQHit closestPointTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const;
 
     /** Finds the closest point on the surface of the undeformed tetrahedral mesh to the specified point. */
-    EmbreeHit closestPointUndeformedTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const;
+    EmbreePQHit closestPointUndeformedTetMesh(const Vec3r& point, const Sim::TetMeshObject* obj_ptr) const;
 
     /** Returns all the tetrahedra in a tetrahedral mesh that contain the specified point.
      * @param point : the query point
@@ -132,7 +145,7 @@ class EmbreeScene
      * @param obj_ptr : a pointer to the TetMeshObject to query
      * @returns the set of tetrahedra in the mesh that contain the specified point (can be empty)
      */
-    std::set<EmbreeHit> pointInTetrahedraQuery(const Vec3r& point, Real radius, const Sim::TetMeshObject* obj_ptr) const;
+    std::set<EmbreePQHit> pointInTetrahedraQuery(const Vec3r& point, Real radius, const Sim::TetMeshObject* obj_ptr) const;
 
     /** Returns all the tetrahedra in a tetrahedral mesh that contain the specified vertex, ignoring all tetrahedra that share the vertex.
      * Used for checking for self-collisions in deformable tetrahedral meshes.
@@ -140,33 +153,53 @@ class EmbreeScene
      * @param obj_ptr : a pointer to the TetMeshObject that we are testing
      * @returns the set of tetrahedra in the mesh (excluding those that have the vertex in question as one of its vertices) that contain the specified vertex (can be empty)
      */
-    std::set<EmbreeHit> tetMeshSelfCollisionQuery(int vertex_index, const Sim::TetMeshObject* obj_ptr) const;
+    std::set<EmbreePQHit> tetMeshSelfCollisionQuery(int vertex_index, const Sim::TetMeshObject* obj_ptr) const;
 
     private:
     /** Sets up a ray given the origin and direction. */
     RTCRayHit _createRayHit(const Vec3r& origin, const Vec3r& dir) const;
 
     /** Creates an EmbreeHit result struct from a RTCRayHit result */
-    EmbreeHit _processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const;
+    EmbreeRayHit _processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const;
 
+    template<typename ObjectType>
+    unsigned _setupObject(const ObjectType* /* obj_ptr */)
+    {
+        return std::numeric_limits<unsigned>::max();
+    }
+    
+    unsigned _setupObject(const Sim::MeshObject* mesh_obj);
+    unsigned _setupObject(const Sim::TetMeshObject* tet_mesh_obj);
+    unsigned _setupObject(const Sim::VirtuosoArm* arm_obj);
 
-    /** TODO: probably should move the next few functions to EmbreeMeshGeometry and EmbreeTetMeshGeometry classes */
+    template<bool IsFirstOrder>
+    unsigned _setupObject(const Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_obj)
+    {
+        // explicitly cast to TetMeshObject so the correct overload gets called
+        return _setupObject((const Sim::TetMeshObject*)xpbd_obj);
+    }
+
+    unsigned _setupObject(const Sim::RigidMeshObject* mesh_obj)
+    {
+        // explicitly cast to MeshObject so the correct overload gets called
+        return _setupObject((const Sim::MeshObject*)mesh_obj);
+    }
 
     /** Sets up the Embree geometry and scenes for a surface mesh. The primitive Embree triangle type is used.
      * This includes:
      *   - creating a dynamic RTCGeometry for the surface mesh and adding it to the ray-tracing scene
      *   - creating a static RTCGeometry for the undeformed (initial) surface mesh and creating a static undeformed scene just for this mesh
      */
-    void _setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom);
+    unsigned _setupEmbreeForSurfaceMesh(EmbreeMeshGeometry& mesh_geom);
 
     /** Sets up the Embree geometry and scenes for a tetrahedral (volume) mesh. A custom user geometry for tetrahedra is used.
      * This includes everything in _setupEmbreeForSurfaceMesh (using only the surface part of the volume mesh), and:
      *   - a dynamic RTCGeometry and scene specifically for point-in-tetrahedra queries (i.e. the scene just has this mesh in it)
      */
-    void _setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom);
+    unsigned _setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geom);
 
-    EmbreeHit _closestPointQuery(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
-    EmbreeHit _closestPointQueryUndeformed(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
+    EmbreePQHit _closestPointQuery(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
+    EmbreePQHit _closestPointQueryUndeformed(const Vec3r& point, const Sim::MeshObject* obj_ptr, const EmbreeMeshGeometry* geom) const;
 
     /** Embree device and scene */
     RTCDevice _device;
@@ -176,13 +209,15 @@ class EmbreeScene
     /** maps object pointers to their Embree user geometries */ 
     std::map<const Sim::MeshObject*, EmbreeMeshGeometry*> _mesh_to_embree_geom;
     std::map<const Sim::TetMeshObject*, EmbreeTetMeshGeometry*> _tet_mesh_to_embree_geom;
+    std::map<const Sim::VirtuosoArm*, EmbreeVirtuosoArmGeometry*> _arm_to_embree_geom;
 
     /** maps Embree geomID back to object pointers */
-    std::map<unsigned, const Sim::MeshObject*> _geomID_to_mesh_obj;
+    std::map<unsigned, SimulationObjectConstPtrVariantType> _geomID_to_obj;
 
     /** Stores all the Embree user geometries */
-    std::vector<EmbreeMeshGeometry> _embree_mesh_geoms;
-    std::vector<EmbreeTetMeshGeometry> _embree_tet_mesh_geoms;
+    std::vector<std::unique_ptr<EmbreeMeshGeometry>> _embree_mesh_geoms;
+    std::vector<std::unique_ptr<EmbreeTetMeshGeometry>> _embree_tet_mesh_geoms;
+    std::vector<std::unique_ptr<EmbreeVirtuosoArmGeometry>> _embree_arm_geoms;
 
     bool _hasAVX512;
     bool _hasAVX;

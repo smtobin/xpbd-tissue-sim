@@ -33,6 +33,7 @@ set(SOLVER_SOURCES
     ${SOLVER_SRC_DIR}/constraint/DeviatoricConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/HydrostaticConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/MidpointConstraint.cpp
+    ${SOLVER_SRC_DIR}/constraint/RigidBodyConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/StaticDeformableCollisionConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/RigidDeformableCollisionConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/DeformableDeformableCollisionConstraint.cpp

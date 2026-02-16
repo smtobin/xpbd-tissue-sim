@@ -207,7 +207,7 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
     // Check if the point is inside this tetrahedron
     if (userData->radius == 0.0f && isPointInTetrahedron(userData->point, v1, v2, v3, v4))
     {
-        EmbreeHit hit;
+        EmbreePQHit hit;
         hit.obj = userData->obj_ptr;
         hit.prim_index = args->primID;
         // Add this tetrahedron's ID to the results
@@ -219,7 +219,7 @@ bool EmbreeTetMeshGeometry::pointQueryFuncTetrahedra(RTCPointQueryFunctionArgume
     }
     else if (userData->radius != 0.0f && squaredDistanceToTetrahedron(userData->point, v1, v2, v3, v4) <= userData->radius*userData->radius)
     {
-        EmbreeHit hit;
+        EmbreePQHit hit;
         hit.obj = userData->obj_ptr;
         hit.prim_index = args->primID;
         // Add this tetrahedron's ID to the results
