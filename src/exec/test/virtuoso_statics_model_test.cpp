@@ -2,6 +2,9 @@
 #include "config/simobject/VirtuosoArmConfig.hpp"
 #include "graphics/vtk/VTKVirtuosoArmGraphicsObject.hpp"
 
+#include "config/simulation/SimulationConfig.hpp"
+#include "simulation/Simulation.hpp"
+
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
@@ -19,6 +22,10 @@
 
 int main()
 {
+    // create dummy simulation
+    Config::SimulationConfig sim_config;
+    Sim::Simulation dummy_sim(&sim_config);
+
     // create VirtuosoArm
     Config::VirtuosoArmConfig config("arm1", "default",
         Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
@@ -26,7 +33,7 @@ int main()
         0, 7e-3, 0, 10e-3,
         Sim::VirtuosoArm::ToolType::PALPATION, Sim::VirtuosoArm::CuttingModel::NONE, 15e-3, Config::ObjectRenderConfig());
 
-    std::unique_ptr<Sim::VirtuosoArm> arm = config.createObject(nullptr);
+    std::unique_ptr<Sim::VirtuosoArm> arm = config.createObject(&dummy_sim);
     arm->setup();
 
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = arm->outerTubeFrames();
@@ -38,18 +45,44 @@ int main()
     std::cout << "Inner tube tip position: " << arm->actualTipPosition()[0] << ", " << arm->actualTipPosition()[1] << ", " << arm->actualTipPosition()[2] << std::endl;
     std::cout << "Outer tube tip position: " << ot_frames.back().origin()[0] << ", " << ot_frames.back().origin()[1] << ", " << ot_frames.back().origin()[2] << std::endl;
 
+    int num_ips = ot_frames.size() + it_frames.size() + tt_frames.size();
+    Mat3r tt_tip_compliance = arm->complianceMatrixAtIntegrationPoint(num_ips - 1);
+    Mat3r it_tip_compliance = arm->complianceMatrixAtIntegrationPoint(num_ips - tt_frames.size() - 1);
+
+    Mat3r approx_mid_tt_compliance = 0.5*it_tip_compliance + 0.5*tt_tip_compliance;
+    int mid_tt_index = num_ips - 1 - tt_frames.size()/2;
+    int mid_tt_arr_index = mid_tt_index - ot_frames.size() - it_frames.size();
+    Mat3r mid_tt_compliance = arm->complianceMatrixAtIntegrationPoint(mid_tt_index);
+
+
+    Vec3r applied_force(0.1, 0.1, 0);
+    Vec3r cur_mid_tt_pos = tt_frames[mid_tt_arr_index].origin();
+    Vec3r approx_predicted_mid_tt_pos = cur_mid_tt_pos + approx_mid_tt_compliance*applied_force;
+    Vec3r predicted_mid_tt_pos = cur_mid_tt_pos + mid_tt_compliance*applied_force;
+
     // arm->setOuterTubeNodalForce(4, Vec3r(0,-10,0));
     // arm->setInnerTubeNodalForce(9, Vec3r(0,10,0));
-    arm->setToolTubeNodalForce(9, Vec3r(0,0.5,0));
+    arm->setToolTubeNodalForce(mid_tt_arr_index, applied_force);
     // arm->setTipForce(Vec3r(0,50,0));
     arm->update();
 
     
     // const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames2 = arm->outerTubeFrames();
-    std::cout << "\n=== TIP FORCE = (" << arm->tipForce()[0] << ", " << arm->tipForce()[1] << ", " << arm->tipForce()[2] << ") ===" << std::endl;
+    std::cout << "\n=== APPLIED FORCE = (" << applied_force.transpose() << ") ===" << std::endl;
     std::cout << "Tool tube tip position: " << tt_frames.back().origin().transpose() << std::endl;
     std::cout << "Inner tube tip position: " << arm->actualTipPosition()[0] << ", " << arm->actualTipPosition()[1] << ", " << arm->actualTipPosition()[2] << std::endl;
     std::cout << "Outer tube tip position: " << ot_frames.back().origin()[0] << ", " << ot_frames.back().origin()[1] << ", " << ot_frames.back().origin()[2] << std::endl;
+
+    std::cout << "Predicted position (approx compliance): " << approx_predicted_mid_tt_pos.transpose() << std::endl;
+    std::cout << "Predicted position (real compliance): " << predicted_mid_tt_pos.transpose() << std::endl;
+    std::cout << "Actual position: " << tt_frames[mid_tt_arr_index].origin().transpose() << std::endl;
+    std::cout << "Approx Compliance Matrix:\n" << approx_mid_tt_compliance << std::endl;
+    std::cout << "Real Compliance matrix:\n" << mid_tt_compliance << std::endl;
+
+    
+
+
+    ///////////////////////////////////////////////////////////////////////
 
     // visualize Virtuoso arm with VTK
     Graphics::VTKVirtuosoArmGraphicsObject arm_graphics_obj("arm", arm.get(), Config::ObjectRenderConfig());

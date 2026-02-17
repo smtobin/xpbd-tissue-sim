@@ -104,6 +104,106 @@ Geometry::Capsule VirtuosoArm::segment(int index) const
     return Geometry::Capsule(_tt_frames[tt_index].origin(), _tt_frames[tt_index+1].origin(), _tool_tube.outer_dia/2.0);
 }
 
+Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
+{
+    if (_stale_frames)
+    {
+        _recomputeCoordinateFramesStaticsModelWithNodalForces();
+    }
+
+    // store the current frames at integration points
+    // (recomputeCoordinateFramesStaticModelWithNodalForces() will overwrite them)
+    OuterTubeFramesArray orig_ot_frames = _ot_frames;
+    InnerTubeFramesArray orig_it_frames = _it_frames;
+    ToolTubeFramesArray orig_tt_frames = _tt_frames;
+
+    // get the array index of the node int he appropriate frames array
+    int arr_index = -1;
+    // figure out which segment of the arm the node index belongs to
+    bool ot_frame = false;
+    bool it_frame = false;
+    if (node_index < NUM_OT_FRAMES)
+    {
+        arr_index = node_index;
+        ot_frame = true;
+    }
+    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES)
+    {
+        arr_index = node_index - NUM_OT_FRAMES;
+        it_frame = true;
+    }
+    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES && hasTool())
+    {
+        arr_index = node_index - NUM_OT_FRAMES - NUM_IT_FRAMES;
+    }
+    else
+    {
+        std::cerr << "Error: VirtuosoArm::stiffnessMatrixAtIntegrationPoint(): " << node_index << " >= number of integration points." << std::endl;
+        assert(0);
+    }
+
+    // get current position of this integration point
+    Vec3r orig_pos;
+    if (ot_frame)
+        orig_pos = _ot_frames[arr_index].origin();
+    else if (it_frame)
+        orig_pos = _it_frames[arr_index].origin();
+    else
+        orig_pos = _tt_frames[arr_index].origin();
+
+    std::cout << "Original position: " << orig_pos.transpose() << std::endl;
+    // iterate through 3 coordinate directions
+    Mat3r C;
+    Real deltaF = 1e-3;
+    for (int i = 0; i < 3; i++)
+    {
+        Vec3r dF = Vec3r::Zero();
+        dF[i] = deltaF;
+
+        Vec3r new_pos;
+        if (ot_frame)
+        {
+            Vec3r cur_force = outerTubeNodalForce(arr_index);
+            setOuterTubeNodalForce(arr_index, cur_force + dF);
+            _recomputeCoordinateFramesStaticsModelWithNodalForces();
+            setOuterTubeNodalForce(arr_index, cur_force);
+            new_pos = _ot_frames[arr_index].origin();
+            _ot_frames = orig_ot_frames;
+            _it_frames = orig_it_frames;
+            _tt_frames = orig_tt_frames;
+        }
+        else if (it_frame)
+        {
+            Vec3r cur_force = innerTubeNodalForce(arr_index);
+            setInnerTubeNodalForce(arr_index, cur_force + dF);
+            _recomputeCoordinateFramesStaticsModelWithNodalForces();
+            setInnerTubeNodalForce(arr_index, cur_force);
+            new_pos = _it_frames[arr_index].origin();
+            _ot_frames = orig_ot_frames;
+            _it_frames = orig_it_frames;
+            _tt_frames = orig_tt_frames;
+        }
+        else
+        {
+            Vec3r cur_force = toolTubeNodalForce(arr_index);
+            std::cout << "  Current force: " << cur_force.transpose() << std::endl;
+            setToolTubeNodalForce(arr_index, cur_force + dF);
+            std::cout << "  New force: " << toolTubeNodalForce(arr_index).transpose() << std::endl;
+            _recomputeCoordinateFramesStaticsModelWithNodalForces();
+            setToolTubeNodalForce(arr_index, cur_force);
+            new_pos = _tt_frames[arr_index].origin();
+            std::cout << "  New position: " << new_pos.transpose() << std::endl;
+            _ot_frames = orig_ot_frames;
+            _it_frames = orig_it_frames;
+            _tt_frames = orig_tt_frames;
+        }
+
+        C.col(i) = (new_pos - orig_pos)/deltaF;
+    }
+
+    _stale_frames = false;  // we've reset everything, so things shouldn't be stale
+    return C;
+}
 
 Vec3r VirtuosoArm::actualTipPosition() const
 {

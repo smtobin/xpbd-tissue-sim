@@ -282,6 +282,9 @@ class VirtuosoArm : public Object
     void setTipMoment(const Vec3r& new_tip_moment);
     void setTipForceAndMoment(const Vec3r& new_tip_force, const Vec3r& new_tip_moment);
 
+    /** Computes the compliance matrix numerically at the specified node index. */
+    Mat3r complianceMatrixAtIntegrationPoint(int node_index);
+
     Vec3r unfilteredCollisionForce() const { return _unfiltered_collision_force; }
     Vec3r filteredCollisionForce() const { return _filtered_collision_force; }
 

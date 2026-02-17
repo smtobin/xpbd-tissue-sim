@@ -263,7 +263,7 @@ add_executable(EmbreeTest src/exec/test/embree_test.cpp)
 target_link_libraries(EmbreeTest embree Config SimObject Simulation Solver Geometry MeshUtils)
 
 add_executable(VirtuosoStaticsModelTest src/exec/test/virtuoso_statics_model_test.cpp)
-target_link_libraries(VirtuosoStaticsModelTest Eigen3::Eigen SimObject Config Graphics ${VTK_LIBRARIES})
+target_link_libraries(VirtuosoStaticsModelTest Eigen3::Eigen SimObject Simulation Config Graphics ${VTK_LIBRARIES})
 
 add_executable(VTKTest src/exec/test/vtk_test.cpp)
 target_link_libraries(VTKTest Graphics ${VTK_LIBRARIES})
