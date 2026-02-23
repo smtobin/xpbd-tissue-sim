@@ -23,6 +23,22 @@ class MeshProperty
     {
     }
 
+    void save(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _name);
+        pack(buf, _properties);
+        pack(buf, _default_value);
+        pack(buf, _is_field);
+    }
+
+    void load(const std::byte*& cursor)
+    {
+        unpack(cursor, _name);
+        unpack(cursor, _properties);
+        unpack(cursor, _default_value);
+        unpack(cursor, _is_field);
+    }
+
     const std::string& name() const { return _name; }
 
     bool isField() const { return _is_field; }

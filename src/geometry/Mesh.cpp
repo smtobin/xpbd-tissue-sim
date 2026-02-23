@@ -68,6 +68,34 @@ Mesh::Mesh(Mesh&& other)
  #endif
 }
 
+void Mesh::save(std::vector<std::byte>& buf) const
+{
+    pack(buf, _vertices);
+    pack(buf, _faces);
+    pack(buf, _vertex_normals);
+    pack(buf, _initial_vertices);
+    pack(buf, _vertex_adjacent_vertices);
+    pack(buf, _unrotated_size_xyz);
+    pack(buf, _mesh_origin);
+    pack(buf, _vertex_properties);
+    pack(buf, _face_properties);
+    pack(buf, _topology_version);
+}
+
+void Mesh::load(const std::byte*& buf)
+{
+    unpack(buf, _vertices);
+    unpack(buf, _faces);
+    unpack(buf, _vertex_normals);
+    unpack(buf, _initial_vertices);
+    unpack(buf, _vertex_adjacent_vertices);
+    unpack(buf, _unrotated_size_xyz);
+    unpack(buf, _mesh_origin);
+    unpack(buf, _vertex_properties);
+    unpack(buf, _face_properties);
+    unpack(buf, _topology_version);
+}
+
 void Mesh::_computeAdjacentVertices()
 {
     _vertex_adjacent_vertices.resize(numVertices());

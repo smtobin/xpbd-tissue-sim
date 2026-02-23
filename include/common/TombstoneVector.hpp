@@ -2,10 +2,13 @@
 #define __TOMBSTONE_VECTOR_HPP
 
 #include "common/CompactOptional.hpp"
+#include "common/Pack.hpp"
 
 #include <vector>
 #include <queue>
 #include <exception>
+
+
 
 /** A specialized vector class which performs O(1) removal by keeping track of "tombstones", i.e. indices of elements in the vector
  * that are removed and no longer valid.
@@ -48,6 +51,21 @@ public:
         {
             _data[i] = vec[i];
         }
+    }
+
+    /** Loading and saving to byte array */
+    void save(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _empty_indices);
+        pack(buf, _data);
+        pack(buf, _num_valid);
+    }
+
+    void load(const std::byte*& cursor)
+    {
+        unpack(cursor, _empty_indices);
+        unpack(cursor, _data);
+        unpack(cursor, _num_valid);
     }
 
     /** Accessing elements */
