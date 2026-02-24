@@ -25,20 +25,20 @@ class MeshProperty
     {
     }
 
-    friend void serialize(std::vector<std::byte>& buf, const MeshProperty<T>& prop)
+    void serialize(std::vector<std::byte>& buf) const
     {
-        pack(buf, prop._name);
-        pack(buf, prop._properties);
-        pack(buf, prop._default_value);
-        pack(buf, prop._is_field);
+        pack(buf, _name);
+        pack(buf, _properties);
+        pack(buf, _default_value);
+        pack(buf, _is_field);
     }
 
-    friend void deserialize(const std::byte*& cursor, MeshProperty<T>& prop)
+    void deserialize(const std::byte*& cursor)
     {
-        unpack(cursor, prop._name);
-        unpack(cursor, prop._properties);
-        unpack(cursor, prop._default_value);
-        unpack(cursor, prop._is_field);
+        unpack(cursor, _name);
+        unpack(cursor, _properties);
+        unpack(cursor, _default_value);
+        unpack(cursor, _is_field);
     }
 
     const std::string& name() const { return _name; }

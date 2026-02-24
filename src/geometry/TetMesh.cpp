@@ -697,35 +697,35 @@ void TetMesh::createGPUResource()
 }
 #endif
 
-void serialize(std::vector<std::byte>& buf, const TetMesh& mesh)
+void TetMesh::serialize(std::vector<std::byte>& buf) const
 {
-    serialize(buf, static_cast<const Mesh&>(mesh));
-    pack(buf, mesh._elements);
-    pack(buf, mesh._element_properties);
-    pack(buf, mesh._element_rest_volumes);
-    pack(buf, mesh._element_inv_undeformed_basis);
-    pack(buf, mesh._vertex_rest_volumes);
-    pack(buf, mesh._surface_face_to_element_map);
-    pack(buf, mesh._element_to_surface_faces_map);
-    pack(buf, mesh._vertex_to_elements_map);
-    pack(buf, mesh._edge_to_elements_map);
-    pack(buf, mesh._face_to_elements_map);
-    pack(buf, mesh._recently_removed_elements);
+    Mesh::serialize(buf);
+    pack(buf, _elements);
+    pack(buf, _element_properties);
+    pack(buf, _element_rest_volumes);
+    pack(buf, _element_inv_undeformed_basis);
+    pack(buf, _vertex_rest_volumes);
+    pack(buf, _surface_face_to_element_map);
+    pack(buf, _element_to_surface_faces_map);
+    pack(buf, _vertex_to_elements_map);
+    pack(buf, _edge_to_elements_map);
+    pack(buf, _face_to_elements_map);
+    pack(buf, _recently_removed_elements);
 }
 
-void deserialize(const std::byte*& buf, TetMesh& mesh)
+void TetMesh::deserialize(const std::byte*& buf)
 {
-    deserialize(buf, static_cast<Mesh&>(mesh));
-    unpack(buf, mesh._vertices);
-    unpack(buf, mesh._faces);
-    unpack(buf, mesh._vertex_normals);
-    unpack(buf, mesh._initial_vertices);
-    unpack(buf, mesh._vertex_adjacent_vertices);
-    unpack(buf, mesh._unrotated_size_xyz);
-    unpack(buf, mesh._mesh_origin);
-    unpack(buf, mesh._vertex_properties);
-    unpack(buf, mesh._face_properties);
-    unpack(buf, mesh._topology_version);
+    Mesh::deserialize(buf);
+    unpack(buf, _vertices);
+    unpack(buf, _faces);
+    unpack(buf, _vertex_normals);
+    unpack(buf, _initial_vertices);
+    unpack(buf, _vertex_adjacent_vertices);
+    unpack(buf, _unrotated_size_xyz);
+    unpack(buf, _mesh_origin);
+    unpack(buf, _vertex_properties);
+    unpack(buf, _face_properties);
+    unpack(buf, _topology_version);
 }
 
 } // namespace Geometry

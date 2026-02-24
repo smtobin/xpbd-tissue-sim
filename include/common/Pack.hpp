@@ -9,15 +9,23 @@
 #include <memory>
 #include <cstddef>
 #include <string>
+#include <cassert>
+#include <iostream>
 
 #include <Eigen/Dense>
 
 // detection helper
 template<typename T, typename = void>
-struct has_save : std::false_type {};
+struct has_serialize : std::false_type {};
 
 template<typename T>
-struct has_save<T, std::void_t<decltype(std::declval<T>().save(std::declval<std::vector<std::byte>&>()))>> : std::true_type {};
+struct has_serialize<T, std::void_t<decltype(std::declval<T>().serialize(std::declval<std::vector<std::byte>&>()))>> : std::true_type {};
+
+template<typename T, typename = void>
+struct has_deserialize : std::false_type {};
+
+template<typename T>
+struct has_deserialize<T, std::void_t<decltype(std::declval<T>().deserialize(std::declval<const std::byte*&>()))>> : std::true_type {};
 
 // see if type T has serialize function through ADL lookup
 template<typename T>
@@ -62,18 +70,18 @@ public:
 
 /** Forward declarations */
 template<typename T>
-std::enable_if_t<has_adl_serialize<T>::value>
+std::enable_if_t<has_serialize<T>::value>
 pack(std::vector<std::byte>& buf, const T& val);
 template<typename T>
-std::enable_if_t<has_adl_deserialize<T>::value>
+std::enable_if_t<has_deserialize<T>::value>
 unpack(const std::byte*& cursor, T& var);
 
 
 template<typename T>
-std::enable_if_t<!has_adl_serialize<T>::value && std::is_trivially_copyable_v<T>>
+std::enable_if_t<!has_serialize<T>::value && std::is_trivially_copyable_v<T>>
 pack(std::vector<std::byte>& buf, const T& val);
 template<typename T>
-std::enable_if_t<!has_adl_deserialize<T>::value && std::is_trivially_copyable_v<T>>
+std::enable_if_t<!has_deserialize<T>::value && std::is_trivially_copyable_v<T>>
 unpack(const std::byte*& cursor, T& var);
 
 void pack(std::vector<std::byte>& buf, const std::string& str);
@@ -83,6 +91,11 @@ template<typename T>
 void pack(std::vector<std::byte>& buf, const std::optional<T>& opt);
 template<typename T>
 void unpack(const std::byte*& cursor, std::optional<T>& opt);
+
+template<typename T>
+void pack(std::vector<std::byte>& buf, const std::unique_ptr<T>& ptr);
+template<typename T>
+void unpack(const std::byte*& cursor, std::unique_ptr<T>& ptr);
 
 template<typename T>
 void pack(std::vector<std::byte>& buf, const std::vector<T>& vec);
@@ -122,17 +135,17 @@ unpack(const std::byte*& cursor, Derived& mat);
  */
 
 template<typename T>
-inline std::enable_if_t<has_adl_serialize<T>::value>
+inline std::enable_if_t<has_serialize<T>::value>
 pack(std::vector<std::byte>& buf, const T& val)
 {
-    serialize(buf, val);
+    val.serialize(buf);
 }
 
 template<typename T>
-inline std::enable_if_t<has_adl_deserialize<T>::value>
+inline std::enable_if_t<has_deserialize<T>::value>
 unpack(const std::byte*& cursor, T& var)
 {
-    deserialize(cursor, var);
+    var.deserialize(cursor);
 }
 
 
@@ -140,7 +153,7 @@ unpack(const std::byte*& cursor, T& var)
  * Trivially copyable types
  */
 template<typename T>
-inline std::enable_if_t<!has_adl_serialize<T>::value && std::is_trivially_copyable_v<T>>
+inline std::enable_if_t<!has_serialize<T>::value && std::is_trivially_copyable_v<T>>
 pack(std::vector<std::byte>& buf, const T& val)
 {
     const auto* bytes = reinterpret_cast<const std::byte*>(&val);
@@ -148,7 +161,7 @@ pack(std::vector<std::byte>& buf, const T& val)
 }
 
 template<typename T>
-inline std::enable_if_t<!has_adl_deserialize<T>::value && std::is_trivially_copyable_v<T>>
+inline std::enable_if_t<!has_deserialize<T>::value && std::is_trivially_copyable_v<T>>
 unpack(const std::byte*& cursor, T& var)
 {
     static_assert(std::is_trivially_copyable_v<T>);
@@ -198,6 +211,48 @@ inline void unpack(const std::byte*& cursor, std::optional<T>& opt)
     }
     else
         opt = std::nullopt;
+}
+
+
+/** std::unique_ptr 
+ * 
+ * NOTE: does not handle polymorphic pointer types!
+*/
+template<typename T>
+inline void pack(std::vector<std::byte>& buf, const std::unique_ptr<T>& ptr)
+{
+    // pack whether the pointer is null
+    pack(buf, (bool)ptr);
+    if (ptr)
+        ptr->serialize(buf);
+}
+
+template<typename T>
+inline void unpack(const std::byte*& cursor, std::unique_ptr<T>& ptr)
+{
+    bool has_value;
+    unpack(cursor, has_value);
+    if (has_value)
+    {
+        if (ptr)
+        {
+            // already has an allocation, unpack directly into it
+            ptr->deserialize(cursor);
+        }
+        else
+        {
+            // no allocation, make one then unpack into it
+            std::cerr << "unpack(): Unique_ptr was not pre-allocated!" << std::endl;
+            assert(0);
+
+            ptr = std::make_unique<T>();
+            unpack(cursor, *ptr);
+        }
+    }
+    else
+    {
+        ptr = nullptr;
+    }
 }
 
 

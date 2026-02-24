@@ -32,24 +32,26 @@ class TetMesh : public Mesh
             : index(index_), vertices(vertices_), current_centroid(current_centroid_), rest_centroid(rest_centroid_), rest_volume(rest_volume_)
         {}
 
-        friend void serialize(std::vector<std::byte>& buf, const RemovedElement& elem)
+        void serialize(std::vector<std::byte>& buf) const
         {
-            pack(buf, elem.index);
-            pack(buf, elem.vertices);
-            pack(buf, elem.current_centroid);
-            pack(buf, elem.rest_centroid);
-            pack(buf, elem.rest_volume);
+            pack(buf, index);
+            pack(buf, vertices);
+            pack(buf, current_centroid);
+            pack(buf, rest_centroid);
+            pack(buf, rest_volume);
         }
 
-        friend void deserialize(const std::byte*& buf, RemovedElement& elem)
+        void deserialize(const std::byte*& buf)
         {
-            unpack(buf, elem.index);
-            unpack(buf, elem.vertices);
-            unpack(buf, elem.current_centroid);
-            unpack(buf, elem.rest_centroid);
-            unpack(buf, elem.rest_volume);
+            unpack(buf, index);
+            unpack(buf, vertices);
+            unpack(buf, current_centroid);
+            unpack(buf, rest_centroid);
+            unpack(buf, rest_volume);
         }
     };
+
+    TetMesh() = default; // required for deserialization
 
     /** Constructs a tetrahedral mesh from a set of vertices, faces, and elements.
      * This is usually done using the helper methods in the MeshUtils library.
@@ -62,8 +64,8 @@ class TetMesh : public Mesh
 
     virtual ~TetMesh() = default;
 
-    friend void serialize(std::vector<std::byte>& buf, const TetMesh& mesh);
-    friend void deserialize(const std::byte*& cursor, TetMesh& mesh);
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& cursor) override;
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.

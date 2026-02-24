@@ -114,28 +114,28 @@ public:
             children.reserve(8);
         } 
 
-        friend void serialize(std::vector<std::byte>& buf, const ElementTreeNode& node)
+        void serialize(std::vector<std::byte>& buf) const
         {
-            pack(buf, node.vertices);
-            pack(buf, node.element_index);
-            pack(buf, node.parent);
-            pack(buf, node.children);
-            pack(buf, node.level);
-            pack(buf, node.incomplete);
-            pack(buf, node.edge_nodes);
-            pack(buf, node.face_nodes);
+            pack(buf, vertices);
+            pack(buf, element_index);
+            pack(buf, parent);
+            pack(buf, children);
+            pack(buf, level);
+            pack(buf, incomplete);
+            pack(buf, edge_nodes);
+            pack(buf, face_nodes);
         }
 
-        friend void deserialize(const std::byte*& buf, ElementTreeNode& node)
+        void deserialize(const std::byte*& buf)
         {
-            unpack(buf, node.vertices);
-            unpack(buf, node.element_index);
-            unpack(buf, node.parent);
-            unpack(buf, node.children);
-            unpack(buf, node.level);
-            unpack(buf, node.incomplete);
-            unpack(buf, node.edge_nodes);
-            unpack(buf, node.face_nodes);
+            unpack(buf, vertices);
+            unpack(buf, element_index);
+            unpack(buf, parent);
+            unpack(buf, children);
+            unpack(buf, level);
+            unpack(buf, incomplete);
+            unpack(buf, edge_nodes);
+            unpack(buf, face_nodes);
         }
     };
 
@@ -240,6 +240,7 @@ public:
         {}
     };
 
+    RefinedTetMesh() = default; // required for deserialization
     
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
      */
@@ -250,8 +251,8 @@ public:
 
     virtual ~RefinedTetMesh() = default;
 
-    friend void serialize(std::vector<std::byte>& buf, const RefinedTetMesh& mesh);
-    friend void deserialize(const std::byte*& buf, RefinedTetMesh& mesh);
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.

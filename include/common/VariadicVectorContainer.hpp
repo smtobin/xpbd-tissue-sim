@@ -131,14 +131,13 @@ template<template<typename...> class Container, class L, class... R>
 class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, public VariadicVectorContainer_<Container, R...>
 {
     public:
-    void save(std::vector<std::byte>& buf) const
+    void serialize(std::vector<std::byte>& buf) const
     {
-        return _serialize_helper<L, R...>(buf);
+        _serialize_helper<L, R...>(buf);
     }
-
-    void load(const std::byte*& cursor)
+    void deserialize(const std::byte*& cursor)
     {
-        return _deserialize_helper<L, R...>(cursor);
+        _deserialize_helper<L, R...>(cursor);
     }
 
     size_t size() const
@@ -296,15 +295,6 @@ class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, 
         {
             _deserialize_helper<Ts...>(cursor);
         }
-    }
-
-    friend void serialize(std::vector<std::byte>& buf, const VariadicVectorContainer_<Container, L, R...>& container)
-    {
-        container._serialize_helper<L, R...>(buf);
-    }
-    friend void deserialize(const std::byte*& cursor, VariadicVectorContainer_<Container, L, R...>& container)
-    {
-        container._deserialize_helper<L, R...>(cursor);
     }
 };
 

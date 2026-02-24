@@ -30,6 +30,27 @@ class MeshObject
         _initial_scaling = mesh_config->scaling();
     }
 
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _mesh);
+        pack(buf, _filename);
+        pack(buf, _initial_position);
+        pack(buf, _initial_rotation);
+        pack(buf, _initial_size);
+        pack(buf, _max_size);
+        pack(buf, _initial_scaling);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _mesh);
+        unpack(buf, _filename);
+        unpack(buf, _initial_position);
+        unpack(buf, _initial_rotation);
+        unpack(buf, _initial_size);
+        unpack(buf, _max_size);
+        unpack(buf, _initial_scaling);
+    }
+
     const Geometry::Mesh* mesh() const { return _mesh.get(); }
 
     Geometry::Mesh* mesh() { return _mesh.get(); }

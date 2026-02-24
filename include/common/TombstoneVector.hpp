@@ -54,18 +54,18 @@ public:
     }
 
     /** Loading and saving to byte array */
-    friend void serialize(std::vector<std::byte>& buf, const TombstoneVector<T>& vec)
+    void serialize(std::vector<std::byte>& buf) const
     {
-        pack(buf, vec._empty_indices);
-        pack(buf, vec._data);
-        pack(buf, vec._num_valid);
+        pack(buf, _empty_indices);
+        pack(buf, _data);
+        pack(buf, _num_valid);
     }
 
-    friend void deserialize(const std::byte*& cursor, TombstoneVector<T>& vec)
+    void deserialize(const std::byte*& cursor)
     {
-        unpack(cursor, vec._empty_indices);
-        unpack(cursor, vec._data);
-        unpack(cursor, vec._num_valid);
+        unpack(cursor, _empty_indices);
+        unpack(cursor, _data);
+        unpack(cursor, _num_valid);
     }
 
     /** Accessing elements */
