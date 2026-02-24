@@ -79,6 +79,9 @@ int main()
     std::cout << "Approx Compliance Matrix:\n" << approx_mid_tt_compliance << std::endl;
     std::cout << "Real Compliance matrix:\n" << mid_tt_compliance << std::endl;
 
+    std::cout << "\n\nIT tip compliance matrix:\n" << it_tip_compliance << std::endl;
+    std::cout << "\n\nTT tip compliance matrix:\n" << tt_tip_compliance << std::endl;
+
     
 
 
