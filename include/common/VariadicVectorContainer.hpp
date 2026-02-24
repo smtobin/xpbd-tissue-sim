@@ -94,12 +94,12 @@ class VariadicVectorContainer_<Container, L>
     }
 
     // load and save
-    void _save(std::vector<std::byte>& buf) const
+    void _serialize(std::vector<std::byte>& buf) const
     {
         pack(buf, _vec);
     }
 
-    void _load(const std::byte*& cursor)
+    void _deserialize(const std::byte*& cursor)
     {
         unpack(cursor, _vec);
     }
@@ -133,12 +133,12 @@ class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, 
     public:
     void save(std::vector<std::byte>& buf) const
     {
-        return _save_helper<L, R...>(buf);
+        return _serialize_helper<L, R...>(buf);
     }
 
     void load(const std::byte*& cursor)
     {
-        return _load_helper<L, R...>(cursor);
+        return _deserialize_helper<L, R...>(cursor);
     }
 
     size_t size() const
@@ -279,23 +279,32 @@ class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, 
     }
 
     template<typename T, typename... Ts>
-    void _save_helper(std::vector<std::byte>& buf) const
+    void _serialize_helper(std::vector<std::byte>& buf) const
     {
-        this->VariadicVectorContainer_<Container, T>::_save(buf);
+        this->VariadicVectorContainer_<Container, T>::_serialize(buf);
         if constexpr (sizeof...(Ts) > 0)
         {
-            _save_helper<Ts...>(buf);
+            _serialize_helper<Ts...>(buf);
         }
     }
 
     template<typename T, typename... Ts>
-    void _load_helper(const std::byte*& cursor)
+    void _deserialize_helper(const std::byte*& cursor)
     {
-        this->VariadicVectorContainer_<Container, T>::_load(cursor);
+        this->VariadicVectorContainer_<Container, T>::_deserialize(cursor);
         if constexpr (sizeof...(Ts) > 0)
         {
-            _load_helper<Ts...>(cursor);
+            _deserialize_helper<Ts...>(cursor);
         }
+    }
+
+    friend void serialize(std::vector<std::byte>& buf, const VariadicVectorContainer_<Container, L, R...>& container)
+    {
+        container._serialize_helper<L, R...>(buf);
+    }
+    friend void deserialize(const std::byte*& cursor, VariadicVectorContainer_<Container, L, R...>& container)
+    {
+        container._deserialize_helper<L, R...>(cursor);
     }
 };
 

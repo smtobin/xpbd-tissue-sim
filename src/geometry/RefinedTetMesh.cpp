@@ -2036,4 +2036,44 @@ std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const
     return hanging_verts;
 }
 
+void serialize(std::vector<std::byte>& buf, const RefinedTetMesh& mesh)
+{
+    serialize(buf, static_cast<const TetMesh&>(mesh));
+    pack(buf, mesh._element_refinement_level);
+    pack(buf, mesh._element_tree_nodes);
+    pack(buf, mesh._element_to_tree_node_map);
+    pack(buf, mesh._hanging_vertices);
+    pack(buf, mesh._edge_nodes);
+    pack(buf, mesh._face_nodes);
+    pack(buf, mesh._edge_to_edge_node_map);
+    pack(buf, mesh._face_to_face_node_map);
+    pack(buf, mesh._latest_new_vertices);
+    pack(buf, mesh._latest_removed_vertices);
+    pack(buf, mesh._latest_new_faces);
+    pack(buf, mesh._latest_new_elements);
+    pack(buf, mesh._latest_removed_elements);
+    pack(buf, mesh._latest_new_hanging_vertices);
+    pack(buf, mesh._latest_removed_hanging_vertices);
+}
+
+void deserialize(const std::byte*& buf, RefinedTetMesh& mesh)
+{
+    deserialize(buf, static_cast<TetMesh&>(mesh));
+    unpack(buf, mesh._element_refinement_level);
+    unpack(buf, mesh._element_tree_nodes);
+    unpack(buf, mesh._element_to_tree_node_map);
+    unpack(buf, mesh._hanging_vertices);
+    unpack(buf, mesh._edge_nodes);
+    unpack(buf, mesh._face_nodes);
+    unpack(buf, mesh._edge_to_edge_node_map);
+    unpack(buf, mesh._face_to_face_node_map);
+    unpack(buf, mesh._latest_new_vertices);
+    unpack(buf, mesh._latest_removed_vertices);
+    unpack(buf, mesh._latest_new_faces);
+    unpack(buf, mesh._latest_new_elements);
+    unpack(buf, mesh._latest_removed_elements);
+    unpack(buf, mesh._latest_new_hanging_vertices);
+    unpack(buf, mesh._latest_removed_hanging_vertices);
+}
+
 } // namespace Geometry

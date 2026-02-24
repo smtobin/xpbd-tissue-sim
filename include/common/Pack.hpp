@@ -19,20 +19,153 @@ struct has_save : std::false_type {};
 template<typename T>
 struct has_save<T, std::void_t<decltype(std::declval<T>().save(std::declval<std::vector<std::byte>&>()))>> : std::true_type {};
 
+// see if type T has serialize function through ADL lookup
 template<typename T>
-void pack(std::vector<std::byte>& buf, const T& val);
+class has_adl_serialize
+{
+private:
+    template<typename U>
+    static auto test(int) -> decltype(
+        serialize(std::declval<std::vector<std::byte>&>(),
+                  std::declval<const U&>()),
+        std::true_type{}
+    );
+
+    template<typename>
+    static std::false_type test(...);
+
+public:
+    static constexpr bool value =
+        decltype(test<T>(0))::value;
+};
+
+// see if type T has deserialize function through ADL lookup
 template<typename T>
-void unpack(const std::byte*& cursor, T& var);
+class has_adl_deserialize
+{
+private:
+    template<typename U>
+    static auto test(int) -> decltype(
+        deserialize(std::declval<const std::byte*&>(),
+                  std::declval<U&>()),
+        std::true_type{}
+    );
+
+    template<typename>
+    static std::false_type test(...);
+
+public:
+    static constexpr bool value =
+        decltype(test<T>(0))::value;
+};
+
+
+/** Forward declarations */
+template<typename T>
+std::enable_if_t<has_adl_serialize<T>::value>
+pack(std::vector<std::byte>& buf, const T& val);
+template<typename T>
+std::enable_if_t<has_adl_deserialize<T>::value>
+unpack(const std::byte*& cursor, T& var);
+
+
+template<typename T>
+std::enable_if_t<!has_adl_serialize<T>::value && std::is_trivially_copyable_v<T>>
+pack(std::vector<std::byte>& buf, const T& val);
+template<typename T>
+std::enable_if_t<!has_adl_deserialize<T>::value && std::is_trivially_copyable_v<T>>
+unpack(const std::byte*& cursor, T& var);
+
+void pack(std::vector<std::byte>& buf, const std::string& str);
+void unpack(const std::byte*& cursor, std::string& str);
+
+template<typename T>
+void pack(std::vector<std::byte>& buf, const std::optional<T>& opt);
+template<typename T>
+void unpack(const std::byte*& cursor, std::optional<T>& opt);
+
+template<typename T>
+void pack(std::vector<std::byte>& buf, const std::vector<T>& vec);
+template<typename T>
+void unpack(const std::byte*& cursor, std::vector<T>& vec);
+
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+void pack(std::vector<std::byte>& buf, const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& map);
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+void unpack(const std::byte*& cursor, std::unordered_map<K, V, Hash, KeyEqual>& map);
+
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+void pack(std::vector<std::byte>& buf, const std::unordered_multimap<K, V, Hash, KeyEqual, Alloc>& map);
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+void unpack(const std::byte*& cursor, std::unordered_multimap<K, V, Hash, KeyEqual, Alloc>& map);
+
+template<typename T, typename Hash, typename KeyEqual, typename Alloc>
+void pack(std::vector<std::byte>& buf, const std::unordered_set<T, Hash, KeyEqual, Alloc>& set);
+template<typename T, typename Hash, typename KeyEqual, typename Alloc>
+void unpack(const std::byte*& cursor, std::unordered_set<T, Hash, KeyEqual, Alloc>& set);
+
+template<typename T>
+void pack(std::vector<std::byte>& buf, const std::queue<T>& queue);
+template<typename T>
+void unpack(const std::byte*& cursor, std::queue<T>& queue);
+
+template<typename Derived>
+std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<Derived>, Derived>>
+pack(std::vector<std::byte>& buf, const Derived& mat);
+template<typename Derived>
+std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<Derived>, Derived>>
+unpack(const std::byte*& cursor, Derived& mat);
+
+
+/**
+ * User-defined types with serialize and deserialize implemented
+ */
+
+template<typename T>
+inline std::enable_if_t<has_adl_serialize<T>::value>
+pack(std::vector<std::byte>& buf, const T& val)
+{
+    serialize(buf, val);
+}
+
+template<typename T>
+inline std::enable_if_t<has_adl_deserialize<T>::value>
+unpack(const std::byte*& cursor, T& var)
+{
+    deserialize(cursor, var);
+}
+
+
+/**
+ * Trivially copyable types
+ */
+template<typename T>
+inline std::enable_if_t<!has_adl_serialize<T>::value && std::is_trivially_copyable_v<T>>
+pack(std::vector<std::byte>& buf, const T& val)
+{
+    const auto* bytes = reinterpret_cast<const std::byte*>(&val);
+    buf.insert(buf.end(), bytes, bytes + sizeof(T));
+}
+
+template<typename T>
+inline std::enable_if_t<!has_adl_deserialize<T>::value && std::is_trivially_copyable_v<T>>
+unpack(const std::byte*& cursor, T& var)
+{
+    static_assert(std::is_trivially_copyable_v<T>);
+    std::memcpy(&var, cursor, sizeof(T));
+    cursor += sizeof(T);
+}
+
 
 /** std::string */
 
-void pack(std::vector<std::byte>& buf, const std::string& str) {
+inline void pack(std::vector<std::byte>& buf, const std::string& str) {
     pack(buf, (int64_t)str.size());
     const auto* bytes = reinterpret_cast<const std::byte*>(str.data());
     buf.insert(buf.end(), bytes, bytes + str.size());
 }
 
-void unpack(const std::byte*& cursor, std::string& str) {
+inline void unpack(const std::byte*& cursor, std::string& str) {
     int64_t size;
     unpack(cursor, size);
     str.assign(reinterpret_cast<const char*>(cursor), size);
@@ -43,7 +176,7 @@ void unpack(const std::byte*& cursor, std::string& str) {
 /** std::optional */
 
 template<typename T>
-void pack(std::vector<std::byte>& buf, const std::optional<T>& opt)
+inline void pack(std::vector<std::byte>& buf, const std::optional<T>& opt)
 {
     // pack true/false for whether it has a value
     pack(buf, opt.has_value());
@@ -53,13 +186,16 @@ void pack(std::vector<std::byte>& buf, const std::optional<T>& opt)
 }
 
 template<typename T>
-void unpack(const std::byte*& cursor, std::optional<T>& opt)
+inline void unpack(const std::byte*& cursor, std::optional<T>& opt)
 {
     // unpack whether or not it has a value
     bool has_value;
     unpack(cursor, has_value);
     if (has_value)
+    {
+        opt.emplace();
         unpack(cursor, *opt);
+    }
     else
         opt = std::nullopt;
 }
@@ -68,16 +204,16 @@ void unpack(const std::byte*& cursor, std::optional<T>& opt)
 /** std::vector */
 
 template<typename T>
-void pack(std::vector<std::byte>& buf, const std::vector<T>& vec)
+inline void pack(std::vector<std::byte>& buf, const std::vector<T>& vec)
 {
     // pack size, then elements
     pack(buf, vec.size());
-    for (auto& v : vec)
+    for (const auto& v : vec)
         pack(buf, v);
 }
 
 template<typename T>
-void unpack(const std::byte*& cursor, std::vector<T>& vec)
+inline void unpack(const std::byte*& cursor, std::vector<T>& vec)
 {
     // unpack size, then elements
     size_t size;
@@ -87,12 +223,26 @@ void unpack(const std::byte*& cursor, std::vector<T>& vec)
         unpack(cursor, v);
 }
 
+template<>
+inline void unpack(const std::byte*& cursor, std::vector<bool>& vec)
+{
+    size_t size;
+    unpack(cursor, size);
+    vec.resize(size);
+    for (size_t i = 0; i < size; i++)
+    {
+        bool val;
+        unpack(cursor, val);
+        vec[i] = val;
+    }
+}
+
 
 
 /** std::unordered_map */
 
-template<typename K, typename V>
-void pack(std::vector<std::byte>& buf, const std::unordered_map<K, V>& map)
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+inline void pack(std::vector<std::byte>& buf, const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& map)
 {
     // pack size (number of key-value pairs)
     pack(buf, map.size());
@@ -105,8 +255,8 @@ void pack(std::vector<std::byte>& buf, const std::unordered_map<K, V>& map)
     }
 }
 
-template<typename K, typename V>
-void unpack(const std::byte*& cursor, std::unordered_map<K, V>& map)
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+inline void unpack(const std::byte*& cursor, std::unordered_map<K, V, Hash, KeyEqual, Alloc>& map)
 {
     // clear map
     map.clear();
@@ -129,8 +279,8 @@ void unpack(const std::byte*& cursor, std::unordered_map<K, V>& map)
 
 /** std::unordered_multimap */
 
-template<typename K, typename V>
-void pack(std::vector<std::byte>& buf, const std::unordered_multimap<K, V>& map)
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+inline void pack(std::vector<std::byte>& buf, const std::unordered_multimap<K, V, Hash, KeyEqual, Alloc>& map)
 {
     // pack size (number of key-value pairs)
     pack(buf, map.size());
@@ -143,8 +293,8 @@ void pack(std::vector<std::byte>& buf, const std::unordered_multimap<K, V>& map)
     }
 }
 
-template<typename K, typename V>
-void pack(const std::byte*& cursor, std::unordered_multimap<K, V>& map)
+template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
+inline void unpack(const std::byte*& cursor, std::unordered_multimap<K, V, Hash, KeyEqual, Alloc>& map)
 {
     // clear map
     map.clear();
@@ -167,8 +317,8 @@ void pack(const std::byte*& cursor, std::unordered_multimap<K, V>& map)
 
 /** std::unordered_set */
 
-template<typename T>
-void pack(std::vector<std::byte>& buf, const std::unordered_set<T>& set)
+template<typename T, typename Hash, typename KeyEqual, typename Alloc>
+inline void pack(std::vector<std::byte>& buf, const std::unordered_set<T, Hash, KeyEqual, Alloc>& set)
 {
     // pack size
     pack(buf, set.size());
@@ -178,8 +328,8 @@ void pack(std::vector<std::byte>& buf, const std::unordered_set<T>& set)
         pack(buf, v);
 }
 
-template<typename T>
-void unpack(const std::byte*& cursor, std::unordered_set<T>& set)
+template<typename T, typename Hash, typename KeyEqual, typename Alloc>
+inline void unpack(const std::byte*& cursor, std::unordered_set<T, Hash, KeyEqual, Alloc>& set)
 {
     // clear set
     set.clear();
@@ -200,7 +350,7 @@ void unpack(const std::byte*& cursor, std::unordered_set<T>& set)
 
 /** std::queue */
 template<typename T>
-void pack(std::vector<std::byte>& buf, const std::queue<T>& queue)
+inline void pack(std::vector<std::byte>& buf, const std::queue<T>& queue)
 {
     // make copy of queue
     auto copy = queue;
@@ -217,7 +367,7 @@ void pack(std::vector<std::byte>& buf, const std::queue<T>& queue)
 }
 
 template<typename T>
-void unpack(const std::byte*& cursor, std::queue<T>& queue)
+inline void unpack(const std::byte*& cursor, std::queue<T>& queue)
 {
     // unpack size of queue
     size_t queue_size;
@@ -243,7 +393,8 @@ void unpack(const std::byte*& cursor, std::queue<T>& queue)
 /** dynamic Eigen types */
 
 template<typename Derived>
-void pack(std::vector<std::byte>& buf, const Eigen::DenseBase<Derived>& mat)
+inline std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<Derived>, Derived>>
+pack(std::vector<std::byte>& buf, const Derived& mat)
 {
     if constexpr (Derived::RowsAtCompileTime == Eigen::Dynamic ||
                   Derived::ColsAtCompileTime == Eigen::Dynamic)
@@ -256,7 +407,8 @@ void pack(std::vector<std::byte>& buf, const Eigen::DenseBase<Derived>& mat)
 }
 
 template<typename Derived>
-void unpack(const std::byte*& cursor, Eigen::DenseBase<Derived>& mat)
+inline std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<Derived>, Derived>>
+unpack(const std::byte*& cursor, Derived& mat)
 {
     if constexpr (Derived::RowsAtCompileTime == Eigen::Dynamic ||
                   Derived::ColsAtCompileTime == Eigen::Dynamic)
@@ -268,42 +420,6 @@ void unpack(const std::byte*& cursor, Eigen::DenseBase<Derived>& mat)
     }
     std::memcpy(mat.derived().data(), cursor, mat.size() * sizeof(typename Derived::Scalar));
     cursor += mat.size() * sizeof(typename Derived::Scalar);
-}
-
-
-/** Default
- * Trivially copyable types
- * Composite types with save() and load() implemented
- */
-
-template<typename T>
-void pack(std::vector<std::byte>& buf, const T& val)
-{
-    if constexpr (has_save<T>::value)
-    {
-        val.save(buf);
-    }
-    else
-    {
-        static_assert(std::is_trivially_copyable_v<T>);
-        const auto* bytes = reinterpret_cast<const std::byte*>(&val);
-        buf.insert(buf.end(), bytes, bytes + sizeof(T));
-    }
-}
-
-template<typename T>
-void unpack(const std::byte*& cursor, T& var)
-{
-    if constexpr (has_save<T>::value)
-    {
-        var.load(cursor);
-    }
-    else
-    {
-        static_assert(std::is_trivially_copyable_v<T>);
-        std::memcpy(&var, cursor, sizeof(T));
-        cursor += sizeof(T);
-    }
 }
 
 #endif // __PACK_HPP

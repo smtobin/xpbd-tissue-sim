@@ -90,6 +90,8 @@ public:
         // if this element has no children, then it is a leaf node!
         bool isLeaf() const { return children.size() == 0; }
 
+        ElementTreeNode() = default; // required for deserialization
+
         /** Initialize the node from the vertices in the element, the parent tree node index, and the depth in the tree this node is at.
          * This will initialize the edge_nodes and face_nodes to be all invalid.
          */
@@ -111,6 +113,30 @@ public:
             // preemptively reserve space for the children
             children.reserve(8);
         } 
+
+        friend void serialize(std::vector<std::byte>& buf, const ElementTreeNode& node)
+        {
+            pack(buf, node.vertices);
+            pack(buf, node.element_index);
+            pack(buf, node.parent);
+            pack(buf, node.children);
+            pack(buf, node.level);
+            pack(buf, node.incomplete);
+            pack(buf, node.edge_nodes);
+            pack(buf, node.face_nodes);
+        }
+
+        friend void deserialize(const std::byte*& buf, ElementTreeNode& node)
+        {
+            unpack(buf, node.vertices);
+            unpack(buf, node.element_index);
+            unpack(buf, node.parent);
+            unpack(buf, node.children);
+            unpack(buf, node.level);
+            unpack(buf, node.incomplete);
+            unpack(buf, node.edge_nodes);
+            unpack(buf, node.face_nodes);
+        }
     };
 
     /** Represents a edge feature in the feature hierarchy tree.
@@ -136,6 +162,8 @@ public:
 
         // child (midpoint) vertex. this is the index in the _vertices vector
         int child_vertex = ElementTreeNode::INVALID_INDEX;
+
+        EdgeNode() = default; // required for deserialization
 
         EdgeNode(const Edge& edge_)
             : edge(edge_)
@@ -171,6 +199,8 @@ public:
         // the child face nodes
         std::array<int,4> child_face_nodes = {ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX, ElementTreeNode::INVALID_INDEX};
 
+        FaceNode() = default; // required for deserialization
+
         FaceNode(const Face& face_)
             : face(face_)
         {
@@ -189,6 +219,8 @@ public:
         int parent1;
         int parent2;
 
+        NewVertex() = default; // required for deserialization
+
         NewVertex(int index_, int parent1_, int parent2_)
             : index(index_), parent1(parent1_), parent2(parent2_)
         {}
@@ -200,6 +232,8 @@ public:
         int index;
         int parent1;
         int parent2;
+
+        RemovedVertex() = default; // required for deserialization
 
         RemovedVertex(int index_, int parent1_, int parent2_)
             : index(index_), parent1(parent1_), parent2(parent2_)
@@ -215,6 +249,9 @@ public:
     RefinedTetMesh(const TetMesh& tet_mesh);
 
     virtual ~RefinedTetMesh() = default;
+
+    friend void serialize(std::vector<std::byte>& buf, const RefinedTetMesh& mesh);
+    friend void deserialize(const std::byte*& buf, RefinedTetMesh& mesh);
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.

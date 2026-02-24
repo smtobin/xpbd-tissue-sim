@@ -119,8 +119,8 @@ public:
 
     virtual ~Mesh() = default;
 
-    virtual void save(std::vector<std::byte>& buf) const;
-    virtual void load(const std::byte*& cursor);
+    friend void serialize(std::vector<std::byte>& buf, const Mesh& mesh);
+    friend void deserialize(const std::byte*& cursor, Mesh& mesh);
 
     /** Returns the latest topology version of the mesh. This gets updated every time the mesh topology is edited (element removed, refined, etc.). */
     unsigned long topologyVersion() const { return _topology_version; }

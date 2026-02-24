@@ -697,4 +697,35 @@ void TetMesh::createGPUResource()
 }
 #endif
 
+void serialize(std::vector<std::byte>& buf, const TetMesh& mesh)
+{
+    serialize(buf, static_cast<const Mesh&>(mesh));
+    pack(buf, mesh._elements);
+    pack(buf, mesh._element_properties);
+    pack(buf, mesh._element_rest_volumes);
+    pack(buf, mesh._element_inv_undeformed_basis);
+    pack(buf, mesh._vertex_rest_volumes);
+    pack(buf, mesh._surface_face_to_element_map);
+    pack(buf, mesh._element_to_surface_faces_map);
+    pack(buf, mesh._vertex_to_elements_map);
+    pack(buf, mesh._edge_to_elements_map);
+    pack(buf, mesh._face_to_elements_map);
+    pack(buf, mesh._recently_removed_elements);
+}
+
+void deserialize(const std::byte*& buf, TetMesh& mesh)
+{
+    deserialize(buf, static_cast<Mesh&>(mesh));
+    unpack(buf, mesh._vertices);
+    unpack(buf, mesh._faces);
+    unpack(buf, mesh._vertex_normals);
+    unpack(buf, mesh._initial_vertices);
+    unpack(buf, mesh._vertex_adjacent_vertices);
+    unpack(buf, mesh._unrotated_size_xyz);
+    unpack(buf, mesh._mesh_origin);
+    unpack(buf, mesh._vertex_properties);
+    unpack(buf, mesh._face_properties);
+    unpack(buf, mesh._topology_version);
+}
+
 } // namespace Geometry

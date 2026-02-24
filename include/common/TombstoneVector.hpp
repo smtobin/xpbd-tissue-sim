@@ -54,18 +54,18 @@ public:
     }
 
     /** Loading and saving to byte array */
-    void save(std::vector<std::byte>& buf) const
+    friend void serialize(std::vector<std::byte>& buf, const TombstoneVector<T>& vec)
     {
-        pack(buf, _empty_indices);
-        pack(buf, _data);
-        pack(buf, _num_valid);
+        pack(buf, vec._empty_indices);
+        pack(buf, vec._data);
+        pack(buf, vec._num_valid);
     }
 
-    void load(const std::byte*& cursor)
+    friend void deserialize(const std::byte*& cursor, TombstoneVector<T>& vec)
     {
-        unpack(cursor, _empty_indices);
-        unpack(cursor, _data);
-        unpack(cursor, _num_valid);
+        unpack(cursor, vec._empty_indices);
+        unpack(cursor, vec._data);
+        unpack(cursor, vec._num_valid);
     }
 
     /** Accessing elements */
@@ -415,6 +415,7 @@ public:
 
 
 private:
+
     /** A queue to keep track of empty indices that we can fill in */
     std::queue<size_t> _empty_indices;
 
@@ -424,6 +425,8 @@ private:
     /** Number of valid elements in the vector */
     size_t _num_valid;
 };
+
+
 
 
 #endif // __TOMBSTONE_VECTOR_HPP

@@ -13,6 +13,8 @@ class MeshProperty
 {
 
     public:
+    MeshProperty() = default; // required for deserialization
+
     MeshProperty(const std::string& name, int size, bool is_field)
         : _name(name), _properties(size), _is_field(is_field)
     {
@@ -23,20 +25,20 @@ class MeshProperty
     {
     }
 
-    void save(std::vector<std::byte>& buf) const
+    friend void serialize(std::vector<std::byte>& buf, const MeshProperty<T>& prop)
     {
-        pack(buf, _name);
-        pack(buf, _properties);
-        pack(buf, _default_value);
-        pack(buf, _is_field);
+        pack(buf, prop._name);
+        pack(buf, prop._properties);
+        pack(buf, prop._default_value);
+        pack(buf, prop._is_field);
     }
 
-    void load(const std::byte*& cursor)
+    friend void deserialize(const std::byte*& cursor, MeshProperty<T>& prop)
     {
-        unpack(cursor, _name);
-        unpack(cursor, _properties);
-        unpack(cursor, _default_value);
-        unpack(cursor, _is_field);
+        unpack(cursor, prop._name);
+        unpack(cursor, prop._properties);
+        unpack(cursor, prop._default_value);
+        unpack(cursor, prop._is_field);
     }
 
     const std::string& name() const { return _name; }

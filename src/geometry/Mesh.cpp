@@ -68,34 +68,6 @@ Mesh::Mesh(Mesh&& other)
  #endif
 }
 
-void Mesh::save(std::vector<std::byte>& buf) const
-{
-    pack(buf, _vertices);
-    pack(buf, _faces);
-    pack(buf, _vertex_normals);
-    pack(buf, _initial_vertices);
-    pack(buf, _vertex_adjacent_vertices);
-    pack(buf, _unrotated_size_xyz);
-    pack(buf, _mesh_origin);
-    pack(buf, _vertex_properties);
-    pack(buf, _face_properties);
-    pack(buf, _topology_version);
-}
-
-void Mesh::load(const std::byte*& buf)
-{
-    unpack(buf, _vertices);
-    unpack(buf, _faces);
-    unpack(buf, _vertex_normals);
-    unpack(buf, _initial_vertices);
-    unpack(buf, _vertex_adjacent_vertices);
-    unpack(buf, _unrotated_size_xyz);
-    unpack(buf, _mesh_origin);
-    unpack(buf, _vertex_properties);
-    unpack(buf, _face_properties);
-    unpack(buf, _topology_version);
-}
-
 void Mesh::_computeAdjacentVertices()
 {
     _vertex_adjacent_vertices.resize(numVertices());
@@ -538,5 +510,33 @@ void Mesh::createGPUResource()
     _gpu_resource->allocate();
 }
 #endif
+
+void serialize(std::vector<std::byte>& buf, const Mesh& mesh)
+{
+    pack(buf, mesh._vertices);
+    pack(buf, mesh._faces);
+    pack(buf, mesh._vertex_normals);
+    pack(buf, mesh._initial_vertices);
+    pack(buf, mesh._vertex_adjacent_vertices);
+    pack(buf, mesh._unrotated_size_xyz);
+    pack(buf, mesh._mesh_origin);
+    pack(buf, mesh._vertex_properties);
+    pack(buf, mesh._face_properties);
+    pack(buf, mesh._topology_version);
+}
+
+void deserialize(const std::byte*& buf, Mesh& mesh)
+{
+    unpack(buf, mesh._vertices);
+    unpack(buf, mesh._faces);
+    unpack(buf, mesh._vertex_normals);
+    unpack(buf, mesh._initial_vertices);
+    unpack(buf, mesh._vertex_adjacent_vertices);
+    unpack(buf, mesh._unrotated_size_xyz);
+    unpack(buf, mesh._mesh_origin);
+    unpack(buf, mesh._vertex_properties);
+    unpack(buf, mesh._face_properties);
+    unpack(buf, mesh._topology_version);
+}
 
 } // namespace Geometry
