@@ -23,6 +23,8 @@ namespace Geometry
 class MeshSDF : public SDF
 {
     public:
+    MeshSDF() = default; // required for deserialization
+
     MeshSDF(const Sim::RigidMeshObject* mesh_obj, const Config::RigidMeshObjectConfig* config);
 
     virtual void serialize(std::vector<std::byte>& buf) const;

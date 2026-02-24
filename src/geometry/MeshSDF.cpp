@@ -103,14 +103,14 @@ inline void MeshSDF::createGPUResource()
 void MeshSDF::serialize(std::vector<std::byte>& buf) const
 {
     pack(buf, _mesh_obj);
-    pack(buf, _sdf);
+    _sdf.serialize(buf);
     pack(buf, _from_file);
 }
 
 void MeshSDF::deserialize(const std::byte*& buf)
 {
     unpack(buf, _mesh_obj);
-    unpack(buf, _sdf);
+    _sdf.deserialize(buf);
     unpack(buf, _from_file);
 }
 
