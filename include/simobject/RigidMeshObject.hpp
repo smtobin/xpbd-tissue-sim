@@ -22,6 +22,9 @@ class RigidMeshObject : public RigidObject, public MeshObject
     public:
     RigidMeshObject(const Simulation* sim, const ConfigType* config);
 
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
     virtual std::string type() const override { return "RigidMeshObject"; }
 
     virtual std::string toString(const int indent) const override;

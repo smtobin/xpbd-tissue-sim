@@ -25,6 +25,9 @@ class MeshSDF : public SDF
     public:
     MeshSDF(const Sim::RigidMeshObject* mesh_obj, const Config::RigidMeshObjectConfig* config);
 
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
+
     virtual Real evaluate(const Vec3r& x) const override;
 
     virtual Vec3r gradient(const Vec3r& x) const override;

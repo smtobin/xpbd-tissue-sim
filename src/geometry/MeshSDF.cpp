@@ -100,4 +100,18 @@ inline void MeshSDF::createGPUResource()
 }
  #endif
 
+void MeshSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _mesh_obj);
+    pack(buf, _sdf);
+    pack(buf, _from_file);
+}
+
+void MeshSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _mesh_obj);
+    unpack(buf, _sdf);
+    unpack(buf, _from_file);
+}
+
 } // namespace Geometry

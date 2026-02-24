@@ -42,6 +42,9 @@ class MeshObject
     }
     virtual void deserialize(const std::byte*& buf)
     {
+        // make sure the unique_ptr is allocated
+        _allocateMesh();
+
         unpack(buf, _mesh);
         unpack(buf, _filename);
         unpack(buf, _initial_position);
@@ -104,6 +107,11 @@ class MeshObject
         
     }
 
+    virtual void _allocateMesh()
+    {
+        _mesh = std::make_unique<Geometry::Mesh>();
+    }
+
     protected:
     std::unique_ptr<Geometry::Mesh> _mesh;
 
@@ -133,6 +141,11 @@ class TetMeshObject : public MeshObject
     const Geometry::TetMesh* tetMesh() const { return dynamic_cast<Geometry::TetMesh*>(_mesh.get()); }
     Geometry::TetMesh* tetMesh() { return dynamic_cast<Geometry::TetMesh*>(_mesh.get()); }
 
+    virtual void _allocateMesh() override
+    {
+        _mesh = std::make_unique<Geometry::TetMesh>();
+    }
+
     protected:
     virtual void _loadMeshFromFile(const std::string& fname)
     {
@@ -156,6 +169,11 @@ class RefinedTetMeshObject : public TetMeshObject
 
     const Geometry::RefinedTetMesh* refinedTetMesh() const { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
     Geometry::RefinedTetMesh* refinedTetMesh() { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
+
+    virtual void _allocateMesh() override
+    {
+        _mesh = std::make_unique<Geometry::RefinedTetMesh>();
+    }
 
     protected:
     virtual void _loadMeshFromFile(const std::string& fname)
