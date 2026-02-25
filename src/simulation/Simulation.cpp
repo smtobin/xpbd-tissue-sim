@@ -251,12 +251,15 @@ void Simulation::update()
     if (_logger)
         _logger->startLogging();
 
-    /** Save the initial state */
+
+    // same logic - other derived Simulation classes have finished whatever setup they're doing
+    // now we can save the initial state
     SimulationCheckpoint initial;
     initial.time = _time;
     initial.last_collision_detection_time = _last_collision_detection_time;
     pack(initial.object_bytes, _objects);
     _checkpoint_states.push_back(std::move(initial));
+
 
     auto start = std::chrono::steady_clock::now();
 
@@ -282,6 +285,14 @@ void Simulation::update()
                 cb.next_exec_time = cb.next_exec_time + cb.interval;
             }
         }
+
+        // execute one-time callbacks
+        for (auto& cb : _one_time_callbacks)
+        {
+            cb();
+        }
+        // clear the one-time callbacks after executing them
+        _one_time_callbacks.clear();
 
         // if the simulation is ahead of the current elapsed wall time, stall
         if (_sim_mode == Config::SimulationMode::VISUALIZATION && _time > wall_time_elapsed_s)
@@ -434,9 +445,9 @@ void Simulation::notifyKeyPressed(SimulationInput::Key key , SimulationInput::Ke
 
     if (action == SimulationInput::KeyAction::PRESS && key == SimulationInput::Key::BACKSPACE)
     {
-        addCallback(5, [&]() {
+        addOneTimeCallback([&]() {
             this->reset();
-        }, false);
+        });
     }
 }
 
@@ -491,12 +502,10 @@ int Simulation::run()
 
 void Simulation::reset()
 {
-    std::cout << "RESETTING THE SIM..." << std::endl;
     _time = _checkpoint_states[0].time;
     _last_collision_detection_time = _checkpoint_states[0].last_collision_detection_time;
     const std::byte* cursor = _checkpoint_states[0].object_bytes.data();
     unpack(cursor, _objects);
-    std::cout << "DONE" << std::endl;
 }
 
 } // namespace Sim

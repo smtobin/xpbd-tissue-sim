@@ -155,6 +155,16 @@ class Simulation
 
             _callbacks.emplace_back(std::move(wrapper), interval, _time, use_wall_time);
         }
+
+        template<typename CallbackT>
+        void addOneTimeCallback(CallbackT&& lambda)
+        {
+            std::function<void()> wrapper = [lambda = std::forward<CallbackT>(lambda)]() {
+                lambda();
+            };
+
+            _one_time_callbacks.push_back(std::move(wrapper));
+        }
     
     protected:
         /** Helper to add an object to the simulation given an ObjectConfig.
@@ -263,6 +273,11 @@ class Simulation
 
         /** scheduled callbacks */
         std::vector<CallbackInfo> _callbacks;
+
+        /** One-time callbacks - executed once, then deleted
+         * Useful for scheduling keyboard events in a thread-safe way, e.g. resetting the sim
+         */
+        std::vector<std::function<void()>> _one_time_callbacks;
 
         /** storage of all Objects in the simulation.
          * These objects will evolve in time through the update() method that they all provide
