@@ -133,6 +133,14 @@ class Simulation
         /** Resets the simulation to its initial state. */
         void reset();
 
+        /** Saves the current sim state as a checkpoint, with the label provided. */
+        bool saveCheckpoint(const std::string& label);
+
+        /** Restores the sim state to a previous checkpoint.
+         * Returns false if no checkpoint with the label is found.
+         */
+        bool restoreCheckpoint(const std::string& label);
+
         /** Notifies the simulation that a key has been pressed in the viewer.
          * @param key : the key that was pressed
          * @param action : the action performed on the keyboard
@@ -309,7 +317,7 @@ class Simulation
         std::unique_ptr<SimulationLogger> _logger;
 
         /** Saves the simulation state at various checkpoints. */
-        std::vector<SimulationCheckpoint> _checkpoint_states;
+        std::unordered_map<std::string, SimulationCheckpoint> _sim_checkpoints;
 };
 
 } // namespace Sim

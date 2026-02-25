@@ -47,6 +47,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SparseMatrix.msg"
   "msg/RemovedElement.msg"
   "msg/RemovedElementArray.msg"
+  "srv/SaveCheckpoint.srv"
+  "srv/RestoreCheckpoint.srv"
   DEPENDENCIES std_msgs
   DEPENDENCIES geometry_msgs
 )

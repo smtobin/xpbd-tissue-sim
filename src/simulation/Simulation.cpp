@@ -254,11 +254,7 @@ void Simulation::update()
 
     // same logic - other derived Simulation classes have finished whatever setup they're doing
     // now we can save the initial state
-    SimulationCheckpoint initial;
-    initial.time = _time;
-    initial.last_collision_detection_time = _last_collision_detection_time;
-    pack(initial.object_bytes, _objects);
-    _checkpoint_states.push_back(std::move(initial));
+    saveCheckpoint("initial_state");
 
 
     auto start = std::chrono::steady_clock::now();
@@ -502,10 +498,42 @@ int Simulation::run()
 
 void Simulation::reset()
 {
-    _time = _checkpoint_states[0].time;
-    _last_collision_detection_time = _checkpoint_states[0].last_collision_detection_time;
-    const std::byte* cursor = _checkpoint_states[0].object_bytes.data();
-    unpack(cursor, _objects);
+    restoreCheckpoint("initial_state");
+}
+
+bool Simulation::saveCheckpoint(const std::string& label)
+{
+    if (_sim_checkpoints.count(label) > 0)
+        return false;
+    
+    addOneTimeCallback([this, label]() {
+        std::cout << "Saving checkpoint with label: " << label << std::endl;
+        SimulationCheckpoint checkpoint;
+        checkpoint.time = this->_time;
+        checkpoint.last_collision_detection_time = this->_last_collision_detection_time;
+        pack(checkpoint.object_bytes, this->_objects);
+        _sim_checkpoints.insert({label, std::move(checkpoint)});
+    });
+
+
+    return true;
+}
+
+bool Simulation::restoreCheckpoint(const std::string& label)
+{
+    auto it = _sim_checkpoints.find(label);
+    bool found = it != _sim_checkpoints.end();
+    if (found)
+    {
+        addOneTimeCallback([this, it]() {
+            this->_time = it->second.time;
+            this->_last_collision_detection_time = it->second.last_collision_detection_time;
+            const std::byte* cursor = it->second.object_bytes.data();
+            unpack(cursor, _objects);
+        });
+    }
+
+    return found;
 }
 
 } // namespace Sim
