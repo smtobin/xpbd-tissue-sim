@@ -2,6 +2,8 @@
 
 #include "simobject/RigidPrimitives.hpp"
 
+#include "common/Pack.hpp"
+
 #ifdef HAVE_CUDA
 #include "gpu/resource/SphereSDFGPUResource.hpp"
 #endif
@@ -32,5 +34,15 @@ inline void SphereSDF::createGPUResource()
     _gpu_resource->allocate();
 }
  #endif
+
+void SphereSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _sphere);
+}
+
+void SphereSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _sphere);
+}
 
 } // namespace Geometry

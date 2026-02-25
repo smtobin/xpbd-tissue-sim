@@ -3,6 +3,8 @@
 
 #include "simobject/RigidPrimitives.hpp"
 
+#include "common/Pack.hpp"
+
 #ifdef HAVE_CUDA
 #include "gpu/resource/BoxSDFGPUResource.hpp"
 #endif
@@ -90,5 +92,15 @@ inline void BoxSDF::createGPUResource()
     _gpu_resource->allocate();
 }
  #endif
+
+void BoxSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _box);
+}
+
+void BoxSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _box);
+}
 
 } // namespace Geometry

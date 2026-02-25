@@ -26,6 +26,7 @@ class Object
     using ConfigType = Config::ObjectConfig;
 
     public:
+    Object() = default;
     Object(const Simulation* sim, const ConfigType* config);
 
     virtual ~Object() = default;

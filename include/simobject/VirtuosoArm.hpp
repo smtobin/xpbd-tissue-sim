@@ -186,6 +186,8 @@ class VirtuosoArm : public Object
         int node_index; // "global" node index, i.e. from 0 to NUM_OT_FRAMES + NUM_IT_FRAMES
         Real interp;    // between 0 and 1
 
+        CollisionConstraintInfo() = default;
+
         CollisionConstraintInfo(ProjectorRefType&& proj_ref_, int node_index_, Real interp_)
             : proj_ref(proj_ref_), node_index(node_index_), interp(interp_)
         {}
@@ -193,10 +195,28 @@ class VirtuosoArm : public Object
         CollisionConstraintInfo(const ProjectorRefType& proj_ref_, int node_index_, Real interp_)
             : proj_ref(proj_ref_), node_index(node_index_), interp(interp_)
         {}
-        };
+
+        void serialize(std::vector<std::byte>& buf) const
+        {
+            pack(buf, proj_ref);
+            pack(buf, node_index);
+            pack(buf, interp);
+        }
+        void deserialize(const std::byte*& buf)
+        {
+            unpack(buf, proj_ref);
+            unpack(buf, node_index);
+            unpack(buf, interp);
+        }
+    };
 
     public:
+    VirtuosoArm() = default; // required for deserialization
+
     VirtuosoArm(const Simulation* sim, const ConfigType* config);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     /** Returns a string with all relevant information about this object. 
      * @param indent : the level of indentation to use for formatting new lines of the string

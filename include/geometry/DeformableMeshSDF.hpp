@@ -20,6 +20,8 @@ class EmbreeScene;
 class DeformableMeshSDF : public SDF
 {
     public:
+    DeformableMeshSDF() = default;
+    
     DeformableMeshSDF(const Sim::TetMeshObject* mesh_obj, const EmbreeScene* embree_scene);
 
     // DeformableMeshSDF(const DeformableMeshSDF& other);
@@ -29,6 +31,9 @@ class DeformableMeshSDF : public SDF
     // Explicitly define move operations if they're missing
     DeformableMeshSDF(DeformableMeshSDF&&) = default;
     DeformableMeshSDF& operator=(DeformableMeshSDF&&) = default;
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
 
     virtual Real evaluate(const Vec3r& x) const override;
     virtual Vec3r gradient(const Vec3r& x) const override;
@@ -42,7 +47,7 @@ class DeformableMeshSDF : public SDF
     // Vec3r _gradientStaticSDF(const Vec3r& X_m) const;
 
     const Sim::TetMeshObject* _mesh_obj;
-    const Geometry::Mesh::vertices_vec_type _initial_vertices;
+    Geometry::Mesh::vertices_vec_type _initial_vertices;
     // mesh2sdf::MeshSDF _sdf;
     // bool _from_file;
 

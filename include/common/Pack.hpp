@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <queue>
 #include <memory>
+#include <variant>
 #include <cstddef>
 #include <string>
 #include <cassert>
@@ -92,6 +93,11 @@ void pack(std::vector<std::byte>& buf, const std::optional<T>& opt);
 template<typename T>
 void unpack(const std::byte*& cursor, std::optional<T>& opt);
 
+template<typename... Ts>
+void pack(std::vector<std::byte>& buf, const std::variant<Ts...>& var);
+template<typename... Ts>
+void unpack(const std::byte*& cursor, std::variant<Ts...>& var);
+
 template<typename T>
 void pack(std::vector<std::byte>& buf, const std::unique_ptr<T>& ptr);
 template<typename T>
@@ -101,6 +107,11 @@ template<typename T>
 void pack(std::vector<std::byte>& buf, const std::vector<T>& vec);
 template<typename T>
 void unpack(const std::byte*& cursor, std::vector<T>& vec);
+
+template<typename T, size_t N>
+void pack(std::vector<std::byte>& buf, const std::array<T, N>& arr);
+template<typename T, size_t N>
+void unpack(const std::byte*& cursor, std::array<T, N>& arr);
 
 template<typename K, typename V, typename Hash, typename KeyEqual, typename Alloc>
 void pack(std::vector<std::byte>& buf, const std::unordered_map<K, V, Hash, KeyEqual, Alloc>& map);
@@ -206,12 +217,89 @@ inline void unpack(const std::byte*& cursor, std::optional<T>& opt)
     unpack(cursor, has_value);
     if (has_value)
     {
-        opt.emplace();
+        if (!opt.has_value())
+            opt.emplace();
         unpack(cursor, *opt);
     }
     else
         opt = std::nullopt;
 }
+
+/** std::variant */
+
+template<typename... Ts>
+inline void pack(std::vector<std::byte>& buf, const std::variant<Ts...>& var)
+{
+    // pack the index of the active type
+    pack(buf, var.index());
+    
+    // pack the active value
+    std::visit([&buf](const auto& val) {
+        pack(buf, val);
+    }, var);
+}
+
+template<size_t I, typename... Ts>
+bool unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_t index)
+{
+    if (I != index) return false;
+    using T = std::variant_alternative_t<I, std::variant<Ts...>>;
+    T val;
+    unpack(cursor, val);
+    var = std::move(val);
+    return true;
+}
+
+template<typename... Ts, size_t... Is>
+bool unpack_variant_impl(const std::byte*& cursor, std::variant<Ts...>& var, size_t index, std::index_sequence<Is...>)
+{
+    // fold expression over || short-circuits on first match
+    return (unpack_variant_at<Is>(cursor, var, index) || ...);
+}
+
+template<typename... Ts>
+inline void unpack(const std::byte*& cursor, std::variant<Ts...>& var)
+{
+    size_t index;
+    unpack(cursor, index);
+
+    bool found = unpack_variant_impl(cursor, var, index, std::index_sequence_for<Ts...>{});
+
+    if (!found)
+        throw std::runtime_error("variant index out of range");
+}
+
+// template<typename... Ts>
+// inline void unpack(const std::byte*& cursor, std::variant<Ts...>& var)
+// {
+//     size_t index;
+//     unpack(cursor, index);
+    
+//     // use index to construct the right type and unpack into it
+//     unpack_variant_at<Ts...>(cursor, var, index, 0);
+// }
+
+// template<typename... Ts>
+// inline void unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_t target, size_t current)
+// {
+//     // base case: index not found, something went wrong
+//     throw std::runtime_error("variant index out of range");
+// }
+
+// template<typename T, typename... Rest, typename... All>
+// inline void unpack_variant_at(const std::byte*& cursor, std::variant<All...>& var, size_t target, size_t current)
+// {
+//     if (current == target)
+//     {
+//         T val;
+//         unpack(cursor, val);
+//         var = std::move(val);
+//     }
+//     else
+//     {
+//         unpack_variant_at<Rest...>(cursor, var, target, current + 1);
+//     }
+// }
 
 
 /** std::unique_ptr 
@@ -289,6 +377,24 @@ inline void unpack(const std::byte*& cursor, std::vector<bool>& vec)
         bool val;
         unpack(cursor, val);
         vec[i] = val;
+    }
+}
+
+/** std::array */
+
+template<typename T, size_t N>
+inline void pack(std::vector<std::byte>& buf, const std::array<T, N>& arr)
+{
+    for (const auto& v : arr)
+        pack(buf, v);
+}
+
+template<typename T, size_t N>
+inline void unpack(const std::byte*& cursor, std::array<T, N>& arr)
+{
+    for (auto& v : arr)
+    {
+        unpack(cursor, v);
     }
 }
 

@@ -104,4 +104,40 @@ void VirtuosoRobot::velocityUpdate()
         _arm2->velocityUpdate();
 }
 
+void VirtuosoRobot::serialize(std::vector<std::byte>& buf) const
+{
+    Object::serialize(buf);
+    pack(buf, _endoscope_dia);
+    pack(buf, _endoscope_length);
+    pack(buf, _arm_separation_dist);
+    pack(buf, _optic_vertical_dist);
+    pack(buf, _optic_forward_dist);
+    pack(buf, _optic_tilt);
+    pack(buf, _endoscope_frame);
+    pack(buf, _VB_frame);
+    pack(buf, _VR_frame);
+    pack(buf, _cam_frame);
+    pack(buf, _arm1);
+    pack(buf, _arm2);
+    pack(buf, _sdf);
+}
+
+void VirtuosoRobot::deserialize(const std::byte*& buf)
+{
+    Object::deserialize(buf);
+    unpack(buf, _endoscope_dia);
+    unpack(buf, _endoscope_length);
+    unpack(buf, _arm_separation_dist);
+    unpack(buf, _optic_vertical_dist);
+    unpack(buf, _optic_forward_dist);
+    unpack(buf, _optic_tilt);
+    unpack(buf, _endoscope_frame);
+    unpack(buf, _VB_frame);
+    unpack(buf, _VR_frame);
+    unpack(buf, _cam_frame);
+    unpack(buf, _arm1);
+    unpack(buf, _arm2);
+    unpack(buf, _sdf);
+}
+
 } // namespace Sim

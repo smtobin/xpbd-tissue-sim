@@ -17,7 +17,12 @@ namespace Geometry
 class CylinderSDF : public SDF
 {
     public:
+    CylinderSDF() = default;
+
     CylinderSDF(const Sim::RigidCylinder* cyl);
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
 
     /** Evaluates F(x) for a cylinder with arbitrary position, orientation, radius and height
      * @param x - the point at which to evaluate the SDF

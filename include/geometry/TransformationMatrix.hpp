@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 
 #include "utils/GeometryUtils.hpp"
+#include "common/Pack.hpp"
 
 namespace Geometry
 {
@@ -25,6 +26,15 @@ class TransformationMatrix
     explicit TransformationMatrix(const Mat4r& t_mat)
         : _matrix(t_mat)
     {}
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _matrix);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _matrix);
+    }
 
     bool operator==(const TransformationMatrix& other) const
     {
