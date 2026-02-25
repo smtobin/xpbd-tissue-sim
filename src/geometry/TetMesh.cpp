@@ -716,16 +716,17 @@ void TetMesh::serialize(std::vector<std::byte>& buf) const
 void TetMesh::deserialize(const std::byte*& buf)
 {
     Mesh::deserialize(buf);
-    unpack(buf, _vertices);
-    unpack(buf, _faces);
-    unpack(buf, _vertex_normals);
-    unpack(buf, _initial_vertices);
-    unpack(buf, _vertex_adjacent_vertices);
-    unpack(buf, _unrotated_size_xyz);
-    unpack(buf, _mesh_origin);
-    unpack(buf, _vertex_properties);
-    unpack(buf, _face_properties);
-    unpack(buf, _topology_version);
+    unpack(buf, _elements);
+    unpack(buf, _element_properties);
+    unpack(buf, _element_rest_volumes);
+    unpack(buf, _element_inv_undeformed_basis);
+    unpack(buf, _vertex_rest_volumes);
+    unpack(buf, _surface_face_to_element_map);
+    unpack(buf, _element_to_surface_faces_map);
+    unpack(buf, _vertex_to_elements_map);
+    unpack(buf, _edge_to_elements_map);
+    unpack(buf, _face_to_elements_map);
+    unpack(buf, _recently_removed_elements);
 }
 
 } // namespace Geometry

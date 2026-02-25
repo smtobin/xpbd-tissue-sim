@@ -243,6 +243,13 @@ void Simulation::setup()
         _logger->addOutput("time [s]", &_time);
     }
     
+    /** Save the initial state */
+    SimulationCheckpoint initial;
+    initial.time = _time;
+    initial.last_collision_detection_time = _last_collision_detection_time;
+    pack(initial.object_bytes, _objects);
+    _checkpoint_states.push_back(std::move(initial));
+
 }
 
 void Simulation::update()
@@ -268,10 +275,12 @@ void Simulation::update()
         // check if any callbacks need to be called
         for (auto& cb : _callbacks)
         {
+            std::cout << "time: " << _time << "  next exec: " << cb.next_exec_time << std::endl;
             if ((cb.use_wall_time && wall_time_elapsed_s > cb.next_exec_time) ||
                 (!cb.use_wall_time && _time > cb.next_exec_time)
             )
             {
+                std::cout << "  Callback..." << std::endl;
                 cb.callback();
                 cb.next_exec_time = cb.next_exec_time + cb.interval;
             }
@@ -413,7 +422,7 @@ void Simulation::_updateGraphics()
     }
 }
 
-void Simulation::notifyKeyPressed(SimulationInput::Key /* key */, SimulationInput::KeyAction action, int /* modifiers */)
+void Simulation::notifyKeyPressed(SimulationInput::Key key , SimulationInput::KeyAction action, int /* modifiers */)
 {
     // action = 0 ==> key up event
     // action = 1 ==> key down event
@@ -424,6 +433,15 @@ void Simulation::notifyKeyPressed(SimulationInput::Key /* key */, SimulationInpu
     {
         _timeStep();
         _updateGraphics();
+    }
+
+    if (action == SimulationInput::KeyAction::PRESS && key == SimulationInput::Key::BACKSPACE)
+    {
+        std::cout << "BACKSPACE PRESSED!" << std::endl;
+        addCallback(5, [&]() {
+            std::cout << "Callback!" << std::endl;
+            this->reset();
+        }, false);
     }
 }
 
@@ -474,6 +492,16 @@ int Simulation::run()
         return 0;
     }
     
+}
+
+void Simulation::reset()
+{
+    std::cout << "RESETTING THE SIM..." << std::endl;
+    _time = _checkpoint_states[0].time;
+    _last_collision_detection_time = _checkpoint_states[0].last_collision_detection_time;
+    const std::byte* cursor = _checkpoint_states[0].object_bytes.data();
+    unpack(cursor, _objects);
+    std::cout << "DONE" << std::endl;
 }
 
 } // namespace Sim

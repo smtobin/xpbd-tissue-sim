@@ -30,6 +30,14 @@
 
 namespace Sim
 {
+
+struct SimulationCheckpoint
+{
+    Real time;
+    Real last_collision_detection_time;
+    std::vector<std::byte> object_bytes;
+};
+
 /** A class for managing the simulation being performed.
  * Owns the Objects, keeps track fo the sim time, etc.
  * 
@@ -121,6 +129,9 @@ class Simulation
 
         /** Updates the simulation at a fixed time step. */
         virtual void update();
+
+        /** Resets the simulation to its initial state. */
+        void reset();
 
         /** Notifies the simulation that a key has been pressed in the viewer.
          * @param key : the key that was pressed
@@ -281,6 +292,9 @@ class Simulation
 
         /** Responsible for logging various simulation quantities. */
         std::unique_ptr<SimulationLogger> _logger;
+
+        /** Saves the simulation state at various checkpoints. */
+        std::vector<SimulationCheckpoint> _checkpoint_states;
 };
 
 } // namespace Sim
