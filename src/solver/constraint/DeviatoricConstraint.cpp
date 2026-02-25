@@ -26,6 +26,15 @@ DeviatoricConstraint::DeviatoricConstraint(int v1, PositionReference::VecType* v
     _alpha = 1/(material.mu() * _volume); // set alpha after the ElementConstraint constructor because we need the element volume
 }
 
+void DeviatoricConstraint::serialize(std::vector<std::byte>& buf) const
+{
+    ElementConstraint::serialize(buf);
+}
+
+void DeviatoricConstraint::deserialize(const std::byte*& buf)
+{
+    ElementConstraint::deserialize(buf);
+}
 
 void DeviatoricConstraint::evaluate(Real* C) const
 {

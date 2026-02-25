@@ -53,6 +53,23 @@ class ConstraintProjector
     {   
     }
 
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _dt);
+        pack(buf, _lambda);
+        pack(buf, _delC);
+        pack(buf, _constraint);
+        pack(buf, _valid);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _dt);
+        unpack(buf, _lambda);
+        unpack(buf, _delC);
+        unpack(buf, _constraint);
+        unpack(buf, _valid);
+    }
+
     /** Sets the validity of the ConstraintProjector. When valid, it is assumed the Constraint exists to be projected.
      * @param valid : the new validity of the ConstraintProjector
      */

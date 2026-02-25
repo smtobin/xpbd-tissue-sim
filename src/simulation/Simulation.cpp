@@ -242,7 +242,6 @@ void Simulation::setup()
         // add time as a variable
         _logger->addOutput("time [s]", &_time);
     }
-    
 }
 
 void Simulation::update()
@@ -251,6 +250,12 @@ void Simulation::update()
     // so we can start logging now (which will print the header and prevent us from adding new logged quantities)
     if (_logger)
         _logger->startLogging();
+
+
+    // same logic - other derived Simulation classes have finished whatever setup they're doing
+    // now we can save the initial state
+    saveCheckpoint("initial_state");
+
 
     auto start = std::chrono::steady_clock::now();
 
@@ -276,6 +281,14 @@ void Simulation::update()
                 cb.next_exec_time = cb.next_exec_time + cb.interval;
             }
         }
+
+        // execute one-time callbacks
+        for (auto& cb : _one_time_callbacks)
+        {
+            cb();
+        }
+        // clear the one-time callbacks after executing them
+        _one_time_callbacks.clear();
 
         // if the simulation is ahead of the current elapsed wall time, stall
         if (_sim_mode == Config::SimulationMode::VISUALIZATION && _time > wall_time_elapsed_s)
@@ -413,7 +426,7 @@ void Simulation::_updateGraphics()
     }
 }
 
-void Simulation::notifyKeyPressed(SimulationInput::Key /* key */, SimulationInput::KeyAction action, int /* modifiers */)
+void Simulation::notifyKeyPressed(SimulationInput::Key key , SimulationInput::KeyAction action, int /* modifiers */)
 {
     // action = 0 ==> key up event
     // action = 1 ==> key down event
@@ -424,6 +437,13 @@ void Simulation::notifyKeyPressed(SimulationInput::Key /* key */, SimulationInpu
     {
         _timeStep();
         _updateGraphics();
+    }
+
+    if (action == SimulationInput::KeyAction::PRESS && key == SimulationInput::Key::BACKSPACE)
+    {
+        addOneTimeCallback([&]() {
+            this->reset();
+        });
     }
 }
 
@@ -474,6 +494,46 @@ int Simulation::run()
         return 0;
     }
     
+}
+
+void Simulation::reset()
+{
+    restoreCheckpoint("initial_state");
+}
+
+bool Simulation::saveCheckpoint(const std::string& label)
+{
+    if (_sim_checkpoints.count(label) > 0)
+        return false;
+    
+    addOneTimeCallback([this, label]() {
+        std::cout << "Saving checkpoint with label: " << label << std::endl;
+        SimulationCheckpoint checkpoint;
+        checkpoint.time = this->_time;
+        checkpoint.last_collision_detection_time = this->_last_collision_detection_time;
+        pack(checkpoint.object_bytes, this->_objects);
+        _sim_checkpoints.insert({label, std::move(checkpoint)});
+    });
+
+
+    return true;
+}
+
+bool Simulation::restoreCheckpoint(const std::string& label)
+{
+    auto it = _sim_checkpoints.find(label);
+    bool found = it != _sim_checkpoints.end();
+    if (found)
+    {
+        addOneTimeCallback([this, it]() {
+            this->_time = it->second.time;
+            this->_last_collision_detection_time = it->second.last_collision_detection_time;
+            const std::byte* cursor = it->second.object_bytes.data();
+            unpack(cursor, _objects);
+        });
+    }
+
+    return found;
 }
 
 } // namespace Sim

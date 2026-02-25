@@ -166,4 +166,14 @@ VirtuosoArmSDF::DistanceAndGradientWithNodeInfo VirtuosoArmSDF::_capsuleSDFDista
     return result;
 }
 
+void VirtuosoArmSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _virtuoso_arm);
+}
+
+void VirtuosoArmSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _virtuoso_arm);
+}
+
 } // namespace Geometry

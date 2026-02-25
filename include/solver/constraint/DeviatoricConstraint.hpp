@@ -48,6 +48,9 @@ class DeviatoricConstraint : public ElementConstraint
                           int v4, PositionReference::VecType* vec_ptr4, Real m4,
                           const ElasticMaterial& material, const Mat3r& Q, Real rest_volume);
 
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
     bool isInequality() const override { return false; }

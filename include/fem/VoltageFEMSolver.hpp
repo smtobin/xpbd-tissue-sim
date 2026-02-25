@@ -29,6 +29,7 @@ public:
     // default in Eigen is column-major
     using ElementStiffnessMatrixType = Eigen::Matrix<Real, 4, 4, Eigen::RowMajor>;
 
+    VoltageFEMSolver() = default;
     VoltageFEMSolver(Geometry::RefinedTetMesh* mesh, Real k);
 
     /** Adds a new essential boundary condition at the specified index.

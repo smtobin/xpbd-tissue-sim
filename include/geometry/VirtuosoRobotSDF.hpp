@@ -16,7 +16,11 @@ namespace Geometry
 class VirtuosoRobotSDF : public SDF
 {
     public:
+    VirtuosoRobotSDF() = default;
     VirtuosoRobotSDF(Sim::VirtuosoRobot* virtuoso_robot);
+
+    void serialize(std::vector<std::byte>& buf) const;
+    void deserialize(const std::byte*& buf);
     
 
     virtual Real evaluate(const Vec3r& x) const override;

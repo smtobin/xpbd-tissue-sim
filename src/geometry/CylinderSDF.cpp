@@ -3,6 +3,8 @@
 
 #include "simobject/RigidPrimitives.hpp"
 
+#include "common/Pack.hpp"
+
 
 #ifdef HAVE_CUDA
 #include "gpu/resource/CylinderSDFGPUResource.hpp"
@@ -78,5 +80,15 @@ inline void CylinderSDF::createGPUResource()
     _gpu_resource->allocate();
 }
 #endif
+
+void CylinderSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _cyl);
+}
+
+void CylinderSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _cyl);
+}
 
 } // namespace Geometry

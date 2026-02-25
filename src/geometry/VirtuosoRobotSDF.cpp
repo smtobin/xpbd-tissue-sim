@@ -50,4 +50,18 @@ Vec3r VirtuosoRobotSDF::gradient(const Vec3r& x) const
         return _arm2_sdf->gradient(x);
 }
 
+void VirtuosoRobotSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _virtuoso_robot);
+    pack(buf, _arm1_sdf);
+    pack(buf, _arm2_sdf);
+}
+
+void VirtuosoRobotSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _virtuoso_robot);
+    unpack(buf, _arm1_sdf);
+    unpack(buf, _arm2_sdf);
+}
+
 } // namespace Geometry

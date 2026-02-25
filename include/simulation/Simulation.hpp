@@ -30,6 +30,14 @@
 
 namespace Sim
 {
+
+struct SimulationCheckpoint
+{
+    Real time;
+    Real last_collision_detection_time;
+    std::vector<std::byte> object_bytes;
+};
+
 /** A class for managing the simulation being performed.
  * Owns the Objects, keeps track fo the sim time, etc.
  * 
@@ -122,6 +130,17 @@ class Simulation
         /** Updates the simulation at a fixed time step. */
         virtual void update();
 
+        /** Resets the simulation to its initial state. */
+        void reset();
+
+        /** Saves the current sim state as a checkpoint, with the label provided. */
+        bool saveCheckpoint(const std::string& label);
+
+        /** Restores the sim state to a previous checkpoint.
+         * Returns false if no checkpoint with the label is found.
+         */
+        bool restoreCheckpoint(const std::string& label);
+
         /** Notifies the simulation that a key has been pressed in the viewer.
          * @param key : the key that was pressed
          * @param action : the action performed on the keyboard
@@ -143,6 +162,16 @@ class Simulation
             };
 
             _callbacks.emplace_back(std::move(wrapper), interval, _time, use_wall_time);
+        }
+
+        template<typename CallbackT>
+        void addOneTimeCallback(CallbackT&& lambda)
+        {
+            std::function<void()> wrapper = [lambda = std::forward<CallbackT>(lambda)]() {
+                lambda();
+            };
+
+            _one_time_callbacks.push_back(std::move(wrapper));
         }
     
     protected:
@@ -253,6 +282,11 @@ class Simulation
         /** scheduled callbacks */
         std::vector<CallbackInfo> _callbacks;
 
+        /** One-time callbacks - executed once, then deleted
+         * Useful for scheduling keyboard events in a thread-safe way, e.g. resetting the sim
+         */
+        std::vector<std::function<void()>> _one_time_callbacks;
+
         /** storage of all Objects in the simulation.
          * These objects will evolve in time through the update() method that they all provide
          */
@@ -281,6 +315,9 @@ class Simulation
 
         /** Responsible for logging various simulation quantities. */
         std::unique_ptr<SimulationLogger> _logger;
+
+        /** Saves the simulation state at various checkpoints. */
+        std::unordered_map<std::string, SimulationCheckpoint> _sim_checkpoints;
 };
 
 } // namespace Sim

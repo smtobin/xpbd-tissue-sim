@@ -3,6 +3,7 @@
 
 #include "geometry/AABB.hpp"
 #include "common/types.hpp"
+#include "common/Pack.hpp"
 #include "common/VariadicVectorContainer.hpp"
 #include "common/TombstoneVector.hpp"
 
@@ -107,6 +108,8 @@ public:
     using elements_vec_type = TombstoneVector<Vec4i>;
 
 public:
+    Mesh() = default; // required for deserialization
+
     /** Constructs a mesh from a set of vertices and faces.
      * This is usually done using helper methods in the MeshUtils library.
      */
@@ -117,6 +120,9 @@ public:
     Mesh(Mesh &&other);
 
     virtual ~Mesh() = default;
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& cursor);
 
     /** Returns the latest topology version of the mesh. This gets updated every time the mesh topology is edited (element removed, refined, etc.). */
     unsigned long topologyVersion() const { return _topology_version; }

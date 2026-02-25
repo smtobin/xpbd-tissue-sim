@@ -18,6 +18,30 @@ StaticDeformableCollisionConstraint::StaticDeformableCollisionConstraint(const G
 
 }
 
+void StaticDeformableCollisionConstraint::serialize(std::vector<std::byte>& buf) const
+{
+    CollisionConstraint::serialize(buf);
+    pack(buf, _sdf);
+    pack(buf, _p);
+    pack(buf, _u);
+    pack(buf, _v);
+    pack(buf, _w);
+    pack(buf, _element_index);
+    pack(buf, _face_index);
+}
+
+void StaticDeformableCollisionConstraint::deserialize(const std::byte*& buf)
+{
+    CollisionConstraint::deserialize(buf);
+    unpack(buf, _sdf);
+    unpack(buf, _p);
+    unpack(buf, _u);
+    unpack(buf, _v);
+    unpack(buf, _w);
+    unpack(buf, _element_index);
+    unpack(buf, _face_index);
+}
+
 void StaticDeformableCollisionConstraint::evaluate(Real* C) const
 {
     const Vec3r a = _u*_positions[0].position() + _v*_positions[1].position() + _w*_positions[2].position();

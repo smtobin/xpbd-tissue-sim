@@ -106,5 +106,35 @@ Geometry::TransformationMatrix RigidObject::transform() const
     return Geometry::TransformationMatrix(GeometryUtils::quatToMat(_q), _p);
 }
 
+void RigidObject::serialize(std::vector<std::byte>& buf) const
+{
+    Object::serialize(buf);
+    pack(buf, _p);
+    pack(buf, _p_prev);
+    pack(buf, _q);
+    pack(buf, _q_prev);
+    pack(buf, _m);
+    pack(buf, _I);
+    pack(buf, _I_inv);
+    pack(buf, _v);
+    pack(buf, _w);
+    pack(buf, _fixed);
+}
+
+void RigidObject::deserialize(const std::byte*& buf)
+{
+    Object::deserialize(buf);
+    unpack(buf, _p);
+    unpack(buf, _p_prev);
+    unpack(buf, _q);
+    unpack(buf, _q_prev);
+    unpack(buf, _m);
+    unpack(buf, _I);
+    unpack(buf, _I_inv);
+    unpack(buf, _v);
+    unpack(buf, _w);
+    unpack(buf, _fixed);
+}
+
 
 } // namespace Simulation

@@ -220,6 +220,7 @@ public:
     static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_e3 = {0.25};
     static constexpr std::array<Real, 1> ELEMENT_QUADRATURE_weights = {0.25};
 
+    FEMTetMesh() = default;
     FEMTetMesh(Geometry::TetMesh* mesh);
 
     /** Element-related computations */

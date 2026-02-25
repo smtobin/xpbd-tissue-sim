@@ -18,10 +18,14 @@ class DeformableDeformableCollisionConstraint : public Constraint
     constexpr static int NUM_COORDINATES = 12;
 
     public:
+    DeformableDeformableCollisionConstraint() = default;
     DeformableDeformableCollisionConstraint(int v, PositionReference::VecType* vec_ptr, Real m,
                                         int fv1, PositionReference::VecType* fvec_ptr1, Real fm1,
                                         int fv2, PositionReference::VecType* fvec_ptr2, Real fm2,
                                         int fv3, PositionReference::VecType* fvec_ptr3, Real fm3);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override { Constraint::serialize(buf); }
+    virtual void deserialize(const std::byte*& buf) override { Constraint::deserialize(buf); }
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

@@ -29,6 +29,15 @@ class MidpointConstraint : public Constraint
     bool isInequality() const override { return false; }
 
 
+    virtual void serialize(std::vector<std::byte>& buf) const override
+    {
+        Constraint::serialize(buf);
+    }
+    virtual void deserialize(const std::byte*& buf) override
+    {
+        Constraint::deserialize(buf);
+    }
+
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)
      * 

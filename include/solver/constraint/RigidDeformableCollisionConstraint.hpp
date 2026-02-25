@@ -37,6 +37,7 @@ class RigidDeformableCollisionConstraint : public CollisionConstraint, public Ri
     constexpr static int NUM_RIGID_BODIES = 1;
 
     public:
+    RigidDeformableCollisionConstraint() = default;
     /** 
      * @param sdf : the SDF for the rigid object
      * @param rigid_obj : pointer to the rigid object
@@ -51,6 +52,9 @@ class RigidDeformableCollisionConstraint : public CollisionConstraint, public Ri
                                        int v2, PositionReference::VecType* vec_ptr2, Real m2,
                                        int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                         Real u, Real v, Real w);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override; 
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

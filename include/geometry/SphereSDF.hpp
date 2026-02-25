@@ -15,7 +15,12 @@ namespace Geometry
 class SphereSDF : public SDF
 {
     public:
+    SphereSDF() = default;
+    
     SphereSDF(const Sim::RigidSphere* sphere);
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
 
     /** Evaluates F(x) for a sphere.
      * @param x - the point at which to evaluate the SDF

@@ -280,6 +280,9 @@ target_link_libraries(LaplaceFEMTest Geometry FEM MeshUtils)
 add_executable(MeshRefinementTest src/exec/test/mesh_refinement_test.cpp)
 target_link_libraries(MeshRefinementTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
 
+add_executable(SerializeTest src/exec/test/serialize_test.cpp)
+target_link_libraries(SerializeTest Geometry FEM MeshUtils Graphics ${VTK_LIBRARIES})
+
 add_executable(RefinedFEMTest src/exec/test/refined_fem_test.cpp)
 target_link_libraries(RefinedFEMTest Geometry FEM MeshUtils Graphics ${PETSC_LIB} ${VTK_LIBRARIES})
 

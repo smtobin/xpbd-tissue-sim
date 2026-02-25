@@ -139,4 +139,18 @@ std::pair<int, Vec3r> DeformableMeshSDF::closestSurfacePoint(const Vec3r& x) con
 //     return grad;
 // }
 
+void DeformableMeshSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _mesh_obj);
+    pack(buf, _initial_vertices);
+    pack(buf, _embree_scene);
+}
+
+void DeformableMeshSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _mesh_obj);
+    unpack(buf, _initial_vertices);
+    unpack(buf, _embree_scene);
+}
+
 } // namespace Geometry
