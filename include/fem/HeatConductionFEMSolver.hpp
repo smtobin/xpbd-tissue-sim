@@ -30,7 +30,11 @@ namespace FEM
 class HeatConductionFEMSolver
 {
 public:
+    HeatConductionFEMSolver() {}
     HeatConductionFEMSolver(Geometry::RefinedTetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a);
+
+    void serialize(std::vector<std::byte>& buf) const;
+    void deserialize(const std::byte*& buf);
 
     /** Adds a new essential boundary condition for temperature at the specified index. */
     void setTemperatureAtBoundary(int vertex_index, Real value);
@@ -78,7 +82,7 @@ private:
 
     /** Material constants */
 
-    const ElasticMaterial& _material;
+    const ElasticMaterial* _material;
 
     /** The convective heat transfer coefficient. */
     Real _h;

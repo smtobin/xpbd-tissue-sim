@@ -85,14 +85,17 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using ConfigType =  typename Base::ConfigType;
 
     public:
+    XPBDMeshObject_() = default;
     /** Creates a new XPBDMeshObject from a YAML config node
      * @param name : the name of the new XPBDMeshObject
      * @param config : the YAML node dictionary describing the parameters for the new XPBDMeshObject
      */
-    // TODO: parameter pack in constructor for ConstraintTypes type deduction. Maybe move this to XPBDMeshObjectConfig?
     explicit XPBDMeshObject_(const Simulation* sim, const ConfigType* config);
 
     virtual ~XPBDMeshObject_();
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     virtual std::string toString(const int indent) const override;
     virtual std::string type() const override { return "XPBDMeshObject"; }

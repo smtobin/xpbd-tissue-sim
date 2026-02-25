@@ -240,7 +240,7 @@ inline void pack(std::vector<std::byte>& buf, const std::variant<Ts...>& var)
 }
 
 template<size_t I, typename... Ts>
-bool unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_t index)
+inline bool unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_t index)
 {
     if (I != index) return false;
     using T = std::variant_alternative_t<I, std::variant<Ts...>>;
@@ -251,7 +251,7 @@ bool unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_
 }
 
 template<typename... Ts, size_t... Is>
-bool unpack_variant_impl(const std::byte*& cursor, std::variant<Ts...>& var, size_t index, std::index_sequence<Is...>)
+inline bool unpack_variant_impl(const std::byte*& cursor, std::variant<Ts...>& var, size_t index, std::index_sequence<Is...>)
 {
     // fold expression over || short-circuits on first match
     return (unpack_variant_at<Is>(cursor, var, index) || ...);
@@ -268,38 +268,6 @@ inline void unpack(const std::byte*& cursor, std::variant<Ts...>& var)
     if (!found)
         throw std::runtime_error("variant index out of range");
 }
-
-// template<typename... Ts>
-// inline void unpack(const std::byte*& cursor, std::variant<Ts...>& var)
-// {
-//     size_t index;
-//     unpack(cursor, index);
-    
-//     // use index to construct the right type and unpack into it
-//     unpack_variant_at<Ts...>(cursor, var, index, 0);
-// }
-
-// template<typename... Ts>
-// inline void unpack_variant_at(const std::byte*& cursor, std::variant<Ts...>& var, size_t target, size_t current)
-// {
-//     // base case: index not found, something went wrong
-//     throw std::runtime_error("variant index out of range");
-// }
-
-// template<typename T, typename... Rest, typename... All>
-// inline void unpack_variant_at(const std::byte*& cursor, std::variant<All...>& var, size_t target, size_t current)
-// {
-//     if (current == target)
-//     {
-//         T val;
-//         unpack(cursor, val);
-//         var = std::move(val);
-//     }
-//     else
-//     {
-//         unpack_variant_at<Rest...>(cursor, var, target, current + 1);
-//     }
-// }
 
 
 /** std::unique_ptr 
@@ -332,9 +300,6 @@ inline void unpack(const std::byte*& cursor, std::unique_ptr<T>& ptr)
             // no allocation, make one then unpack into it
             std::cerr << "unpack(): Unique_ptr was not pre-allocated!" << std::endl;
             assert(0);
-
-            ptr = std::make_unique<T>();
-            unpack(cursor, *ptr);
         }
     }
     else

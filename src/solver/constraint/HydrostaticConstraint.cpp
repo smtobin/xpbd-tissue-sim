@@ -31,6 +31,18 @@ HydrostaticConstraint::HydrostaticConstraint(int v1, PositionReference::VecType*
     _gamma = material.mu() / material.lambda();  
 }
 
+void HydrostaticConstraint::serialize(std::vector<std::byte>& buf) const
+{
+    ElementConstraint::serialize(buf);
+    pack(buf, _gamma);
+}
+
+void HydrostaticConstraint::deserialize(const std::byte*& buf)
+{
+    ElementConstraint::deserialize(buf);
+    unpack(buf, _gamma);
+}
+
 void HydrostaticConstraint::evaluate(Real* C) const
 {
     Real F[9];

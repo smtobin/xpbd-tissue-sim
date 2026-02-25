@@ -13,9 +13,21 @@ namespace Solver
 class CollisionConstraint : public Constraint
 {
     public:
+    CollisionConstraint() = default;
     CollisionConstraint(const std::vector<PositionReference>& positions, const Vec3r& collision_normal)
         : Constraint(positions, 0), _collision_normal(collision_normal)
     {}
+
+    virtual void serialize(std::vector<std::byte>& buf) const override
+    {
+        Constraint::serialize(buf);
+        pack(buf, _collision_normal);
+    }
+    virtual void deserialize(const std::byte*& buf) override
+    {
+        Constraint::deserialize(buf);
+        unpack(buf, _collision_normal);
+    }
 
     /** Applies a frictional force to the two colliding bodies given the coefficients of friction and the Lagrange multiplier from this constraint.
      * @param lam - the Lagrange multiplier for this constraint after the XPBD update

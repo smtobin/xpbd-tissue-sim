@@ -55,6 +55,9 @@ class HydrostaticConstraint : public ElementConstraint
     int numCoordinates() const override { return NUM_COORDINATES; }
     bool isInequality() const override { return false; }
 
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+    
 
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)
