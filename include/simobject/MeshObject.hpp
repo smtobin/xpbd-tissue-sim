@@ -109,7 +109,8 @@ class MeshObject
 
     virtual void _allocateMesh()
     {
-        _mesh = std::make_unique<Geometry::Mesh>();
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::Mesh>();
     }
 
     protected:
@@ -143,7 +144,8 @@ class TetMeshObject : public MeshObject
 
     virtual void _allocateMesh() override
     {
-        _mesh = std::make_unique<Geometry::TetMesh>();
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::TetMesh>();
     }
 
     protected:
@@ -172,7 +174,8 @@ class RefinedTetMeshObject : public TetMeshObject
 
     virtual void _allocateMesh() override
     {
-        _mesh = std::make_unique<Geometry::RefinedTetMesh>();
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::RefinedTetMesh>();
     }
 
     protected:

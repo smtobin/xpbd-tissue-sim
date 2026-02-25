@@ -242,14 +242,6 @@ void Simulation::setup()
         // add time as a variable
         _logger->addOutput("time [s]", &_time);
     }
-    
-    /** Save the initial state */
-    SimulationCheckpoint initial;
-    initial.time = _time;
-    initial.last_collision_detection_time = _last_collision_detection_time;
-    pack(initial.object_bytes, _objects);
-    _checkpoint_states.push_back(std::move(initial));
-
 }
 
 void Simulation::update()
@@ -258,6 +250,13 @@ void Simulation::update()
     // so we can start logging now (which will print the header and prevent us from adding new logged quantities)
     if (_logger)
         _logger->startLogging();
+
+    /** Save the initial state */
+    SimulationCheckpoint initial;
+    initial.time = _time;
+    initial.last_collision_detection_time = _last_collision_detection_time;
+    pack(initial.object_bytes, _objects);
+    _checkpoint_states.push_back(std::move(initial));
 
     auto start = std::chrono::steady_clock::now();
 
@@ -275,12 +274,10 @@ void Simulation::update()
         // check if any callbacks need to be called
         for (auto& cb : _callbacks)
         {
-            std::cout << "time: " << _time << "  next exec: " << cb.next_exec_time << std::endl;
             if ((cb.use_wall_time && wall_time_elapsed_s > cb.next_exec_time) ||
                 (!cb.use_wall_time && _time > cb.next_exec_time)
             )
             {
-                std::cout << "  Callback..." << std::endl;
                 cb.callback();
                 cb.next_exec_time = cb.next_exec_time + cb.interval;
             }
@@ -437,9 +434,7 @@ void Simulation::notifyKeyPressed(SimulationInput::Key key , SimulationInput::Ke
 
     if (action == SimulationInput::KeyAction::PRESS && key == SimulationInput::Key::BACKSPACE)
     {
-        std::cout << "BACKSPACE PRESSED!" << std::endl;
         addCallback(5, [&]() {
-            std::cout << "Callback!" << std::endl;
             this->reset();
         }, false);
     }

@@ -326,6 +326,9 @@ inline void unpack(const std::byte*& cursor, std::vector<T>& vec)
     // unpack size, then elements
     size_t size;
     unpack(cursor, size);
+
+    // std::cout << " Unpacked vector size: " << size << std::endl;
+
     vec.resize(size);
     for (auto& v : vec)
         unpack(cursor, v);
@@ -510,7 +513,7 @@ inline void unpack(const std::byte*& cursor, std::queue<T>& queue)
     {
         T val;
         unpack(cursor, val);
-        queue.push(val);
+        queue.push(std::move(val));
     }
 }
 
