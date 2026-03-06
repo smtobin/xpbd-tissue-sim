@@ -30,6 +30,9 @@ class VirtuosoCTAnatomySimulationConfig : public VirtuosoSimulationConfig
         return Geometry::TransformationMatrix(rot_mat, _CT_to_VB_translation.value);
     }
 
+    void setCTtoVBTranslation(const Vec3r& trans) { _CT_to_VB_translation.value = trans; }
+    void setCTtoVBRotation(const Vec3r& rot) { _CT_to_VB_rotation.value = rot; }
+
     protected:
 
     ConfigParameter<std::optional<std::string>> _device_name1;

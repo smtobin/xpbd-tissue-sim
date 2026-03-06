@@ -37,6 +37,8 @@ class MeshObjectConfig
     }
 
     std::string filename() const { return _filename.value; }
+    void setFilename(const std::string& new_filename) { _filename.value = new_filename; }
+
     bool drawPoints() const { return _draw_points.value; }
     bool drawEdges() const { return _draw_edges.value; }
     bool drawFaces() const { return _draw_faces.value; }

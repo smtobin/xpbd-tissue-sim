@@ -17,11 +17,24 @@
 
 #include <mutex>
 #include <condition_variable>
+#include <filesystem>
 
 // Global synchronization objects
 std::mutex mtx;
 std::condition_variable cv;
 bool setup_complete = false;
+
+
+Vec3r parseVector3(const std::string& s)
+{
+    Vec3r v;
+    char c;
+
+    std::stringstream ss(s);
+    ss >> c >> v[0] >> c >> v[1] >> c >> v[2] >> c;
+
+    return v;
+}
 
 void runSim(Sim::Simulation* sim)
 {
@@ -65,21 +78,44 @@ int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
 
+    std::cout << "\n\n\nSIM BRIDGE MAIN" << std::endl;
 
     // parse command line arguments for config filename and simulation type
     std::string config_filename;
     std::string simulation_type;
+    std::string tumor_mesh_filename;
+    std::string trachea_mesh_filename;
+
+    Vec3r CTtoVB_translation, CTtoVB_rotation;
     for (int i = 1; i < argc; i++)
     {
         std::string arg = argv[i];
+        std::cout << "arg: " << arg << std::endl;
         if (arg == "--config-filename" && i+1 < argc)
         {
             config_filename = argv[++i];
         }
-
         if (arg == "--simulation-type" && i+1 < argc)
         {
             simulation_type = argv[++i];
+        }
+        if (arg == "--tumor-mesh-filename" && i+1 < argc)
+        {
+            tumor_mesh_filename = argv[++i];
+        }
+        if (arg == "--trachea-mesh-filename" && i+1 < argc)
+        {
+            trachea_mesh_filename = argv[++i];
+        }
+        if (arg == "--CT-to-VB-translation" && i+1 < argc)
+        {
+            std::string str = argv[++i];
+            CTtoVB_translation = parseVector3(str);
+        }
+        if (arg == "--CT-to-VB-rotation" && i+1 < argc)
+        {
+            std::string str = argv[++i];
+            CTtoVB_rotation = parseVector3(str);
         }
     }
 
@@ -87,6 +123,34 @@ int main(int argc, char ** argv)
     {
         // create the simulation config object from the yaml config file
         Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
+
+        // edit the CT mesh filename, when a different one is given by the user
+        if (!tumor_mesh_filename.empty())
+        {
+            auto& object_configs = config.objectConfigs();
+            auto& xpbd_obj_configs = object_configs.template get<Config::FirstOrderXPBDMeshObjectConfig>();
+            if (xpbd_obj_configs.size() > 0)
+            {
+                std::filesystem::path mesh_file = tumor_mesh_filename;
+                std::string fixed_faces_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_fixed_faces.txt")).string();
+                xpbd_obj_configs[0].setFilename(tumor_mesh_filename);
+                xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
+            }
+        }
+
+        if (!trachea_mesh_filename.empty())
+        {
+            auto& object_configs = config.objectConfigs();
+            auto& rigid_mesh_obj_configs = object_configs.template get<Config::RigidMeshObjectConfig>();
+            if (rigid_mesh_obj_configs.size() > 0)
+            {
+                rigid_mesh_obj_configs[0].setFilename(trachea_mesh_filename);
+            }
+        }
+
+        config.setCTtoVBTranslation(CTtoVB_translation);
+        config.setCTtoVBRotation(CTtoVB_rotation);
+
         // create the simulation from the config object
         Sim::VirtuosoCTAnatomySimulation sim(&config);
 
