@@ -126,6 +126,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
     std::optional<std::string> elementClassesFilename() const { return _element_classes_filename.value; }
     std::optional<std::string> groundFacesFilename() const { return _ground_faces_filename.value; }
     std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
+    void setFixedFacesFilename(const std::string& new_filename) { _fixed_faces_filename.value = new_filename; }
     bool computeHeatConduction() const { return _compute_heat_conduction.value; }
     bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement.value; }
     int maxRefinementLevel() const { return _max_refinement_level.value; }
