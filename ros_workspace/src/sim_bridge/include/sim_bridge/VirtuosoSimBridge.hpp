@@ -4,6 +4,7 @@
 #include "sim_bridge/SimBridge.hpp"
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "std_msgs/msg/int8.hpp"
@@ -58,6 +59,8 @@ private:
 
     void _setupSubscribers();
 
+    geometry_msgs::msg::Pose _transformPose(const geometry_msgs::msg::Pose& pose, const geometry_msgs::msg::TransformStamped& t);
+
 protected:
     /** tf listeners */
     std::shared_ptr<tf2_ros::Buffer> _tf_buffer;
@@ -90,6 +93,8 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr _arm2_joint_state_subscriber;     // subscribes to joint state commands for arm2
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _arm1_tip_position_subscriber;     // subscribes to tip position commands for arm1
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _arm2_tip_position_subscriber;     // subscribes to tip position commands for arm2
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr _arm1_tip_position_covariance_subscriber;     // subscribes to tip position commands for arm1
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr _arm2_tip_position_covariance_subscriber;     // subscribes to tip position commands for arm2
     rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr _arm1_tool_state_subscriber;              // subscribes to tool state commands for arm1
     rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr _arm2_tool_state_subscriber;              // subscribes to tool state commands for arm2
 };

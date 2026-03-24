@@ -14,6 +14,7 @@
 #include "sensor_msgs/msg/image.hpp"
 
 #include "sim_bridge/msg/sparse_matrix.hpp"
+#include <Eigen/Sparse>
 
 #include "sim_bridge/srv/save_checkpoint.hpp"
 #include "sim_bridge/srv/restore_checkpoint.hpp"
