@@ -58,10 +58,21 @@ def generate_launch_description():
             # === Remappings for simulation inputs === 
             # ('/sim/input/arm1_joint_state', '/ves/left/joint/servo_jp'),      # Virtuoso arms can be controlled by joint position or Cartesian tip position
             # ('/sim/input/arm2_joint_state', '/ves/right/joint/servo_jp'),
-            
-            # USE MEASURED_CP WHEN RUNNING WITH REAL ROBOT OR VES_KEYBOARD
-            ('/sim/input/arm1_tip_pos', '/ves/left/joint/measured_cp'),
-            ('/sim/input/arm2_tip_pos', '/ves/right/joint/measured_cp'),
+
+
+            ### USE MEASURED_CP WHEN RUNNING WITH REAL ROBOT OR VES_KEYBOARD
+            # these topics subscribe to a PoseStamped topic
+            # and will automatically apply the transform from the frame they are expressed in to ves/left/base
+            # (provided that a tf transform exists relating the two frames)
+            # ('/sim/input/arm1_tip_pos', '/ves/left/joint/measured_cp'),
+            # ('/sim/input/arm2_tip_pos', '/ves/right/joint/measured_cp'),
+
+            ### OR, USE SMOOTHER OUTPUT
+            # these topics subscribe to PoseWithCovarianceStamped topic
+            # and will automatically apply the transform from the frame they are expressed in to ves/left/base
+            # (provided that a tf transform exists relating the two frames)
+            ('/sim/input/arm1_tip_pos_with_covar', '/ves_smoother/left/tip_pose'),
+            ('/sim/input/arm2_tip_pos_with_covar', '/ves_smoother/right/tip_pose'),
 
             # USE SERVO_CP WHEN RUNNING WITH TRAINING
             # ('/sim/input/arm1_tip_pos', '/ves/left/joint/servo_cp'),
