@@ -4,6 +4,7 @@
 #include "sim_bridge/VirtuosoSimBridge.hpp"
 #include "sim_bridge/VirtuosoCTAnatomySimBridge.hpp"
 #include "sim_bridge/CAOSimBridge.hpp"
+#include "sim_bridge/BPHSimBridge.hpp"
 #include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
@@ -85,6 +86,7 @@ int main(int argc, char ** argv)
     std::string simulation_type;
     std::string tumor_mesh_filename;
     std::string trachea_mesh_filename;
+    std::string prostate_mesh_filename;
 
     Vec3r CTtoVB_translation, CTtoVB_rotation;
     for (int i = 1; i < argc; i++)
@@ -106,6 +108,10 @@ int main(int argc, char ** argv)
         if (arg == "--trachea-mesh-filename" && i+1 < argc)
         {
             trachea_mesh_filename = argv[++i];
+        }
+        if (arg == "--prostate-mesh-filename" && i+1 < argc)
+        {
+            prostate_mesh_filename = argv[++i];
         }
         if (arg == "--CT-to-VB-translation" && i+1 < argc)
         {
@@ -155,6 +161,33 @@ int main(int argc, char ** argv)
         Sim::VirtuosoCTAnatomySimulation sim(&config);
 
         startNode<Sim::VirtuosoCTAnatomySimulation, CAOSimBridge>(&sim);
+    }
+    if (simulation_type == "BPHSimulation")
+    {
+        // create the simulation config object from the yaml config file
+        Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
+
+        // edit the CT mesh filename, when a different one is given by the user
+        if (!prostate_mesh_filename.empty())
+        {
+            auto& object_configs = config.objectConfigs();
+            auto& xpbd_obj_configs = object_configs.template get<Config::FirstOrderXPBDMeshObjectConfig>();
+            if (xpbd_obj_configs.size() > 0)
+            {
+                std::filesystem::path mesh_file = prostate_mesh_filename;
+                std::string fixed_faces_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_fixed_faces.txt")).string();
+                xpbd_obj_configs[0].setFilename(prostate_mesh_filename);
+                xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
+            }
+        }
+
+        config.setCTtoVBTranslation(CTtoVB_translation);
+        config.setCTtoVBRotation(CTtoVB_rotation);
+
+        // create the simulation from the config object
+        Sim::VirtuosoCTAnatomySimulation sim(&config);
+
+        startNode<Sim::VirtuosoCTAnatomySimulation, BPHSimBridge>(&sim);
     }
     else if (simulation_type == "VirtuosoCTAnatomySimulation")
     {
