@@ -159,6 +159,7 @@ add_executable(${PROJECT_NAME}_node
   src/VirtuosoSimBridge.cpp 
   src/VirtuosoCTAnatomySimBridge.cpp
   src/CAOSimBridge.cpp
+  src/BPHSimBridge.cpp
 )
 
 # === Link Dependencies ===
