@@ -46,7 +46,59 @@ int main()
     std::cout << "Outer tube tip position: " << ot_frames.back().origin()[0] << ", " << ot_frames.back().origin()[1] << ", " << ot_frames.back().origin()[2] << std::endl;
 
     int num_ips = ot_frames.size() + it_frames.size() + tt_frames.size();
-    Mat3r tt_tip_compliance = arm->complianceMatrixAtIntegrationPoint(num_ips - 1);
+
+    /** Cubic fit of compliances for tool tube */
+    // get compliances at evaluation points
+    int tt_ip3 = num_ips - 1;
+    int tt_ip2 = num_ips - 1 - tt_frames.size()/2;
+    int tt_ip1 = num_ips - 1 - 3*tt_frames.size()/4;
+    int tt_ip0 = num_ips - tt_frames.size();
+    Real s_ip3 = Real(tt_ip3 - ( ot_frames.size() + it_frames.size() )) / (tt_frames.size()-1);
+    Real s_ip2 = Real(tt_ip2 - ( ot_frames.size() + it_frames.size() )) / (tt_frames.size()-1);
+    Real s_ip1 = Real(tt_ip1 - ( ot_frames.size() + it_frames.size() )) / (tt_frames.size()-1);
+    Real s_ip0 = Real(tt_ip0 - ( ot_frames.size() + it_frames.size() )) / (tt_frames.size()-1);
+    Mat3r tt_compliance3 = arm->complianceMatrixAtIntegrationPoint(tt_ip3);
+    Mat3r tt_compliance2 = arm->complianceMatrixAtIntegrationPoint(tt_ip2);
+    Mat3r tt_compliance1 = arm->complianceMatrixAtIntegrationPoint(tt_ip1);
+    Mat3r tt_compliance0 = arm->complianceMatrixAtIntegrationPoint(tt_ip0);
+    // solve 4x4 system for coefficients
+    Mat4r vdm;
+    // vdm << 1, 1, 1, 1,
+    //        s_ip0, s_ip1, s_ip2, s_ip3,
+    //        s_ip0*s_ip0, s_ip1*s_ip1, s_ip2*s_ip2, s_ip3*s_ip3,
+    //        s_ip0*s_ip0*s_ip0, s_ip1*s_ip1*s_ip1, s_ip2*s_ip2*s_ip2, s_ip3*s_ip3*s_ip3;
+    vdm << 1, s_ip0, s_ip0*s_ip0, s_ip0*s_ip0*s_ip0,
+           1, s_ip1, s_ip1*s_ip1, s_ip1*s_ip1*s_ip1,
+           1, s_ip2, s_ip2*s_ip2, s_ip2*s_ip2*s_ip2,
+           1, s_ip3, s_ip3*s_ip3, s_ip3*s_ip3*s_ip3;
+
+    Vec4r rhs( tt_compliance0(0,0), tt_compliance1(0,0), tt_compliance2(0,0), tt_compliance3(0,0));
+    Vec4r a = vdm.colPivHouseholderQr().solve(rhs);
+
+    int tt_ip_eval = num_ips - 1 - tt_frames.size()/2 + 2;
+    Real s_ip_eval = Real(tt_ip_eval - ( ot_frames.size() + it_frames.size() )) / (tt_frames.size()-1);
+    Real C00_int = a[0] + s_ip_eval * a[1] + s_ip_eval*s_ip_eval*a[2] + s_ip_eval*s_ip_eval*s_ip_eval*a[3];
+    
+    Mat3r C_ip_eval_interp = arm->interpolatedComplianceMatrix(tt_ip_eval, 0);
+
+    Mat3r C_ip_eval = arm->complianceMatrixAtIntegrationPoint(tt_ip_eval);
+    std::cout << "VDM:\n" << vdm << std::endl;
+    std::cout << "RHS:" << rhs.transpose() << std::endl;
+    std::cout << "a:" << a.transpose() << std::endl;
+    std::cout << "C00 interpolated: " << C00_int << std::endl;
+    std::cout << "Actual C:\n" << C_ip_eval << std::endl;
+    std::cout << "Interpolated C:\n" << C_ip_eval_interp << std::endl;
+
+    Mat2r vdm_cheap;
+    vdm_cheap << 1, s_ip0*s_ip0*s_ip0, 1, s_ip3*s_ip3*s_ip3;
+    Vec2r rhs_cheap( tt_compliance0(0,0), tt_compliance3(0,0) );
+    Vec2r a_cheap = vdm_cheap.colPivHouseholderQr().solve(rhs_cheap);
+    std::cout << "cheap a: " << a_cheap.transpose() << std::endl;
+    std::cout << "C00 cheaply interpolated: " << a_cheap[0] + a_cheap[1]*s_ip_eval*s_ip_eval*s_ip_eval << std::endl;
+    std::cout << "C00 linearly interpolated: " << (1-s_ip_eval)*tt_compliance0(0,0) + s_ip_eval*tt_compliance3(0,0) << std::endl;
+
+
+    Mat3r tt_tip_compliance = tt_compliance3;
     Mat3r it_tip_compliance = arm->complianceMatrixAtIntegrationPoint(num_ips - tt_frames.size() - 1);
 
     Mat3r approx_mid_tt_compliance = 0.5*it_tip_compliance + 0.5*tt_tip_compliance;

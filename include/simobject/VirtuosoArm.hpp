@@ -285,6 +285,19 @@ class VirtuosoArm : public Object
     /** Computes the compliance matrix numerically at the specified node index. */
     Mat3r complianceMatrixAtIntegrationPoint(int node_index);
 
+    /** Computes the compliance matrix at an arbitrary point along the arm,
+     * specified by a starting integration point index and an interpolation value in [0,1] indicating the distance along the segment
+     * (node_index, node_index+1).
+     * 
+     * This uses a previously computed cubic interpolation of the compliance matrix.
+     * If this interpolation has not already been computed, for the relevant section of the arm (outer tube, inner tube, tool tube),
+     * then the interpolation will be computed.
+     * 
+     * This is useful to determine the force necessary to move a point along the arm a certain distance, which comes in handy during
+     * collision resolution.
+     */
+    Mat3r interpolatedComplianceMatrix(int node_index, Real interp);
+
     Vec3r unfilteredCollisionForce() const { return _unfiltered_collision_force; }
     Vec3r filteredCollisionForce() const { return _filtered_collision_force; }
 
@@ -323,6 +336,18 @@ class VirtuosoArm : public Object
      * with forces at each "node" (i.e. coordinate frame along the backbone) included.
      */
     void _recomputeCoordinateFramesStaticsModelWithNodalForces();
+
+    /** Computes the coefficients for the cubic compliance matrix interpolation over each section of the arm.
+     * Uses finite differencing at 4 points along each section (outer tube, inner tube, tool tube) to compute the compliance matrix,
+     * and then fits a polynomial for each matrix entry (6 of these, since compliance matrix is symmetric).
+     * 
+     * i.e. C_ij = a0 + a1*s + a2*s^2 + a3*s^3
+     * 
+     * Each section of the arm (outer tube, inner tube, tool tube) has an interpolation that varies according to an s in [0,1].
+     * 
+     * 
+     */
+    void _computeComplianceMatrixInterpolation(bool ot, bool it, bool tt);
 
     std::vector<TubeIntegrationState::VecType> _integrateTubeRK4(
         const TubeIntegrationState& tube_base_state, const std::vector<Real>& s, const Vec3r& K_inv, const Vec3r& u_star) const;
@@ -442,6 +467,23 @@ class VirtuosoArm : public Object
     std::array<Vec3r, NUM_TT_FRAMES> _tt_nodal_forces;
 
     bool _stale_frames;     // true if the joint variables have been updated and the coordinate frames need to be recomputed
+
+    /** If the compliance matrix interpolation is "Stale" and needs to be recomputed
+     * This occurs when (1) the joint variables change or (2) the applied force changes.
+     */
+    bool _stale_ot_compliance_interp = true;
+    bool _stale_it_compliance_interp = true;
+    bool _stale_tt_compliance_interp = true;
+
+    /** Interpolation coefficients for the compliance matrix interpolation along the appropriate section of the arm.
+     * i.e. C_ij = a0 + a1*s + a2*s^2 + a3*s^3
+     * 
+     * Each section of the arm (outer tube, inner tube, tool tube) has an interpolation that varies according to an s in [0,1].
+     * E.g., for the inner tube, s=0.5 corresponds to the middle of the inner tube, s=1.0 corresponds to the tip of the inner tube
+     */
+    std::array<Mat3r, 4> _ot_compliance_coeff;
+    std::array<Mat3r, 4> _it_compliance_coeff;
+    std::array<Mat3r, 4> _tt_compliance_coeff;
 
     /** Signed Distance Field for the Virtuoso arm. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;

@@ -202,7 +202,163 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
     }
 
     _stale_frames = false;  // we've reset everything, so things shouldn't be stale
-    return C;
+    return 0.5*(C + C.transpose()); // ensure that it is symmetric
+}
+
+Mat3r VirtuosoArm::interpolatedComplianceMatrix(int node_index, Real interp)
+{
+    if (node_index < NUM_OT_FRAMES)
+    {
+        if (_stale_ot_compliance_interp)
+            _computeComplianceMatrixInterpolation(true, false, false);
+        
+        Real s = (node_index + interp) / (NUM_OT_FRAMES-1);
+        Mat3r C_interp = _ot_compliance_coeff[0] + _ot_compliance_coeff[1] * s + _ot_compliance_coeff[2] * s*s + _ot_compliance_coeff[3] * s*s*s;
+        return C_interp;
+    }
+    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES)
+    {
+        if (_stale_it_compliance_interp)
+            _computeComplianceMatrixInterpolation(false, true, false);
+
+        Real s = (node_index + interp - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
+        Mat3r C_interp = _it_compliance_coeff[0] + _it_compliance_coeff[1] * s + _it_compliance_coeff[2] * s*s + _it_compliance_coeff[3] * s*s*s;
+        return C_interp;
+    }
+    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES && hasTool())
+    {
+        if (_stale_tt_compliance_interp)
+            _computeComplianceMatrixInterpolation(false, false, true);
+        
+        Real s = (node_index + interp - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
+        Mat3r C_interp = _tt_compliance_coeff[0] + _tt_compliance_coeff[1] * s + _tt_compliance_coeff[2] * s*s + _tt_compliance_coeff[3] * s*s*s;
+        return C_interp;
+    }
+    else
+    {
+        std::cerr << "VirtuosoArm::interpolatedComplianceMatrix - Node index out of bounds!" << std::endl;
+        assert(0);
+    }
+}
+
+void VirtuosoArm::_computeComplianceMatrixInterpolation(bool ot, bool it, bool tt)
+{
+    // compute interpolation for outer tube
+    if (ot && _stale_ot_compliance_interp)
+    {
+        int ip0 = NUM_OT_FRAMES/3;
+        int ip1 = 2*NUM_OT_FRAMES/3;
+        int ip2 = NUM_OT_FRAMES-1;
+        Real s0 = Real(ip0) / (NUM_OT_FRAMES-1);
+        Real s1 = Real(ip1) / (NUM_OT_FRAMES-1);
+        Real s2 = Real(ip2) / (NUM_OT_FRAMES-1);
+
+        Mat3r vdm;
+        vdm <<  s0, s0*s0, s0*s0*s0,
+                s1, s1*s1, s1*s1*s1,
+                s2, s2*s2, s2*s2*s2;
+        Mat3r C0 = complianceMatrixAtIntegrationPoint(ip0);
+        Mat3r C1 = complianceMatrixAtIntegrationPoint(ip1);
+        Mat3r C2 = complianceMatrixAtIntegrationPoint(ip2);
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = i; j < 3; j++)
+            {
+                Vec3r rhs( C0(i,j), C1(i,j), C2(i,j) );
+                Vec3r coeff_ij = vdm.colPivHouseholderQr().solve(rhs);
+
+                // special case: we know that the compliance at the base is 0, so a0=0
+                _ot_compliance_coeff[0](i,j) = 0;
+                _ot_compliance_coeff[0](j,i) = 0;
+                for (int k = 1; k < 4; k++)
+                {
+                    _ot_compliance_coeff[k](i,j) = coeff_ij[k-1];
+                    _ot_compliance_coeff[k](j,i) = coeff_ij[k-1];
+                }
+            }
+        }
+
+        _stale_ot_compliance_interp = false;
+    }
+    
+    if (it && _stale_it_compliance_interp)
+    {
+        int ip0 = NUM_OT_FRAMES;
+        int ip1 = NUM_OT_FRAMES + NUM_IT_FRAMES/3;
+        int ip2 = NUM_OT_FRAMES + 2*NUM_IT_FRAMES/3;
+        int ip3 = NUM_OT_FRAMES + NUM_IT_FRAMES-1;
+        Real s0 = Real(ip0 - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
+        Real s1 = Real(ip1 - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
+        Real s2 = Real(ip2 - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
+        Real s3 = Real(ip3 - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
+
+        Mat4r vdm;
+        vdm <<  1, s0, s0*s0, s0*s0*s0,
+                1, s1, s1*s1, s1*s1*s1,
+                1, s2, s2*s2, s2*s2*s2,
+                1, s3, s3*s3, s3*s3*s3;
+        Mat3r C0 = complianceMatrixAtIntegrationPoint(ip0);
+        Mat3r C1 = complianceMatrixAtIntegrationPoint(ip1);
+        Mat3r C2 = complianceMatrixAtIntegrationPoint(ip2);
+        Mat3r C3 = complianceMatrixAtIntegrationPoint(ip3);
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = i; j < 3; j++)
+            {
+                Vec4r rhs( C0(i,j), C1(i,j), C2(i,j), C3(i,j) );
+                Vec4r coeff_ij = vdm.colPivHouseholderQr().solve(rhs);
+
+                for (int k = 0; k < 4; k++)
+                {
+                    _it_compliance_coeff[k](i,j) = coeff_ij[k];
+                    _it_compliance_coeff[k](j,i) = coeff_ij[k];
+                }
+            }
+        }
+
+        _stale_it_compliance_interp = false;
+    }
+
+    if (hasTool() && tt && _stale_tt_compliance_interp)
+    {
+        int ip0 = NUM_OT_FRAMES + NUM_IT_FRAMES;
+        int ip1 = NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES/3;
+        int ip2 = NUM_OT_FRAMES + NUM_IT_FRAMES + 2*NUM_TT_FRAMES/3;
+        int ip3 = NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES-1;
+        Real s0 = Real(ip0 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
+        Real s1 = Real(ip1 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
+        Real s2 = Real(ip2 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
+        Real s3 = Real(ip3 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
+
+        Mat4r vdm;
+        vdm <<  1, s0, s0*s0, s0*s0*s0,
+                1, s1, s1*s1, s1*s1*s1,
+                1, s2, s2*s2, s2*s2*s2,
+                1, s3, s3*s3, s3*s3*s3;
+        Mat3r C0 = complianceMatrixAtIntegrationPoint(ip0);
+        Mat3r C1 = complianceMatrixAtIntegrationPoint(ip1);
+        Mat3r C2 = complianceMatrixAtIntegrationPoint(ip2);
+        Mat3r C3 = complianceMatrixAtIntegrationPoint(ip3);
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = i; j < 3; j++)
+            {
+                Vec4r rhs( C0(i,j), C1(i,j), C2(i,j), C3(i,j) );
+                Vec4r coeff_ij = vdm.colPivHouseholderQr().solve(rhs);
+
+                for (int k = 0; k < 4; k++)
+                {
+                    _tt_compliance_coeff[k](i,j) = coeff_ij[k];
+                    _tt_compliance_coeff[k](j,i) = coeff_ij[k];
+                }
+            }
+        }
+
+        _stale_tt_compliance_interp = false;
+    }
 }
 
 Vec3r VirtuosoArm::actualTipPosition() const
