@@ -177,11 +177,13 @@ class CollisionScene
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj);
 
+    void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj);
+    std::pair<Real,Real> _findDeepestPenetratingPointOnSegment(const Vec3r& p1, const Vec3r& p2, const Geometry::SDF* sdf);
+
     template<bool IsFirstOrder>
     void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const;
     template<bool IsFirstOrder>
     void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const;
-    
 
     void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func) const;
 
