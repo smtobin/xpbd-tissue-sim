@@ -28,7 +28,7 @@ struct VirtuosoArmRigidCollision
     /** The node index for the first node of the segment in collision */
     int node_index;
     /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
-    Real interp;
+    mutable Real interp;
 
     /** The SDF for the rigid body in collision. */
     const Geometry::SDF* rigid_sdf;
@@ -102,12 +102,6 @@ class VirtuosoArm : public Object
     /** Joint limits */
     constexpr static Real MAX_OT_TRANSLATION = 20e-3;    // maximum outer tube translation (joint limit on Virtuoso system)
     constexpr static Real MAX_IT_TRANSLATION = 40e-3;    // maximum inner tube translation (joint limit on Virtuoso system)
-
-    /** Joint speed limits */
-    constexpr static Real MAX_OT_TRANSLATION_SPEED = 0.04;   // maximum outer tube translation speed [m/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_IT_TRANSLATION_SPEED = 0.0529; // maximum inner tube translation speed [m/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_OT_ROTATION_SPEED = 20;        // maximum outer tube rotation speed [rad/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_IT_ROTATION_SPEED = 52.4;      // maximum inner tube rotation speed [rad/s] (joint speed limit on Virtuoso system)
 
     /** Physical parameters */
     constexpr static Real OT_ENDOSCOPE_CLEARANCE = 0.3e-3;  // clearance between the outer tube and the endoscope sheath [m]
@@ -465,6 +459,11 @@ class VirtuosoArm : public Object
     Real _ot_translation; // translation of the outer tube. Right now, assuming that when translation=0, outer tube is fully retracted
     Real _ot_rotation;    // rotation of the outer tube. Right now, assuming rotation=0 corresponds to a curve to the left in the XY plane
     Real _ot_distal_straight_length; // the length of the straight section on the distal part of the outer tube
+
+    Real _max_ot_translation_speed;     // max translation speed of the outer tube (m/s)
+    Real _max_it_translation_speed;     // max translation speed of the inner tube (m/s)
+    Real _max_ot_rotation_speed;        // max rotation speed of the outer tube (rad/s)
+    Real _max_it_rotation_speed;        // max rotation speed of the inner tube (rad/s)
 
     int _tool_state; // state of the tool (i.e. 1=ON, 0=OFF)
     int _last_tool_state; // the previous state of the tool (needed so that we know when tool state has changed)

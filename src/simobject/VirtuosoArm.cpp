@@ -39,6 +39,11 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _ot_rotation = config->outerTubeInitialRotation() * M_PI/180.0;   // convert to radians
     _ot_distal_straight_length = config->outerTubeDistalStraightLength();
 
+    _max_ot_translation_speed = config->maxOTTranslationSpeed();
+    _max_it_translation_speed = config->maxITTranslationSpeed();
+    _max_ot_rotation_speed = config->maxOTRotationSpeed();
+    _max_it_rotation_speed = config->maxITRotationSpeed();
+
     _tool_state = 0;  // default tool state is off
     _tool_type = config->toolType();
     _cutting_model = config->cuttingModel();
@@ -455,7 +460,14 @@ void VirtuosoArm::setJointState(double ot_rotation, double ot_translation, doubl
 
 void VirtuosoArm::addRigidCollision(int node_index, Real interp, const Geometry::SDF* rigid_sdf)
 {
-    _rigid_collisions.emplace(node_index, interp, rigid_sdf);
+    auto [it, success] = _rigid_collisions.emplace(node_index, interp, rigid_sdf);
+
+    // if there already exists a rigid collision registered to this segment and this rigid body, then update the interpolation param
+    // the interp member is mutable because it does not affect the hash or equality
+    if (!success)
+    {
+        it->interp = interp;
+    }
 }
 
 void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp)
@@ -1387,9 +1399,9 @@ void VirtuosoArm::_hybridDifferentialInverseKinematics(const Vec3r& dx)
         target_angle += -2*M_PI;
 
     // compute max allowable changes in joint variables, given by motor limitations
-    Real max_ot_rot_change = MAX_OT_ROTATION_SPEED * _sim->dt(); // rad/s
-    Real max_ot_trans_change = MAX_OT_TRANSLATION_SPEED * _sim->dt(); // m/s
-    Real max_it_trans_change = MAX_IT_TRANSLATION_SPEED * _sim->dt(); // m/s
+    Real max_ot_rot_change = _max_ot_rotation_speed * _sim->wallClockdt(); // rad/s * s
+    Real max_ot_trans_change = _max_ot_translation_speed * _sim->wallClockdt(); // m/s * s
+    Real max_it_trans_change = _max_it_translation_speed * _sim->wallClockdt(); // m/s * s
 
     // clamp the change in outer tube rotation and update
     Real d_ot_rot = std::clamp(target_angle - _ot_rotation, -max_ot_rot_change, max_ot_rot_change);

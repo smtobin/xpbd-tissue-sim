@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -153,7 +153,7 @@ objects:
     scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-    collisions: false
+    collisions: true
     fixed: true
 
   -
@@ -177,6 +177,10 @@ objects:
       inner-tube-rotation: 30
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 15e-3
+      max-ot-translation-speed: 0.01 #0.04
+      max-it-translation-speed: 0.013 #0.0529
+      max-ot-rotation-speed: 5 #20
+      max-it-rotation-speed: 13 #52.4
 
     - # right arm has the cautery tool for cutting
       name: "Arm2"
@@ -193,6 +197,10 @@ objects:
       inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 10e-3
+      max-ot-translation-speed: 0.01 #0.04
+      max-it-translation-speed: 0.013 #0.0529
+      max-ot-rotation-speed: 5 #20
+      max-it-rotation-speed: 13 #52.4
 
   
 
