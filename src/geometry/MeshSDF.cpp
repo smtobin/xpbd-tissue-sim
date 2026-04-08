@@ -6,17 +6,28 @@
 #include "gpu/resource/MeshSDFGPUResource.hpp"
 #endif
 
+#include <filesystem>
+
 namespace Geometry
 {
 
 MeshSDF::MeshSDF(const Sim::RigidMeshObject* mesh_obj, const Config::RigidMeshObjectConfig* config)
     : SDF(), _mesh_obj(mesh_obj)
 {
-    if (config && config->sdfFilename().has_value())
+    // search for a cached SDF file that has the same number of vertices and faces and unrotated size
+
+    // filename
+    int num_vertices = mesh_obj->mesh()->numVertices();
+    int num_faces = mesh_obj->mesh()->numFaces();
+    Vec3r size = mesh_obj->mesh()->unrotatedSize();
+    std::stringstream filename;
+    filename << "v" << num_vertices << "_f" << num_faces << "_s" << int(1000*size[0]) << "x" << int(1000*size[1]) << "x" << int(1000*size[2]) << ".sdf";
+
+    // look for file
+    if (std::filesystem::exists(filename.str()))
     {
-        _from_file = true;
-        // load SDF from file
-        _sdf = mesh2sdf::MeshSDF(config->sdfFilename().value());
+        // found it, load from file
+        _sdf = mesh2sdf::MeshSDF(filename.str());
     }
     else
     {
@@ -40,6 +51,9 @@ MeshSDF::MeshSDF(const Sim::RigidMeshObject* mesh_obj, const Config::RigidMeshOb
             faces.col(f_ind++) = f;
         // compute the SDF
         _sdf = mesh2sdf::MeshSDF(verts, faces, 128, 5, true);
+        
+        // write to file to cache for later
+        _sdf.writeToFile(filename.str());
     }
 }
 
@@ -47,24 +61,6 @@ inline Real MeshSDF::evaluate(const Vec3r& x) const
 {
     // transform x into body coordinates
     const Vec3r x_body = _mesh_obj->globalToBody(x);
-    // SDF may not be centered about the origin
-    if (_from_file)
-    {
-        // TODO: fix alignment between SDF coordinates and body coordinates
-        const mesh2sdf::BoundingBox sdf_mesh_bbox = _sdf.meshBoundingBox();
-        const Vec3r sdf_mesh_size = sdf_mesh_bbox.second - sdf_mesh_bbox.first;
-        const Vec3r obj_mesh_size = _mesh_obj->mesh()->unrotatedSize();
-        const Vec3r sdf_mesh_cm = _sdf.meshMassCenter();
-        const Vec3r scaling_factors_xyz = sdf_mesh_size.array() / obj_mesh_size.array();
-        const Vec3r x_sdf = sdf_mesh_cm.array() + x_body.array() * scaling_factors_xyz.array();
-        // std::cout << "x_body: " << x_body[0] << ", " << x_body[1] << ", " << x_body[2] << std::endl;
-        // std::cout << "x_sdf: " << x_sdf[0] << ", " << x_sdf[1] << ", " << x_sdf[2] << std::endl;
-        const Real dist = _sdf.evaluate(x_sdf);
-        // std::cout << "dist: " << dist << std::endl;
-        const Vec3r grad = _sdf.gradient(x_sdf);
-        const Vec3r scaled_dist_vec =  grad.array() * dist / scaling_factors_xyz.array();
-        return scaled_dist_vec.norm() * ( (dist < 0) ? -1 : 1);
-    }
     return _sdf.evaluate(x_body);
 }
 
@@ -72,23 +68,7 @@ inline Vec3r MeshSDF::gradient(const Vec3r& x) const
 {
     // transform x into body coordinates
     const Vec3r x_body = _mesh_obj->globalToBody(x);
-    Vec3r grad;
-    // SDF may not be centered about the origin
-    if (_from_file)
-    {
-        // TODO: fix alignment between SDF coordinates and body coordinates
-        const mesh2sdf::BoundingBox sdf_mesh_bbox = _sdf.meshBoundingBox();
-        const Vec3r sdf_mesh_size = sdf_mesh_bbox.second - sdf_mesh_bbox.first;
-        const Vec3r obj_mesh_size = _mesh_obj->mesh()->unrotatedSize();
-        const Vec3r sdf_mesh_cm = _sdf.meshMassCenter();
-        const Vec3r scaling_factors_xyz = sdf_mesh_size.array() / obj_mesh_size.array();
-        const Vec3r x_sdf = sdf_mesh_cm.array() + x_body.array() * scaling_factors_xyz.array();
-        grad = _sdf.gradient(x_sdf);
-    }
-    else
-    {
-        grad = _sdf.gradient(x_body);
-    }
+    Vec3r grad = _sdf.gradient(x_body);
     return GeometryUtils::rotateVectorByQuat(grad, _mesh_obj->orientation());
 }
 

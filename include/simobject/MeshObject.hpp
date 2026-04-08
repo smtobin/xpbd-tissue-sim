@@ -61,7 +61,6 @@ class MeshObject
 
         // move center of mass of the mesh to the specified initial position
         _mesh->moveTogether(-center_of_mass + _initial_position);
-        // _mesh->moveTogether(-_mesh->meshOrigin() + _initial_position);
 
         // then do rigid transformation - rotation and translation
         _mesh->rotateAbout(_initial_position, _initial_rotation);
