@@ -113,8 +113,8 @@ objects:
     name: "Sphere"
     type: "RigidSphere"
     material: "Human Trachea"
-    radius: 2e-3
-    position: [0,0,20e-3]
+    radius: 3e-3
+    position: [0,0,15e-3]
     
 
     collisions: true

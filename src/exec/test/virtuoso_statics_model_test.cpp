@@ -88,6 +88,7 @@ int main()
     std::cout << "C00 interpolated: " << C00_int << std::endl;
     std::cout << "Actual C:\n" << C_ip_eval << std::endl;
     std::cout << "Interpolated C:\n" << C_ip_eval_interp << std::endl;
+    std::cout << "Inverse C:\n" << C_ip_eval_interp.inverse() << std::endl;
 
     Mat2r vdm_cheap;
     vdm_cheap << 1, s_ip0*s_ip0*s_ip0, 1, s_ip3*s_ip3*s_ip3;
@@ -107,16 +108,45 @@ int main()
     Mat3r mid_tt_compliance = arm->complianceMatrixAtIntegrationPoint(mid_tt_index);
 
 
-    Vec3r applied_force(0.1, 0.1, 0);
+    Vec3r applied_force(4, 4, 0);
     Vec3r cur_mid_tt_pos = tt_frames[mid_tt_arr_index].origin();
+    Vec3r cur_mid_tt_tan = tt_frames[mid_tt_arr_index].transform().rotMat().col(2);
     Vec3r approx_predicted_mid_tt_pos = cur_mid_tt_pos + approx_mid_tt_compliance*applied_force;
     Vec3r predicted_mid_tt_pos = cur_mid_tt_pos + mid_tt_compliance*applied_force;
+    Vec3r mid_tt_pos_diff = predicted_mid_tt_pos - cur_mid_tt_pos;
+    Vec3r F_req = mid_tt_compliance.colPivHouseholderQr().solve(mid_tt_pos_diff);
+
+    Eigen::JacobiSVD<Mat3r> svd(mid_tt_compliance, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    std::cout << "Compliance SVD values: " << svd.singularValues().transpose() << std::endl;
+    std::cout << "Compliance SVD U:\n" << svd.matrixU() << std::endl;
+    std::cout << "Compliance SVD V:\n" << svd.matrixV() << std::endl;
+
+    Vec3r pred_diff = mid_tt_compliance*applied_force;
+
+    std::cout << "Tool tube mid positional diff: " << mid_tt_pos_diff.transpose() << std::endl;
+    std::cout << "Tool tube mid tangent: " << cur_mid_tt_tan.transpose() << std::endl;
+    std::cout << " U3 dot pred diff: " << svd.matrixU().col(2).dot(pred_diff) << std::endl;
+    std::cout << "Required force: " << F_req.transpose() << std::endl;
+
+    Vec3r pos_diff_des(1e-3, 1e-3, 0);
+    Vec3r pos_diff_des_non_stiff = pos_diff_des - pos_diff_des.dot(svd.matrixU().col(2)) * svd.matrixU().col(2);
+    Vec3r stiff_force = mid_tt_compliance.colPivHouseholderQr().solve(pos_diff_des);
+    Vec3r non_stiff_force =  mid_tt_compliance.colPivHouseholderQr().solve(pos_diff_des_non_stiff);
+    std::cout << "Required force for (1 mm, 1 mm, 0): " <<  stiff_force.transpose() << std::endl;
+    std::cout << "Required force for (1 mm, 1 mm, 0) (non-stiff): " << non_stiff_force.transpose() << std::endl;
+
+    std::cout << "Original position: " << cur_mid_tt_pos.transpose() << std::endl;
 
     // arm->setOuterTubeNodalForce(4, Vec3r(0,-10,0));
     // arm->setInnerTubeNodalForce(9, Vec3r(0,10,0));
-    arm->setToolTubeNodalForce(mid_tt_arr_index, applied_force);
+    // arm->setToolTubeNodalForce(mid_tt_arr_index, applied_force);
+    arm->setToolTubeNodalForce(mid_tt_arr_index, non_stiff_force);
     // arm->setTipForce(Vec3r(0,50,0));
     arm->update();
+
+    std::cout << "New position: " << tt_frames[mid_tt_arr_index].origin().transpose() << std::endl;
+    std::cout << "Diff: " << (tt_frames[mid_tt_arr_index].origin() - cur_mid_tt_pos).transpose() << std::endl;
+    
 
     
     // const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames2 = arm->outerTubeFrames();

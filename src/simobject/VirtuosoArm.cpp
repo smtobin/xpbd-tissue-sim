@@ -421,6 +421,26 @@ void VirtuosoArm::setToolTubeNodalForce(int node_index, const Vec3r& force)
     _stale_frames = true;
 }
 
+void VirtuosoArm::applyNodalForce(int node_index, Real interp, const Vec3r& force)
+{
+    if (node_index < NUM_OT_FRAMES-1)
+    {
+        _ot_nodal_forces[node_index] += (1-interp)*force;
+        _ot_nodal_forces[node_index+1] += interp*force;
+    }
+    else if (node_index >= NUM_OT_FRAMES && node_index < NUM_OT_FRAMES + NUM_IT_FRAMES-1)
+    {
+        _it_nodal_forces[node_index - NUM_OT_FRAMES] += (1-interp)*force;
+        _it_nodal_forces[node_index - NUM_OT_FRAMES+1] += interp*force;
+    }
+    else if (node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES-1)
+    {
+        _tt_nodal_forces[node_index - NUM_OT_FRAMES - NUM_IT_FRAMES] += (1-interp)*force;
+        _tt_nodal_forces[node_index - NUM_OT_FRAMES - NUM_IT_FRAMES+1] += interp*force;
+    }
+    _stale_frames = true;
+}
+
 void VirtuosoArm::setJointState(double ot_rotation, double ot_translation, double it_rotation, double it_translation, int tool)
 {
     _ot_rotation = ot_rotation;
@@ -431,6 +451,11 @@ void VirtuosoArm::setJointState(double ot_rotation, double ot_translation, doubl
 
     // _recomputeCoordinateFrames();
     _stale_frames = true;
+}
+
+void VirtuosoArm::addRigidCollision(int node_index, Real interp, const Geometry::SDF* rigid_sdf)
+{
+    _rigid_collisions.emplace(node_index, interp, rigid_sdf);
 }
 
 void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp)
@@ -470,66 +495,146 @@ void VirtuosoArm::velocityUpdate()
     _toolAction();
 
     // apply forces from collision constraints
-    std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
-    _unfiltered_collision_force = Vec3r::Zero();
-    _filtered_collision_force = Vec3r::Zero();
-    for (const auto& collision : _collision_constraints)
-    {
+    // std::vector<Vec3r> new_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
+    // _unfiltered_collision_force = Vec3r::Zero();
+    // _filtered_collision_force = Vec3r::Zero();
+    // for (const auto& collision : _collision_constraints)
+    // {
         
-        if (collision.proj_ref.exists() && collision.proj_ref.isValid())
-        {
-            // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
-            std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
-            Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());
-            new_forces[collision.node_index] += net_force*(1-collision.interp);
-            new_forces[collision.node_index+1] += net_force*collision.interp;
+    //     if (collision.proj_ref.exists() && collision.proj_ref.isValid())
+    //     {
+    //         // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
+    //         std::vector<Vec3r> forces = collision.proj_ref.constraintForces();
+    //         Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());
+    //         new_forces[collision.node_index] += net_force*(1-collision.interp);
+    //         new_forces[collision.node_index+1] += net_force*collision.interp;
 
-            _unfiltered_collision_force += net_force;
-        }
-    }
+    //         _unfiltered_collision_force += net_force;
+    //     }
+    // }
 
     
-    const Real load_frac = 0.005;
-    const Real unload_frac = 0.005;//0.1;
-    for (int i = 0; i < NUM_OT_FRAMES; i++)
-    {
-        const Vec3r& cur_force = outerTubeNodalForce(i);
-        Vec3r new_force = Vec3r::Zero();
-        if (new_forces[i].squaredNorm() >= cur_force.squaredNorm())
-            new_force = (1-load_frac)*cur_force + load_frac*new_forces[i];
-        else
-            new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[i];
+    // const Real load_frac = 0.005;
+    // const Real unload_frac = 0.005;//0.1;
+    // for (int i = 0; i < NUM_OT_FRAMES; i++)
+    // {
+    //     const Vec3r& cur_force = outerTubeNodalForce(i);
+    //     Vec3r new_force = Vec3r::Zero();
+    //     if (new_forces[i].squaredNorm() >= cur_force.squaredNorm())
+    //         new_force = (1-load_frac)*cur_force + load_frac*new_forces[i];
+    //     else
+    //         new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[i];
 
-        _filtered_collision_force += new_force;
-        setOuterTubeNodalForce(i, new_force);
-    }
-    for (int i = 0; i < NUM_IT_FRAMES; i++)
-    {
-        const Vec3r& cur_force = innerTubeNodalForce(i);
-        Vec3r new_force = Vec3r::Zero();
-        if (new_forces[NUM_OT_FRAMES + i].squaredNorm() >= cur_force.squaredNorm())
-            new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + i];
-        else
-            new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + i];
+    //     _filtered_collision_force += new_force;
+    //     setOuterTubeNodalForce(i, new_force);
+    // }
+    // for (int i = 0; i < NUM_IT_FRAMES; i++)
+    // {
+    //     const Vec3r& cur_force = innerTubeNodalForce(i);
+    //     Vec3r new_force = Vec3r::Zero();
+    //     if (new_forces[NUM_OT_FRAMES + i].squaredNorm() >= cur_force.squaredNorm())
+    //         new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + i];
+    //     else
+    //         new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + i];
 
-        _filtered_collision_force += new_force;
-        setInnerTubeNodalForce(i, new_force);
-    }
-    if (hasTool())
+    //     _filtered_collision_force += new_force;
+    //     setInnerTubeNodalForce(i, new_force);
+    // }
+    // if (hasTool())
+    // {
+    //     for (int i = 0; i < NUM_TT_FRAMES; i++)
+    //     {
+    //         const Vec3r& cur_force = toolTubeNodalForce(i);
+    //         Vec3r new_force = Vec3r::Zero();
+    //         if (new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i].squaredNorm() > cur_force.squaredNorm())
+    //             new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
+    //         else
+    //             new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
+
+    //         _filtered_collision_force += new_force;
+    //         setToolTubeNodalForce(i, new_force);
+    //     }
+    // }
+    // zero out forces
+    for (auto& f : _ot_nodal_forces)
+        f = Vec3r::Zero();
+    for (auto& f : _it_nodal_forces)
+        f = Vec3r::Zero();
+    for (auto& f : _tt_nodal_forces)
+        f = Vec3r::Zero();
+
+    // std::cout << "Applying forces for " << _rigid_collisions.size() << " rigid collisions..." << std::endl;
+    for (auto it = _rigid_collisions.begin(); it != _rigid_collisions.end();)
     {
-        for (int i = 0; i < NUM_TT_FRAMES; i++)
+        auto& rigid_collision = *it;
+
+        // std::cout << "  Applying force for rigid collision for node index " << rigid_collision.node_index << std::endl; 
+        // get capsule representing segment
+        Geometry::Capsule seg = segment(rigid_collision.node_index);
+        Vec3r cp = seg.p1() + rigid_collision.interp*(seg.p2() - seg.p1());
+
+        // get penetration distance (negative if penetration, positive if no penetration)
+        Real penetration_dist = rigid_collision.rigid_sdf->evaluate(cp) - seg.radius();
+        Vec3r normal = rigid_collision.rigid_sdf->gradient(cp);
+        Vec3r surface_point = cp - penetration_dist*normal;
+
+        // compute the separation direction
+        // this is just the vector pointing from the contact point on the rigid body surface to the centerline of the Virtuoso arm
+        Vec3r sep_dir = cp - surface_point;
+        Real sep_vec_norm = sep_dir.norm();
+        if (sep_vec_norm > 1e-8)
+            sep_dir = sep_dir / sep_vec_norm;
+        else
+            sep_dir = normal;
+
+        // std::cout << "  Penetration dist: " << penetration_dist << std::endl;
+        // std::cout << "  Normal: " << normal.transpose() << std::endl;
+        
+        // the nominal change in position
+        Vec3r dp = -penetration_dist*sep_dir;
+
+        // get compliance matrix at this point
+        Mat3r C = interpolatedComplianceMatrix(rigid_collision.node_index, rigid_collision.interp);
+
+        // SVD
+        Eigen::JacobiSVD<Mat3r> svd(C, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+        // compute a change in position that doesn't require moving in the stiff direction
+        // without this correction, the corrective forces are extremely large
+        Vec3r dp_nonstiff = dp - dp.dot(svd.matrixU().col(2)) * svd.matrixU().col(2);
+
+        // get the force required to (approximately) fix the penetration 
+        Vec3r F_req = C.colPivHouseholderQr().solve(dp_nonstiff);
+        Real F_req_mag = F_req.norm();
+
+        // std::cout << "  Required force: " << F_req.transpose() << std::endl;
+
+        // there is still penetration, we need more force
+        if (penetration_dist < 0)
         {
-            const Vec3r& cur_force = toolTubeNodalForce(i);
-            Vec3r new_force = Vec3r::Zero();
-            if (new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i].squaredNorm() > cur_force.squaredNorm())
-                new_force = (1-load_frac)*cur_force + load_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
-            else
-                new_force = (1-unload_frac)*cur_force + unload_frac*new_forces[NUM_OT_FRAMES + NUM_IT_FRAMES + i];
+            rigid_collision.force_mag += 0.1*F_req_mag;
+        }
+        // otherwise we need less force
+        else
+        {
+            rigid_collision.force_mag = std::max(Real(0.0), rigid_collision.force_mag - 0.1*F_req_mag);
+        }
 
-            _filtered_collision_force += new_force;
-            setToolTubeNodalForce(i, new_force);
+        // apply the force
+        applyNodalForce(rigid_collision.node_index, rigid_collision.interp, rigid_collision.force_mag*normal);
+
+        // remove the collision if the force has gone down to near 0
+        if (rigid_collision.force_mag < 1e-6)
+        {
+            it = _rigid_collisions.erase(it);
+        }
+        // otherwise, move on to the next collision
+        else
+        {
+            ++it;
         }
     }
+
     _stale_frames = true;
 }
 

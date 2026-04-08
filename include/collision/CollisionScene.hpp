@@ -177,6 +177,7 @@ class CollisionScene
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj);
 
+    void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2);
     void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj);
     std::pair<Real,Real> _findDeepestPenetratingPointOnSegment(const Vec3r& p1, const Vec3r& p2, const Geometry::SDF* sdf);
 

@@ -351,6 +351,11 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     }
 }
 
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2)
+{
+    
+}
+
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj)
 {
     // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
@@ -369,6 +374,7 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
         {
             // collision between inner tube and other SDF!
             std::cout << "Collision between outer tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm->addRigidCollision(i, s, obj->SDF());
         }
     }
 
@@ -382,6 +388,7 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
         {
             // collision between inner tube and other SDF!
             std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm->addRigidCollision(outer_tube_frames.size() + i, s, obj->SDF());
         }
     }
 
@@ -397,6 +404,7 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
             {
                 // collision between inner tube and other SDF!
                 std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+                virtuoso_arm->addRigidCollision(outer_tube_frames.size() + inner_tube_frames.size() + i, s, obj->SDF());
             }
         }
     }

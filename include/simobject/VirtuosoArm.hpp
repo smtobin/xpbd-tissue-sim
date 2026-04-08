@@ -10,6 +10,7 @@
 
 #include <array>
 #include <variant>
+#include <unordered_set>
 
 namespace Config
 {
@@ -20,6 +21,46 @@ namespace Sim
 {
 
 class XPBDMeshObject_BasePtrWrapper;
+
+/** Simple struct to store information about active collisions between the arm and another object. */
+struct VirtuosoArmRigidCollision
+{
+    /** The node index for the first node of the segment in collision */
+    int node_index;
+    /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
+    Real interp;
+
+    /** The SDF for the rigid body in collision. */
+    const Geometry::SDF* rigid_sdf;
+
+    /** The current force magnitude associated with the collision.
+     * This will get incremented or decremented depending on the penetration.
+     */
+    mutable Real force_mag;
+
+    VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
+        : node_index(node_index_), interp(interp_), rigid_sdf(rigid_sdf_), force_mag(0)
+    {
+    }
+};
+
+struct VirtuosoArmRigidCollision_Hash
+{
+    std::size_t operator()(const VirtuosoArmRigidCollision& col) const 
+    {
+        std::size_t h1 = std::hash<const Geometry::SDF*>{}(col.rigid_sdf);
+        std::size_t h2 = std::hash<int>{}(col.node_index);
+        return h1 ^ (h2 << 1);  // simple combine
+    }
+};
+
+struct VirtuosoArmRigidCollision_Equal
+{
+    bool operator() (const VirtuosoArmRigidCollision& col1, const VirtuosoArmRigidCollision& col2) const
+    {
+        return col1.rigid_sdf == col2.rigid_sdf && col1.node_index == col2.node_index;
+    }
+};
 
 struct VirtuosoArmTool
 {
@@ -304,12 +345,15 @@ class VirtuosoArm : public Object
     void addCollisionConstraint(const CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp);
     void clearCollisionConstraints();
 
+    void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
+
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }
     const Vec3r& innerTubeNodalForce(int node_index) const { return _it_nodal_forces[node_index]; }
     const Vec3r& toolTubeNodalForce(int node_index) const { return _tt_nodal_forces[node_index]; }
     void setOuterTubeNodalForce(int node_index, const Vec3r& force);
     void setInnerTubeNodalForce(int node_index, const Vec3r& force);
     void setToolTubeNodalForce(int node_index, const Vec3r& force);
+    void applyNodalForce(int node_index, Real interp, const Vec3r& force);
 
     const XPBDMeshObject_BasePtrWrapper& toolManipulatedObject() const { return _tool_manipulated_object; }
     void setToolManipulatedObject(const XPBDMeshObject_BasePtrWrapper& obj) { _tool_manipulated_object = obj; }
@@ -438,6 +482,9 @@ class VirtuosoArm : public Object
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
     std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
     std::vector<CollisionConstraintInfo> _collision_constraints;
+
+    /** Stores information about collisions with rigid objects */
+    std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal> _rigid_collisions;
 
     Vec3r _arm_base_position;
     Mat3r _arm_base_rotation;
