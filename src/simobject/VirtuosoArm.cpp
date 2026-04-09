@@ -157,7 +157,7 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
     else
         orig_pos = _tt_frames[arr_index].origin();
 
-    std::cout << "Original position: " << orig_pos.transpose() << std::endl;
+    // std::cout << "Original position: " << orig_pos.transpose() << std::endl;
     // iterate through 3 coordinate directions
     Mat3r C;
     Real deltaF = 1e-3;
@@ -1166,7 +1166,7 @@ void VirtuosoArm::_recomputeCoordinateFramesStaticsModelWithNodalForces()
 
         // integrate with RK4 along the straight section of the outer tube
         std::vector<TubeIntegrationState::VecType> ot_straight_states = 
-            _integrateTubeWithForceBoundariesRK4(ot_curve_end_state, ot_straight_s, _ot_nodal_forces.cbegin() + NUM_OT_STRAIGHT_FRAMES, ot_K_inv, Vec3r(0,0,0));
+            _integrateTubeWithForceBoundariesRK4(ot_curve_end_state, ot_straight_s, _ot_nodal_forces.cbegin() + NUM_OT_CURVE_FRAMES, ot_K_inv, Vec3r(0,0,0));
         
         // set the transforms along the straight part of the otuer tube from the integration results
         for (int i = 0; i < NUM_OT_STRAIGHT_FRAMES; i++)

@@ -30,7 +30,7 @@ int main()
     Config::VirtuosoArmConfig config("arm1", "default",
         Vec3r(0,0,0), Vec3r(0,0,0), Vec3r(0,0,0), false, false,
         1.56e-3, 1.14e-3, 1.5383e-2, 5e-3, 1.04e-3, 0.82e-3,
-        0, 7e-3, 0, 10e-3,
+        0, 7e-3, 0, 20e-3,
         Sim::VirtuosoArm::ToolType::PALPATION, Sim::VirtuosoArm::CuttingModel::NONE, 15e-3, Config::ObjectRenderConfig());
 
     std::unique_ptr<Sim::VirtuosoArm> arm = config.createObject(&dummy_sim);
@@ -137,10 +137,11 @@ int main()
 
     std::cout << "Original position: " << cur_mid_tt_pos.transpose() << std::endl;
 
-    // arm->setOuterTubeNodalForce(4, Vec3r(0,-10,0));
+    // arm->setOuterTubeNodalForce(12, Vec3r(0,-20,0));
     // arm->setInnerTubeNodalForce(9, Vec3r(0,10,0));
     // arm->setToolTubeNodalForce(mid_tt_arr_index, applied_force);
     arm->setToolTubeNodalForce(mid_tt_arr_index, non_stiff_force);
+    // arm->set
     // arm->setTipForce(Vec3r(0,50,0));
     arm->update();
 
