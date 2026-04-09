@@ -29,6 +29,7 @@ struct VirtuosoArmRigidCollision
     int node_index;
     /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
     mutable Real interp;
+    mutable Real prev_interp;
 
     /** The SDF for the rigid body in collision. */
     const Geometry::SDF* rigid_sdf;
@@ -39,7 +40,7 @@ struct VirtuosoArmRigidCollision
     mutable Vec3r force;
 
     VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
-        : node_index(node_index_), interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
+        : node_index(node_index_), interp(interp_), prev_interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
     {
     }
 };
@@ -59,6 +60,33 @@ struct VirtuosoArmRigidCollision_Equal
     bool operator() (const VirtuosoArmRigidCollision& col1, const VirtuosoArmRigidCollision& col2) const
     {
         return col1.rigid_sdf == col2.rigid_sdf && col1.node_index == col2.node_index;
+    }
+};
+
+struct VirtuosoArmVirtuosoArmCollision
+{
+    /** Info for the first arm in collision */
+    VirtuosoArm* arm1;
+    int node_index1;
+    Real interp1;
+    int last_node_index1;
+    Real last_interp1;
+
+    /** Info for the second arm in collision */
+    VirtuosoArm* arm2;
+    int node_index2;
+    Real interp2;
+    int last_node_index2;
+    Real last_interp2;
+
+    /** Force info */
+    Vec3r force;
+
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, int node_index2_, Real interp2_)
+        : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+         arm2(arm2_), node_index2(node_index2_), interp2(interp2_), last_node_index2(node_index2_), last_interp2(interp2_),
+          force(0,0,0)
+    {
     }
 };
 
@@ -341,6 +369,8 @@ class VirtuosoArm : public Object
 
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
 
+    void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
+
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }
     const Vec3r& innerTubeNodalForce(int node_index) const { return _it_nodal_forces[node_index]; }
     const Vec3r& toolTubeNodalForce(int node_index) const { return _tt_nodal_forces[node_index]; }
@@ -485,6 +515,9 @@ class VirtuosoArm : public Object
     /** Stores information about collisions with rigid objects */
     std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal> _rigid_collisions;
 
+    /** Stores information about collisions with other Virtuoso arms */
+    std::vector<VirtuosoArmVirtuosoArmCollision> _virtuoso_arm_collisions;
+
     Vec3r _arm_base_position;
     Mat3r _arm_base_rotation;
 
@@ -501,6 +534,11 @@ class VirtuosoArm : public Object
      * This is the force that is used by the quasistatic model - it is smoothed using a complementary filter.
      */
     Vec3r _filtered_collision_force;
+
+    /** Collision forces from collisions with deformable objects (i.e. tissue).
+     * We need to keep track of these separately from other collisions so that they can be smoothed with a complementary filter.
+     */
+    std::vector<Vec3r> _xpbd_collision_forces;
 
     Geometry::CoordinateFrame _arm_base_frame;        // coordinate frame at the tool channel (where it leaves the endoscope)
     
