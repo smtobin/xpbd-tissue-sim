@@ -44,6 +44,8 @@ class XPBDSolver
     /** Whether or not solver is using 1st-Order projection */
     constexpr static bool is_first_order = IsFirstOrder;
 
+    XPBDSolver() = default;
+
     explicit XPBDSolver(Sim::XPBDMeshObject_Base_<IsFirstOrder>* obj, int num_iter, XPBDSolverResidualPolicyEnum residual_policy)
         : _obj(obj), _num_iter(num_iter), _residual_policy(residual_policy), _constraints_using_primary_residual(false), _num_constraints(0)
     {
@@ -51,6 +53,36 @@ class XPBDSolver
     }
 
     ~XPBDSolver() = default;
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _constraint_projectors);
+        pack(buf, _obj);
+        pack(buf, _num_iter);
+        pack(buf, _inertial_positions);
+        pack(buf, _residual_policy);
+        pack(buf, _constraints_using_primary_residual);
+        pack(buf, _num_constraints);
+        pack(buf, _primary_residual);
+        pack(buf, _constraint_residual);
+        pack(buf, _coordinate_updates);
+        pack(buf, _rigid_body_updates);
+    }
+
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _constraint_projectors);
+        unpack(buf, _obj);
+        unpack(buf, _num_iter);
+        unpack(buf, _inertial_positions);
+        unpack(buf, _residual_policy);
+        unpack(buf, _constraints_using_primary_residual);
+        unpack(buf, _num_constraints);
+        unpack(buf, _primary_residual);
+        unpack(buf, _constraint_residual);
+        unpack(buf, _coordinate_updates);
+        unpack(buf, _rigid_body_updates);
+    }
 
     /** Performs any one-time setup for the solver. */
     void setup()

@@ -30,6 +30,15 @@ class CoordinateFrame
     {
     }
 
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _transform);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _transform);
+    }
+
     CoordinateFrame operator*(const TransformationMatrix& transform) const
     {
         return CoordinateFrame(_transform * transform);

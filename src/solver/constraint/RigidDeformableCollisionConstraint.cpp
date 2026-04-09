@@ -21,6 +21,32 @@ RigidDeformableCollisionConstraint::RigidDeformableCollisionConstraint(const Geo
     _rigid_body_helpers.push_back(std::move(helper));
 }
 
+void RigidDeformableCollisionConstraint::serialize(std::vector<std::byte>& buf) const
+{
+    CollisionConstraint::serialize(buf);
+    RigidBodyConstraint::serialize(buf);
+    pack(buf, _sdf);
+    pack(buf, _point_on_rigid_body);
+    pack(buf, _u);
+    pack(buf, _v);
+    pack(buf, _w);
+}
+
+void RigidDeformableCollisionConstraint::deserialize(const std::byte*& buf)
+{
+    // allocate space for the positional helper
+    _rigid_body_helpers.resize(1);
+    _rigid_body_helpers[0] = std::make_unique<PositionalRigidBodyXPBDHelper>();
+
+    CollisionConstraint::deserialize(buf);
+    RigidBodyConstraint::deserialize(buf);
+    unpack(buf, _sdf);
+    unpack(buf, _point_on_rigid_body);
+    unpack(buf, _u);
+    unpack(buf, _v);
+    unpack(buf, _w);
+}
+
 void RigidDeformableCollisionConstraint::evaluate(Real* C) const
 {
     // get the point on the deformable body from the barycentric coordinates

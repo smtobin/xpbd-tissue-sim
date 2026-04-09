@@ -77,6 +77,20 @@ class ElementConstraint : public Constraint
     {
     }
 
+    virtual void serialize(std::vector<std::byte>& buf) const override
+    {
+        Constraint::serialize(buf);
+        pack(buf, _Q);
+        pack(buf, _volume);
+    }
+    
+    virtual void deserialize(const std::byte*& buf) override
+    {
+        Constraint::deserialize(buf);
+        unpack(buf, _Q);
+        unpack(buf, _volume);
+    }
+
     Real restVolume() const { return _volume; }
 
     /** Compute the deformation gradient and return it, using the 4 positions referenced by this constraint.

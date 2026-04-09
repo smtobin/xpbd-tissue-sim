@@ -38,6 +38,16 @@ class Constraint
 
     virtual ~Constraint() = default;
 
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _alpha);
+        pack(buf, _positions);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _alpha);
+        unpack(buf, _positions);
+    }
 
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)

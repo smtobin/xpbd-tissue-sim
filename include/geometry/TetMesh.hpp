@@ -21,15 +21,37 @@ class TetMesh : public Mesh
     struct RemovedElement
     {
         int index;
-        const Vec4i vertices;
+        Vec4i vertices;
         Vec3r current_centroid;
         Vec3r rest_centroid;
         Real rest_volume;
 
+        RemovedElement() = default; // required for deserialization
+
         RemovedElement(int index_, const Vec4i& vertices_, const Vec3r& current_centroid_, const Vec3r& rest_centroid_, Real rest_volume_)
             : index(index_), vertices(vertices_), current_centroid(current_centroid_), rest_centroid(rest_centroid_), rest_volume(rest_volume_)
         {}
+
+        void serialize(std::vector<std::byte>& buf) const
+        {
+            pack(buf, index);
+            pack(buf, vertices);
+            pack(buf, current_centroid);
+            pack(buf, rest_centroid);
+            pack(buf, rest_volume);
+        }
+
+        void deserialize(const std::byte*& buf)
+        {
+            unpack(buf, index);
+            unpack(buf, vertices);
+            unpack(buf, current_centroid);
+            unpack(buf, rest_centroid);
+            unpack(buf, rest_volume);
+        }
     };
+
+    TetMesh() = default; // required for deserialization
 
     /** Constructs a tetrahedral mesh from a set of vertices, faces, and elements.
      * This is usually done using the helper methods in the MeshUtils library.
@@ -41,6 +63,9 @@ class TetMesh : public Mesh
     TetMesh(TetMesh&& other);
 
     virtual ~TetMesh() = default;
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& cursor) override;
 
     /** Essentially "sets up" the mesh - treats the current state as the initial, undeformed state of the mesh.
      * This should be called after performing the initial translations and rotations setting up the mesh.

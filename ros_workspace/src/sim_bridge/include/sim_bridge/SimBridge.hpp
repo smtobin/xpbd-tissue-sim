@@ -14,6 +14,10 @@
 #include "sensor_msgs/msg/image.hpp"
 
 #include "sim_bridge/msg/sparse_matrix.hpp"
+#include <Eigen/Sparse>
+
+#include "sim_bridge/srv/save_checkpoint.hpp"
+#include "sim_bridge/srv/restore_checkpoint.hpp"
 
 #include "geometry/Mesh.hpp"
 #include "simobject/XPBDMeshObjectBase.hpp"
@@ -92,6 +96,17 @@ class SimBridge : public rclcpp::Node
 
             index++;
         });
+
+        // set up checkpoint servers
+        _save_checkpoint_server = this->create_service<sim_bridge::srv::SaveCheckpoint>(
+            "/sim/checkpoint/save",
+            std::bind(&SimBridge::_saveCheckpoint, this, std::placeholders::_1, std::placeholders::_2)
+        );
+
+        _restore_checkpoint_server = this->create_service<sim_bridge::srv::RestoreCheckpoint>(
+            "/sim/checkpoint/restore",
+            std::bind(&SimBridge::_restoreCheckpoint, this, std::placeholders::_1, std::placeholders::_2)
+        );
     }
 
 private:
@@ -375,6 +390,25 @@ private:
      */
     std::tuple<double, double, double, double, int> _jointMsgToJointState(sensor_msgs::msg::JointState* msg) const;
     
+    void _saveCheckpoint(const std::shared_ptr<sim_bridge::srv::SaveCheckpoint::Request> req, std::shared_ptr<sim_bridge::srv::SaveCheckpoint::Response> res)
+    {
+        // instruct the sim to save the current state as a checkpoint
+        bool success = _sim->saveCheckpoint(req->id);
+        res->success = success;
+        if (!success)
+            res->message = "Failed to serialize state. Checkpoint with ID already exists.";
+        
+    }
+
+    void _restoreCheckpoint(const std::shared_ptr<sim_bridge::srv::RestoreCheckpoint::Request> req, std::shared_ptr<sim_bridge::srv::RestoreCheckpoint::Response> res)
+    {
+        // restore the simulation checkpoint associated with the checkpoint ID
+        bool success = _sim->restoreCheckpoint(req->id);
+        res->success = success;
+        if (!success)
+            res->message = "Failed to restore state. Checkpoint with ID not found.";
+        
+    }
 
 protected:
     /** Publishers */
@@ -396,6 +430,10 @@ protected:
 
     std::vector<std_msgs::msg::Int32MultiArray> _elements_mat_messages;
     std::vector<rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr> _elements_mat_publishers;
+
+    /** Save and restore checkpoint services */
+    rclcpp::Service<sim_bridge::srv::SaveCheckpoint>::SharedPtr _save_checkpoint_server;
+    rclcpp::Service<sim_bridge::srv::RestoreCheckpoint>::SharedPtr _restore_checkpoint_server;
 
     /** Pointer to the actively running Simulation object */
     SimulationType* _sim;

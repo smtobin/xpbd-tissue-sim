@@ -1,17 +1,16 @@
-#include "sim_bridge/CAOSimBridge.hpp"
+#include "sim_bridge/BPHSimBridge.hpp"
 
-CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
+BPHSimBridge::BPHSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
     : VirtuosoCTAnatomySimBridge(sim)
 {
     _setupPartialViewPointCloudPublishers();
     _setupRemovedElementsPublishers();
-    _setupToolTracheaCollisionPublisher();
 }
 
-void CAOSimBridge::_setupPartialViewPointCloudPublishers()
+void BPHSimBridge::_setupPartialViewPointCloudPublishers()
+
 {
-    _trachea_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/trachea_partial_view_pc", 10);
-    _tumor_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/tumor_partial_view_pc", 10);
+    _prostate_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/prostate_partial_view_pc", 10);
     _tool_partial_view_pc_publisher = this->create_publisher<sensor_msgs::msg::PointCloud2>("/sim/output/tool_partial_view_pc", 10);
     
     this->declare_parameter("partial_view_pc", true);
@@ -19,8 +18,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
     this->declare_parameter("partial_view_pc_vfov", 30.0);
     this->declare_parameter("partial_view_pc_sample_density", 1.0);
 
-    this->declare_parameter("trachea_label", "Trachea");
-    this->declare_parameter("tumor_label", "Tumor");
+    this->declare_parameter("prostate_label", "Prostate");
     this->declare_parameter("tool_label", "Tool");
 
     Real hfov_deg = this->get_parameter("partial_view_pc_hfov").as_double();
@@ -65,8 +63,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
         pcl_msg.data.resize(pcl_msg.row_step);
     };
 
-    configure_pcl_message(_trachea_partial_view_pc_message);
-    configure_pcl_message(_tumor_partial_view_pc_message);
+    configure_pcl_message(_prostate_partial_view_pc_message);
     configure_pcl_message(_tool_partial_view_pc_message);
     
 
@@ -84,8 +81,7 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
             Real vfov_deg = this->get_parameter("partial_view_pc_vfov").as_double();
             Real sample_density = this->get_parameter("partial_view_pc_sample_density").as_double();
 
-            const std::string trachea_label = this->get_parameter("trachea_label").as_string();
-            const std::string tumor_label = this->get_parameter("tumor_label").as_string();
+            const std::string prostate_label = this->get_parameter("prostate_label").as_string();
             const std::string tool_label = this->get_parameter("tool_label").as_string();
 
             this->_sim->updateEmbreeRayScene();
@@ -102,30 +98,14 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
                     pc.points[i] = vb_transform_inv.rotMat()*pc.points[i] + vb_transform_inv.translation();
                 }
 
-                if (pc.classification == trachea_label)
+                if (pc.classification == prostate_label)
                 {
-                    this->_trachea_partial_view_pc_message.header.stamp = this->now();
-                    this->_trachea_partial_view_pc_message.width = pc.points.size();
-                    this->_trachea_partial_view_pc_message.row_step = this->_trachea_partial_view_pc_message.width * this->_trachea_partial_view_pc_message.point_step;
-                    this->_trachea_partial_view_pc_message.data.resize(this->_trachea_partial_view_pc_message.row_step);
+                    this->_prostate_partial_view_pc_message.header.stamp = this->now();
+                    this->_prostate_partial_view_pc_message.width = pc.points.size();
+                    this->_prostate_partial_view_pc_message.row_step = this->_prostate_partial_view_pc_message.width * this->_prostate_partial_view_pc_message.point_step;
+                    this->_prostate_partial_view_pc_message.data.resize(this->_prostate_partial_view_pc_message.row_step);
 
-                    float* pc_data = (float*)this->_trachea_partial_view_pc_message.data.data();
-                    for (unsigned i = 0; i < pc.points.size(); i++)
-                    {
-                        *(pc_data + 3*i) = static_cast<float>(pc.points[i][0]);
-                        *(pc_data + 3*i+1) = static_cast<float>(pc.points[i][1]);
-                        *(pc_data + 3*i+2) = static_cast<float>(pc.points[i][2]);
-                    }
-                }
-
-                else if (pc.classification == tumor_label)
-                {
-                    this->_tumor_partial_view_pc_message.header.stamp = this->now();
-                    this->_tumor_partial_view_pc_message.width = pc.points.size();
-                    this->_tumor_partial_view_pc_message.row_step = this->_tumor_partial_view_pc_message.width * this->_tumor_partial_view_pc_message.point_step;
-                    this->_tumor_partial_view_pc_message.data.resize(this->_tumor_partial_view_pc_message.row_step);
-
-                    float* pc_data = (float*)this->_tumor_partial_view_pc_message.data.data();
+                    float* pc_data = (float*)this->_prostate_partial_view_pc_message.data.data();
                     for (unsigned i = 0; i < pc.points.size(); i++)
                     {
                         *(pc_data + 3*i) = static_cast<float>(pc.points[i][0]);
@@ -151,20 +131,18 @@ void CAOSimBridge::_setupPartialViewPointCloudPublishers()
                 }
             }
 
-            this->_trachea_partial_view_pc_message.header.stamp = this->now();
-            this->_tumor_partial_view_pc_message.header.stamp = this->now();
+            this->_prostate_partial_view_pc_message.header.stamp = this->now();
             this->_tool_partial_view_pc_message.header.stamp = this->now();
 
             // publish the messages
-            this->_trachea_partial_view_pc_publisher->publish(this->_trachea_partial_view_pc_message);
-            this->_tumor_partial_view_pc_publisher->publish(this->_tumor_partial_view_pc_message);
+            this->_prostate_partial_view_pc_publisher->publish(this->_prostate_partial_view_pc_message);
             this->_tool_partial_view_pc_publisher->publish(this->_tool_partial_view_pc_message);
         };
     
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), partial_view_pc_callback);
 }
 
-void CAOSimBridge::_setupRemovedElementsPublishers()
+void BPHSimBridge::_setupRemovedElementsPublishers()
 {
     // assume that setup() has already been called on the Simulation object
     // then we can probe how many deformable objects are in the Sim
@@ -185,7 +163,7 @@ void CAOSimBridge::_setupRemovedElementsPublishers()
 }
 
 template <typename XPBDMeshObject_BaseType>
-void CAOSimBridge::_setupRemovedElementsPublisherForMesh(int index, XPBDMeshObject_BaseType* xpbd_obj)
+void BPHSimBridge::_setupRemovedElementsPublisherForMesh(int index, XPBDMeshObject_BaseType* xpbd_obj)
 {
     std::string topic_name = "/sim/output/removed_elements_" + std::to_string(index);
     _removed_elements_publishers[index] = this->create_publisher<sim_bridge::msg::RemovedElementArray>(topic_name, 3);
@@ -223,33 +201,4 @@ void CAOSimBridge::_setupRemovedElementsPublisherForMesh(int index, XPBDMeshObje
     // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
     // i.e. publish every 10 time steps
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
-}
-
-void CAOSimBridge::_setupToolTracheaCollisionPublisher()
-{
-    _arm1_trachea_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/arm1_trachea_collision", 10);
-    _arm2_trachea_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/arm2_trachea_collision", 10);
-
-    auto arm1_callback =
-        [this]() -> void {
-            std_msgs::msg::Int8 msg;
-            if (this->_sim->virtuosoRobot()->hasArm1() && !this->_sim->virtuosoRobot()->arm1()->rigidCollisions().empty())
-                msg.data = 1;
-            else
-                msg.data = 0;
-            
-            this->_arm1_trachea_collision_publisher->publish(msg);
-        };
-    auto arm2_callback =
-        [this]() -> void {
-            std_msgs::msg::Int8 msg;
-            if (this->_sim->virtuosoRobot()->hasArm2() && !this->_sim->virtuosoRobot()->arm2()->rigidCollisions().empty())
-                msg.data = 1;
-            else
-                msg.data = 0;
-            
-            this->_arm2_trachea_collision_publisher->publish(msg);
-        };
-    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm1_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
-    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm2_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 }

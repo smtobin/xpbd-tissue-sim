@@ -1,4 +1,5 @@
 #include "sim_bridge/VirtuosoSimBridge.hpp"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 VirtuosoSimBridge::VirtuosoSimBridge(Sim::VirtuosoSimulation* sim)
     : SimBridge<Sim::VirtuosoSimulation>(sim)
@@ -469,7 +470,41 @@ void VirtuosoSimBridge::_setupSubscribers()
     {
         auto arm1_tip_pos_callback = 
             [this](geometry_msgs::msg::PoseStamped::UniquePtr msg) -> void {
-                const Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+                std::string source_frame = msg->header.frame_id;
+                std::string target_frame = "ves/left/base";
+
+                Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+
+                // get the latest transform (if it exists)
+                if (source_frame != target_frame)
+                {
+                    if (this->_tf_buffer->canTransform(target_frame, source_frame, tf2::TimePointZero))
+                    {
+                        try
+                        {
+                            // try getting the transform
+                            auto transform_msg = this->_tf_buffer->lookupTransform(
+                                target_frame, source_frame, tf2::TimePointZero);
+                            
+                            geometry_msgs::msg::PoseStamped transformed;
+                            tf2::doTransform(*msg, transformed, transform_msg);
+                            local_pos = Vec3r(transformed.pose.position.x, transformed.pose.position.y, transformed.pose.position.z);
+                                
+                        }
+                        catch (tf2::TransformException& ex)
+                        {
+                            RCLCPP_WARN(this->get_logger(), "Error getting transform: %s", ex.what());
+                        }
+                    }
+                    else
+                    {
+                        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100,
+                            "Recieved left arm commanded position in the %s frame, but the transform from %s to %s does not exist yet!", 
+                            source_frame.c_str(), source_frame.c_str(), target_frame.c_str());
+
+                        return;
+                    }
+                }
 
                 const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
                 const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
@@ -484,7 +519,41 @@ void VirtuosoSimBridge::_setupSubscribers()
     {
         auto arm2_tip_pos_callback =
             [this](geometry_msgs::msg::PoseStamped::UniquePtr msg) -> void {
-                const Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+                std::string source_frame = msg->header.frame_id;
+                std::string target_frame = "ves/left/base";
+
+                Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+
+                // get the latest transform (if it exists)
+                if (source_frame != target_frame)
+                {
+                    if (this->_tf_buffer->canTransform(target_frame, source_frame, tf2::TimePointZero))
+                    {
+                        try
+                        {
+                            // try getting the transform
+                            auto transform_msg = this->_tf_buffer->lookupTransform(
+                                target_frame, source_frame, tf2::TimePointZero);
+                            
+                            geometry_msgs::msg::PoseStamped transformed;
+                            tf2::doTransform(*msg, transformed, transform_msg);
+                            local_pos = Vec3r(transformed.pose.position.x, transformed.pose.position.y, transformed.pose.position.z);
+                                
+                        }
+                        catch (tf2::TransformException& ex)
+                        {
+                            RCLCPP_WARN(this->get_logger(), "Error getting transform: %s", ex.what());
+                        }
+                    }
+                    else
+                    {
+                        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100,
+                            "Recieved right arm commanded position in the %s frame, but the transform from %s to %s does not exist yet!", 
+                            source_frame.c_str(), source_frame.c_str(), target_frame.c_str());
+
+                        return;
+                    }
+                }
 
                 const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
                 const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
@@ -493,6 +562,108 @@ void VirtuosoSimBridge::_setupSubscribers()
         };
 
         _arm2_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/sim/input/arm2_tip_pos", 10, arm2_tip_pos_callback);
+    }
+
+    // set up subscriber callback to take in tip position (with covariance) for arm 1
+    if (_sim->virtuosoRobot()->hasArm1())
+    {
+        auto arm1_tip_pos_callback = 
+            [this](geometry_msgs::msg::PoseWithCovarianceStamped::UniquePtr msg) -> void {
+
+                std::string source_frame = msg->header.frame_id;
+                std::string target_frame = "ves/left/base";
+
+                Vec3r local_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
+
+                // get the latest transform (if it exists)
+                if (source_frame != target_frame)
+                {
+                    if (this->_tf_buffer->canTransform(target_frame, source_frame, tf2::TimePointZero))
+                    {
+                        try
+                        {
+                            // try getting the transform
+                            auto transform_msg = this->_tf_buffer->lookupTransform(
+                                target_frame, source_frame, tf2::TimePointZero);
+                            
+                            geometry_msgs::msg::PoseWithCovarianceStamped transformed;
+                            tf2::doTransform(*msg, transformed, transform_msg);
+                            local_pos = Vec3r(transformed.pose.pose.position.x, transformed.pose.pose.position.y, transformed.pose.pose.position.z);
+                                
+                        }
+                        catch (tf2::TransformException& ex)
+                        {
+                            RCLCPP_WARN(this->get_logger(), "Error getting transform: %s", ex.what());
+                        }
+                    }
+                    else
+                    {
+                        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100,
+                            "Recieved left arm commanded position with covariance in the %s frame, but the transform from %s to %s does not exist yet!", 
+                            source_frame.c_str(), source_frame.c_str(), target_frame.c_str());
+
+                        return;
+                    }
+                }
+
+                const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
+                const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
+                this->_sim->setArm1TipPosition(global_pos);
+        };
+
+        _arm1_tip_position_covariance_subscriber = 
+            this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/sim/input/arm1_tip_pos_with_covar", 10, arm1_tip_pos_callback);
+    }
+
+    // set up subscriber callback to take in tip position (with covariance) for arm 2 
+    if (_sim->virtuosoRobot()->hasArm2())
+    {
+        auto arm2_tip_pos_callback =
+            [this](geometry_msgs::msg::PoseWithCovarianceStamped::UniquePtr msg) -> void {
+                std::string source_frame = msg->header.frame_id;
+                std::string target_frame = "ves/left/base";
+
+                Vec3r local_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
+
+                // get the latest transform (if it exists)
+                if (source_frame != target_frame)
+                {
+                    if (this->_tf_buffer->canTransform(target_frame, source_frame, tf2::TimePointZero))
+                    {
+                        try
+                        {
+                            // try getting the transform
+                            auto transform_msg = this->_tf_buffer->lookupTransform(
+                                target_frame, source_frame, tf2::TimePointZero);
+                            
+                            geometry_msgs::msg::PoseWithCovarianceStamped transformed;
+                            tf2::doTransform(*msg, transformed, transform_msg);
+                            local_pos = Vec3r(transformed.pose.pose.position.x, transformed.pose.pose.position.y, transformed.pose.pose.position.z);
+                                
+                        }
+                        catch (tf2::TransformException& ex)
+                        {
+                            RCLCPP_WARN(this->get_logger(), "Error getting transform: %s", ex.what());
+                        }
+                    }
+                    else
+                    {
+                        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100,
+                            "Recieved right arm commanded position with covariance in the %s frame, but the transform from %s to %s does not exist yet!", 
+                            source_frame.c_str(), source_frame.c_str(), target_frame.c_str());
+
+                        return;
+                    }
+                }
+
+                const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
+                const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
+
+                this->_sim->setArm2TipPosition(global_pos);
+        };
+
+        _arm2_tip_position_covariance_subscriber = 
+            this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>("/sim/input/arm2_tip_pos_with_covar", 10, arm2_tip_pos_callback);
     }
 
     // set up subscriber callback to take in tool state for arm 1

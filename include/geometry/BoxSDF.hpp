@@ -15,7 +15,12 @@ namespace Geometry
 class BoxSDF : public SDF
 {
     public:
+    BoxSDF() = default;
+
     BoxSDF(const Sim::RigidBox* box);
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
 
     /** Evaluates F(x) for a box with arbitrary position and orientation and size
      * @param x - the point at which to evaluate the SDF

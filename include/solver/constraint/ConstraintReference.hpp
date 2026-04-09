@@ -42,6 +42,17 @@ public:
 
     }
 
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _vec);
+        pack(buf, _index);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _vec);
+        unpack(buf, _index);
+    }
+
     const constraint_type* operator->() const
     {
         // return _ptr;

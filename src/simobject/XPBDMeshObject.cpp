@@ -60,6 +60,46 @@ XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, 
 }
 
 template<bool IsFirstOrder>
+void XPBDMeshObject_Base_<IsFirstOrder>::serialize(std::vector<std::byte>& buf) const
+{
+    Object::serialize(buf);
+    MeshObject::serialize(buf);
+    pack(buf, _previous_vertices);
+    pack(buf, _vertex_velocities);
+    pack(buf, _initial_velocity);
+    pack(buf, _material_classes);
+    pack(buf, _vertex_masses);
+    pack(buf, _is_fixed_vertex);
+    pack(buf, _sdf);
+    pack(buf, _heat_solver);
+    pack(buf, _adaptive_mesh_refinement);
+    pack(buf, _max_refinement_level);
+    pack(buf, _damping_multiplier);
+    pack(buf, _adjust_b_to_material);
+    pack(buf, _vertex_B);
+}
+
+template<bool IsFirstOrder>
+void XPBDMeshObject_Base_<IsFirstOrder>::deserialize(const std::byte*& buf)
+{
+    Object::deserialize(buf);
+    MeshObject::deserialize(buf);
+    unpack(buf, _previous_vertices);
+    unpack(buf, _vertex_velocities);
+    unpack(buf, _initial_velocity);
+    unpack(buf, _material_classes);
+    unpack(buf, _vertex_masses);
+    unpack(buf, _is_fixed_vertex);
+    unpack(buf, _sdf);
+    unpack(buf, _heat_solver);
+    unpack(buf, _adaptive_mesh_refinement);
+    unpack(buf, _max_refinement_level);
+    unpack(buf, _damping_multiplier);
+    unpack(buf, _adjust_b_to_material);
+    unpack(buf, _vertex_B);
+}
+
+template<bool IsFirstOrder>
 void XPBDMeshObject_Base_<IsFirstOrder>::createSDF()
 {
     if (!_sdf.has_value())
@@ -1680,6 +1720,41 @@ const XPBDMeshObjectGPUResource* XPBDMeshObject_<IsFirstOrder, SolverType, TypeL
     return dynamic_cast<const XPBDMeshObjectGPUResource*>(_gpu_resource.get());
 }
 #endif
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::serialize(std::vector<std::byte>& buf) const
+{
+    XPBDMeshObject_Base_<IsFirstOrder>::serialize(buf);
+    pack(buf, _constraint_type);
+    pack(buf, _solver);
+    pack(buf, _constraints);
+    pack(buf, _hanging_vertices_vec);
+    pack(buf, _vertex_to_hanging_index);
+    pack(buf, _element_to_collision_proj_index);
+    pack(buf, _num_local_collision_iters);
+    pack(buf, _element_classes_filename);
+    pack(buf, _ground_faces_filename);
+    pack(buf, _compute_heat_conduction);
+    pack(buf, _fixed_faces_filename);
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::deserialize(const std::byte*& buf)
+{
+    XPBDMeshObject_Base_<IsFirstOrder>::deserialize(buf);
+    unpack(buf, _constraint_type);
+    unpack(buf, _solver);
+    unpack(buf, _constraints);
+    unpack(buf, _hanging_vertices_vec);
+    unpack(buf, _vertex_to_hanging_index);
+    unpack(buf, _element_to_collision_proj_index);
+    unpack(buf, _num_local_collision_iters);
+    unpack(buf, _element_classes_filename);
+    unpack(buf, _ground_faces_filename);
+    unpack(buf, _compute_heat_conduction);
+    unpack(buf, _fixed_faces_filename);
+}
+
 
 } // namespace Sim
 

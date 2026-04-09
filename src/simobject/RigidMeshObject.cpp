@@ -122,4 +122,26 @@ void RigidMeshObject::rotateAboutOrigin(const Mat3r& rot_mat)
     _q = GeometryUtils::quatMult(_q, GeometryUtils::matToQuat(rot_mat));
 }
 
+void RigidMeshObject::serialize(std::vector<std::byte>& buf) const
+{
+    RigidObject::serialize(buf);
+    MeshObject::serialize(buf);
+    pack(buf, _density);
+    pack(buf, _initial_mesh);
+    pack(buf, _sdf);
+}
+
+void RigidMeshObject::deserialize(const std::byte*& buf)
+{
+    RigidObject::deserialize(buf);
+    MeshObject::deserialize(buf);
+    unpack(buf, _density);
+
+    // make sure initial mesh has space allocated for it
+    _initial_mesh = std::make_unique<Geometry::Mesh>();
+    unpack(buf, _initial_mesh);
+    unpack(buf, _sdf);
+
+}
+
 } // namespace Simulation

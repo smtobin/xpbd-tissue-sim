@@ -93,6 +93,17 @@ class VariadicVectorContainer_<Container, L>
         _vec.clear();
     }
 
+    // load and save
+    void _serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _vec);
+    }
+
+    void _deserialize(const std::byte*& cursor)
+    {
+        unpack(cursor, _vec);
+    }
+
     // internal method for visiting elements
     template<typename Visitor>
     void _for_each_element(Visitor&& visitor) const
@@ -120,6 +131,15 @@ template<template<typename...> class Container, class L, class... R>
 class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, public VariadicVectorContainer_<Container, R...>
 {
     public:
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        _serialize_helper<L, R...>(buf);
+    }
+    void deserialize(const std::byte*& cursor)
+    {
+        _deserialize_helper<L, R...>(cursor);
+    }
+
     size_t size() const
     {
         return _size_helper<L, R...>();
@@ -255,6 +275,26 @@ class VariadicVectorContainer_ : public VariadicVectorContainer_<Container, L>, 
         }
         
         return sizeT + sizeTs;
+    }
+
+    template<typename T, typename... Ts>
+    void _serialize_helper(std::vector<std::byte>& buf) const
+    {
+        this->VariadicVectorContainer_<Container, T>::_serialize(buf);
+        if constexpr (sizeof...(Ts) > 0)
+        {
+            _serialize_helper<Ts...>(buf);
+        }
+    }
+
+    template<typename T, typename... Ts>
+    void _deserialize_helper(const std::byte*& cursor)
+    {
+        this->VariadicVectorContainer_<Container, T>::_deserialize(cursor);
+        if constexpr (sizeof...(Ts) > 0)
+        {
+            _deserialize_helper<Ts...>(cursor);
+        }
     }
 };
 

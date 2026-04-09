@@ -76,9 +76,13 @@ public:
     using ConfigType = typename std::conditional<IsFirstOrder, Config::FirstOrderXPBDMeshObjectConfig, Config::XPBDMeshObjectConfig>::type;
 
     public:
+    XPBDMeshObject_Base_() = default;
     explicit XPBDMeshObject_Base_(const Simulation* sim, const ConfigType* config);
 
     virtual ~XPBDMeshObject_Base_() {}
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     /** Returns a const-ref to the elastic material for each tetrahedra in the mesh.
      * @returns the elastic material

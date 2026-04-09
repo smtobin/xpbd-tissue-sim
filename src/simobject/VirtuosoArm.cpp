@@ -1766,4 +1766,90 @@ Mat3r VirtuosoArm::_3DOFAnalyticalHybridJacobian()
     return J_a;
 }
 
+void VirtuosoArm::serialize(std::vector<std::byte>& buf) const
+{
+    Object::serialize(buf);
+    pack(buf, _it_outer_dia);
+    pack(buf, _ot_outer_dia);
+    pack(buf, _ot_inner_dia);
+    pack(buf, _it_inner_dia);
+    pack(buf, _ot_r_curvature);
+    pack(buf, _it_translation);
+    pack(buf, _it_rotation);
+    pack(buf, _ot_translation);
+    pack(buf, _ot_rotation);
+    pack(buf, _ot_distal_straight_length);
+    pack(buf, _tool_state);
+    pack(buf, _last_tool_state);
+    pack(buf, _tool_type);
+    pack(buf, _cutting_model);
+    pack(buf, _cutting_model_time_threshold);
+    pack(buf, _tool_tube_length);
+    pack(buf, _tool_tube);
+    pack(buf, _tool_manipulated_object);
+    pack(buf, _tool_position);
+    pack(buf, _commanded_tip_position);
+    pack(buf, _grasped_vertices);
+    pack(buf, _grasping_constraints);
+    pack(buf, _collision_constraints);
+    pack(buf, _arm_base_position);
+    pack(buf, _arm_base_rotation);
+    pack(buf, _tip_force);
+    pack(buf, _tip_moment);
+    pack(buf, _unfiltered_collision_force);
+    pack(buf, _filtered_collision_force);
+    pack(buf, _arm_base_frame);
+    pack(buf, _ot_frames);
+    pack(buf, _it_frames);
+    pack(buf, _tt_frames);
+    pack(buf, _ot_nodal_forces);
+    pack(buf, _it_nodal_forces);
+    pack(buf, _tt_nodal_forces);
+    pack(buf, _stale_frames);
+    pack(buf, _sdf);
+}
+
+void VirtuosoArm::deserialize(const std::byte*& buf)
+{
+    Object::deserialize(buf);
+    unpack(buf, _it_outer_dia);
+    unpack(buf, _ot_outer_dia);
+    unpack(buf, _ot_inner_dia);
+    unpack(buf, _it_inner_dia);
+    unpack(buf, _ot_r_curvature);
+    unpack(buf, _it_translation);
+    unpack(buf, _it_rotation);
+    unpack(buf, _ot_translation);
+    unpack(buf, _ot_rotation);
+    unpack(buf, _ot_distal_straight_length);
+    unpack(buf, _tool_state);
+    unpack(buf, _last_tool_state);
+    unpack(buf, _tool_type);
+    unpack(buf, _cutting_model);
+    unpack(buf, _cutting_model_time_threshold);
+    unpack(buf, _tool_tube_length);
+    unpack(buf, _tool_tube);
+    unpack(buf, _tool_manipulated_object);
+    unpack(buf, _tool_position);
+    unpack(buf, _commanded_tip_position);
+    unpack(buf, _grasped_vertices);
+    unpack(buf, _grasping_constraints);
+    unpack(buf, _collision_constraints);
+    unpack(buf, _arm_base_position);
+    unpack(buf, _arm_base_rotation);
+    unpack(buf, _tip_force);
+    unpack(buf, _tip_moment);
+    unpack(buf, _unfiltered_collision_force);
+    unpack(buf, _filtered_collision_force);
+    unpack(buf, _arm_base_frame);
+    unpack(buf, _ot_frames);
+    unpack(buf, _it_frames);
+    unpack(buf, _tt_frames);
+    unpack(buf, _ot_nodal_forces);
+    unpack(buf, _it_nodal_forces);
+    unpack(buf, _tt_nodal_forces);
+    unpack(buf, _stale_frames);
+    unpack(buf, _sdf);
+}
+
 } // namespace Sim

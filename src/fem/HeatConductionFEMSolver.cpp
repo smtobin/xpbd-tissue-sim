@@ -7,7 +7,7 @@ namespace FEM
 
 HeatConductionFEMSolver::HeatConductionFEMSolver(Geometry::RefinedTetMesh* mesh, const ElasticMaterial& material, Real h, Real T_a)
     : _mesh(mesh), _fem_mesh(mesh), _voltage_solver(mesh, material.electricalConductivity()),
-     _material(material), _h(h), _T_a(T_a)
+     _material(&material), _h(h), _T_a(T_a)
 {
     // create temperature property for the mesh
     _mesh->addVertexProperty<Real>("temperature", _T_a, true);
@@ -45,7 +45,7 @@ void HeatConductionFEMSolver::_allocateMemory()
         Real volume = _mesh->elementVolume(element_index);
         for (int i = 0; i < 4; i++)
         {
-            _M[elem[i]] += 0.25 * volume * _material.density() * _material.specificHeat();
+            _M[elem[i]] += 0.25 * volume * _material->density() * _material->specificHeat();
         }
     }
 
@@ -122,7 +122,7 @@ void HeatConductionFEMSolver::step(Real dt)
         Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
 
         // single point Gauss quadrature
-        Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material.thermalConductivity() * delN.transpose() * delN;
+        Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material->thermalConductivity() * delN.transpose() * delN;
 
         // compute K*T
         const Vec4i& elem = _mesh->element(element_index);
@@ -133,7 +133,7 @@ void HeatConductionFEMSolver::step(Real dt)
         // first, compute delV for the element
         Vec4r V_e(voltage[elem[0]], voltage[elem[1]], voltage[elem[2]], voltage[elem[3]]);
         Vec3r delV = delN * V_e;
-        Real q_g = _material.electricalConductivity() * delV.dot(delV);
+        Real q_g = _material->electricalConductivity() * delV.dot(delV);
         Vec4r Q_e = 0.25*0.25*0.25 * std::abs(detJ) * q_g * _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
 
         // scatter back to next temperature
@@ -206,7 +206,7 @@ Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const
     Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
 
     // single point Gauss quadrature
-    Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material.thermalConductivity() * delN.transpose() * delN;
+    Mat4r K_e = 0.25*0.25*0.25 * std::abs(detJ) * _material->thermalConductivity() * delN.transpose() * delN;
 
     return K_e;
 }
@@ -219,7 +219,7 @@ Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const
 //     const Vec4r V_e(_V[elem[0]], _V[elem[1]], _V[elem[2]], _V[elem[3]]);
 //     const Vec3r delV = delN * V_e;
 //     // compute the heat source term using voltage gradient
-//     Real q_g = _material.electricalConductivity() * delV.dot(delV);
+//     Real q_g = _material->electricalConductivity() * delV.dot(delV);
 
 //     Vec4r shape_funcs = _fem_mesh.elementShapeFunctions(0.25, 0.25, 0.25);
 //     Real detJ = _fem_mesh.elementJacobian(element_index).determinant();
@@ -314,5 +314,15 @@ Mat4r HeatConductionFEMSolver::_elementStiffnessMatrix(int element_index) const
 //         _system_matrix(index,index) = 1;
 //     }
 // }
+
+void HeatConductionFEMSolver::serialize(std::vector<std::byte>& buf) const
+{
+    /** TODO */
+}
+
+void HeatConductionFEMSolver::deserialize(const std::byte*& buf)
+{
+    /** TODO */
+}
 
 } // namespace FEM

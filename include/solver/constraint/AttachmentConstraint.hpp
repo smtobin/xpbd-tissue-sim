@@ -18,7 +18,22 @@ class AttachmentConstraint : public Constraint
     constexpr static int NUM_POSITIONS = 1;
     constexpr static int NUM_COORDINATES = 4;
 
+    AttachmentConstraint() = default;
     explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override
+    {
+        Constraint::serialize(buf);
+        pack(buf, _attached_pos_ptr);
+        pack(buf, _attachment_offset);
+    }
+    
+    virtual void deserialize(const std::byte*& buf) override
+    {
+        Constraint::deserialize(buf);
+        unpack(buf, _attached_pos_ptr);
+        unpack(buf, _attachment_offset);
+    }
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }
@@ -95,7 +110,7 @@ class AttachmentConstraint : public Constraint
 
     private:
     const Vec3r* _attached_pos_ptr;
-    const Vec3r _attachment_offset;
+    Vec3r _attachment_offset;
 
 };
 

@@ -18,7 +18,12 @@ class VirtuosoRobot : public Object
     using ConfigType = Config::VirtuosoRobotConfig;
 
     public:
+    VirtuosoRobot() = default;
     explicit VirtuosoRobot(const Simulation* sim, const ConfigType* config);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
 
     /** Returns a string with all relevant information about this object. 
      * @param indent : the level of indentation to use for formatting new lines of the string

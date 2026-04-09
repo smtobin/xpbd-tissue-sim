@@ -1,6 +1,8 @@
 #include "simobject/RigidPrimitives.hpp"
 #include "utils/GeometryUtils.hpp"
 
+#include "common/Pack.hpp"
+
 namespace Sim
 {
 
@@ -37,6 +39,18 @@ void RigidSphere::setup()
 Geometry::AABB RigidSphere::boundingBox() const
 {
     return Geometry::AABB(_p.array() - _radius, _p.array() + _radius);
+}
+
+void RigidSphere::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _radius);
+    pack(buf, _sdf);
+}
+
+void RigidSphere::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _radius);
+    unpack(buf, _sdf);
 }
 
 
@@ -99,6 +113,20 @@ Geometry::AABB RigidBox::boundingBox() const
 
 }
 
+void RigidBox::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _size);
+    pack(buf, _origin_bbox_points);
+    pack(buf, _sdf);
+}
+
+void RigidBox::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _size);
+    unpack(buf, _origin_bbox_points);
+    unpack(buf, _sdf);
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -158,6 +186,22 @@ Geometry::AABB RigidCylinder::boundingBox() const
     const Vec3r max = transformed_bbox_points.rowwise().maxCoeff();
     return Geometry::AABB(min, max);
 
+}
+
+void RigidCylinder::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _radius);
+    pack(buf, _height);
+    pack(buf, _origin_bbox_points);
+    pack(buf, _sdf);
+}
+
+void RigidCylinder::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _radius);
+    unpack(buf, _height);
+    unpack(buf, _origin_bbox_points);
+    unpack(buf, _sdf);
 }
 
 

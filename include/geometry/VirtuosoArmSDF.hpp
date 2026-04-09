@@ -28,7 +28,11 @@ class VirtuosoArmSDF : public SDF
     };
 
     public:
+    VirtuosoArmSDF() = default; // required for deserialization
     VirtuosoArmSDF(const Sim::VirtuosoArm* arm);
+
+    void serialize(std::vector<std::byte>& buf) const;
+    void deserialize(const std::byte*& buf);
 
     /** Evaluates F(x) for a Virtuoso Arm in its current state.
      * @param x - the point at which to evaluate the SDF

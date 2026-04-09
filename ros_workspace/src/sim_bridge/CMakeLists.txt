@@ -38,7 +38,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(shape_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
-find_package(tf2)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # Build custom message types
 find_package(rosidl_default_generators REQUIRED)
@@ -47,6 +48,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SparseMatrix.msg"
   "msg/RemovedElement.msg"
   "msg/RemovedElementArray.msg"
+  "srv/SaveCheckpoint.srv"
+  "srv/RestoreCheckpoint.srv"
   DEPENDENCIES std_msgs
   DEPENDENCIES geometry_msgs
 )
@@ -156,6 +159,7 @@ add_executable(${PROJECT_NAME}_node
   src/VirtuosoSimBridge.cpp 
   src/VirtuosoCTAnatomySimBridge.cpp
   src/CAOSimBridge.cpp
+  src/BPHSimBridge.cpp
 )
 
 # === Link Dependencies ===
@@ -167,7 +171,7 @@ include_directories("${SIM_DIR}/dependencies/install/Mesh2SDF/include")
 include_directories("${SIM_DIR}/dependencies/src/openhaptics_3.4-0-developer-edition-amd64/usr/include")
 
 # ROS dependencies
-ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs geometry_msgs shape_msgs sensor_msgs tf2_ros tf2)
+ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs geometry_msgs shape_msgs sensor_msgs tf2_ros tf2 tf2_geometry_msgs)
 # sim dependencies
 target_link_libraries(${PROJECT_NAME}_node
   XPBDSim::Simulation

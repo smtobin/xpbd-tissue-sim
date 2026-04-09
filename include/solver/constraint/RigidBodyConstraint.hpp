@@ -36,9 +36,19 @@ namespace Solver
 class RigidBodyXPBDHelper
 {
     public:
+    RigidBodyXPBDHelper() = default;
     RigidBodyXPBDHelper(const Sim::RigidObject* rigid_obj)
         : _rigid_obj(rigid_obj)
     {}
+
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _rigid_obj);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _rigid_obj);
+    }
 
     /** The inertial "weight" of the rigid body in the update formula.
      * The update formula (for 2 rigid bodies) is
@@ -70,10 +80,24 @@ class RigidBodyXPBDHelper
 class PositionalRigidBodyXPBDHelper : public RigidBodyXPBDHelper
 {
     public:
+    PositionalRigidBodyXPBDHelper() = default;
     /** Takes in the direction of the correction and the point on the body in global coordinates. */
     PositionalRigidBodyXPBDHelper(const Sim::RigidObject* rigid_obj, const Vec3r& direction, const Vec3r& point_on_body)
         : RigidBodyXPBDHelper(rigid_obj), _direction(direction), _point_on_body(point_on_body)
     {}
+
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        RigidBodyXPBDHelper::serialize(buf);
+        pack(buf, _direction);
+        pack(buf, _point_on_body);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        RigidBodyXPBDHelper::deserialize(buf);
+        unpack(buf, _direction);
+        unpack(buf, _point_on_body);
+    }
 
     /** The inertial "weight" of the rigid body in the update formula.
      * For a rigid body in a positional constraint, this is given by:
@@ -116,10 +140,22 @@ class PositionalRigidBodyXPBDHelper : public RigidBodyXPBDHelper
 class AngularRigidBodyXPBDHelper : public RigidBodyXPBDHelper
 {
     public:
+    AngularRigidBodyXPBDHelper() = default;
     /** Takes in the rotation axis of the angular constraint in the global frame. */
     AngularRigidBodyXPBDHelper(const Sim::RigidObject* rigid_obj, const Vec3r& rot_axis)
         : RigidBodyXPBDHelper(rigid_obj), _rot_axis(rot_axis)
     {}
+
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        RigidBodyXPBDHelper::serialize(buf);
+        pack(buf, _rot_axis);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        RigidBodyXPBDHelper::deserialize(buf);
+        unpack(buf, _rot_axis);
+    }
 
     /** The inertial "weight" of the rigid body in the update formula.
      * For a rigid body in an angular constraint, this is given by:
@@ -167,9 +203,21 @@ class AngularRigidBodyXPBDHelper : public RigidBodyXPBDHelper
 class RigidBodyConstraint
 {
     public:
+    RigidBodyConstraint() = default;
     RigidBodyConstraint(const std::vector<Sim::RigidObject*>& rigid_bodies)
         : _rigid_bodies(rigid_bodies), _rigid_body_helpers()
     {
+    }
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _rigid_bodies);
+        pack(buf, _rigid_body_helpers);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _rigid_bodies);
+        unpack(buf, _rigid_body_helpers);
     }
 
     // Explicitly delete copy constructor/assignment

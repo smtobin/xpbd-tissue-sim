@@ -30,6 +30,30 @@ class MeshObject
         _initial_scaling = mesh_config->scaling();
     }
 
+    virtual void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _mesh);
+        pack(buf, _filename);
+        pack(buf, _initial_position);
+        pack(buf, _initial_rotation);
+        pack(buf, _initial_size);
+        pack(buf, _max_size);
+        pack(buf, _initial_scaling);
+    }
+    virtual void deserialize(const std::byte*& buf)
+    {
+        // make sure the unique_ptr is allocated
+        _allocateMesh();
+
+        unpack(buf, _mesh);
+        unpack(buf, _filename);
+        unpack(buf, _initial_position);
+        unpack(buf, _initial_rotation);
+        unpack(buf, _initial_size);
+        unpack(buf, _max_size);
+        unpack(buf, _initial_scaling);
+    }
+
     const Geometry::Mesh* mesh() const { return _mesh.get(); }
 
     Geometry::Mesh* mesh() { return _mesh.get(); }
@@ -82,6 +106,12 @@ class MeshObject
         
     }
 
+    virtual void _allocateMesh()
+    {
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::Mesh>();
+    }
+
     protected:
     std::unique_ptr<Geometry::Mesh> _mesh;
 
@@ -111,6 +141,12 @@ class TetMeshObject : public MeshObject
     const Geometry::TetMesh* tetMesh() const { return dynamic_cast<Geometry::TetMesh*>(_mesh.get()); }
     Geometry::TetMesh* tetMesh() { return dynamic_cast<Geometry::TetMesh*>(_mesh.get()); }
 
+    virtual void _allocateMesh() override
+    {
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::TetMesh>();
+    }
+
     protected:
     virtual void _loadMeshFromFile(const std::string& fname)
     {
@@ -134,6 +170,12 @@ class RefinedTetMeshObject : public TetMeshObject
 
     const Geometry::RefinedTetMesh* refinedTetMesh() const { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
     Geometry::RefinedTetMesh* refinedTetMesh() { return dynamic_cast<Geometry::RefinedTetMesh*>(_mesh.get()); }
+
+    virtual void _allocateMesh() override
+    {
+        if (!_mesh)
+            _mesh = std::make_unique<Geometry::RefinedTetMesh>();
+    }
 
     protected:
     virtual void _loadMeshFromFile(const std::string& fname)

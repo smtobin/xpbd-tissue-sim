@@ -697,4 +697,36 @@ void TetMesh::createGPUResource()
 }
 #endif
 
+void TetMesh::serialize(std::vector<std::byte>& buf) const
+{
+    Mesh::serialize(buf);
+    pack(buf, _elements);
+    pack(buf, _element_properties);
+    pack(buf, _element_rest_volumes);
+    pack(buf, _element_inv_undeformed_basis);
+    pack(buf, _vertex_rest_volumes);
+    pack(buf, _surface_face_to_element_map);
+    pack(buf, _element_to_surface_faces_map);
+    pack(buf, _vertex_to_elements_map);
+    pack(buf, _edge_to_elements_map);
+    pack(buf, _face_to_elements_map);
+    pack(buf, _recently_removed_elements);
+}
+
+void TetMesh::deserialize(const std::byte*& buf)
+{
+    Mesh::deserialize(buf);
+    unpack(buf, _elements);
+    unpack(buf, _element_properties);
+    unpack(buf, _element_rest_volumes);
+    unpack(buf, _element_inv_undeformed_basis);
+    unpack(buf, _vertex_rest_volumes);
+    unpack(buf, _surface_face_to_element_map);
+    unpack(buf, _element_to_surface_faces_map);
+    unpack(buf, _vertex_to_elements_map);
+    unpack(buf, _edge_to_elements_map);
+    unpack(buf, _face_to_elements_map);
+    unpack(buf, _recently_removed_elements);
+}
+
 } // namespace Geometry

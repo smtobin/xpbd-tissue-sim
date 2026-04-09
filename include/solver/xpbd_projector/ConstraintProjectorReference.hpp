@@ -22,6 +22,7 @@ class ConstraintProjectorReference
     using constraint_projector_type = ConstraintProjectorType;
     using vector_type = std::vector<constraint_projector_type>;
     public:
+    ConstraintProjectorReference() = default;
     ConstraintProjectorReference(vector_type& vec, int index)
         : _vec(&vec), _index(index)
     {
@@ -33,6 +34,17 @@ class ConstraintProjectorReference
     
     ConstraintProjectorReference(const ConstraintProjectorReference&) = default;
     ConstraintProjectorReference& operator=(const ConstraintProjectorReference&) = default;
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _vec);
+        pack(buf, _index);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _vec);
+        unpack(buf, _index);
+    }
 
     
     /** === Overloading arrow operator === */
@@ -100,6 +112,8 @@ public:
     //     : _variant(std::move(proj_reference))
     // {}
 
+    ConstraintProjectorReferenceWrapper() = default;
+
     ConstraintProjectorReferenceWrapper(ConstraintProjectorReference<typename ConstraintProjectorTraits<false, Constraints...>::type>&& proj_reference)
         : _variant(std::move(proj_reference))
     {}
@@ -141,6 +155,15 @@ public:
         }
     }
     
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _variant);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _variant);
+    }
+
     /** TODO: add wrapper methods for interfacing with ConstraintProjector */
     std::vector<Vec3r> constraintForces() const
     {

@@ -19,12 +19,17 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
     constexpr static int NUM_COORDINATES = 9;
 
     public:
+    StaticDeformableCollisionConstraint() = default;
+    
     StaticDeformableCollisionConstraint(const Geometry::SDF* sdf, const Vec3r& p, const Vec3r& n,
                                         int v1, PositionReference::VecType* vec_ptr1, Real m1,
                                         int v2, PositionReference::VecType* vec_ptr2, Real m2,
                                         int v3, PositionReference::VecType* vec_ptr3, Real m3,
                                         Real u, Real v, Real w,
                                         int element_index=-1, int face_index=-1);
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     int numPositions() const override { return NUM_POSITIONS; }
     int numCoordinates() const override { return NUM_COORDINATES; }

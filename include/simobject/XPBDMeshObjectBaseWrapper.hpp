@@ -38,6 +38,16 @@ public:
     /** When not initialized, the variant will store nullptr. */
     XPBDMeshObject_BasePtrWrapper() : _variant( (XPBDMeshObject_Base_<true>*)nullptr ) {}
 
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, _variant);
+    }
+
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, _variant);
+    }
+
     /** If the current stored pointer is not nullptr, evaluates to true. */
     explicit operator bool() const
     {
