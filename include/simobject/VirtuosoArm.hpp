@@ -368,8 +368,11 @@ class VirtuosoArm : public Object
     void clearCollisionConstraints();
 
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
-
     void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
+
+    const std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal>& 
+        rigidCollisions() const { return _rigid_collisions; }
+    const std::vector<VirtuosoArmVirtuosoArmCollision>& virtuosoArmCollisions() const { return _virtuoso_arm_collisions; }
 
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }
     const Vec3r& innerTubeNodalForce(int node_index) const { return _it_nodal_forces[node_index]; }

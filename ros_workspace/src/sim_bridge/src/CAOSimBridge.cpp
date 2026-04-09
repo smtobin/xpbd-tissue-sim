@@ -5,6 +5,7 @@ CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
 {
     _setupPartialViewPointCloudPublishers();
     _setupRemovedElementsPublishers();
+    _setupToolTracheaCollisionPublisher();
 }
 
 void CAOSimBridge::_setupPartialViewPointCloudPublishers()
@@ -222,4 +223,33 @@ void CAOSimBridge::_setupRemovedElementsPublisherForMesh(int index, XPBDMeshObje
     // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
     // i.e. publish every 10 time steps
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
+}
+
+void CAOSimBridge::_setupToolTracheaCollisionPublisher()
+{
+    _arm1_trachea_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/arm1_trachea_collision", 10);
+    _arm2_trachea_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/arm2_trachea_collision", 10);
+
+    auto arm1_callback =
+        [this]() -> void {
+            std_msgs::msg::Int8 msg;
+            if (this->_sim->virtuosoRobot()->hasArm1() && !this->_sim->virtuosoRobot()->arm1()->rigidCollisions().empty())
+                msg.data = 1;
+            else
+                msg.data = 0;
+            
+            this->_arm1_trachea_collision_publisher->publish(msg);
+        };
+    auto arm2_callback =
+        [this]() -> void {
+            std_msgs::msg::Int8 msg;
+            if (this->_sim->virtuosoRobot()->hasArm2() && !this->_sim->virtuosoRobot()->arm2()->rigidCollisions().empty())
+                msg.data = 1;
+            else
+                msg.data = 0;
+            
+            this->_arm2_trachea_collision_publisher->publish(msg);
+        };
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm1_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm2_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 }
