@@ -33,13 +33,13 @@ struct VirtuosoArmRigidCollision
     /** The SDF for the rigid body in collision. */
     const Geometry::SDF* rigid_sdf;
 
-    /** The current force magnitude associated with the collision.
-     * This will get incremented or decremented depending on the penetration.
+    /** The current force associated with the collision.
+     * This will be changed depending on the penetration.
      */
-    mutable Real force_mag;
+    mutable Vec3r force;
 
     VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
-        : node_index(node_index_), interp(interp_), rigid_sdf(rigid_sdf_), force_mag(0)
+        : node_index(node_index_), interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
     {
     }
 };

@@ -243,6 +243,7 @@ Mat3r VirtuosoArm::interpolatedComplianceMatrix(int node_index, Real interp)
     {
         std::cerr << "VirtuosoArm::interpolatedComplianceMatrix - Node index out of bounds!" << std::endl;
         assert(0);
+        return Mat3r::Zero();
     }
 }
 
@@ -590,20 +591,12 @@ void VirtuosoArm::velocityUpdate()
         Vec3r normal = rigid_collision.rigid_sdf->gradient(cp);
         Vec3r surface_point = cp - penetration_dist*normal;
 
-        // compute the separation direction
-        // this is just the vector pointing from the contact point on the rigid body surface to the centerline of the Virtuoso arm
-        Vec3r sep_dir = cp - surface_point;
-        Real sep_vec_norm = sep_dir.norm();
-        if (sep_vec_norm > 1e-8)
-            sep_dir = sep_dir / sep_vec_norm;
-        else
-            sep_dir = normal;
-
         // std::cout << "  Penetration dist: " << penetration_dist << std::endl;
         // std::cout << "  Normal: " << normal.transpose() << std::endl;
+        // std::cout << "  Sep dir: " << sep_dir.transpose() << std::endl;
         
         // the nominal change in position
-        Vec3r dp = -penetration_dist*sep_dir;
+        Vec3r dp = -penetration_dist*normal;
 
         // get compliance matrix at this point
         Mat3r C = interpolatedComplianceMatrix(rigid_collision.node_index, rigid_collision.interp);
@@ -624,19 +617,26 @@ void VirtuosoArm::velocityUpdate()
         // there is still penetration, we need more force
         if (penetration_dist < 0)
         {
-            rigid_collision.force_mag += 0.1*F_req_mag;
+            rigid_collision.force += 0.01*F_req;
         }
         // otherwise we need less force
         else
         {
-            rigid_collision.force_mag = std::max(Real(0.0), rigid_collision.force_mag - 0.1*F_req_mag);
+            rigid_collision.force -= 0.01*rigid_collision.force;
         }
 
+        // decay components of force not in the normal direction
+        Vec3r force_not_normal = rigid_collision.force - rigid_collision.force.dot(normal) * normal;
+        rigid_collision.force -= 0.01*force_not_normal;
+
+        // std::cout << "  force not normal: " << 0.01*force_not_normal << std::endl;
+        // std::cout << "  New collision force: " << rigid_collision.force.transpose() << std::endl;
+
         // apply the force
-        applyNodalForce(rigid_collision.node_index, rigid_collision.interp, rigid_collision.force_mag*normal);
+        applyNodalForce(rigid_collision.node_index, rigid_collision.interp, rigid_collision.force);
 
         // remove the collision if the force has gone down to near 0
-        if (rigid_collision.force_mag < 1e-6)
+        if (rigid_collision.force.norm() < 1e-5)
         {
             it = _rigid_collisions.erase(it);
         }
