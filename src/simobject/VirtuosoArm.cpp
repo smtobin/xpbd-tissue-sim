@@ -192,13 +192,13 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
         else
         {
             Vec3r cur_force = toolTubeNodalForce(arr_index);
-            std::cout << "  Current force: " << cur_force.transpose() << std::endl;
+            // std::cout << "  Current force: " << cur_force.transpose() << std::endl;
             setToolTubeNodalForce(arr_index, cur_force + dF);
-            std::cout << "  New force: " << toolTubeNodalForce(arr_index).transpose() << std::endl;
+            // std::cout << "  New force: " << toolTubeNodalForce(arr_index).transpose() << std::endl;
             _recomputeCoordinateFramesStaticsModelWithNodalForces();
             setToolTubeNodalForce(arr_index, cur_force);
             new_pos = _tt_frames[arr_index].origin();
-            std::cout << "  New position: " << new_pos.transpose() << std::endl;
+            // std::cout << "  New position: " << new_pos.transpose() << std::endl;
             _ot_frames = orig_ot_frames;
             _it_frames = orig_it_frames;
             _tt_frames = orig_tt_frames;
@@ -468,7 +468,10 @@ void VirtuosoArm::addRigidCollision(int node_index, Real interp, const Geometry:
     // the interp member is mutable because it does not affect the hash or equality
     if (!success)
     {
-        it->interp = interp;
+        // good idea in theory, but can cause flickering oscillations
+        // not really needed, since we just need a coarse collision response
+        // TODO: revisit this at some point - maybe smoothly interpolate to new interp values based on the force (probably overkill)
+        // it->interp = interp;
     }
 }
 
@@ -589,7 +592,7 @@ void VirtuosoArm::velocityUpdate()
         auto& rigid_collision = *it;
         Vec3r last_force =  rigid_collision.force;
 
-        // std::cout << "  Applying force for rigid collision for node index " << rigid_collision.node_index << std::endl; 
+        // std::cout << "Applying force for rigid collision for node index " << rigid_collision.node_index << std::endl; 
         // get capsule representing segment
         Geometry::Capsule seg = segment(rigid_collision.node_index);
         Vec3r cp = seg.p1() + rigid_collision.interp*(seg.p2() - seg.p1());
@@ -640,6 +643,8 @@ void VirtuosoArm::velocityUpdate()
         // std::cout << "  force not normal: " << 0.01*force_not_normal << std::endl;
         // std::cout << "  New collision force: " << rigid_collision.force.transpose() << std::endl;
 
+        // std::cout << "  Force diff: " << (rigid_collision.force - last_force).transpose() << std::endl;
+
         // apply the force
         applyNodalForce(rigid_collision.node_index, rigid_collision.interp, rigid_collision.force);
         applyNodalForce(rigid_collision.node_index, rigid_collision.prev_interp, -last_force);
@@ -651,6 +656,7 @@ void VirtuosoArm::velocityUpdate()
         // remove the collision if the force has gone down to near 0
         if (rigid_collision.force.norm() < 1e-5)
         {
+            applyNodalForce(rigid_collision.node_index, rigid_collision.interp, -rigid_collision.force);
             it = _rigid_collisions.erase(it);
         }
         // otherwise, move on to the next collision
@@ -732,7 +738,7 @@ void VirtuosoArm::velocityUpdate()
         arm_collision.last_interp2 = arm_collision.interp2;
 
         // remove the collision if the force has gone down to near 0
-        if (arm_collision.force.norm() < 1e-8)
+        if (arm_collision.force.norm() < 1e-5)
         {
             applyNodalForce(arm_collision.node_index1, arm_collision.interp1, -arm_collision.force);
             it = _virtuoso_arm_collisions.erase(it);

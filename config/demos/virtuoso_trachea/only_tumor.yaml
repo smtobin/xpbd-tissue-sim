@@ -153,7 +153,7 @@ objects:
     scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-    collisions: true
+    collisions: false
     fixed: true
 
   -
