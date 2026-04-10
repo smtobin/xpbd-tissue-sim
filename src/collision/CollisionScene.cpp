@@ -351,6 +351,196 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     }
 }
 
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2)
+{
+    if (virtuoso_arm1 >= virtuoso_arm2)
+        return;
+        
+    // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
+    // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
+    const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm1->outerTubeFrames();
+    const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm1->innerTubeFrames();
+    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm1->toolTubeFrames();
+    
+    if (virtuoso_arm1->hasTool())
+    {
+        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
+        {
+            Vec3r p1 = tool_tube_frames[i].origin();
+            Vec3r p2 = tool_tube_frames[i+1].origin();
+            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, virtuoso_arm2->SDF());
+            
+            if (dist < virtuoso_arm1->toolTube().outer_dia/2.0)
+            {
+                Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = virtuoso_arm2->SDF()->evaluateWithGradientAndNodeInfo(p1 + s*(p2-p1));
+                // collision between inner tube and other SDF!
+                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and other Virtuoso arm! s=" << s << ", dist=" << dist << std::endl;
+                virtuoso_arm1->addVirtuosoArmCollision(
+                    outer_tube_frames.size() + inner_tube_frames.size() + i, s, 
+                    virtuoso_arm2, result.node_index, result.interp_factor);
+                // virtuoso_arm2->addVirtuosoArmCollision(
+                //     result.node_index, result.interp_factor,
+                //     virtuoso_arm1, outer_tube_frames.size() + inner_tube_frames.size() + i, s
+                // );
+            }
+        }
+    }
+
+    for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = inner_tube_frames[i].origin();
+        Vec3r p2 = inner_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, virtuoso_arm2->SDF());
+        
+        if (dist < virtuoso_arm1->innerTubeOuterDiameter()/2.0)
+        {
+            Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = virtuoso_arm2->SDF()->evaluateWithGradientAndNodeInfo(p1 + s*(p2-p1));
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and other Virtuoso arm! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm1->addVirtuosoArmCollision(
+                    outer_tube_frames.size() + i, s, 
+                    virtuoso_arm2, result.node_index, result.interp_factor);
+            // virtuoso_arm2->addVirtuosoArmCollision(
+            //     result.node_index, result.interp_factor,
+            //     virtuoso_arm1, outer_tube_frames.size() + i, s
+            // );
+        }
+    }
+
+    for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = outer_tube_frames[i].origin();
+        Vec3r p2 = outer_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, virtuoso_arm2->SDF());
+        
+        if (dist < virtuoso_arm1->outerTubeOuterDiameter()/2.0)
+        {
+            Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = virtuoso_arm2->SDF()->evaluateWithGradientAndNodeInfo(p1 + s*(p2-p1));
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between outer tube segment (" << i << "," << i+1 << ") and other Virtuoso arm! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm1->addVirtuosoArmCollision(
+                    i, s, 
+                    virtuoso_arm2, result.node_index, result.interp_factor);
+            // virtuoso_arm2->addVirtuosoArmCollision(
+            //     result.node_index, result.interp_factor,
+            //     virtuoso_arm1, i, s
+            // );
+        }
+    }
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj)
+{
+    // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
+    // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
+    const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
+    const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm->innerTubeFrames();
+    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm->toolTubeFrames();
+    
+    for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = outer_tube_frames[i].origin();
+        Vec3r p2 = outer_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, obj->SDF());
+        
+        if (dist < virtuoso_arm->outerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between outer tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm->addRigidCollision(i, s, obj->SDF());
+        }
+    }
+
+    for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = inner_tube_frames[i].origin();
+        Vec3r p2 = inner_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, obj->SDF());
+        
+        if (dist < virtuoso_arm->innerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            virtuoso_arm->addRigidCollision(outer_tube_frames.size() + i, s, obj->SDF());
+        }
+    }
+
+    if (virtuoso_arm->hasTool())
+    {
+        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
+        {
+            Vec3r p1 = tool_tube_frames[i].origin();
+            Vec3r p2 = tool_tube_frames[i+1].origin();
+            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, obj->SDF());
+            
+            if (dist < virtuoso_arm->toolTube().outer_dia/2.0)
+            {
+                // collision between inner tube and other SDF!
+                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+                virtuoso_arm->addRigidCollision(outer_tube_frames.size() + inner_tube_frames.size() + i, s, obj->SDF());
+            }
+        }
+    }
+}
+
+std::pair<Real,Real> CollisionScene::_findDeepestPenetratingPointOnSegment(const Vec3r& p1, const Vec3r& p2, const Geometry::SDF* sdf)
+{
+    // fixed number of initial points to test
+    const Real samples[4] = {
+        0.1, 0.35, 0.65, 0.9
+    };
+
+    Real best_s = 0.0;
+    Real best_f = sdf->evaluate(p1);
+
+    for (int i = 0; i < 4; i++)
+    {
+        double s = samples[i];
+        double f = sdf->evaluate(p1 + s*(p2-p1));
+
+        if (f < best_f)
+        {
+            best_f = f;
+            best_s = s;
+        }
+    }
+
+    // mini golden-section search
+    Real a = std::max(Real(0.0), best_s - 0.2);
+    Real b = std::min(Real(1.0), best_s + 0.2);
+    const Real phi = 0.61803398875;
+    Real x = best_s;
+    Real fx = best_f;
+    for (int i = 0; i < 4; i++)
+    {
+        Real left = x - phi * (x - a);
+        Real right = x + phi * (b - x);
+
+        Real fl = sdf->evaluate(p1 + left*(p2 - p1));
+        Real fr = sdf->evaluate(p1 + right*(p2 - p1));
+
+        if (fl < fx)
+        {
+            b = x;
+            x = left;
+            fx = fl;
+        }
+        else if (fr < fx)
+        {
+            a = x;
+            x = right;
+            fx = fr;
+        }
+        else
+        {
+            a = left;
+            b = right;
+        }
+    }
+
+    return std::make_pair(x, fx);
+}
+
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::RigidObject* rigid_obj)
 {

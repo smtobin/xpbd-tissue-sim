@@ -70,6 +70,11 @@ class VirtuosoArmConfig : public ObjectConfig
 
         _extractParameter("base-position", node, _base_initial_position);
         _extractParameter("base-rotation", node, _base_initial_rotation);
+
+        _extractParameter("max-ot-translation-speed", node, _max_ot_translation_speed);
+        _extractParameter("max-it-translation-speed", node, _max_it_translation_speed);
+        _extractParameter("max-ot-rotation-speed", node, _max_ot_rotation_speed);
+        _extractParameter("max-it-rotation-speed", node, _max_it_rotation_speed);
     }
 
     explicit VirtuosoArmConfig( const std::string& name, const std::string& material_class, 
@@ -123,6 +128,11 @@ class VirtuosoArmConfig : public ObjectConfig
     Vec3r baseInitialPosition() const { return _base_initial_position.value; }
     Vec3r baseInitialRotation() const { return _base_initial_rotation.value; }
 
+    Real maxOTTranslationSpeed() const { return _max_ot_translation_speed.value; }
+    Real maxITTranslationSpeed() const { return _max_it_translation_speed.value; }
+    Real maxOTRotationSpeed() const { return _max_ot_rotation_speed.value; }
+    Real maxITRotationSpeed() const { return _max_it_rotation_speed.value; }
+
     protected:
     ConfigParameter<Real> _it_outer_diameter = ConfigParameter<Real>(1.04e-3);
     ConfigParameter<Real> _it_inner_diameter = ConfigParameter<Real>(0.82e-3);
@@ -143,6 +153,11 @@ class VirtuosoArmConfig : public ObjectConfig
 
     ConfigParameter<Vec3r> _base_initial_position = ConfigParameter<Vec3r>(Vec3r(0,0,0));
     ConfigParameter<Vec3r> _base_initial_rotation = ConfigParameter<Vec3r>(Vec3r(0,0,0));
+
+    ConfigParameter<Real> _max_ot_translation_speed = ConfigParameter<Real>(0.04);
+    ConfigParameter<Real> _max_it_translation_speed = ConfigParameter<Real>(0.0529);
+    ConfigParameter<Real> _max_ot_rotation_speed = ConfigParameter<Real>(20);
+    ConfigParameter<Real> _max_it_rotation_speed = ConfigParameter<Real>(52.4);
 };
 
 } // namespace Config

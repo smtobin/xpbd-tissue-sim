@@ -10,6 +10,7 @@
 
 #include <array>
 #include <variant>
+#include <unordered_set>
 
 namespace Config
 {
@@ -20,6 +21,74 @@ namespace Sim
 {
 
 class XPBDMeshObject_BasePtrWrapper;
+
+/** Simple struct to store information about active collisions between the arm and another object. */
+struct VirtuosoArmRigidCollision
+{
+    /** The node index for the first node of the segment in collision */
+    int node_index;
+    /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
+    mutable Real interp;
+    mutable Real prev_interp;
+
+    /** The SDF for the rigid body in collision. */
+    const Geometry::SDF* rigid_sdf;
+
+    /** The current force associated with the collision.
+     * This will be changed depending on the penetration.
+     */
+    mutable Vec3r force;
+
+    VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
+        : node_index(node_index_), interp(interp_), prev_interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
+    {
+    }
+};
+
+struct VirtuosoArmRigidCollision_Hash
+{
+    std::size_t operator()(const VirtuosoArmRigidCollision& col) const 
+    {
+        std::size_t h1 = std::hash<const Geometry::SDF*>{}(col.rigid_sdf);
+        std::size_t h2 = std::hash<int>{}(col.node_index);
+        return h1 ^ (h2 << 1);  // simple combine
+    }
+};
+
+struct VirtuosoArmRigidCollision_Equal
+{
+    bool operator() (const VirtuosoArmRigidCollision& col1, const VirtuosoArmRigidCollision& col2) const
+    {
+        return col1.rigid_sdf == col2.rigid_sdf && col1.node_index == col2.node_index;
+    }
+};
+
+struct VirtuosoArmVirtuosoArmCollision
+{
+    /** Info for the first arm in collision */
+    VirtuosoArm* arm1;
+    int node_index1;
+    Real interp1;
+    int last_node_index1;
+    Real last_interp1;
+
+    /** Info for the second arm in collision */
+    VirtuosoArm* arm2;
+    int node_index2;
+    Real interp2;
+    int last_node_index2;
+    Real last_interp2;
+
+    /** Force info */
+    Vec3r force;
+
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, int node_index2_, Real interp2_)
+        : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+         arm2(arm2_), node_index2(node_index2_), interp2(interp2_), last_node_index2(node_index2_), last_interp2(interp2_),
+          force(0,0,0)
+    {
+    }
+};
 
 struct VirtuosoArmTool
 {
@@ -61,12 +130,6 @@ class VirtuosoArm : public Object
     /** Joint limits */
     constexpr static Real MAX_OT_TRANSLATION = 20e-3;    // maximum outer tube translation (joint limit on Virtuoso system)
     constexpr static Real MAX_IT_TRANSLATION = 40e-3;    // maximum inner tube translation (joint limit on Virtuoso system)
-
-    /** Joint speed limits */
-    constexpr static Real MAX_OT_TRANSLATION_SPEED = 0.04;   // maximum outer tube translation speed [m/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_IT_TRANSLATION_SPEED = 0.0529; // maximum inner tube translation speed [m/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_OT_ROTATION_SPEED = 20;        // maximum outer tube rotation speed [rad/s] (joint speed limit on Virtuoso system)
-    constexpr static Real MAX_IT_ROTATION_SPEED = 52.4;      // maximum inner tube rotation speed [rad/s] (joint speed limit on Virtuoso system)
 
     /** Physical parameters */
     constexpr static Real OT_ENDOSCOPE_CLEARANCE = 0.3e-3;  // clearance between the outer tube and the endoscope sheath [m]
@@ -302,11 +365,34 @@ class VirtuosoArm : public Object
     void setTipMoment(const Vec3r& new_tip_moment);
     void setTipForceAndMoment(const Vec3r& new_tip_force, const Vec3r& new_tip_moment);
 
+    /** Computes the compliance matrix numerically at the specified node index. */
+    Mat3r complianceMatrixAtIntegrationPoint(int node_index);
+
+    /** Computes the compliance matrix at an arbitrary point along the arm,
+     * specified by a starting integration point index and an interpolation value in [0,1] indicating the distance along the segment
+     * (node_index, node_index+1).
+     * 
+     * This uses a previously computed cubic interpolation of the compliance matrix.
+     * If this interpolation has not already been computed, for the relevant section of the arm (outer tube, inner tube, tool tube),
+     * then the interpolation will be computed.
+     * 
+     * This is useful to determine the force necessary to move a point along the arm a certain distance, which comes in handy during
+     * collision resolution.
+     */
+    Mat3r interpolatedComplianceMatrix(int node_index, Real interp);
+
     Vec3r unfilteredCollisionForce() const { return _unfiltered_collision_force; }
     Vec3r filteredCollisionForce() const { return _filtered_collision_force; }
 
     void addCollisionConstraint(const CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp);
     void clearCollisionConstraints();
+
+    void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
+    void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
+
+    const std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal>& 
+        rigidCollisions() const { return _rigid_collisions; }
+    const std::vector<VirtuosoArmVirtuosoArmCollision>& virtuosoArmCollisions() const { return _virtuoso_arm_collisions; }
 
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }
     const Vec3r& innerTubeNodalForce(int node_index) const { return _it_nodal_forces[node_index]; }
@@ -314,6 +400,7 @@ class VirtuosoArm : public Object
     void setOuterTubeNodalForce(int node_index, const Vec3r& force);
     void setInnerTubeNodalForce(int node_index, const Vec3r& force);
     void setToolTubeNodalForce(int node_index, const Vec3r& force);
+    void applyNodalForce(int node_index, Real interp, const Vec3r& force);
 
     const XPBDMeshObject_BasePtrWrapper& toolManipulatedObject() const { return _tool_manipulated_object; }
     void setToolManipulatedObject(const XPBDMeshObject_BasePtrWrapper& obj) { _tool_manipulated_object = obj; }
@@ -340,6 +427,18 @@ class VirtuosoArm : public Object
      * with forces at each "node" (i.e. coordinate frame along the backbone) included.
      */
     void _recomputeCoordinateFramesStaticsModelWithNodalForces();
+
+    /** Computes the coefficients for the cubic compliance matrix interpolation over each section of the arm.
+     * Uses finite differencing at 4 points along each section (outer tube, inner tube, tool tube) to compute the compliance matrix,
+     * and then fits a polynomial for each matrix entry (6 of these, since compliance matrix is symmetric).
+     * 
+     * i.e. C_ij = a0 + a1*s + a2*s^2 + a3*s^3
+     * 
+     * Each section of the arm (outer tube, inner tube, tool tube) has an interpolation that varies according to an s in [0,1].
+     * 
+     * 
+     */
+    void _computeComplianceMatrixInterpolation(bool ot, bool it, bool tt);
 
     std::vector<TubeIntegrationState::VecType> _integrateTubeRK4(
         const TubeIntegrationState& tube_base_state, const std::vector<Real>& s, const Vec3r& K_inv, const Vec3r& u_star) const;
@@ -414,6 +513,11 @@ class VirtuosoArm : public Object
     Real _ot_rotation;    // rotation of the outer tube. Right now, assuming rotation=0 corresponds to a curve to the left in the XY plane
     Real _ot_distal_straight_length; // the length of the straight section on the distal part of the outer tube
 
+    Real _max_ot_translation_speed;     // max translation speed of the outer tube (m/s)
+    Real _max_it_translation_speed;     // max translation speed of the inner tube (m/s)
+    Real _max_ot_rotation_speed;        // max rotation speed of the outer tube (rad/s)
+    Real _max_it_rotation_speed;        // max rotation speed of the inner tube (rad/s)
+
     int _tool_state; // state of the tool (i.e. 1=ON, 0=OFF)
     int _last_tool_state; // the previous state of the tool (needed so that we know when tool state has changed)
     ToolType _tool_type; // type of tool used on this arm
@@ -430,6 +534,12 @@ class VirtuosoArm : public Object
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
     std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
     std::vector<CollisionConstraintInfo> _collision_constraints;
+
+    /** Stores information about collisions with rigid objects */
+    std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal> _rigid_collisions;
+
+    /** Stores information about collisions with other Virtuoso arms */
+    std::vector<VirtuosoArmVirtuosoArmCollision> _virtuoso_arm_collisions;
 
     Vec3r _arm_base_position;
     Mat3r _arm_base_rotation;
@@ -448,6 +558,11 @@ class VirtuosoArm : public Object
      */
     Vec3r _filtered_collision_force;
 
+    /** Collision forces from collisions with deformable objects (i.e. tissue).
+     * We need to keep track of these separately from other collisions so that they can be smoothed with a complementary filter.
+     */
+    std::vector<Vec3r> _xpbd_collision_forces;
+
     Geometry::CoordinateFrame _arm_base_frame;        // coordinate frame at the tool channel (where it leaves the endoscope)
     
     OuterTubeFramesArray _ot_frames;  // coordinate frames along the backbone of the exposed part of the outer tube
@@ -459,6 +574,23 @@ class VirtuosoArm : public Object
     std::array<Vec3r, NUM_TT_FRAMES> _tt_nodal_forces;
 
     bool _stale_frames;     // true if the joint variables have been updated and the coordinate frames need to be recomputed
+
+    /** If the compliance matrix interpolation is "Stale" and needs to be recomputed
+     * This occurs when (1) the joint variables change or (2) the applied force changes.
+     */
+    bool _stale_ot_compliance_interp = true;
+    bool _stale_it_compliance_interp = true;
+    bool _stale_tt_compliance_interp = true;
+
+    /** Interpolation coefficients for the compliance matrix interpolation along the appropriate section of the arm.
+     * i.e. C_ij = a0 + a1*s + a2*s^2 + a3*s^3
+     * 
+     * Each section of the arm (outer tube, inner tube, tool tube) has an interpolation that varies according to an s in [0,1].
+     * E.g., for the inner tube, s=0.5 corresponds to the middle of the inner tube, s=1.0 corresponds to the tip of the inner tube
+     */
+    std::array<Mat3r, 4> _ot_compliance_coeff;
+    std::array<Mat3r, 4> _it_compliance_coeff;
+    std::array<Mat3r, 4> _tt_compliance_coeff;
 
     /** Signed Distance Field for the Virtuoso arm. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;

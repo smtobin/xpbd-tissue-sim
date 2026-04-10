@@ -247,6 +247,25 @@ void VirtuosoSimBridge::_setupPublishers()
             _setupArmToolTipFramePublisher(arm2, _arm2_tool_tip_frame_publisher);
         }
     }
+
+    _virtuoso_self_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/virtuoso_self_collision", 10);
+    auto arms_in_collision_callback = 
+        [this]() -> void {
+            if (!this->_sim->virtuosoRobot()->hasArm1() || !this->_sim->virtuosoRobot()->hasArm2())
+                return;
+
+            Sim::VirtuosoArm* arm1 = this->_sim->virtuosoRobot()->arm1();
+            Sim::VirtuosoArm* arm2 = this->_sim->virtuosoRobot()->arm2();
+
+            std_msgs::msg::Int8 msg;
+            if (arm1->virtuosoArmCollisions().empty() && arm2->virtuosoArmCollisions().empty())
+                msg.data = 0;
+            else
+                msg.data = 1;
+
+            this->_virtuoso_self_collision_publisher->publish(msg);
+        };
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arms_in_collision_callback);
 }
 
 

@@ -28,7 +28,7 @@ def main():
 
     # Decimate the mesh, reducing the number of faces by half each time until <800 vertices are left
     print(f"Decimating mesh...")
-    while (ms.current_mesh().vertex_number() > 1000):
+    while (ms.current_mesh().vertex_number() > 3000):
         print(f"  Current number of vertices: {ms.current_mesh().vertex_number()}")
         ms.meshing_decimation_quadric_edge_collapse(targetperc=0.5, qualitythr=0.5, autoclean=True)
 

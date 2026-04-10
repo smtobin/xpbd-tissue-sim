@@ -13,6 +13,8 @@ VTKSphereGraphicsObject::VTKSphereGraphicsObject(const std::string& name, const 
     // create the vtkActor from a sphere source
     _sphere_source = vtkSmartPointer<vtkSphereSource>::New();
     _sphere_source->SetRadius(sphere->radius());
+    _sphere_source->SetThetaResolution(20);
+    _sphere_source->SetPhiResolution(20);
 
     
     vtkNew<vtkPolyDataMapper> data_mapper;

@@ -118,6 +118,7 @@ void RigidMeshObject::rotateAboutOrigin(const Mat3r& rot_mat)
     //     return;
 
     _mesh->rotateAbout(Vec3r::Zero(), rot_mat);
+    _p = rot_mat*_p;
     _q = GeometryUtils::quatMult(_q, GeometryUtils::matToQuat(rot_mat));
 }
 

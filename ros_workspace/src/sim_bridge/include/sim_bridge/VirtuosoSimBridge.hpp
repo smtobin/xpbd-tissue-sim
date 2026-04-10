@@ -86,6 +86,8 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm1_net_force_publisher;         // publishes the net force on arm1
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm2_net_force_publisher;         // publishes the net force on amr2
 
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr _virtuoso_self_collision_publisher;   // publishes 0 when no collision between Virtuoso arms, 1 when there is
+
     std::unique_ptr<tf2_ros::TransformBroadcaster> _tf_broadcaster;
 
     /** Subscriptions */
