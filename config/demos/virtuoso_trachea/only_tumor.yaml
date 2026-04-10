@@ -85,7 +85,7 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.4
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
     draw-edges: false
     draw-faces: true
@@ -148,7 +148,7 @@ objects:
   -
     name: "Trachea"
     type: "RigidMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_auto.stl"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
     material: "Human Trachea"
     scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
