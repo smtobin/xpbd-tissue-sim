@@ -37,56 +37,84 @@ Real VirtuosoArmSpatulaToolSDF::evaluate(const Vec3r& x) const
     // Extrude along Z
     Vec2r w = Vec2r(d2, std::abs(x_body[1]) - Sim::VirtuosoArmSpatulaTool::THICKNESS/2);
     Vec2r w_max( std::max(w[0], Real(0.0)), std::max(w[1], Real(0.0)) );
-    return w_max.norm() + std::min(std::max(w[0], w[1]), 0.0);
+    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/4;
+
+    Real a = d2;
+    Real b = w[1];
+
+    // Smooth max blend - fillets the hard corners for collision stability
+    Real h = std::clamp(0.5 + 0.5*(b - a)/k, Real(0), Real(1));
+    Real d = a*(1 - h) + b*h + k*h*(1 - h);
+
+    return d;
 }
 
 Vec3r VirtuosoArmSpatulaToolSDF::gradient(const Vec3r& x) const
 {
-    Geometry::TransformationMatrix T_spat = _spatula->spatulaFrame().transform();
-    Vec3r x_body = T_spat.rotMat().transpose() * (x - T_spat.translation());
+    Geometry::TransformationMatrix T = _spatula->spatulaFrame().transform();
 
-    Vec2r s( (x_body[0] > 0 ? 1 : -1), (x_body[2] > 0 ? 1 : -1) );
+    // transform to body frame
+    Vec3r p = T.rotMat().transpose() * (x - T.translation());
+
+    // signs
+    Real sx = (p[0] >= 0 ? 1.0 : -1.0);
+    Real sy = (p[1] >= 0 ? 1.0 : -1.0);
+    Real sz = (p[2] >= 0 ? 1.0 : -1.0);
+
+    // side SDF (XZ plane rounded rectangle)
     Vec2r q;
-    q[0] = std::abs(x_body[0]) - Sim::VirtuosoArmSpatulaTool::WIDTH/2 + Sim::VirtuosoArmSpatulaTool::RADIUS;
-    q[1] = std::abs(x_body[2]) - Sim::VirtuosoArmSpatulaTool::LENGTH/2 + Sim::VirtuosoArmSpatulaTool::RADIUS; 
+    q[0] = std::abs(p[0]) - Sim::VirtuosoArmSpatulaTool::WIDTH/2 + Sim::VirtuosoArmSpatulaTool::RADIUS;
+    q[1] = std::abs(p[2]) - Sim::VirtuosoArmSpatulaTool::LENGTH/2 + Sim::VirtuosoArmSpatulaTool::RADIUS;
 
-    Vec2r q_max( std::max(q[0], Real(0.0)), std::max(q[1], Real(0.0)) );
+    Vec2r qmax(std::max(q[0], 0.0),
+               std::max(q[1], 0.0));
 
-    Real lq = q_max.norm();
-    Real d2 = lq + std::min(std::max(q[0], q[1]), Real(0.0)) - Sim::VirtuosoArmSpatulaTool::RADIUS;
+    Real lq = qmax.norm();
 
-    // 2D gradient of d2
-    Vec2r g2;
-    if (lq > 1e-6) {
-        g2 = s.array() * q_max.array() / lq;
-    } else {
-        g2 = s.array() * (q[0] > q[1] ? Vec2r(1, 0) : Vec2r(0, 1)).array();
+    Real a = lq + std::min(std::max(q[0], q[1]), 0.0) - Sim::VirtuosoArmSpatulaTool::RADIUS; // d2
+
+    // gradient of a (2D rounded rectangle)
+    Vec2r ga;
+    if (lq > 1e-8)
+    {
+        ga = Vec2r(sx * qmax[0] / lq,
+                   sz * qmax[1] / lq);
+    }
+    else
+    {
+        ga = (q[0] > q[1]) ? Vec2r(sx, 0.0)
+                            : Vec2r(0.0, sz);
     }
 
-    // Extrusion: treat (d2, |pz| - halfThickness) as a 2D point w
-    Real sz = x_body[1] > 0 ? 1 : -1;
-    Real wz = std::abs(x_body[1]) - Sim::VirtuosoArmSpatulaTool::THICKNESS/2;
-    Vec2r w = Vec2r(d2, wz);
-    Vec2r w_max( std::max(w[0], Real(0.0)), std::max(w[1], Real(0.0)) );
-    Real lw = w_max.norm();
+    Vec3r grad_a(ga[0], 0.0, ga[1]);
 
-    Vec3r grad;
-    if (lw > 1e-6) {
-        // Outside in the extrusion sense — chain rule through both terms
-        Real dOuterDd2 = w_max[0] / lw;
-        Real dOuterDz  = w_max[1] / lw * sz;
-        Vec2r g2_dOuterDd2 = g2 * dOuterDd2;
-        grad = Vec3r(g2_dOuterDd2[0], g2_dOuterDd2[1], dOuterDz);
-    } else {
-        // Inside the extruded shell — gradient from max(w.x, w.y)
-        if (w[0] > w[1]) {
-            grad = Vec3r(g2[0], 0.0, g2[1]);        // d2 is the dominant term
-        } else {
-            grad = Vec3r(0.0, sz, 0.0);   // z-thickness is the dominant term
-        }
-    }
+    // cap SDF (Y axis thickness)
+    Real b = std::abs(p[1]) - Sim::VirtuosoArmSpatulaTool::THICKNESS/2;
 
-    return T_spat.rotMat() * grad;
+    Vec3r grad_b(0.0, sy, 0.0);
+
+    // smooth max
+    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/4;
+
+    Real t = 0.5 + 0.5 * (b - a) / k;
+
+    // clamp regions
+    if (t <= 0.0)
+        return T.rotMat() * grad_a;
+
+    if (t >= 1.0)
+        return T.rotMat() * grad_b;
+
+    Real h = t;
+
+    Real coeff = (b - a) / (2.0 * k);
+
+    Real da = (1.0 - h) - coeff * (1.0 - 2.0 * h);
+    Real db = h         + coeff * (1.0 - 2.0 * h);
+
+    Vec3r grad = da * grad_a + db * grad_b;
+
+    return T.rotMat() * grad;
 }
 
 } // namespace Geometry
