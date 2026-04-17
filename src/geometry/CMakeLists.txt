@@ -19,6 +19,7 @@ set(GEOMETRY_HEADERS
     ${GEOMETRY_INCLUDE_DIR}/CylinderSDF.hpp
     ${GEOMETRY_INCLUDE_DIR}/VirtuosoArmSDF.hpp
     ${GEOMETRY_INCLUDE_DIR}/VirtuosoRobotSDF.hpp
+    ${GEOMETRY_INCLUDE_DIR}/VirtuosoArmToolSDFs.hpp
     ${GEOMETRY_INCLUDE_DIR}/DeformableMeshSDF.hpp
     ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeScene.hpp
     ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeMeshGeometry.hpp
@@ -36,6 +37,7 @@ set(GEOMETRY_SOURCES
     ${GEOMETRY_SRC_DIR}/MeshSDF.cpp
     ${GEOMETRY_SRC_DIR}/VirtuosoArmSDF.cpp
     ${GEOMETRY_SRC_DIR}/VirtuosoRobotSDF.cpp
+    ${GEOMETRY_SRC_DIR}/VirtuosoArmToolSDFs.cpp
     ${GEOMETRY_SRC_DIR}/DeformableMeshSDF.cpp  
     ${GEOMETRY_SRC_DIR}/embree/EmbreeScene.cpp
     ${GEOMETRY_SRC_DIR}/embree/EmbreeMeshGeometry.cpp

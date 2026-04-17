@@ -3,6 +3,8 @@
 
 #include "simobject/Object.hpp"
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
+#include "simobject/VirtuosoArmTools.hpp"
+
 
 #include "geometry/CoordinateFrame.hpp"
 #include "geometry/VirtuosoArmSDF.hpp"

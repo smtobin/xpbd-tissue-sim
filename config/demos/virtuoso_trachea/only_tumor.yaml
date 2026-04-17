@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -186,7 +186,7 @@ objects:
       name: "Arm2"
       type: "VirtuosoArm"
       material: "Nitinol"
-      tool-type: "None"
+      tool-type: "cautery"
       cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
       time-threshold: 0.03  # in seconds of wall-clock time
       outer-tube-diameter: 1.56e-3
