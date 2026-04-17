@@ -5,6 +5,7 @@
 #include "graphics/vtk/VTKMeshGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoRobotGraphicsObject.hpp"
+#include "graphics/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.hpp"
 
 #include "simobject/Object.hpp"
 #include "simobject/MeshObject.hpp"
@@ -138,6 +139,11 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
                 std::make_unique<VTKVirtuosoArmGraphicsObject>(robot->arm1()->name(), robot->arm1(), render_config);
             _vtk_viewer->renderer()->AddActor(arm1_graphics_obj->actor());
             _graphics_objects.push_back(std::move(arm1_graphics_obj));
+
+            if (robot->arm1()->tool())
+            {
+                addObject(robot->arm1()->tool(), render_config);
+            }
         }
         if (robot->hasArm2())
         {
@@ -145,9 +151,18 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
                 std::make_unique<VTKVirtuosoArmGraphicsObject>(robot->arm2()->name(), robot->arm2(), render_config);
             _vtk_viewer->renderer()->AddActor(arm2_graphics_obj->actor());
             _graphics_objects.push_back(std::move(arm2_graphics_obj));
-        }
 
-        
+            if (robot->arm2()->tool())
+            {
+                addObject(robot->arm2()->tool(), render_config);
+            }
+        }
+    }
+    else if (const Sim::VirtuosoArmSpatulaTool* spatula = dynamic_cast<const Sim::VirtuosoArmSpatulaTool*>(obj))
+    {
+        auto ptr = std::make_unique<VTKVirtuosoArmSpatulaToolGraphicsObject>(spatula->name(), spatula, render_config);
+        _vtk_viewer->renderer()->AddActor(ptr->actor());
+        new_graphics_obj = std::move(ptr);
     }
 
      // finally add the GraphicsObject to the list of GraphicsObjects

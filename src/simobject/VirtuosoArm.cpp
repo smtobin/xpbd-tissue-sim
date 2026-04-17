@@ -52,6 +52,8 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _tool_tube = TOOL_TYPE_TO_STRUCT.at(_tool_type);
     _tool_tube_length = config->toolTubeLength();
 
+    _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, config, nullptr);
+
     _arm_base_position = config->baseInitialPosition();
     Vec3r initial_rot_xyz = config->baseInitialRotation() * M_PI / 180.0;
     _arm_base_rotation = GeometryUtils::quatToMat(GeometryUtils::eulXYZ2Quat(initial_rot_xyz[0], initial_rot_xyz[1], initial_rot_xyz[2]));
@@ -507,6 +509,9 @@ void VirtuosoArm::clearCollisionConstraints()
 
 void VirtuosoArm::setup()
 {
+    if (_tool)
+        _tool->setInnerTubeTipFramePtr(&_it_frames.back());
+
     _recomputeCoordinateFrames();
 
     _commanded_tip_position = actualTipPosition();

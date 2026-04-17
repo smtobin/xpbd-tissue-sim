@@ -337,6 +337,7 @@ class VirtuosoArm : public Object
     bool hasTool() const { return (_tool_type != ToolType::NONE); }
     ToolType toolType() const { return _tool_type; }
     const VirtuosoArmTool& toolTube() const { return _tool_tube; }
+    const VirtuosoArmTool_Base* tool() const { return _tool.get(); }
 
     void setInnerTubeTranslation(double t) { _it_translation = (t >= 0) ? t : 0; _stale_frames = true; }
     void setInnerTubeRotation(double r) { _it_rotation = r; _stale_frames = true; }
@@ -527,6 +528,8 @@ class VirtuosoArm : public Object
     Real _cutting_model_time_threshold; // the time threshold to be used for the "timer" cutting model (only applies when this cutting model is used)
     Real _tool_tube_length; // exposed length of the tool tube, in m
     VirtuosoArmTool _tool_tube = VirtuosoArmTool_None; // stores the tool tube properties
+
+    std::unique_ptr<VirtuosoArmTool_Base> _tool;
     
 
 

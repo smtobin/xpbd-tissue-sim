@@ -90,6 +90,7 @@ find_package(VTK 9.5 REQUIRED
     CommonColor
     CommonCore
     FiltersSources
+    FiltersModeling
     IOImage
     InteractionStyle
     RenderingContextOpenGL2

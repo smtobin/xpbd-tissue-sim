@@ -174,7 +174,7 @@ objects:
       outer-tube-distal-straight-length: 5e-3
       outer-tube-translation: 6e-3
       outer-tube-rotation: 60
-      inner-tube-rotation: 30
+      inner-tube-rotation: 0
       inner-tube-diameter: 1.04e-3
       inner-tube-translation: 15e-3
       max-ot-translation-speed: 0.01 #0.04

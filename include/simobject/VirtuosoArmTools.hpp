@@ -25,7 +25,7 @@ struct TubeProperties
 class VirtuosoArmTool_Base : public Object
 {
 public:
-    VirtuosoArmTool_Base(Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
+    VirtuosoArmTool_Base(const Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
         : Object(sim, config), 
         _it_tip_frame(it_tip_frame)
     {}
@@ -35,6 +35,9 @@ public:
     virtual void setup() override {}
     virtual void update() override {}
     virtual void velocityUpdate() override {}
+
+    const Geometry::CoordinateFrame* innerTubeTipFramePtr() { return _it_tip_frame; }
+    void setInnerTubeTipFramePtr(const Geometry::CoordinateFrame* tip_frame) { _it_tip_frame = tip_frame; }
 
     /** Whether or not the tool is a tube that is nested inside the lumen of the inner tube.
      * If true, this affects the effective bending stiffness of the Virtuoso arm.
@@ -70,10 +73,11 @@ public:
     constexpr static Real RADIUS = 0.5e-3;
     constexpr static Real THICKNESS = 0.5e-3;
 
-    VirtuosoArmSpatulaTool(Sim::Simulation* sim, ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
+    VirtuosoArmSpatulaTool(const Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
         : VirtuosoArmTool_Base(sim, config, it_tip_frame)
     {
         _char_dim = THICKNESS;
+        _name = _name + "_spatula";
     }
 
     /** Spatula tool is not a nested tube */
@@ -86,6 +90,8 @@ public:
         Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0, 0, LENGTH/2));
         return _it_tip_frame->operator*(T);
     }
+
+    virtual Vec3r tipOffset() const override { return Vec3r(0,0,LENGTH/2); }
 
     /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
     virtual Geometry::AABB boundingBox() const
