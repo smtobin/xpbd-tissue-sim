@@ -71,7 +71,7 @@ public:
     constexpr static Real LENGTH = 4e-3;
     constexpr static Real WIDTH = 2e-3;
     constexpr static Real RADIUS = 0.5e-3;
-    constexpr static Real THICKNESS = 0.5e-3;
+    constexpr static Real THICKNESS = 1e-3;
 
     VirtuosoArmSpatulaTool(const Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
         : VirtuosoArmTool_Base(sim, config, it_tip_frame)

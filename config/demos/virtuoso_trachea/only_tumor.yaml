@@ -103,9 +103,9 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: true
+    smooth-normals: false
     draw-points: false
-    draw-edges: false
+    draw-edges: true
     draw-faces: true
 
   -
@@ -145,16 +145,16 @@ objects:
     max-refinement-level: 2
     compute-heat-conduction: false
 
-  -
-    name: "Trachea"
-    type: "RigidMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    material: "Human Trachea"
-    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+  # -
+  #   name: "Trachea"
+  #   type: "RigidMeshObject"
+  #   filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
+  #   material: "Human Trachea"
+  #   scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+  #   # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
 
-    collisions: false
-    fixed: true
+  #   collisions: false
+  #   fixed: true
 
   -
     name: "Robot"

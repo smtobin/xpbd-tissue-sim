@@ -338,6 +338,7 @@ class VirtuosoArm : public Object
     ToolType toolType() const { return _tool_type; }
     const VirtuosoArmTool& toolTube() const { return _tool_tube; }
     const VirtuosoArmTool_Base* tool() const { return _tool.get(); }
+    VirtuosoArmTool_Base* tool() { return _tool.get(); }
 
     void setInnerTubeTranslation(double t) { _it_translation = (t >= 0) ? t : 0; _stale_frames = true; }
     void setInnerTubeRotation(double r) { _it_rotation = r; _stale_frames = true; }

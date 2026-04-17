@@ -106,9 +106,17 @@ class CollisionScene
         if (collisions)
         {
             if (virtuoso_robot->hasArm1())
+            {
                 addObject(virtuoso_robot->arm1(), collisions);
+                if (virtuoso_robot->arm1()->tool())
+                    addObject(virtuoso_robot->arm1()->tool(), collisions);
+            }
             if (virtuoso_robot->hasArm2())
+            {
                 addObject(virtuoso_robot->arm2(), collisions);
+                if (virtuoso_robot->arm2()->tool())
+                    addObject(virtuoso_robot->arm2()->tool(), collisions);
+            }
         }
     }
 

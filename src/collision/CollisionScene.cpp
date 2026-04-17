@@ -431,6 +431,10 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
 
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj)
 {
+    // make sure that the object is not the tool attached to the arm
+    if (virtuoso_arm->tool() &&  (Sim::Object*)virtuoso_arm->tool() == obj)
+        return;
+        
     // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
     // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
     const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
