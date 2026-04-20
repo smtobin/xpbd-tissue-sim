@@ -8,6 +8,9 @@
 #include "simobject/Object.hpp"
 #include "simobject/RigidPrimitives.hpp"
 
+#include "solver/xpbd_projector/ConstraintProjectorReference.hpp"
+#include "solver/constraint/StaticDeformableCollisionConstraint.hpp"
+
 namespace Sim
 {
 
@@ -54,12 +57,53 @@ public:
     /** The current frame of the tip, given the current location of the inner tube tip and any deformation on the tool. */
     virtual Geometry::CoordinateFrame tipFrame() const = 0;
 
+    /** Add a XPBD->static collision constraint projector.
+     * Used for getting collision force with deformable objects.
+     */
+    void addCollisionConstraint(Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>&& collision_proj_ref)
+    {
+        _collision_proj_refs.push_back(std::move(collision_proj_ref));
+    }
+
+    /** Clear XPBD->static collision constraint projectors. */
+    void clearCollisionConstraints()
+    {
+        _collision_proj_refs.clear();
+    }
+
+    /** Computes the total tip force and moment due to collision constraint forces, in the GLOBAL frame.
+     * Returns a pair (tip force, tip moment).
+     */
+    std::pair<Vec3r, Vec3r> collisionTipForceAndMoment()
+    {
+        Vec3r total_force = Vec3r::Zero();
+        Vec3r total_moment = Vec3r::Zero();
+        for (const auto& collision_proj_ref : _collision_proj_refs)
+        {
+            if (collision_proj_ref.exists() && collision_proj_ref.isValid())
+            {
+                // the collision constraints give forces on the tissue, so we must negate them to get the forces on the Virtuoso
+                std::vector<Vec3r> forces = collision_proj_ref.constraintForces();
+                Vec3r net_force = -std::reduce(forces.cbegin(), forces.cend());
+                
+                Vec3r cp = collision_proj_ref.constraint()->staticObjectContactPoint();
+                total_force += net_force;
+                total_moment += (cp - _it_tip_frame->origin()).cross(net_force);
+            }
+        }
+
+        return {total_force, total_moment};
+    }
+
     /** TODO: define tool actions here somehow? */
 protected:
     /** Pointer to frame at the end of the inner tube.
      * Since this is a pointer, it will get updated automatically when the tube frames are recalculated.
      */
     const Geometry::CoordinateFrame* _it_tip_frame;
+
+    /** Vector of XPBD->static collision constraint projectors. */
+    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> _collision_proj_refs;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////

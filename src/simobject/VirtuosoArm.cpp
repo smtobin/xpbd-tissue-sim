@@ -399,6 +399,8 @@ void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintI
 void VirtuosoArm::clearCollisionConstraints()
 {
     _collision_constraints.clear();
+    if (hasTool())
+        _tool->clearCollisionConstraints();
 }
 
 void VirtuosoArm::setup()
@@ -430,6 +432,35 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
+    const Real load_frac = 0.005;
+    const Real unload_frac = 0.005;//0.1;
+    _unfiltered_collision_force = Vec3r::Zero();
+    _filtered_collision_force = Vec3r::Zero();
+
+    // apply force/moment that is on the tool
+    if (hasTool())
+    {
+        auto [tool_tip_force, tool_tip_moment] = _tool->collisionTipForceAndMoment();
+        Vec3r new_tip_force = Vec3r::Zero();
+        Vec3r new_tip_moment = Vec3r::Zero();
+        if (tool_tip_force.squaredNorm() >= _tip_force.squaredNorm())
+            new_tip_force = (1-load_frac)*_tip_force + load_frac*tool_tip_force;
+        else
+            new_tip_force = (1-unload_frac)*_tip_force + unload_frac*tool_tip_force;
+
+        if (tool_tip_moment.squaredNorm() >= _tip_moment.squaredNorm())
+            new_tip_moment = (1-load_frac)*_tip_moment + load_frac*tool_tip_moment;
+        else
+            new_tip_moment = (1-unload_frac)*_tip_moment + unload_frac*tool_tip_moment;
+
+        _filtered_collision_force += new_tip_force;
+        _unfiltered_collision_force += tool_tip_force;
+
+        _tip_force = new_tip_force;
+        _tip_moment = new_tip_moment;
+    }
+    
+
     // zero out forces
     // for (auto& f : _ot_nodal_forces)
     //     f = Vec3r::Zero();
@@ -440,8 +471,6 @@ void VirtuosoArm::velocityUpdate()
 
     // apply forces from collision constraints
     std::vector<Vec3r> new_xpbd_collision_forces(NUM_OT_FRAMES + NUM_IT_FRAMES, Vec3r::Zero());
-    _unfiltered_collision_force = Vec3r::Zero();
-    _filtered_collision_force = Vec3r::Zero();
     for (const auto& collision : _collision_constraints)
     {
         
@@ -458,8 +487,7 @@ void VirtuosoArm::velocityUpdate()
     }
 
     
-    const Real load_frac = 0.005;
-    const Real unload_frac = 0.005;//0.1;
+    
     for (unsigned i = 0; i < new_xpbd_collision_forces.size(); i++)
     {
         const Vec3r& cur_xpbd_force = _xpbd_collision_forces[i];

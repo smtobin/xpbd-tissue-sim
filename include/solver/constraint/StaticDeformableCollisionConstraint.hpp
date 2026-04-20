@@ -45,6 +45,12 @@ class StaticDeformableCollisionConstraint : public CollisionConstraint
      */
     Vec3r barycentricCoordinates() const { return Vec3r(_u,_v,_w); }
 
+    /** Contact point on the deformable object. */
+    Vec3r deformableObjectContactPoint() const { return _u*_positions[0].position() + _v*_positions[1].position() + _w*_positions[2].position(); }
+
+    /** Contact point on the static object. */
+    Vec3r staticObjectContactPoint() const { return _p; }
+
     /** Evaluates the current value of this constraint with pre-allocated memory.
      * i.e. returns C(x)
      * 
