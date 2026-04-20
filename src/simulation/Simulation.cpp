@@ -175,7 +175,7 @@ void Simulation::setup()
                         best_result.distance = std::numeric_limits<Real>::max();
                         for (const auto& pt : pts_to_test)
                         {
-                            auto result = sdf1->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
+                            auto result = sdf1->evaluateWithGradientAndNodeInfo(pt);
                             if (result.distance < best_result.distance)
                                 best_result = result;
                         }
@@ -187,7 +187,7 @@ void Simulation::setup()
                         best_result.distance = std::numeric_limits<Real>::max();
                         for (const auto& pt : pts_to_test)
                         {
-                            auto result = sdf2->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
+                            auto result = sdf2->evaluateWithGradientAndNodeInfo(pt);
                             if (result.distance < best_result.distance)
                                 best_result = result;
                         }

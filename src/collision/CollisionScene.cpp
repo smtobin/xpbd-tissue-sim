@@ -360,31 +360,6 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
     // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
     const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm1->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm1->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm1->toolTubeFrames();
-    
-    if (virtuoso_arm1->hasTool())
-    {
-        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
-        {
-            Vec3r p1 = tool_tube_frames[i].origin();
-            Vec3r p2 = tool_tube_frames[i+1].origin();
-            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, virtuoso_arm2->SDF());
-            
-            if (dist < virtuoso_arm1->toolTube().outer_dia/2.0)
-            {
-                Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = virtuoso_arm2->SDF()->evaluateWithGradientAndNodeInfo(p1 + s*(p2-p1));
-                // collision between inner tube and other SDF!
-                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and other Virtuoso arm! s=" << s << ", dist=" << dist << std::endl;
-                virtuoso_arm1->addVirtuosoArmCollision(
-                    outer_tube_frames.size() + inner_tube_frames.size() + i, s, 
-                    virtuoso_arm2, result.node_index, result.interp_factor);
-                // virtuoso_arm2->addVirtuosoArmCollision(
-                //     result.node_index, result.interp_factor,
-                //     virtuoso_arm1, outer_tube_frames.size() + inner_tube_frames.size() + i, s
-                // );
-            }
-        }
-    }
 
     for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
     {
@@ -439,7 +414,6 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
     // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
     const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm->toolTubeFrames();
     
     for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
     {
@@ -466,23 +440,6 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
             // collision between inner tube and other SDF!
             // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
             virtuoso_arm->addRigidCollision(outer_tube_frames.size() + i, s, obj->SDF());
-        }
-    }
-
-    if (virtuoso_arm->hasTool())
-    {
-        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
-        {
-            Vec3r p1 = tool_tube_frames[i].origin();
-            Vec3r p2 = tool_tube_frames[i+1].origin();
-            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, obj->SDF());
-            
-            if (dist < virtuoso_arm->toolTube().outer_dia/2.0)
-            {
-                // collision between inner tube and other SDF!
-                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
-                virtuoso_arm->addRigidCollision(outer_tube_frames.size() + inner_tube_frames.size() + i, s, obj->SDF());
-            }
         }
     }
 }

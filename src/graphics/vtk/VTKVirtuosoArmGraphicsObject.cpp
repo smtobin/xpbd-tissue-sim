@@ -67,7 +67,6 @@ void VTKVirtuosoArmGraphicsObject::_generateInitialPolyData()
 {
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = _virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = _virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = _virtuoso_arm->toolTubeFrames();
 
     vtkNew<vtkPoints> vtk_points;
 
@@ -120,40 +119,10 @@ void VTKVirtuosoArmGraphicsObject::_generateInitialPolyData()
 
     vtk_points->InsertNextPoint(it_frames[0].origin()[0], it_frames[0].origin()[1], it_frames[0].origin()[2]);
     vtk_points->InsertNextPoint(it_frames.back().origin()[0], it_frames.back().origin()[1], it_frames.back().origin()[2]);
-
-    // tool tube
-    if (_virtuoso_arm->hasTool())
-    {
-        // make a "tool tube" circle in the XY plane (if the arm has a tool tube)
-        Real tt_r = _virtuoso_arm->toolTube().outer_dia / 2.0;
-        std::array<Vec3r, _TT_TUBULAR_RES> tt_circle_pts;
-        for (int i = 0; i < _TT_TUBULAR_RES; i++)
-        {
-            Real angle = i * 2 * M_PI / _TT_TUBULAR_RES;
-            Vec3r circle_pt(tt_r * std::cos(angle), tt_r * std::sin(angle), 0.0);
-            tt_circle_pts[i] = circle_pt;
-        }
-        
-
-        for (unsigned fi = 0; fi < tt_frames.size(); fi++)
-        {
-            const Mat3r rot_mat = tt_frames[fi].transform().rotMat();
-            const Vec3r translation = tt_frames[fi].transform().translation();
-            for (unsigned pi = 0; pi < tt_circle_pts.size(); pi++)
-            {
-                Vec3r transformed_pt = rot_mat * tt_circle_pts[pi] + translation;
-                vtk_points->InsertNextPoint(transformed_pt[0], transformed_pt[1], transformed_pt[2]);
-            }
-        }
-
-        vtk_points->InsertNextPoint(tt_frames[0].origin()[0], tt_frames[0].origin()[1], tt_frames[0].origin()[2]);
-        vtk_points->InsertNextPoint(tt_frames.back().origin()[0], tt_frames.back().origin()[1], tt_frames.back().origin()[2]);
-    }
     
     
     int num_ot_vertices = (ot_frames.size() * _OT_TUBULAR_RES + 2); // number of vertices for the outer tube
     int num_it_vertices = (it_frames.size() * _IT_TUBULAR_RES + 2); // number of vertices for the inner tube
-    int num_tt_vertices = (tt_frames.size() * _TT_TUBULAR_RES + 2); // number of vertices for the tool tube
 
     // add face information
     vtkNew<vtkCellArray> vtk_faces;
@@ -260,61 +229,6 @@ void VTKVirtuosoArmGraphicsObject::_generateInitialPolyData()
         vtk_faces->InsertNextCell(tri1);
     }
 
-    // tool tube faces
-    if (_virtuoso_arm->hasTool())
-    {
-        for (unsigned fi = 0; fi < tt_frames.size()-1; fi++)
-        {
-            for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-            {
-                const int v1 = fi*_TT_TUBULAR_RES + ti;
-                const int v2 = (ti != _TT_TUBULAR_RES-1) ? v1 + 1 : fi*_TT_TUBULAR_RES;
-                const int v3 = v2 + _TT_TUBULAR_RES;
-                const int v4 = v1 + _TT_TUBULAR_RES;
-                
-                vtkNew<vtkTriangle> tri1;
-                tri1->GetPointIds()->SetId(0,num_ot_vertices+num_it_vertices + v1);
-                tri1->GetPointIds()->SetId(1,num_ot_vertices+num_it_vertices + v2);
-                tri1->GetPointIds()->SetId(2,num_ot_vertices+num_it_vertices + v3);
-
-                vtkNew<vtkTriangle> tri2;
-                tri2->GetPointIds()->SetId(0,num_ot_vertices+num_it_vertices + v1);
-                tri2->GetPointIds()->SetId(1,num_ot_vertices+num_it_vertices + v3);
-                tri2->GetPointIds()->SetId(2,num_ot_vertices+num_it_vertices + v4);
-                
-                vtk_faces->InsertNextCell(tri1);
-                vtk_faces->InsertNextCell(tri2);
-            }
-        }
-
-        // end cap faces
-        for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-        {
-            const int v1 = num_tt_vertices - 2;
-            const int v2 = (ti != _TT_TUBULAR_RES-1) ? ti + 1 : 0;
-            const int v3 = ti;
-            
-            vtkNew<vtkTriangle> tri1;
-            tri1->GetPointIds()->SetId(0,num_ot_vertices+num_it_vertices+v1);
-            tri1->GetPointIds()->SetId(1,num_ot_vertices+num_it_vertices+v2);
-            tri1->GetPointIds()->SetId(2,num_ot_vertices+num_it_vertices+v3);
-            vtk_faces->InsertNextCell(tri1);
-        }
-
-        for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-        {
-            const int v1 = num_tt_vertices - 1;
-            const int v2 = (tt_frames.size()-1)*_TT_TUBULAR_RES + ti;
-            const int v3 = (ti != _TT_TUBULAR_RES-1) ? v2 + 1 : (tt_frames.size()-1)*_TT_TUBULAR_RES;
-            
-            vtkNew<vtkTriangle> tri1;
-            tri1->GetPointIds()->SetId(0,num_ot_vertices+num_it_vertices+v1);
-            tri1->GetPointIds()->SetId(1,num_ot_vertices+num_it_vertices+v2);
-            tri1->GetPointIds()->SetId(2,num_ot_vertices+num_it_vertices+v3);
-            vtk_faces->InsertNextCell(tri1);
-        }
-    }
-
     _vtk_poly_data->SetPoints(vtk_points);
     _vtk_poly_data->SetPolys(vtk_faces);
 
@@ -326,7 +240,6 @@ void VTKVirtuosoArmGraphicsObject::_updatePolyData()
 
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = rinfo->ot_frames;
     const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = rinfo->it_frames;
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = rinfo->tt_frames;
 
     vtkPoints* vtk_points = _vtk_poly_data->GetPoints();
 
@@ -381,34 +294,6 @@ void VTKVirtuosoArmGraphicsObject::_updatePolyData()
 
     vtk_points->SetPoint(it_index_offset + it_frames.size()*_IT_TUBULAR_RES, it_frames[0].origin()[0], it_frames[0].origin()[1], it_frames[0].origin()[2]);
     vtk_points->SetPoint(it_index_offset + it_frames.size()*_IT_TUBULAR_RES+1, it_frames.back().origin()[0], it_frames.back().origin()[1], it_frames.back().origin()[2]);
-    
-    // tool tube
-    if (rinfo->has_tool)
-    {
-        Real tt_r = rinfo->tool_tube.outer_dia / 2.0;
-        std::array<Vec3r, _TT_TUBULAR_RES> tt_circle_pts;
-        for (int i = 0; i < _TT_TUBULAR_RES; i++)
-        {
-            Real angle = i * 2 * M_PI / _TT_TUBULAR_RES;
-            Vec3r circle_pt(tt_r * std::cos(angle), tt_r * std::sin(angle), 0.0);
-            tt_circle_pts[i] = circle_pt;
-        }
-
-        int tt_index_offset = it_index_offset + it_frames.size()*_IT_TUBULAR_RES + 2;
-        for (unsigned fi = 0; fi < tt_frames.size(); fi++)
-        {
-            const Mat3r rot_mat = tt_frames[fi].transform().rotMat();
-            const Vec3r translation = tt_frames[fi].transform().translation();
-            for (unsigned pi = 0; pi < tt_circle_pts.size(); pi++)
-            {
-                Vec3r transformed_pt = rot_mat * tt_circle_pts[pi] + translation;
-                vtk_points->SetPoint(tt_index_offset + fi*_TT_TUBULAR_RES + pi, transformed_pt[0], transformed_pt[1], transformed_pt[2]);
-            }
-        }
-
-        vtk_points->SetPoint(tt_index_offset + tt_frames.size()*_TT_TUBULAR_RES, tt_frames[0].origin()[0], tt_frames[0].origin()[1], tt_frames[0].origin()[2]);
-        vtk_points->SetPoint(tt_index_offset + tt_frames.size()*_TT_TUBULAR_RES+1, tt_frames.back().origin()[0], tt_frames.back().origin()[1], tt_frames.back().origin()[2]);
-    }
     
     vtk_points->Modified();
 }

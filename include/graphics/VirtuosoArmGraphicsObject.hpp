@@ -15,11 +15,8 @@ class VirtuosoArmGraphicsObject : public GraphicsObject
     {
         Sim::VirtuosoArm::OuterTubeFramesArray ot_frames;
         Sim::VirtuosoArm::InnerTubeFramesArray it_frames;
-        Sim::VirtuosoArm::ToolTubeFramesArray tt_frames;
         Real ot_outer_diameter = 1e-3;
         Real it_outer_diameter = 1e-3;
-        bool has_tool = false;
-        Sim::VirtuosoArmTool tool_tube = Sim::VirtuosoArmTool_None;
     };
 
     explicit VirtuosoArmGraphicsObject(const std::string& name, const Sim::VirtuosoArm* virtuoso_arm)
@@ -34,11 +31,8 @@ class VirtuosoArmGraphicsObject : public GraphicsObject
 
         write_info->ot_frames = _virtuoso_arm->outerTubeFrames();
         write_info->it_frames = _virtuoso_arm->innerTubeFrames();
-        write_info->tt_frames = _virtuoso_arm->toolTubeFrames();
         write_info->ot_outer_diameter = _virtuoso_arm->outerTubeOuterDiameter();
         write_info->it_outer_diameter = _virtuoso_arm->innerTubeOuterDiameter();
-        write_info->has_tool = _virtuoso_arm->hasTool();
-        write_info->tool_tube = _virtuoso_arm->toolTube();
 
         _latest_rinfo.store(write_info, std::memory_order_release);
     }

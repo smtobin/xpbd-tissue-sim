@@ -13,12 +13,12 @@ namespace Sim
 
 struct TubeProperties
 {
-    Real outer_dia;
-    Real inner_dia;
-    Real E;
-    Real G;
-    Real I;
-    Real J;
+    Real outer_dia=0;
+    Real inner_dia=0;
+    Real E=0;
+    Real G=0;
+    Real I=0;
+    Real J=0;
 };
 
 /** Base class for all tool types */
@@ -46,8 +46,13 @@ public:
     /** If the tool is a nested tube, then this will return the tube properties. */
     virtual TubeProperties tubeProperties() const { return TubeProperties{}; }
 
-    /** Offset from the tip of the inner tube to the tip of the tool */
+    /** Nominal offset from the tip of the inner tube to the tip of the tool.
+     * Does not account for any deformation that may happen to the tool (i.e. in the case of the palpation tool)
+     */
     virtual Vec3r tipOffset() const = 0;
+
+    /** The current frame of the tip, given the current location of the inner tube tip and any deformation on the tool. */
+    virtual Geometry::CoordinateFrame tipFrame() const = 0;
 
     /** TODO: define tool actions here somehow? */
 protected:
@@ -91,7 +96,14 @@ public:
         return _it_tip_frame->operator*(T);
     }
 
-    virtual Vec3r tipOffset() const override { return Vec3r(0,0,LENGTH/2); }
+    virtual Vec3r tipOffset() const override { return Vec3r(0,0,LENGTH); }
+
+    virtual Geometry::CoordinateFrame tipFrame() const override
+    {
+        // spatula frame is along the z-direction
+        Geometry::TransformationMatrix T(Mat3r::Identity(), tipOffset());
+        return _it_tip_frame->operator*(T);
+    }
 
     /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
     virtual Geometry::AABB boundingBox() const

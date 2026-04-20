@@ -61,7 +61,7 @@ class VirtuosoArmSDF : public SDF
      * When only_tool = true, only the tool tube is considered. This is useful e.g. for mesh refinement around the cautery tool tip.
      * If there is no tool tube and only_tool = true, no collisions will be detected (a very large postiive distance will be returned).
      */
-    DistanceAndGradientWithNodeInfo evaluateWithGradientAndNodeInfo(const Vec3r& x, bool only_tool=false) const;
+    DistanceAndGradientWithNodeInfo evaluateWithGradientAndNodeInfo(const Vec3r& x) const;
 
     #ifdef HAVE_CUDA
     virtual void createGPUResource() override { assert(0); /* not implemented */ }

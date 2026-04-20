@@ -15,15 +15,6 @@
 namespace Sim 
 {
 
-std::map<VirtuosoArm::ToolType, VirtuosoArmTool> VirtuosoArm::TOOL_TYPE_TO_STRUCT = {
-        {ToolType::NONE, VirtuosoArmTool_None},
-        {ToolType::PALPATION, VirtuosoArmTool_Palpation},
-        {ToolType::SPATULA, VirtuosoArmTool_Spatula},
-        {ToolType::GRASPER, VirtuosoArmTool_Grasper},
-        {ToolType::CAUTERY, VirtuosoArmTool_Cautery}
-    };
-
-
 VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     : Object(sim, config), _ot_frames(), _it_frames()
 {
@@ -49,10 +40,9 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _cutting_model = config->cuttingModel();
     _cutting_model_time_threshold = config->cuttingModelTimeThreshold();
     _tool_manipulated_object = (XPBDMeshObject_Base_<false>*)nullptr;
-    _tool_tube = TOOL_TYPE_TO_STRUCT.at(_tool_type);
-    _tool_tube_length = config->toolTubeLength();
 
-    _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, config, nullptr);
+    if (config->toolType() == ToolType::SPATULA)
+        _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, config, nullptr);
 
     _arm_base_position = config->baseInitialPosition();
     Vec3r initial_rot_xyz = config->baseInitialRotation() * M_PI / 180.0;
@@ -60,22 +50,17 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
 
     _tip_force = Vec3r::Zero();
     _tip_moment = Vec3r::Zero();
-    _xpbd_collision_forces.resize(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
+    _xpbd_collision_forces.resize(NUM_OT_FRAMES + NUM_IT_FRAMES, Vec3r::Zero());
 
     for (int i = 0; i < NUM_OT_FRAMES; i++)
         _ot_nodal_forces[i] = Vec3r::Zero();
     for (int i = 0; i < NUM_IT_FRAMES; i++)
         _it_nodal_forces[i] = Vec3r::Zero();
-    for (int i = 0; i < NUM_TT_FRAMES; i++)
-        _tt_nodal_forces[i] = Vec3r::Zero();
 
     _stale_frames = true;
 
     // set the characteristic dimension to the minimum diameter being used
-    if (_tool_type == ToolType::NONE)
-        _char_dim = _it_outer_dia;
-    else
-        _char_dim = _tool_tube.outer_dia;
+    _char_dim = _it_outer_dia;
 
 }
 
@@ -87,10 +72,7 @@ std::string VirtuosoArm::toString(const int indent) const
 
 int VirtuosoArm::numSegments() const
 {
-    if (hasTool())
-        return (NUM_OT_FRAMES-1) + (NUM_IT_FRAMES-1) + (NUM_TT_FRAMES-1);
-    else
-        return (NUM_OT_FRAMES-1) + (NUM_IT_FRAMES-1);
+    return (NUM_OT_FRAMES-1) + (NUM_IT_FRAMES-1);
 }
 
 Geometry::Capsule VirtuosoArm::segment(int index) const
@@ -107,9 +89,6 @@ Geometry::Capsule VirtuosoArm::segment(int index) const
     {
         return Geometry::Capsule(_it_frames[it_index].origin(), _it_frames[it_index+1].origin(), _it_outer_dia/2.0);
     }
-
-    int tt_index = it_index - (NUM_IT_FRAMES);
-    return Geometry::Capsule(_tt_frames[tt_index].origin(), _tt_frames[tt_index+1].origin(), _tool_tube.outer_dia/2.0);
 }
 
 Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
@@ -123,13 +102,11 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
     // (recomputeCoordinateFramesStaticModelWithNodalForces() will overwrite them)
     OuterTubeFramesArray orig_ot_frames = _ot_frames;
     InnerTubeFramesArray orig_it_frames = _it_frames;
-    ToolTubeFramesArray orig_tt_frames = _tt_frames;
 
     // get the array index of the node int he appropriate frames array
     int arr_index = -1;
     // figure out which segment of the arm the node index belongs to
     bool ot_frame = false;
-    bool it_frame = false;
     if (node_index < NUM_OT_FRAMES)
     {
         arr_index = node_index;
@@ -138,11 +115,6 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
     else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES)
     {
         arr_index = node_index - NUM_OT_FRAMES;
-        it_frame = true;
-    }
-    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES && hasTool())
-    {
-        arr_index = node_index - NUM_OT_FRAMES - NUM_IT_FRAMES;
     }
     else
     {
@@ -154,10 +126,8 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
     Vec3r orig_pos;
     if (ot_frame)
         orig_pos = _ot_frames[arr_index].origin();
-    else if (it_frame)
-        orig_pos = _it_frames[arr_index].origin();
     else
-        orig_pos = _tt_frames[arr_index].origin();
+        orig_pos = _it_frames[arr_index].origin();
 
     // std::cout << "Original position: " << orig_pos.transpose() << std::endl;
     // iterate through 3 coordinate directions
@@ -178,9 +148,8 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
             new_pos = _ot_frames[arr_index].origin();
             _ot_frames = orig_ot_frames;
             _it_frames = orig_it_frames;
-            _tt_frames = orig_tt_frames;
         }
-        else if (it_frame)
+        else
         {
             Vec3r cur_force = innerTubeNodalForce(arr_index);
             setInnerTubeNodalForce(arr_index, cur_force + dF);
@@ -189,21 +158,6 @@ Mat3r VirtuosoArm::complianceMatrixAtIntegrationPoint(int node_index)
             new_pos = _it_frames[arr_index].origin();
             _ot_frames = orig_ot_frames;
             _it_frames = orig_it_frames;
-            _tt_frames = orig_tt_frames;
-        }
-        else
-        {
-            Vec3r cur_force = toolTubeNodalForce(arr_index);
-            // std::cout << "  Current force: " << cur_force.transpose() << std::endl;
-            setToolTubeNodalForce(arr_index, cur_force + dF);
-            // std::cout << "  New force: " << toolTubeNodalForce(arr_index).transpose() << std::endl;
-            _recomputeCoordinateFramesStaticsModelWithNodalForces();
-            setToolTubeNodalForce(arr_index, cur_force);
-            new_pos = _tt_frames[arr_index].origin();
-            // std::cout << "  New position: " << new_pos.transpose() << std::endl;
-            _ot_frames = orig_ot_frames;
-            _it_frames = orig_it_frames;
-            _tt_frames = orig_tt_frames;
         }
 
         C.col(i) = (new_pos - orig_pos)/deltaF;
@@ -231,15 +185,6 @@ Mat3r VirtuosoArm::interpolatedComplianceMatrix(int node_index, Real interp)
 
         Real s = (node_index + interp - NUM_OT_FRAMES) / (NUM_IT_FRAMES-1);
         Mat3r C_interp = _it_compliance_coeff[0] + _it_compliance_coeff[1] * s + _it_compliance_coeff[2] * s*s + _it_compliance_coeff[3] * s*s*s;
-        return C_interp;
-    }
-    else if (node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES && hasTool())
-    {
-        if (_stale_tt_compliance_interp)
-            _computeComplianceMatrixInterpolation(false, false, true);
-        
-        Real s = (node_index + interp - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
-        Mat3r C_interp = _tt_compliance_coeff[0] + _tt_compliance_coeff[1] * s + _tt_compliance_coeff[2] * s*s + _tt_compliance_coeff[3] * s*s*s;
         return C_interp;
     }
     else
@@ -329,51 +274,12 @@ void VirtuosoArm::_computeComplianceMatrixInterpolation(bool ot, bool it, bool t
 
         _stale_it_compliance_interp = false;
     }
-
-    if (hasTool() && tt && _stale_tt_compliance_interp)
-    {
-        int ip0 = NUM_OT_FRAMES + NUM_IT_FRAMES;
-        int ip1 = NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES/3;
-        int ip2 = NUM_OT_FRAMES + NUM_IT_FRAMES + 2*NUM_TT_FRAMES/3;
-        int ip3 = NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES-1;
-        Real s0 = Real(ip0 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
-        Real s1 = Real(ip1 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
-        Real s2 = Real(ip2 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
-        Real s3 = Real(ip3 - NUM_OT_FRAMES - NUM_IT_FRAMES) / (NUM_TT_FRAMES-1);
-
-        Mat4r vdm;
-        vdm <<  1, s0, s0*s0, s0*s0*s0,
-                1, s1, s1*s1, s1*s1*s1,
-                1, s2, s2*s2, s2*s2*s2,
-                1, s3, s3*s3, s3*s3*s3;
-        Mat3r C0 = complianceMatrixAtIntegrationPoint(ip0);
-        Mat3r C1 = complianceMatrixAtIntegrationPoint(ip1);
-        Mat3r C2 = complianceMatrixAtIntegrationPoint(ip2);
-        Mat3r C3 = complianceMatrixAtIntegrationPoint(ip3);
-
-        for (int i = 0; i < 3; i++)
-        {
-            for (int j = i; j < 3; j++)
-            {
-                Vec4r rhs( C0(i,j), C1(i,j), C2(i,j), C3(i,j) );
-                Vec4r coeff_ij = vdm.colPivHouseholderQr().solve(rhs);
-
-                for (int k = 0; k < 4; k++)
-                {
-                    _tt_compliance_coeff[k](i,j) = coeff_ij[k];
-                    _tt_compliance_coeff[k](j,i) = coeff_ij[k];
-                }
-            }
-        }
-
-        _stale_tt_compliance_interp = false;
-    }
 }
 
 Vec3r VirtuosoArm::actualTipPosition() const
 {
     if (hasTool())
-        return _tt_frames.back().origin();
+        return _tool->tipFrame().origin();
     else
         return _it_frames.back().origin();
 }
@@ -423,13 +329,6 @@ void VirtuosoArm::setInnerTubeNodalForce(int node_index, const Vec3r& force)
     _stale_frames = true;
 }
 
-void VirtuosoArm::setToolTubeNodalForce(int node_index, const Vec3r& force)
-{
-    assert(node_index < NUM_TT_FRAMES);
-    _tt_nodal_forces[node_index] = force;
-    _stale_frames = true;
-}
-
 void VirtuosoArm::applyNodalForce(int node_index, Real interp, const Vec3r& force)
 {
     if (node_index < NUM_OT_FRAMES-1)
@@ -441,11 +340,6 @@ void VirtuosoArm::applyNodalForce(int node_index, Real interp, const Vec3r& forc
     {
         _it_nodal_forces[node_index - NUM_OT_FRAMES] += (1-interp)*force;
         _it_nodal_forces[node_index - NUM_OT_FRAMES+1] += interp*force;
-    }
-    else if (node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && node_index < NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES-1)
-    {
-        _tt_nodal_forces[node_index - NUM_OT_FRAMES - NUM_IT_FRAMES] += (1-interp)*force;
-        _tt_nodal_forces[node_index - NUM_OT_FRAMES - NUM_IT_FRAMES+1] += interp*force;
     }
     _stale_frames = true;
 }
@@ -545,7 +439,7 @@ void VirtuosoArm::velocityUpdate()
     //     f = Vec3r::Zero();
 
     // apply forces from collision constraints
-    std::vector<Vec3r> new_xpbd_collision_forces(NUM_OT_FRAMES + NUM_IT_FRAMES + NUM_TT_FRAMES, Vec3r::Zero());
+    std::vector<Vec3r> new_xpbd_collision_forces(NUM_OT_FRAMES + NUM_IT_FRAMES, Vec3r::Zero());
     _unfiltered_collision_force = Vec3r::Zero();
     _filtered_collision_force = Vec3r::Zero();
     for (const auto& collision : _collision_constraints)
@@ -802,34 +696,35 @@ void VirtuosoArm::_grasperToolAction()
         std::map<int, Vec3r> vertices_to_grasp;
 
         // quick and dirty way to find all vertices in a sphere
+        Vec3r tool_position = _tool->tipFrame().origin();
         for (int theta = 0; theta < 360; theta+=30)
         {
             for (int phi = 0; phi < 360; phi+=30)
             {
                 for (double p = 0; p < GRASPING_RADIUS; p+=GRASPING_RADIUS/5.0)
                 {
-                    const double x = _tool_position[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
-                    const double y = _tool_position[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
-                    const double z = _tool_position[2] + p*std::cos(phi*M_PI/180);
+                    const double x = tool_position[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
+                    const double y = tool_position[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
+                    const double z = tool_position[2] + p*std::cos(phi*M_PI/180);
                     int v = _tool_manipulated_object.mesh()->getClosestVertex(Vec3r(x, y, z));
 
                     // make sure v is inside grasping sphere
-                    if ((_tool_position - _tool_manipulated_object.mesh()->vertex(v)).norm() <= GRASPING_RADIUS)
+                    if ((tool_position - _tool_manipulated_object.mesh()->vertex(v)).norm() <= GRASPING_RADIUS)
                         if (!_tool_manipulated_object.vertexFixed(v))
                         {
-                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _tool_position) * 0.9;
+                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - tool_position) * 0.9;
                             vertices_to_grasp[v] = attachment_offset;
                         }
                 }
             }
         }
 
-        for (const auto& [v, offset] : vertices_to_grasp)
-        {
-            Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint> proj_ref =
-                _tool_manipulated_object.addAttachmentConstraint(v, &_tool_position, offset);
-            _grasping_constraints.push_back(std::move(proj_ref));
-        }
+        // for (const auto& [v, offset] : vertices_to_grasp)
+        // {
+        //     Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint> proj_ref =
+        //         _tool_manipulated_object.addAttachmentConstraint(v, &tool_position, offset);
+        //     _grasping_constraints.push_back(std::move(proj_ref));
+        // }
     }
 
     // if tool state has changed from 1 to 0, stop grasping
@@ -1024,20 +919,7 @@ void VirtuosoArm::_recomputeCoordinateFrames()
         _it_frames[i] = _it_frames[i-1] * T;
     }
 
-    // frames for the tool tube
-    // continue along direction of inner tube
-    _tt_frames[0] = _it_frames.back();
-    for (int i = 1; i < NUM_TT_FRAMES; i++)
-    {
-        // relative transformation matrix along z-axis
-        Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0, 0, _tool_tube_length / (NUM_TT_FRAMES - 1)));
-        _tt_frames[i] = _tt_frames[i-1] * T;
-    }
-
     _stale_frames = false;
-
-    // for now, the tool position is just the inner tube tip position with no offset
-    _tool_position = _tt_frames.back().origin();
 
 }
 
@@ -1071,15 +953,6 @@ void VirtuosoArm::_recomputeCoordinateFramesStaticsModelWithNodalForces()
         base_moment += moment_arm.cross(_it_nodal_forces[i]);
         base_force += _it_nodal_forces[i];
     }
-    if (hasTool())
-    {
-        for (int i = 0; i < NUM_TT_FRAMES; i++)
-        {
-            Vec3r moment_arm = _tt_frames[i].origin() - _arm_base_frame.origin();
-            base_moment += moment_arm.cross(_tt_nodal_forces[i]);
-            base_force += _tt_nodal_forces[i];
-        }
-    }
 
     // EVERYTHING FROM NOW ON WILL USE MM
     // compute cross section properties
@@ -1095,8 +968,16 @@ void VirtuosoArm::_recomputeCoordinateFramesStaticsModelWithNodalForces()
     Real J_ot = 2*I_ot;
     Real J_it = 2*I_it;
 
-    Real EI_tool_tube = _tool_tube.E * _tool_tube.I * 1000 * 1000;
-    Real GJ_tool_tube = _tool_tube.G * _tool_tube.J * 1000 * 1000;
+    Real EI_tool_tube = 0;
+    Real GJ_tool_tube = 0;
+    if (hasTool())
+    {
+        // these will only be nonzero if the tool threaded through the lumen of the inner tube has a non-negligible bending stiffness
+        TubeProperties tool_tube_properties = _tool->tubeProperties();
+        EI_tool_tube = tool_tube_properties.E * tool_tube_properties.I * 1000 * 1000;
+        GJ_tool_tube = tool_tube_properties.G * tool_tube_properties.J * 1000 * 1000;
+    }
+    
 
     // the inverse stiffness matrix for the outer tube
     const Vec3r ot_K_inv(1/(E_mm*I_ot + E_mm*I_it + EI_tool_tube), 1/(E_mm*I_ot + E_mm*I_it + EI_tool_tube), 1/(G_mm*J_ot));
@@ -1254,39 +1135,36 @@ void VirtuosoArm::_recomputeCoordinateFramesStaticsModelWithNodalForces()
 
 
     /** === Integrate the tool tube === */
-    if (hasTool())
-    {
-        const Vec3r tt_K_inv(1/(EI_tool_tube), 1/(EI_tool_tube), 1/(GJ_tool_tube));
+    // if (hasTool())
+    // {
+    //     const Vec3r tt_K_inv(1/(EI_tool_tube), 1/(EI_tool_tube), 1/(GJ_tool_tube));
 
-        // compute the distance along the entire tube collection for placing the inner tube frames (in mm)
-        std::vector<Real> tt_s(NUM_TT_FRAMES);
-        for (int i = 0; i < NUM_TT_FRAMES; i++)     
-        {
-            tt_s[i] = _it_translation*1000 + i*_tool_tube_length*1000 / (NUM_TT_FRAMES - 1);
-        }
+    //     // compute the distance along the entire tube collection for placing the inner tube frames (in mm)
+    //     std::vector<Real> tt_s(NUM_TT_FRAMES);
+    //     for (int i = 0; i < NUM_TT_FRAMES; i++)     
+    //     {
+    //         tt_s[i] = _it_translation*1000 + i*_tool_tube_length*1000 / (NUM_TT_FRAMES - 1);
+    //     }
         
-        // integrate with RK4 along the tool tube
-        std::vector<TubeIntegrationState::VecType> tt_states = _integrateTubeWithForceBoundariesRK4(it_end_state, tt_s, _tt_nodal_forces.cbegin(), tt_K_inv, Vec3r(0,0,0));
+    //     // integrate with RK4 along the tool tube
+    //     std::vector<TubeIntegrationState::VecType> tt_states = _integrateTubeWithForceBoundariesRK4(it_end_state, tt_s, _tt_nodal_forces.cbegin(), tt_K_inv, Vec3r(0,0,0));
 
-        // set the transforms along the tool tube from the integration results
-        for (int i = 0; i < NUM_TT_FRAMES; i++)
-        {
-            TubeIntegrationState state = TubeIntegrationState::fromVec(tt_states[i]);
-            _tt_frames[i].setTransform(Geometry::TransformationMatrix(state.orientation, state.position/1000).asMatrix()); // convert position back to m
-        }
-    }
-    else
-    {
-        Geometry::TransformationMatrix tt_start_transform(it_end_state.orientation, it_end_state.position/1000); // convert position back to m
-        for (int i = 0; i < NUM_TT_FRAMES; i++)
-        {
-            _tt_frames[i].setTransform(tt_start_transform.asMatrix());
-        }
-    }
+    //     // set the transforms along the tool tube from the integration results
+    //     for (int i = 0; i < NUM_TT_FRAMES; i++)
+    //     {
+    //         TubeIntegrationState state = TubeIntegrationState::fromVec(tt_states[i]);
+    //         _tt_frames[i].setTransform(Geometry::TransformationMatrix(state.orientation, state.position/1000).asMatrix()); // convert position back to m
+    //     }
+    // }
+    // else
+    // {
+    //     Geometry::TransformationMatrix tt_start_transform(it_end_state.orientation, it_end_state.position/1000); // convert position back to m
+    //     for (int i = 0; i < NUM_TT_FRAMES; i++)
+    //     {
+    //         _tt_frames[i].setTransform(tt_start_transform.asMatrix());
+    //     }
+    // }
     _stale_frames = false;
-
-    // for now, the tool position is just the inner tube tip position with no offset
-    _tool_position = _tt_frames.back().origin();
 }
 
 std::vector<VirtuosoArm::TubeIntegrationState::VecType> VirtuosoArm::_integrateTubeRK4(const VirtuosoArm::TubeIntegrationState& tube_base_state, const std::vector<Real>& s, const Vec3r& K_inv, const Vec3r& u_star) const
@@ -1441,7 +1319,9 @@ Geometry::TransformationMatrix VirtuosoArm::_computeTipTransform(Real ot_rot, Re
     
     if (hasTool())
     {
-        Geometry::TransformationMatrix T_z_trans_tt(Mat3r::Identity(), Vec3r(0, 0, _tool_tube_length));
+        // if there is a tool being used, the tip of the robot arm is the tip of this tool
+        // move along the local z-axis by the required amount specified by the tool in use
+        Geometry::TransformationMatrix T_z_trans_tt(Mat3r::Identity(), _tool->tipOffset());
         Geometry::CoordinateFrame tt_end_frame = it_end_frame * T_z_trans_tt;
         return tt_end_frame.transform();
     }
@@ -1675,7 +1555,7 @@ Eigen::Matrix<Real,6,3> VirtuosoArm::_3DOFSpatialJacobian()
     {
         // transform from inner tube tip to tool tip
         Mat4r T5 = Mat4r::Identity();
-        T5(2,3) = _tool_tube_length;
+        T5.block<3,1>(0,3) = _tool->tipOffset();
 
         dT_d_ot_rot = dT1_dt1*T2*T3*T4*T5 + T1*T2*T3*dT4_dt1*T5;
         dT_d_ot_trans = T1*dT2_dd1*T3*T4*T5 + T1*T2*dT3_dd1*T4*T5 + T1*T2*T3*dT4_dd1*T5;
@@ -1795,10 +1675,7 @@ void VirtuosoArm::serialize(std::vector<std::byte>& buf) const
     pack(buf, _tool_type);
     pack(buf, _cutting_model);
     pack(buf, _cutting_model_time_threshold);
-    pack(buf, _tool_tube_length);
-    pack(buf, _tool_tube);
     pack(buf, _tool_manipulated_object);
-    pack(buf, _tool_position);
     pack(buf, _commanded_tip_position);
     pack(buf, _grasped_vertices);
     pack(buf, _grasping_constraints);
@@ -1812,10 +1689,8 @@ void VirtuosoArm::serialize(std::vector<std::byte>& buf) const
     pack(buf, _arm_base_frame);
     pack(buf, _ot_frames);
     pack(buf, _it_frames);
-    pack(buf, _tt_frames);
     pack(buf, _ot_nodal_forces);
     pack(buf, _it_nodal_forces);
-    pack(buf, _tt_nodal_forces);
     pack(buf, _stale_frames);
     pack(buf, _sdf);
 }
@@ -1838,10 +1713,7 @@ void VirtuosoArm::deserialize(const std::byte*& buf)
     unpack(buf, _tool_type);
     unpack(buf, _cutting_model);
     unpack(buf, _cutting_model_time_threshold);
-    unpack(buf, _tool_tube_length);
-    unpack(buf, _tool_tube);
     unpack(buf, _tool_manipulated_object);
-    unpack(buf, _tool_position);
     unpack(buf, _commanded_tip_position);
     unpack(buf, _grasped_vertices);
     unpack(buf, _grasping_constraints);
@@ -1855,10 +1727,8 @@ void VirtuosoArm::deserialize(const std::byte*& buf)
     unpack(buf, _arm_base_frame);
     unpack(buf, _ot_frames);
     unpack(buf, _it_frames);
-    unpack(buf, _tt_frames);
     unpack(buf, _ot_nodal_forces);
     unpack(buf, _it_nodal_forces);
-    unpack(buf, _tt_nodal_forces);
     unpack(buf, _stale_frames);
     unpack(buf, _sdf);
 }
