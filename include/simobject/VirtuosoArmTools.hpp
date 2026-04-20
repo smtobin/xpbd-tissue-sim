@@ -39,7 +39,7 @@ public:
     virtual void update() override {}
     virtual void velocityUpdate() override {}
 
-    const Geometry::CoordinateFrame* innerTubeTipFramePtr() { return _it_tip_frame; }
+    const Geometry::CoordinateFrame* innerTubeTipFramePtr() const { return _it_tip_frame; }
     void setInnerTubeTipFramePtr(const Geometry::CoordinateFrame* tip_frame) { _it_tip_frame = tip_frame; }
 
     /** Whether or not the tool is a tube that is nested inside the lumen of the inner tube.
