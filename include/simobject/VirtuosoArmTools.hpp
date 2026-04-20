@@ -177,6 +177,79 @@ private:
 };
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Ceramic: 1mm dia, 4m length
+// Wire: 0.33mm dia, 4.5m length
+/** Cautery tool
+ * A rigid 1mm dia, 4mm length ceramic cylinder with a 0.33mm dia, 4.5mm length wire protrusion.
+ */
+class VirtuosoArmCauteryTool : public VirtuosoArmTool_Base
+{
+public:
+    using SDFType = Geometry::VirtuosoArmCauteryToolSDF;
+
+    /** Static parameters specifying the shape of the rounded rectangle (length, width, radius) and the thickness of the extruded shape. */
+    constexpr static Real CERAMIC_LENGTH = 4e-3;
+    constexpr static Real CERAMIC_DIA = 1e-3;
+    constexpr static Real WIRE_LENGTH = 4.5e-3;
+    constexpr static Real WIRE_DIA = 0.33e-3;
+
+    VirtuosoArmCauteryTool(const Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
+        : VirtuosoArmTool_Base(sim, config, it_tip_frame)
+    {
+        _char_dim = WIRE_DIA;
+        _name = _name + "_cautery";
+    }
+
+    /** Spatula tool is not a nested tube */
+    virtual bool isTube() const override { return false; }
+
+    virtual Vec3r tipOffset() const override { return Vec3r(0,0,CERAMIC_LENGTH + WIRE_LENGTH); }
+
+    virtual Geometry::CoordinateFrame tipFrame() const override
+    {
+        Geometry::TransformationMatrix T(Mat3r::Identity(), tipOffset());
+        return _it_tip_frame->operator*(T);
+    }
+
+    Geometry::CoordinateFrame ceramicFrame() const
+    {
+        Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0,0,CERAMIC_LENGTH/2));
+        return _it_tip_frame->operator*(T);
+    }
+
+    Geometry::CoordinateFrame wireFrame() const
+    {
+        Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0,0,CERAMIC_LENGTH + WIRE_LENGTH/2));
+        return _it_tip_frame->operator*(T);
+    }
+
+    /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
+    virtual Geometry::AABB boundingBox() const
+    {
+        Geometry::TransformationMatrix T = _it_tip_frame->transform();
+        Vec3r halfsize = T.rotMat().col(0) * CERAMIC_DIA/2 + T.rotMat().col(1) * CERAMIC_DIA/2 + T.rotMat().col(2) * CERAMIC_LENGTH/2;
+        Vec3r base = T.translation();
+        Vec3r tip = tipFrame().origin();
+
+        Geometry::AABB bbox(std::min(base[0], tip[0]), std::min(base[1], tip[1]), std::min(base[2], tip[2]),
+                            std::max(base[0], tip[0]), std::max(base[1], tip[1]), std::max(base[2], tip[2]) );
+        return bbox;
+    }
+
+    virtual void createSDF() override 
+    { 
+        if(!_sdf.has_value()) 
+            _sdf = SDFType(this); 
+    }
+
+    virtual const SDFType* SDF() const override { return _sdf.has_value() ? &_sdf.value() : nullptr; }
+
+
+private:
+    std::optional<SDFType> _sdf;
+};
+
 } // namespace Sim
 
 #endif // __VIRTUOSO_ARM_TOOLS_HPP

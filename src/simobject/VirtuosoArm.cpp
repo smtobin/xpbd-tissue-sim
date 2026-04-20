@@ -43,6 +43,8 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
 
     if (config->toolType() == ToolType::SPATULA)
         _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, config, nullptr);
+    else if (config->toolType() == ToolType::CAUTERY)
+        _tool = std::make_unique<Sim::VirtuosoArmCauteryTool>(_sim, config, nullptr);
 
     _arm_base_position = config->baseInitialPosition();
     Vec3r initial_rot_xyz = config->baseInitialRotation() * M_PI / 180.0;

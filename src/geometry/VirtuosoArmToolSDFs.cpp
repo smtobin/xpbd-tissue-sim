@@ -117,4 +117,34 @@ Vec3r VirtuosoArmSpatulaToolSDF::gradient(const Vec3r& x) const
     return T.rotMat() * grad;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////
+
+VirtuosoArmCauteryToolSDF::VirtuosoArmCauteryToolSDF(const Sim::VirtuosoArmCauteryTool* cautery)
+    : _cautery(cautery)
+{
+}
+
+void VirtuosoArmCauteryToolSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _cautery);
+}
+
+void VirtuosoArmCauteryToolSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _cautery);
+}
+
+Real VirtuosoArmCauteryToolSDF::evaluate(const Vec3r& x) const
+{
+    // TODO
+    return 100;
+}
+
+Vec3r VirtuosoArmCauteryToolSDF::gradient(const Vec3r& x) const
+{
+    // TODO
+    return Vec3r(1,0,0);
+}
+
+
 } // namespace Geometry

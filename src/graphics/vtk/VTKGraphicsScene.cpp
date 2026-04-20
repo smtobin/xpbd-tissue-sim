@@ -6,6 +6,7 @@
 #include "graphics/vtk/VTKVirtuosoArmGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoRobotGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.hpp"
+#include "graphics/vtk/VTKVirtuosoArmCauteryToolGraphicsObject.hpp"
 
 #include "simobject/Object.hpp"
 #include "simobject/MeshObject.hpp"
@@ -162,6 +163,13 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
     {
         auto ptr = std::make_unique<VTKVirtuosoArmSpatulaToolGraphicsObject>(spatula->name(), spatula, render_config);
         _vtk_viewer->renderer()->AddActor(ptr->actor());
+        new_graphics_obj = std::move(ptr);
+    }
+    else if (const Sim::VirtuosoArmCauteryTool* cautery = dynamic_cast<const Sim::VirtuosoArmCauteryTool*>(obj))
+    {
+        auto ptr = std::make_unique<VTKVirtuosoArmCauteryToolGraphicsObject>(cautery->name(), cautery, render_config);
+        _vtk_viewer->renderer()->AddActor(ptr->ceramicActor());
+        _vtk_viewer->renderer()->AddActor(ptr->wireActor());
         new_graphics_obj = std::move(ptr);
     }
 

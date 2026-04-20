@@ -6,6 +6,7 @@
 namespace Sim
 {
     class VirtuosoArmSpatulaTool;
+    class VirtuosoArmCauteryTool;
 }
 
 namespace Geometry
@@ -38,6 +39,39 @@ public:
 protected:
     /** Pointer to box needed for box's current position, orientation and size */
     const Sim::VirtuosoArmSpatulaTool* _spatula;
+
+};
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+class VirtuosoArmCauteryToolSDF : public SDF
+{
+public:
+    VirtuosoArmCauteryToolSDF() = default;
+
+    VirtuosoArmCauteryToolSDF(const Sim::VirtuosoArmCauteryTool* cautery);
+
+    virtual void serialize(std::vector<std::byte>& buf) const;
+    virtual void deserialize(const std::byte*& buf);
+
+    /** Evaluates F(x) for a box with arbitrary position and orientation and size
+     * @param x - the point at which to evaluate the SDF
+     * @returns the distance from x to the shape boundary ( F(x) )
+     */
+    virtual Real evaluate(const Vec3r& x) const override;
+
+    /** Evaluates the gradient of F at x.
+     * @param x - the point at which to evaluate the graient of the SDF
+     * @returns the gradient of the SDF at x.
+     */
+    virtual Vec3r gradient(const Vec3r& x) const override;
+
+    const Sim::VirtuosoArmCauteryTool* cautery() const { return _cautery; }
+
+protected:
+    /** Pointer to box needed for box's current position, orientation and size */
+    const Sim::VirtuosoArmCauteryTool* _cautery;
 
 };
 
