@@ -5,6 +5,25 @@
 namespace Geometry
 {
 
+Vec3r VirtuosoArmToolSDF::_iterativeClosestPointProjection(const SDF* sdf, const Vec3r& start_global, int num_iter) const
+{
+    Vec3r p = start_global;
+    for (int i = 0; i < num_iter; i++)
+    {
+        Real d1 = sdf->evaluate(p);
+        Vec3r n1 = sdf->gradient(p);
+        // project towards other object surface
+        p -= d1*n1;
+        // project back to this SDF
+        Real d2 = evaluate(p);
+        Vec3r n2 = gradient(p);
+        p -= d2*n2;
+    }
+    return p;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 VirtuosoArmSpatulaToolSDF::VirtuosoArmSpatulaToolSDF(const Sim::VirtuosoArmSpatulaTool* spatula)
     : _spatula(spatula)
 {
@@ -117,6 +136,11 @@ Vec3r VirtuosoArmSpatulaToolSDF::gradient(const Vec3r& x) const
     return T.rotMat() * grad;
 }
 
+Vec3r VirtuosoArmSpatulaToolSDF::findContactPoint(const SDF* sdf) const
+{
+    return _iterativeClosestPointProjection(sdf, _spatula->spatulaFrame().origin());
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 VirtuosoArmCauteryToolSDF::VirtuosoArmCauteryToolSDF(const Sim::VirtuosoArmCauteryTool* cautery)
@@ -184,5 +208,19 @@ Vec3r VirtuosoArmCauteryToolSDF::gradient(const Vec3r& x) const
     return it_tip_transform.rotMat() * grad;
 }
 
+Vec3r VirtuosoArmCauteryToolSDF::findContactPoint(const SDF* sdf) const
+{
+    // sample a few points along the length of the cautery tool to find the best starting point
+    Real ceramic_d = sdf->evaluate(_cautery->ceramicFrame().origin());
+    Real wire_d = sdf->evaluate(_cautery->wireFrame().origin());
+    Real wire_tip_d = sdf->evaluate(_cautery->tipFrame().origin());
+
+    if (ceramic_d < wire_d && ceramic_d < wire_tip_d)
+        return _iterativeClosestPointProjection(sdf, _cautery->ceramicFrame().origin());
+    else if (wire_d < ceramic_d && wire_d < wire_tip_d)
+        return _iterativeClosestPointProjection(sdf, _cautery->wireFrame().origin());
+    else
+        return _iterativeClosestPointProjection(sdf, _cautery->tipFrame().origin());
+}
 
 } // namespace Geometry

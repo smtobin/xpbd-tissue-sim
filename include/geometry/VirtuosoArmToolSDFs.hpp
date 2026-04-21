@@ -12,7 +12,20 @@ namespace Sim
 namespace Geometry
 {
 
-class VirtuosoArmSpatulaToolSDF : public SDF
+class VirtuosoArmToolSDF : public SDF
+{
+public:
+    /** Given another SDF, finds the closest point on the tool geometry.
+     * Then, this point can be evaluated against the SDF to determine if there is a collision or not.
+     * Useful for colliding tools against one another and with rigid meshes represented by SDFs.
+     */
+    virtual Vec3r findContactPoint(const SDF* sdf) const = 0;
+
+protected:
+    Vec3r _iterativeClosestPointProjection(const SDF* sdf, const Vec3r& start_global, int num_iter=3) const;
+};
+
+class VirtuosoArmSpatulaToolSDF : public VirtuosoArmToolSDF
 {
 public:
     VirtuosoArmSpatulaToolSDF() = default;
@@ -34,6 +47,8 @@ public:
      */
     virtual Vec3r gradient(const Vec3r& x) const override;
 
+    virtual Vec3r findContactPoint(const SDF* sdf) const override;
+
     const Sim::VirtuosoArmSpatulaTool* spatula() const { return _spatula; }
 
 protected:
@@ -45,7 +60,7 @@ protected:
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-class VirtuosoArmCauteryToolSDF : public SDF
+class VirtuosoArmCauteryToolSDF : public VirtuosoArmToolSDF
 {
 public:
     VirtuosoArmCauteryToolSDF() = default;
@@ -66,6 +81,8 @@ public:
      * @returns the gradient of the SDF at x.
      */
     virtual Vec3r gradient(const Vec3r& x) const override;
+
+    virtual Vec3r findContactPoint(const SDF* sdf) const override;
 
     const Sim::VirtuosoArmCauteryTool* cautery() const { return _cautery; }
 

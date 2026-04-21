@@ -436,6 +436,38 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::XPB
     // std::cout << "DeformableSDF distance: " << dist << std::endl;
 }
 
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, Sim::Object* obj)
+{
+    const Geometry::VirtuosoArmToolSDF* tool_sdf = virtuoso_arm_tool->SDF();
+    const Geometry::SDF* obj_sdf = obj->SDF();
+
+    Vec3r tool_cp = tool_sdf->findContactPoint(obj_sdf);
+    Real dist = obj_sdf->evaluate(tool_cp);
+
+    if (dist < 0)
+    {
+        std::cout << "Tool-something collision!" << std::endl;
+    }
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::VirtuosoArmTool_Base* tool2)
+{
+    if (tool1 > tool2)
+        return;
+
+    const Geometry::VirtuosoArmToolSDF* tool1_sdf = tool1->SDF();
+    const Geometry::VirtuosoArmToolSDF* tool2_sdf = tool2->SDF();
+
+    Vec3r tool1_cp = tool1_sdf->findContactPoint(tool2_sdf);
+    Real dist = tool2_sdf->evaluate(tool1_cp);
+
+    if (dist < 0)
+    {
+        std::cout << "Tool-tool collision!" << std::endl;
+    }
+}
+
+
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* /*xpbd_mesh_obj1*/, Sim::XPBDMeshObject_Base_<IsFirstOrder>* /*xpbd_mesh_obj2*/)
 {

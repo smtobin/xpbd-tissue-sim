@@ -28,6 +28,8 @@ struct TubeProperties
 class VirtuosoArmTool_Base : public Object
 {
 public:
+    using SDFType = Geometry::VirtuosoArmToolSDF;
+    
     VirtuosoArmTool_Base(const Sim::Simulation* sim, const ConfigType* config, const Geometry::CoordinateFrame* it_tip_frame)
         : Object(sim, config), 
         _it_tip_frame(it_tip_frame)
@@ -94,6 +96,8 @@ public:
 
         return {total_force, total_moment};
     }
+
+    virtual const SDFType* SDF() const = 0;
 
     /** TODO: define tool actions here somehow? */
 protected:
