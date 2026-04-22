@@ -76,6 +76,8 @@ public:
         _collision_proj_refs.clear();
     }
 
+    const std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>>& collisionConstraints() const { return _collision_proj_refs; }
+
     /** Computes the total tip force and moment due to collision constraint forces, in the GLOBAL frame.
      * Returns a pair (tip force, tip moment).
      */

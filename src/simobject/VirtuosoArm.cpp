@@ -989,20 +989,18 @@ void VirtuosoArm::_cauteryToolAction()
         {
             // stores (element index, element refinement level) pairs
             std::unordered_set<int> elements_to_remove;
-            for (const auto& collision : _collision_constraints)
+            for (const auto& collision_proj_ref : _tool->collisionConstraints())
             {
-                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
+                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0)
                     continue;
 
-                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
-                {
-                    // get element 
-                    int element_index = collision.proj_ref.constraint()->elementIndex();
-                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
-                        continue;
-                    
-                    elements_to_remove.insert( element_index );                
-                }
+                // get element 
+                int element_index = collision_proj_ref.constraint()->elementIndex();
+                if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
+                    continue;
+                
+                elements_to_remove.insert( element_index );                
+                
             }
 
             for (const auto& elem_index : elements_to_remove)
@@ -1022,20 +1020,18 @@ void VirtuosoArm::_cauteryToolAction()
 
             Geometry::MeshProperty<Real>& time_prop = obj_mesh->template getElementProperty<Real>("time-in-contact");
             std::unordered_set<int> elements_in_contact;
-            for (const auto& collision : _collision_constraints)
+            for (const auto& collision_proj_ref : _tool->collisionConstraints())
             {
-                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
+                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0)
                     continue;
 
-                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
-                {
-                    // get element 
-                    int element_index = collision.proj_ref.constraint()->elementIndex();
-                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
-                        continue;
-                    
-                    elements_in_contact.insert(element_index);                
-                }
+                // get element 
+                int element_index = collision_proj_ref.constraint()->elementIndex();
+                if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
+                    continue;
+                
+                elements_in_contact.insert(element_index);                
+                
             }
 
             for (const auto& elem_index : elements_in_contact)
@@ -1058,40 +1054,38 @@ void VirtuosoArm::_cauteryToolAction()
         {
             /** Code for applying voltage BC at tip */
             std::unordered_set<int> high_voltage_verts;
-            for (const auto& collision : _collision_constraints)
+            for (const auto& collision_proj_ref : _tool->collisionConstraints())
             {
-                if (!collision.proj_ref.exists() || !collision.proj_ref.isValid())
+                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid())
                     continue;
 
-                if (collision.node_index >= NUM_OT_FRAMES + NUM_IT_FRAMES && collision.proj_ref.lambda() > 0)
-                {
-                    // get element 
-                    int element_index = collision.proj_ref.constraint()->elementIndex();
-                    if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
-                        continue;
+                // get element 
+                int element_index = collision_proj_ref.constraint()->elementIndex();
+                if (!_tool_manipulated_object.tetMesh()->elementValid(element_index))
+                    continue;
 
-                    // set voltage at the face in collision
-                    /** TODO: get the face index */
-                    int face_index = -1;
-                    const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
-                    if (_tool_manipulated_object.hasHeatSolver())
-                    {
-                        // set the closest vertex on the face to the voltage of the tool
-                        // Eigen doesn't have argmax...
-                        /** TODO: replace with the actual voltage of the cautery tool  */
-                        Vec3r barys = collision.proj_ref.constraint()->barycentricCoordinates();
-                        Real max_bary = barys.maxCoeff();
-                        if (max_bary == barys[0])
-                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
-                            high_voltage_verts.insert(face[0]);
-                        else if (max_bary == barys[1])
-                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
-                            high_voltage_verts.insert(face[1]);
-                        else if (max_bary == barys[2])
-                            // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
-                            high_voltage_verts.insert(face[2]);
-                    }           
-                }
+                // set voltage at the face in collision
+                /** TODO: get the face index */
+                int face_index = -1;
+                const Vec3i& face = _tool_manipulated_object.mesh()->face(face_index);
+                if (_tool_manipulated_object.hasHeatSolver())
+                {
+                    // set the closest vertex on the face to the voltage of the tool
+                    // Eigen doesn't have argmax...
+                    /** TODO: replace with the actual voltage of the cautery tool  */
+                    Vec3r barys = collision_proj_ref.constraint()->barycentricCoordinates();
+                    Real max_bary = barys.maxCoeff();
+                    if (max_bary == barys[0])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[0], 134);
+                        high_voltage_verts.insert(face[0]);
+                    else if (max_bary == barys[1])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[1], 134);
+                        high_voltage_verts.insert(face[1]);
+                    else if (max_bary == barys[2])
+                        // _tool_manipulated_object.heatSolver().setVoltageAtBoundary(face[2], 134);
+                        high_voltage_verts.insert(face[2]);
+                }           
+                
             }
 
             for (const auto& vert : high_voltage_verts)
