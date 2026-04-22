@@ -1,6 +1,8 @@
 #include "sim_bridge/VirtuosoSimBridge.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
+#include "utils/MathUtils.hpp"
+
 VirtuosoSimBridge::VirtuosoSimBridge(Sim::VirtuosoSimulation* sim)
     : SimBridge<Sim::VirtuosoSimulation>(sim)
 {
@@ -309,16 +311,6 @@ void VirtuosoSimBridge::_setupArmFramesPublisher(const Sim::VirtuosoArm* arm, rc
                 const Geometry::TransformationMatrix transform = vb_transform_inv * frame.transform();
                 message.poses.push_back(this->_poseFromTransformationMatrix(transform));
             }
-
-            if (arm->hasTool())
-            {
-                const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = arm->toolTubeFrames();
-                for (const auto& frame : tt_frames)
-                {
-                    const Geometry::TransformationMatrix transform = vb_transform_inv * frame.transform();
-                    message.poses.push_back(this->_poseFromTransformationMatrix(transform));
-                }
-            }
             
 
             // RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
@@ -366,17 +358,19 @@ void VirtuosoSimBridge::_setupArmCommandedTipFramePublisher(const Sim::VirtuosoA
 
             const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
             const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();
+            const Geometry::TransformationMatrix arm_commanded_pose = arm->commandedTipPose();
 
-            const Vec3r& origin = vb_transform_inv.rotMat() * arm_commanded_position + vb_transform_inv.translation();
-            message.pose.position.x = origin[0];
-            message.pose.position.y = origin[1];
-            message.pose.position.z = origin[2];
+            const Geometry::TransformationMatrix vb_pose = vb_transform_inv * arm_commanded_pose;
+            message.pose.position.x = vb_pose.translation()[0];
+            message.pose.position.y = vb_pose.translation()[1];
+            message.pose.position.z = vb_pose.translation()[2];
 
             /** commanded tip position has no orientation */
-            message.pose.orientation.x = 0;
-            message.pose.orientation.y = 0;
-            message.pose.orientation.z = 0;
-            message.pose.orientation.w = 1;
+            Vec4r quat = MathUtils::matToQuat(vb_pose.rotMat());
+            message.pose.orientation.x = quat[0];
+            message.pose.orientation.y = quat[1];
+            message.pose.orientation.z = quat[2];
+            message.pose.orientation.w = quat[3];
             
             publisher->publish(message);
         };
@@ -389,7 +383,6 @@ void VirtuosoSimBridge::_setupArmToolTipFramePublisher(const Sim::VirtuosoArm* a
 {
     auto callback = 
         [this, arm, publisher]() -> void {
-            const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = arm->toolTubeFrames();
 
             auto message = geometry_msgs::msg::PoseStamped();
             message.header.stamp = this->now();
@@ -397,9 +390,9 @@ void VirtuosoSimBridge::_setupArmToolTipFramePublisher(const Sim::VirtuosoArm* a
 
             const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
             const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();
-            const Geometry::CoordinateFrame& tip_frame = tt_frames.back();
+            const Geometry::TransformationMatrix& tip_transform = arm->actualTipPose();
 
-            const Geometry::TransformationMatrix transform = vb_transform_inv * tip_frame.transform();
+            const Geometry::TransformationMatrix transform = vb_transform_inv * tip_transform;
             message.pose = this->_poseFromTransformationMatrix(transform);
             
             publisher->publish(message);
@@ -474,7 +467,8 @@ void VirtuosoSimBridge::_setupSubscribers()
                 std::string target_frame = "ves/left/base";
 
                 Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-
+                Mat3r local_rot = MathUtils::quatToMat(Vec4r(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w));
+                
                 // get the latest transform (if it exists)
                 if (source_frame != target_frame)
                 {
@@ -489,6 +483,8 @@ void VirtuosoSimBridge::_setupSubscribers()
                             geometry_msgs::msg::PoseStamped transformed;
                             tf2::doTransform(*msg, transformed, transform_msg);
                             local_pos = Vec3r(transformed.pose.position.x, transformed.pose.position.y, transformed.pose.position.z);
+                            local_rot = MathUtils::quatToMat(
+                                Vec4r(transformed.pose.orientation.x, transformed.pose.orientation.y, transformed.pose.orientation.z, transformed.pose.orientation.w));
                                 
                         }
                         catch (tf2::TransformException& ex)
@@ -507,8 +503,9 @@ void VirtuosoSimBridge::_setupSubscribers()
                 }
 
                 const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
-                const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
-                this->_sim->setArm1TipPosition(global_pos);
+                Geometry::TransformationMatrix global_transform = frame.transform() * Geometry::TransformationMatrix(local_rot, local_pos);
+                // const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
+                this->_sim->setArm1TipPose(global_transform);
         };
 
         _arm1_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/sim/input/arm1_tip_pos", 10, arm1_tip_pos_callback);
@@ -523,6 +520,7 @@ void VirtuosoSimBridge::_setupSubscribers()
                 std::string target_frame = "ves/left/base";
 
                 Vec3r local_pos(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+                Mat3r local_rot = MathUtils::quatToMat(Vec4r(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w));
 
                 // get the latest transform (if it exists)
                 if (source_frame != target_frame)
@@ -538,6 +536,8 @@ void VirtuosoSimBridge::_setupSubscribers()
                             geometry_msgs::msg::PoseStamped transformed;
                             tf2::doTransform(*msg, transformed, transform_msg);
                             local_pos = Vec3r(transformed.pose.position.x, transformed.pose.position.y, transformed.pose.position.z);
+                            local_rot = MathUtils::quatToMat(
+                                Vec4r(transformed.pose.orientation.x, transformed.pose.orientation.y, transformed.pose.orientation.z, transformed.pose.orientation.w));
                                 
                         }
                         catch (tf2::TransformException& ex)
@@ -556,9 +556,10 @@ void VirtuosoSimBridge::_setupSubscribers()
                 }
 
                 const Geometry::CoordinateFrame& frame = this->_sim->virtuosoRobot()->VBFrame();
-                const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
+                // const Vec3r global_pos = frame.transform().rotMat()*local_pos + frame.origin();
+                Geometry::TransformationMatrix global_transform = frame.transform() * Geometry::TransformationMatrix(local_rot, local_pos);
 
-                this->_sim->setArm2TipPosition(global_pos);
+                this->_sim->setArm2TipPose(global_transform);
         };
 
         _arm2_tip_position_subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("/sim/input/arm2_tip_pos", 10, arm2_tip_pos_callback);
