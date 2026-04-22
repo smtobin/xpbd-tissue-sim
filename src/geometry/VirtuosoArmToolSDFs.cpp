@@ -139,7 +139,31 @@ Vec3r VirtuosoArmSpatulaToolSDF::gradient(const Vec3r& x) const
 
 Vec3r VirtuosoArmSpatulaToolSDF::findContactPoint(const SDF* sdf) const
 {
-    return _iterativeClosestPointProjection(sdf, _spatula->spatulaFrame().origin());
+    // sample four corners of rectangle for good initialization point
+    Vec3r center = _spatula->spatulaFrame().origin();
+    Mat3r rot_mat = _spatula->spatulaFrame().transform().rotMat();
+    std::array<Vec3r, 4> ps = {
+        center + rot_mat*Vec3r(Sim::VirtuosoArmSpatulaTool::WIDTH/2-Sim::VirtuosoArmSpatulaTool::RADIUS, 0, Sim::VirtuosoArmSpatulaTool::LENGTH/2-Sim::VirtuosoArmSpatulaTool::RADIUS),
+        center + rot_mat*Vec3r(Sim::VirtuosoArmSpatulaTool::WIDTH/2-Sim::VirtuosoArmSpatulaTool::RADIUS, 0, -Sim::VirtuosoArmSpatulaTool::LENGTH/2+Sim::VirtuosoArmSpatulaTool::RADIUS),
+        center + rot_mat*Vec3r(-Sim::VirtuosoArmSpatulaTool::WIDTH/2+Sim::VirtuosoArmSpatulaTool::RADIUS, 0, -Sim::VirtuosoArmSpatulaTool::LENGTH/2+Sim::VirtuosoArmSpatulaTool::RADIUS),
+        center + rot_mat*Vec3r(-Sim::VirtuosoArmSpatulaTool::WIDTH/2+Sim::VirtuosoArmSpatulaTool::RADIUS, 0, Sim::VirtuosoArmSpatulaTool::LENGTH/2-Sim::VirtuosoArmSpatulaTool::RADIUS)
+    };
+    std::array<Real, 4> ds;
+
+    int best_i = 0;
+    Real best_d = 10000;
+    for (unsigned i = 0; i < 4; i++)
+    {
+        ds[i] = sdf->evaluate(ps[i]);
+        if (ds[i] < best_d)
+        {
+            best_i = i;
+            best_d = ds[i];
+        }
+    }
+
+    return _iterativeClosestPointProjection(sdf, ps[best_i], 3);
+    // return _iterativeClosestPointProjection(sdf, center);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////

@@ -27,11 +27,19 @@ class XPBDMeshObject_BasePtrWrapper;
 /** Simple struct to store information about active collisions between the arm and another object. */
 struct VirtuosoArmRigidCollision
 {
+    static constexpr int _TOOL_COLLISION_NODE_INDEX = 10000;    // some arbitrary large number
+
     /** The node index for the first node of the segment in collision */
     int node_index;
     /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
     mutable Real interp;
     mutable Real prev_interp;
+    /** Whether this is a tool collision. */
+    bool is_tool;
+    /** Contact point offset for the contact point on the tool, expressed in the inner tube end frame. 
+     * Only applies for tool-rigid collisions. */
+    mutable Vec3r contact_point;
+    mutable Vec3r prev_tip_moment;
 
     /** The SDF for the rigid body in collision. */
     const Geometry::SDF* rigid_sdf;
@@ -41,8 +49,19 @@ struct VirtuosoArmRigidCollision
      */
     mutable Vec3r force;
 
+    /** Arm collision constructor */
     VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
-        : node_index(node_index_), interp(interp_), prev_interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
+        : node_index(node_index_), interp(interp_), prev_interp(interp_), 
+        is_tool(false), contact_point(0,0,0), prev_tip_moment(0,0,0),
+        rigid_sdf(rigid_sdf_), force(0,0,0)
+    {
+    }
+
+    /** Tool collision constructor */
+    VirtuosoArmRigidCollision(const Vec3r& contact_point_, const Geometry::SDF* rigid_sdf_)
+        : node_index(_TOOL_COLLISION_NODE_INDEX), interp(0), prev_interp(0),
+          is_tool(true), contact_point(contact_point_), prev_tip_moment(0,0,0),
+        rigid_sdf(rigid_sdf_), force(0,0,0)
     {
     }
 };
@@ -95,7 +114,7 @@ struct VirtuosoArmVirtuosoArmCollision
 class VirtuosoArm : public Object
 {
 
-    private:
+public:
     /** Number of frames along the tube (i.e. number of integration points for each section) */
     constexpr static int NUM_OT_CURVE_FRAMES = 10;      // number of coordinate frames defined along the curved section of the outer tube
     constexpr static int NUM_OT_STRAIGHT_FRAMES = 5;    // number of coordinate frames defined along the straight distal section of the outer tube
@@ -114,7 +133,6 @@ class VirtuosoArm : public Object
 
     constexpr static double GRASPING_RADIUS = 0.002;    // grasping radius for the grasper tool
 
-    public:
     using ConfigType = Config::VirtuosoArmConfig;
     using SDFType = Geometry::VirtuosoArmSDF;
     
@@ -357,6 +375,7 @@ class VirtuosoArm : public Object
     void clearCollisionConstraints();
 
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
+    void addRigidCollision(const Vec3r& contact_point, const Geometry::SDF* sdf);
     void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
 
     const std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal>& 

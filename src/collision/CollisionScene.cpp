@@ -446,7 +446,10 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* virtuoso_arm_
 
     if (dist < 0)
     {
-        std::cout << "Tool-something collision!" << std::endl;
+        std::cout << "Tool-something collision" << std::endl;
+        // put global contact point on tool in the local inner tube end frame
+        Vec3r cp_local = virtuoso_arm_tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool_cp - virtuoso_arm_tool->arm()->innerTubeEndFrame().origin());
+        virtuoso_arm_tool->arm()->addRigidCollision(cp_local, obj_sdf);
     }
 }
 
