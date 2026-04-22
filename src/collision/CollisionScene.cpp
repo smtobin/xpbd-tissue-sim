@@ -436,6 +436,7 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::XPB
     // std::cout << "DeformableSDF distance: " << dist << std::endl;
 }
 
+
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, Sim::Object* obj)
 {
     const Geometry::VirtuosoArmToolSDF* tool_sdf = virtuoso_arm_tool->SDF();
@@ -453,6 +454,11 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* virtuoso_arm_
     }
 }
 
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool, Sim::VirtuosoArm* arm)
+{
+    // ignore these collisions - handled by arm-tool callback
+}
+
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::VirtuosoArmTool_Base* tool2)
 {
     if (tool1 > tool2)
@@ -466,7 +472,13 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::V
 
     if (dist < 0)
     {
+        Vec3r grad = tool2_sdf->gradient(tool1_cp);
+        Vec3r tool2_cp = tool1_cp - grad*dist;
+
         std::cout << "Tool-tool collision!" << std::endl;
+        Vec3r tool1_cp_local = tool1->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool1_cp - tool1->arm()->innerTubeEndFrame().origin());
+        Vec3r tool2_cp_local = tool2->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool2_cp - tool1->arm()->innerTubeEndFrame().origin());
+        tool1->arm()->addVirtuosoArmCollision(tool1_cp_local, tool2->arm(), tool2_cp_local);
     }
 }
 
@@ -544,6 +556,54 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
             //     result.node_index, result.interp_factor,
             //     virtuoso_arm1, i, s
             // );
+        }
+    }
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::VirtuosoArmTool_Base* tool)
+{
+    // make sure that the object is not the tool attached to the arm
+    if (virtuoso_arm->tool() &&  virtuoso_arm->tool() == tool)
+        return;
+        
+    // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
+    // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
+    const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
+    const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm->innerTubeFrames();
+    
+    for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = outer_tube_frames[i].origin();
+        Vec3r p2 = outer_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, tool->SDF());
+        
+        if (dist < virtuoso_arm->outerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between outer tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            Vec3r cp_arm = p1 + (p2-p1)*s;
+            Vec3r grad = tool->SDF()->gradient(cp_arm);
+            Vec3r cp_tool = cp_arm - grad*dist;
+            Vec3r cp_tool_local = tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (cp_tool - tool->arm()->innerTubeEndFrame().origin());
+            virtuoso_arm->addVirtuosoArmCollision(i, s, tool->arm(), cp_tool_local);
+        }
+    }
+
+    for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = inner_tube_frames[i].origin();
+        Vec3r p2 = inner_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, tool->SDF());
+        
+        if (dist < virtuoso_arm->innerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            Vec3r cp_arm = p1 + (p2-p1)*s;
+            Vec3r grad = tool->SDF()->gradient(cp_arm);
+            Vec3r cp_tool = cp_arm - grad*dist;
+            Vec3r cp_tool_local = tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (cp_tool - tool->arm()->innerTubeEndFrame().origin());
+            virtuoso_arm->addVirtuosoArmCollision(outer_tube_frames.size() + i, s, tool->arm(), cp_tool_local);
         }
     }
 }

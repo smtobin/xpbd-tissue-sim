@@ -86,12 +86,18 @@ struct VirtuosoArmRigidCollision_Equal
 
 struct VirtuosoArmVirtuosoArmCollision
 {
+    static constexpr int _TOOL_COLLISION_NODE_INDEX = 10000;    // some arbitrary large number
+
     /** Info for the first arm in collision */
     VirtuosoArm* arm1;
     int node_index1;
     Real interp1;
     int last_node_index1;
     Real last_interp1;
+
+    bool is_tool1;
+    Vec3r contact_point1;
+    Vec3r last_tip_moment1;
 
     /** Info for the second arm in collision */
     VirtuosoArm* arm2;
@@ -100,13 +106,40 @@ struct VirtuosoArmVirtuosoArmCollision
     int last_node_index2;
     Real last_interp2;
 
+    bool is_tool2;
+    Vec3r contact_point2;
+    Vec3r last_tip_moment2;
+
     /** Force info */
     Vec3r force;
 
+    /** Constructor for tube-tube collision */
     VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, int node_index2_, Real interp2_)
         : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+        is_tool1(false), contact_point1(0,0,0), last_tip_moment1(0,0,0),
          arm2(arm2_), node_index2(node_index2_), interp2(interp2_), last_node_index2(node_index2_), last_interp2(interp2_),
+         is_tool2(false), contact_point2(0,0,0), last_tip_moment2(0,0,0),
           force(0,0,0)
+    {
+    }
+
+    /** Constructor for tube-tool collision */
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, const Vec3r& contact_point2_)
+        : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+        is_tool1(false), contact_point1(0,0,0), last_tip_moment1(0,0,0),
+        arm2(arm2_), node_index2(_TOOL_COLLISION_NODE_INDEX), interp2(0), last_node_index2(_TOOL_COLLISION_NODE_INDEX), last_interp2(0),
+        is_tool2(true), contact_point2(contact_point2_), last_tip_moment2(0,0,0),
+        force(0,0,0)
+    {
+    }
+
+    /** Constructor for tool-tool collision */
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, const Vec3r& contact_point1_, VirtuosoArm* arm2_, const Vec3r& contact_point2_)
+        : arm1(arm1_), node_index1(_TOOL_COLLISION_NODE_INDEX), interp1(0), last_node_index1(_TOOL_COLLISION_NODE_INDEX), last_interp1(0),
+        is_tool1(true), contact_point1(contact_point1_), last_tip_moment1(0,0,0),
+        arm2(arm2_), node_index2(_TOOL_COLLISION_NODE_INDEX), interp2(0), last_node_index2(_TOOL_COLLISION_NODE_INDEX), last_interp2(0),
+        is_tool2(true), contact_point2(contact_point2_), last_tip_moment2(0,0,0),
+        force(0,0,0)
     {
     }
 };
@@ -377,6 +410,8 @@ public:
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
     void addRigidCollision(const Vec3r& contact_point, const Geometry::SDF* sdf);
     void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
+    void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, const Vec3r& contact_point);
+    void addVirtuosoArmCollision(const Vec3r& contact_point1, VirtuosoArm* other, const Vec3r& contact_point2);
 
     const std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal>& 
         rigidCollisions() const { return _rigid_collisions; }

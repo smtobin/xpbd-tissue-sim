@@ -408,6 +408,43 @@ void VirtuosoArm::addVirtuosoArmCollision(int node_index, Real interp, VirtuosoA
         _virtuoso_arm_collisions.emplace_back(this, node_index, interp, other, other_index, other_interp);
 }
 
+void VirtuosoArm::addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, const Vec3r& contact_point)
+{
+    bool found = false;
+    for (auto& arm_collision : _virtuoso_arm_collisions)
+    {
+        if (node_index == arm_collision.node_index1 && arm_collision.is_tool2 && arm_collision.arm2 == other)
+        {
+            arm_collision.node_index1 = node_index;
+            arm_collision.interp1 = interp;
+            // arm_collision.contact_point2 = contact_point;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+        _virtuoso_arm_collisions.emplace_back(this, node_index, interp, other, contact_point);
+}
+
+void VirtuosoArm::addVirtuosoArmCollision(const Vec3r& contact_point1, VirtuosoArm* other, const Vec3r& contact_point2)
+{
+    bool found = false;
+    for (auto& arm_collision : _virtuoso_arm_collisions)
+    {
+        if (arm_collision.is_tool1 && arm_collision.is_tool2 && arm_collision.arm2 == other)
+        {
+            // arm_collision.contact_point1 = contact_point1;
+            // arm_collision.contact_point2 = contact_point2;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+        _virtuoso_arm_collisions.emplace_back(this, contact_point1, other, contact_point2);
+}
+
 void VirtuosoArm::addCollisionConstraint(const VirtuosoArm::CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp)
 {
     _collision_constraints.emplace_back(proj_ref, node_index, interp);
@@ -652,29 +689,58 @@ void VirtuosoArm::velocityUpdate()
         auto& arm_collision = *it;
         Vec3r last_force = arm_collision.force;
 
-        Geometry::Capsule seg1 = segment(arm_collision.node_index1);
-        Vec3r cp1 = seg1.p1() + arm_collision.interp1*(seg1.p2() - seg1.p1());
+        Vec3r cp1, cp2;
+        Vec3r normal;
+        Real penetration_dist;
+        Mat3r C1, C2;
+        if (arm_collision.is_tool1 && arm_collision.is_tool2)
+        {
+            cp1 = innerTubeEndFrame().transform().rotMat() * arm_collision.contact_point1 + innerTubeEndFrame().origin();
+            penetration_dist = arm_collision.arm2->tool()->SDF()->evaluate(cp1);
+            normal = arm_collision.arm2->tool()->SDF()->gradient(cp1);
+            cp2 = cp1 - penetration_dist*normal;
 
-        Geometry::Capsule seg2 = arm_collision.arm2->segment(arm_collision.node_index2);
-        Vec3r cp2 = seg2.p1() + arm_collision.interp2*(seg2.p2() - seg2.p1());
+            C1 = complianceMatrixAtIntegrationPoint(NUM_OT_FRAMES+NUM_IT_FRAMES-1);
+            C2 = arm_collision.arm2->complianceMatrixAtIntegrationPoint(NUM_OT_FRAMES+NUM_IT_FRAMES-1);
+        }
+        else if (arm_collision.is_tool2)
+        {
+            Geometry::Capsule seg1 = segment(arm_collision.node_index1);
+            Vec3r cp1 = seg1.p1() + arm_collision.interp1*(seg1.p2() - seg1.p1());
+            penetration_dist = arm_collision.arm2->tool()->SDF()->evaluate(cp1);
+            normal = arm_collision.arm2->tool()->SDF()->gradient(cp1);
+            cp2 = cp1 - penetration_dist*normal;
 
-        // get penetration distance (negative if penetration, positive if no penetration)
-        Real penetration_dist = (cp1 - cp2).norm() - seg1.radius() - seg2.radius();
-        Vec3r normal = (cp1 - cp2).normalized();
+            // get compliance matrix at this point
+            C1 = interpolatedComplianceMatrix(arm_collision.node_index1, arm_collision.interp1);
+            C2 = arm_collision.arm2->complianceMatrixAtIntegrationPoint(NUM_OT_FRAMES+NUM_IT_FRAMES-1);
+        }
+        else
+        {
+            Geometry::Capsule seg1 = segment(arm_collision.node_index1);
+            cp1 = seg1.p1() + arm_collision.interp1*(seg1.p2() - seg1.p1());
 
-        Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = arm_collision.arm2->SDF()->evaluateWithGradientAndNodeInfo(cp1);
-        penetration_dist = result.distance - seg1.radius();
-        normal = result.gradient;
-        arm_collision.node_index2 = result.node_index;
-        arm_collision.interp2 = result.interp_factor;
+            Geometry::Capsule seg2 = arm_collision.arm2->segment(arm_collision.node_index2);
+            cp2 = seg2.p1() + arm_collision.interp2*(seg2.p2() - seg2.p1());
+
+            Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = arm_collision.arm2->SDF()->evaluateWithGradientAndNodeInfo(cp1);
+            penetration_dist = result.distance - seg1.radius();
+            normal = result.gradient;
+            arm_collision.node_index2 = result.node_index;
+            arm_collision.interp2 = result.interp_factor;
+            
+            // get compliance matrix at this point
+            C1 = interpolatedComplianceMatrix(arm_collision.node_index1, arm_collision.interp1);
+            C2 = arm_collision.arm2->interpolatedComplianceMatrix(arm_collision.node_index2, arm_collision.interp2);
+        }
+
+        
 
         // the nominal change in position
         Vec3r dp1 = -penetration_dist*normal;
         Vec3r dp2 = penetration_dist*normal;
 
-        // get compliance matrix at this point
-        Mat3r C1 = interpolatedComplianceMatrix(arm_collision.node_index1, arm_collision.interp1);
-        Mat3r C2 = arm_collision.arm2->interpolatedComplianceMatrix(arm_collision.node_index2, arm_collision.interp2);
+        
 
         // SVD
         Eigen::JacobiSVD<Mat3r> svd1(C1, Eigen::ComputeFullU | Eigen::ComputeFullV);
@@ -699,12 +765,66 @@ void VirtuosoArm::velocityUpdate()
             arm_collision.force -= 0.05*arm_collision.force;
         }
 
+        // undo previous force
+        if (arm_collision.is_tool1 && arm_collision.is_tool2)
+        {
+            _tip_force += -last_force;
+            _tip_moment += -arm_collision.last_tip_moment1;
+
+            arm_collision.arm2->_tip_force += last_force;
+            arm_collision.arm2->_tip_moment += -arm_collision.last_tip_moment2;
+        }
+        else if (arm_collision.is_tool2)
+        {
+            applyNodalForce(arm_collision.last_node_index1, arm_collision.last_interp1, -last_force);
+            arm_collision.arm2->_tip_force += last_force;
+            arm_collision.arm2->_tip_moment += -arm_collision.last_tip_moment2;
+        }
+        else
+        {
+            applyNodalForce(arm_collision.last_node_index1, arm_collision.last_interp1, -last_force);
+            arm_collision.arm2->applyNodalForce(arm_collision.last_node_index2, arm_collision.last_interp2, last_force);
+        }
+
+        // remove the collision if the force has gone down to near 0
+        if (arm_collision.force.norm() < 1e-5)
+        {
+            it = _virtuoso_arm_collisions.erase(it);
+            continue;
+        }
+
         // apply the force
-        Vec3r force_diff = arm_collision.force - last_force;
-        applyNodalForce(arm_collision.node_index1, arm_collision.interp1, arm_collision.force);
-        applyNodalForce(arm_collision.last_node_index1, arm_collision.last_interp1, -last_force);
-        arm_collision.arm2->applyNodalForce(arm_collision.node_index2, arm_collision.interp2, -arm_collision.force);
-        arm_collision.arm2->applyNodalForce(arm_collision.last_node_index2, arm_collision.last_interp2, last_force);
+        if (arm_collision.is_tool1 && arm_collision.is_tool2)
+        {
+            _tip_force += arm_collision.force;
+            Vec3r cur_tip_moment1 = (cp1 - innerTubeEndFrame().origin()).cross(arm_collision.force);
+            _tip_moment += cur_tip_moment1;
+            arm_collision.last_tip_moment1 = cur_tip_moment1;
+
+            arm_collision.arm2->_tip_force += -arm_collision.force;
+            Vec3r cur_tip_moment2 = (cp2 - arm_collision.arm2->innerTubeEndFrame().origin()).cross(-arm_collision.force);
+            arm_collision.arm2->_tip_moment += cur_tip_moment2;
+            arm_collision.last_tip_moment2 = cur_tip_moment2;
+        }
+        else if (arm_collision.is_tool2)
+        {
+            applyNodalForce(arm_collision.last_node_index1, arm_collision.last_interp1, arm_collision.force);
+            arm_collision.arm2->_tip_force += -arm_collision.force;
+            Vec3r cur_tip_moment2 = (cp2 - arm_collision.arm2->innerTubeEndFrame().origin()).cross(-arm_collision.force);
+            arm_collision.arm2->_tip_moment += cur_tip_moment2;
+            arm_collision.last_tip_moment2 = cur_tip_moment2;
+        }
+        else
+        {
+            applyNodalForce(arm_collision.node_index1, arm_collision.interp1, arm_collision.force);
+            arm_collision.arm2->applyNodalForce(arm_collision.node_index2, arm_collision.interp2, -arm_collision.force);
+
+            arm_collision.last_node_index1 = arm_collision.node_index1;
+            arm_collision.last_interp1 = arm_collision.interp1;
+            arm_collision.last_node_index2 = arm_collision.node_index2;
+            arm_collision.last_interp2 = arm_collision.interp2;
+        }
+        
 
         _filtered_collision_force += arm_collision.force;
         _unfiltered_collision_force += arm_collision.force;
@@ -712,22 +832,9 @@ void VirtuosoArm::velocityUpdate()
         arm_collision.arm2->_filtered_collision_force += -arm_collision.force;
         arm_collision.arm2->_unfiltered_collision_force += -arm_collision.force;
 
-        arm_collision.last_node_index1 = arm_collision.node_index1;
-        arm_collision.last_interp1 = arm_collision.interp1;
-        arm_collision.last_node_index2 = arm_collision.node_index2;
-        arm_collision.last_interp2 = arm_collision.interp2;
-
-        // remove the collision if the force has gone down to near 0
-        if (arm_collision.force.norm() < 1e-5)
-        {
-            applyNodalForce(arm_collision.node_index1, arm_collision.interp1, -arm_collision.force);
-            it = _virtuoso_arm_collisions.erase(it);
-        }
-        // otherwise, move on to the next collision
-        else
-        {
-            ++it;
-        }
+        
+        // move on to the next collision
+        ++it;
     }
 
     _stale_frames = true;
