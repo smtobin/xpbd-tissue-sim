@@ -159,6 +159,7 @@ void HapticDeviceManager::copyOutputState(HHD handle)
     CopiedHapticDeviceOutputData& copied_data = _copied_device_data.at(handle);
     const HapticDeviceOutputData& device_data = _device_data.at(handle);
     copied_data.last_position = copied_data.position;
+    copied_data.last_orientation = copied_data.orientation;
     copied_data.position[0] = device_data.device_position[0];
     copied_data.position[1] = device_data.device_position[1];
     copied_data.position[2] = device_data.device_position[2];
@@ -235,6 +236,17 @@ Mat3r HapticDeviceManager::orientation(HHD handle)
     }
 
     return _copied_device_data.at(handle).orientation;
+}
+
+Mat3r HapticDeviceManager::lastOrientation(HHD handle)
+{
+    if (_copied_device_data.at(handle).stale)
+    {
+        // hdScheduleSynchronous(_copyCallback, this, HD_MIN_SCHEDULER_PRIORITY);
+        copyOutputState(handle);
+    }
+
+    return _copied_device_data.at(handle).last_orientation;
 }
 
 bool HapticDeviceManager::button1Pressed(HHD handle)

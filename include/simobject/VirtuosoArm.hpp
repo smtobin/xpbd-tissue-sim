@@ -376,8 +376,11 @@ public:
     const InnerTubeFramesArray& innerTubeFrames() const { return _it_frames; }
 
     Vec3r actualTipPosition() const;
-    Vec3r commandedTipPosition() const{ return _commanded_tip_position; }
+    Geometry::TransformationMatrix actualTipPose() const;
+    Vec3r commandedTipPosition() const{ return _commanded_tip_pose.translation(); }
+    const Geometry::TransformationMatrix& commandedTipPose() const { return _commanded_tip_pose; }
     void setCommandedTipPosition(const Vec3r& new_position);
+    void setCommandedTipPose(const Geometry::TransformationMatrix& pose);
 
     Vec3r tipForce() const { return _tip_force; }
     Vec3r tipMoment() const { return _tip_moment; }
@@ -550,7 +553,7 @@ public:
 
 
     XPBDMeshObject_BasePtrWrapper _tool_manipulated_object; // the deformable object that this tool is manipulating
-    Vec3r _commanded_tip_position; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
+    Geometry::TransformationMatrix _commanded_tip_pose; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
     std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
     std::vector<CollisionConstraintInfo> _collision_constraints;

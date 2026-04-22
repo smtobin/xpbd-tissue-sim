@@ -46,6 +46,9 @@ class VirtuosoSimulation : public Simulation
     void setArm1TipPosition(const Vec3r& new_pos);
     void setArm2TipPosition(const Vec3r& new_pos);
 
+    void setArm1TipPose(const Geometry::TransformationMatrix& new_pose);
+    void setArm2TipPose(const Geometry::TransformationMatrix& new_pose);
+
     void setArm1ToolState(int tool);
     void setArm2ToolState(int tool);
 
@@ -75,7 +78,7 @@ class VirtuosoSimulation : public Simulation
     
     void _timeStep() override;
 
-    void _moveArm(Sim::VirtuosoArm* arm, Sim::RigidSphere* cursor, const Vec3r& dp);
+    void _moveArm(Sim::VirtuosoArm* arm, Sim::RigidSphere* cursor, const Vec3r& dp, const Vec3r& dR);
 
     protected:
     /** Struct for receiving state updates in a thread-safe way.
@@ -99,8 +102,8 @@ class VirtuosoSimulation : public Simulation
     _AsyncState<VirtuosoArmJointState> _arm1_joint_state;   // arm1's joint state may be set through ROS    
     _AsyncState<VirtuosoArmJointState> _arm2_joint_state;   // arm2's joint state may be set through ROS
 
-    _AsyncState<Vec3r> _arm1_tip_pos;   // arm1's commanded tip position may be set through ROS
-    _AsyncState<Vec3r> _arm2_tip_pos;   // arm2's commanded tip position may be set through ROS
+    _AsyncState<Geometry::TransformationMatrix> _arm1_tip_pose; // arm1's commanded tip pose may be set through ROS
+    _AsyncState<Geometry::TransformationMatrix> _arm2_tip_pose; // arm2's commanded tip pose may be set through ROS
 
     _AsyncState<int> _arm1_tool_state;  // arm1's tool state may be set through ROS
     _AsyncState<int> _arm2_tool_state;  // arm2's tool state may be set through ROS

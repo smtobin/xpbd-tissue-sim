@@ -286,12 +286,38 @@ Vec3r VirtuosoArm::actualTipPosition() const
         return _it_frames.back().origin();
 }
 
+Geometry::TransformationMatrix VirtuosoArm::actualTipPose() const
+{
+    if (hasTool())
+        return _tool->tipFrame().transform();
+    else
+        return _it_frames.back().transform();
+}
+
 void VirtuosoArm::setCommandedTipPosition(const Vec3r& new_position)
 {
     // _jacobianDifferentialInverseKinematics(new_position - tipPosition());
     const Geometry::TransformationMatrix T_tip = _computeTipTransform(_ot_rotation, _ot_translation, _it_rotation, _it_translation);
     _hybridDifferentialInverseKinematics(new_position - T_tip.translation());
-    _commanded_tip_position = new_position;
+    _commanded_tip_pose.setTranslation(new_position);
+    _stale_frames = true;
+}
+
+void VirtuosoArm::setCommandedTipPose(const Geometry::TransformationMatrix& pose)
+{
+    _commanded_tip_pose = pose;
+    const Geometry::TransformationMatrix T_tip = _computeTipTransform(_ot_rotation, _ot_translation, _it_rotation, _it_translation);
+    _hybridDifferentialInverseKinematics(pose.translation() - T_tip.translation());
+
+    // adjust inner tube rotation
+    Vec3r Rdiff = MathUtils::Minus_SO3(pose.rotMat(), T_tip.rotMat());
+    // compute max allowable changes in joint variables, given by motor limitations
+    Real max_it_rot_change = _max_it_rotation_speed * _sim->wallClockdt(); // rad/s * s
+
+    // clamp the change in outer tube rotation and update
+    Real d_it_rot = std::clamp(Rdiff[2], -max_it_rot_change, max_it_rot_change);
+    _it_rotation += d_it_rot;
+
     _stale_frames = true;
 }
 
@@ -464,13 +490,24 @@ void VirtuosoArm::setup()
 
     _recomputeCoordinateFrames();
 
-    _commanded_tip_position = actualTipPosition();
+    _commanded_tip_pose = actualTipPose();
 }
 
 void VirtuosoArm::update()
 {
     const Geometry::TransformationMatrix T_tip = _computeTipTransform(_ot_rotation, _ot_translation, _it_rotation, _it_translation);
-    _hybridDifferentialInverseKinematics(_commanded_tip_position - T_tip.translation());
+    _hybridDifferentialInverseKinematics(_commanded_tip_pose.translation() - T_tip.translation());
+
+    // adjust inner tube rotation
+    Vec3r Rdiff = MathUtils::Minus_SO3(_commanded_tip_pose.rotMat(), T_tip.rotMat());
+    // compute max allowable changes in joint variables, given by motor limitations
+    Real max_it_rot_change = _max_it_rotation_speed * _sim->wallClockdt(); // rad/s * s
+
+    // clamp the change in outer tube rotation and update
+    Real d_it_rot = std::clamp(Rdiff[2], -max_it_rot_change, max_it_rot_change);
+    _it_rotation += d_it_rot;
+    
+
     if (_stale_frames)
     {
         // _recomputeCoordinateFrames();
@@ -563,8 +600,6 @@ void VirtuosoArm::velocityUpdate()
         applyNodalForce(i, 0, force_diff);
     }
 
-    std::cout << "Applying forces for " << _rigid_collisions.size() << " rigid collisions..." << std::endl;
-
 
     /** Apply forces for rigid collisions */
 
@@ -584,8 +619,6 @@ void VirtuosoArm::velocityUpdate()
             cp = innerTubeEndFrame().transform().rotMat() * rigid_collision.contact_point + innerTubeEndFrame().origin();
             penetration_dist = rigid_collision.rigid_sdf->evaluate(cp);
             normal = rigid_collision.rigid_sdf->gradient(cp);
-
-            std::cout << "Tool penetration dist: " << penetration_dist << std::endl;
 
             C = complianceMatrixAtIntegrationPoint(NUM_OT_FRAMES+NUM_IT_FRAMES-1);
         }
@@ -1864,7 +1897,7 @@ void VirtuosoArm::serialize(std::vector<std::byte>& buf) const
     pack(buf, _cutting_model);
     pack(buf, _cutting_model_time_threshold);
     pack(buf, _tool_manipulated_object);
-    pack(buf, _commanded_tip_position);
+    pack(buf, _commanded_tip_pose);
     pack(buf, _grasped_vertices);
     pack(buf, _grasping_constraints);
     pack(buf, _collision_constraints);
@@ -1902,7 +1935,7 @@ void VirtuosoArm::deserialize(const std::byte*& buf)
     unpack(buf, _cutting_model);
     unpack(buf, _cutting_model_time_threshold);
     unpack(buf, _tool_manipulated_object);
-    unpack(buf, _commanded_tip_position);
+    unpack(buf, _commanded_tip_pose);
     unpack(buf, _grasped_vertices);
     unpack(buf, _grasping_constraints);
     unpack(buf, _collision_constraints);

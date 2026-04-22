@@ -36,6 +36,7 @@ struct CopiedHapticDeviceOutputData
 {
     Vec3r last_position;
     Vec3r position;
+    Mat3r last_orientation;
     Mat3r orientation;
     bool button1_pressed;
     bool button2_pressed;
@@ -58,6 +59,7 @@ class HapticDeviceManager
 
     Vec3r lastPosition(HHD handle);
     Vec3r position(HHD handle);
+    Mat3r lastOrientation(HHD handle);
     Mat3r orientation(HHD handle);
     bool button1Pressed(HHD handle);
     bool button2Pressed(HHD handle);
