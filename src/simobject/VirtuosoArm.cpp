@@ -52,6 +52,8 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
 
     _tip_force = Vec3r::Zero();
     _tip_moment = Vec3r::Zero();
+    _last_xpbd_tool_tip_force = Vec3r::Zero();
+    _last_xpbd_tool_tip_moment = Vec3r::Zero();
     _xpbd_collision_forces.resize(NUM_OT_FRAMES + NUM_IT_FRAMES, Vec3r::Zero());
 
     for (int i = 0; i < NUM_OT_FRAMES; i++)
@@ -529,27 +531,30 @@ void VirtuosoArm::velocityUpdate()
     _filtered_collision_force = Vec3r::Zero();
 
     // apply force/moment that is on the tool
-    // if (hasTool())
-    // {
-    //     auto [tool_tip_force, tool_tip_moment] = _tool->collisionTipForceAndMoment();
-    //     Vec3r new_tip_force = Vec3r::Zero();
-    //     Vec3r new_tip_moment = Vec3r::Zero();
-    //     if (tool_tip_force.squaredNorm() >= _tip_force.squaredNorm())
-    //         new_tip_force = (1-load_frac)*_tip_force + load_frac*tool_tip_force;
-    //     else
-    //         new_tip_force = (1-unload_frac)*_tip_force + unload_frac*tool_tip_force;
+    if (hasTool())
+    {
+        auto [tool_tip_force, tool_tip_moment] = _tool->collisionTipForceAndMoment();
+        Vec3r new_tip_force = Vec3r::Zero();
+        Vec3r new_tip_moment = Vec3r::Zero();
+        if (tool_tip_force.squaredNorm() >= _last_xpbd_tool_tip_force.squaredNorm())
+            new_tip_force = (1-load_frac)*_last_xpbd_tool_tip_force + load_frac*tool_tip_force;
+        else
+            new_tip_force = (1-unload_frac)*_last_xpbd_tool_tip_force + unload_frac*tool_tip_force;
 
-    //     if (tool_tip_moment.squaredNorm() >= _tip_moment.squaredNorm())
-    //         new_tip_moment = (1-load_frac)*_tip_moment + load_frac*tool_tip_moment;
-    //     else
-    //         new_tip_moment = (1-unload_frac)*_tip_moment + unload_frac*tool_tip_moment;
+        if (tool_tip_moment.squaredNorm() >= _last_xpbd_tool_tip_moment.squaredNorm())
+            new_tip_moment = (1-load_frac)*_last_xpbd_tool_tip_moment + load_frac*tool_tip_moment;
+        else
+            new_tip_moment = (1-unload_frac)*_last_xpbd_tool_tip_moment + unload_frac*tool_tip_moment;
 
-    //     _filtered_collision_force += new_tip_force;
-    //     _unfiltered_collision_force += tool_tip_force;
+        _filtered_collision_force += new_tip_force;
+        _unfiltered_collision_force += tool_tip_force;
 
-    //     _tip_force = new_tip_force;
-    //     _tip_moment = new_tip_moment;
-    // }
+        _tip_force += (new_tip_force - _last_xpbd_tool_tip_force);
+        _tip_moment += (new_tip_moment - _last_xpbd_tool_tip_moment);
+
+        _last_xpbd_tool_tip_force = new_tip_force;
+        _last_xpbd_tool_tip_moment = new_tip_moment;
+    }
     
 
     // zero out forces

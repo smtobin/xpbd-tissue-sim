@@ -570,6 +570,10 @@ public:
     Vec3r _tip_force;
     Vec3r _tip_moment;
 
+    /** Tip force and moment due to tool-tissue collisions from the last time step. */
+    Vec3r _last_xpbd_tool_tip_force;
+    Vec3r _last_xpbd_tool_tip_moment;
+
     /** The unfiltered net collision force felt by the tube.
      * This is the nominal total collision force (expressed in the global frame), added up across all the collision constraints.
      * This is NOT the actual force used by the quasistatic model - the force used by the model is smoothed using a complementary filter.
