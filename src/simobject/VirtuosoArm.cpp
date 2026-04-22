@@ -408,7 +408,7 @@ void VirtuosoArm::clearCollisionConstraints()
 void VirtuosoArm::setup()
 {
     if (_tool)
-        _tool->setInnerTubeTipFramePtr(&_it_frames.back());
+        _tool->setArm(this);
 
     _recomputeCoordinateFrames();
 

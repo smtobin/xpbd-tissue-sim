@@ -1,6 +1,7 @@
 #include "geometry/VirtuosoArmToolSDFs.hpp"
 
 #include "simobject/VirtuosoArmTools.hpp"
+#include "simobject/VirtuosoArm.hpp"
 
 namespace Geometry
 {
@@ -160,7 +161,7 @@ void VirtuosoArmCauteryToolSDF::deserialize(const std::byte*& buf)
 
 Real VirtuosoArmCauteryToolSDF::evaluate(const Vec3r& x) const
 {
-    Geometry::TransformationMatrix it_tip_transform = _cautery->innerTubeTipFramePtr()->transform();
+    Geometry::TransformationMatrix it_tip_transform = _cautery->arm()->innerTubeEndFrame().transform();
     Vec3r x_body = it_tip_transform.rotMat().transpose() * (x - it_tip_transform.translation());
 
     // dist to ceramic part
@@ -176,7 +177,7 @@ Real VirtuosoArmCauteryToolSDF::evaluate(const Vec3r& x) const
 
 Vec3r VirtuosoArmCauteryToolSDF::gradient(const Vec3r& x) const
 {
-    Geometry::TransformationMatrix it_tip_transform = _cautery->innerTubeTipFramePtr()->transform();
+    Geometry::TransformationMatrix it_tip_transform = _cautery->arm()->innerTubeEndFrame().transform();
     Vec3r x_body = it_tip_transform.rotMat().transpose() * (x - it_tip_transform.translation());
 
     // dist to ceramic part

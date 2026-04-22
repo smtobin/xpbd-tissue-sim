@@ -13,6 +13,7 @@ set(SIMOBJECT_HEADERS
     ${SIMOBJECT_INCLUDE_DIR}/ElasticMaterial.hpp
     ${SIMOBJECT_INCLUDE_DIR}/VirtuosoArm.hpp
     ${SIMOBJECT_INCLUDE_DIR}/VirtuosoRobot.hpp
+    ${SIMOBJECT_INCLUDE_DIR}/VirtuosoArmTools.hpp
 )
 
 set(SIMOBJECT_SOURCES
@@ -23,6 +24,7 @@ set(SIMOBJECT_SOURCES
     ${SIMOBJECT_SRC_DIR}/RigidMeshObject.cpp
     ${SIMOBJECT_SRC_DIR}/VirtuosoArm.cpp
     ${SIMOBJECT_SRC_DIR}/VirtuosoRobot.cpp
+    ${SIMOBJECT_SRC_DIR}/VirtuosoArmTools.cpp
 )
 
 target_sources(SimObject
