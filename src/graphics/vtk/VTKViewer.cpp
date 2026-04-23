@@ -67,6 +67,26 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
         _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
     }
 
+    _segmentation_rendering = render_config.segmentationRendering();
+    if (_segmentation_rendering)
+    {
+        _seg_renderer = vtkSmartPointer<vtkOpenGLRenderer>::New();
+        _seg_renderer->SetBackground(0,0,0);    // black background
+
+        _seg_window = vtkSmartPointer<vtkRenderWindow>::New();
+        _seg_window->SetOffScreenRendering(1);
+        _seg_window->SetSize(render_config.windowWidth(), render_config.windowHeight());
+        _seg_window->SetMultiSamples(0);
+        _seg_window->SetUseSRGBColorSpace(false);
+        _seg_window->AddRenderer(_seg_renderer);
+
+        _seg_window_to_image = vtkSmartPointer<vtkWindowToImageFilter>::New();
+        _seg_window_to_image->SetInput(_seg_window);
+        _seg_window_to_image->ReadFrontBufferOff();
+        _seg_window_to_image->SetInputBufferTypeToRGB();
+        _seg_image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
+    }
+
     _circle_crop = render_config.circleCrop();
 }
 
@@ -392,6 +412,29 @@ void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_
                 std::memcpy(viewer->_image_data.data(), pixels, num_bytes);
             }
         }
+
+        if (viewer->_segmentation_rendering)
+        {
+            // update the window -> image object to render offscreen
+            viewer->_seg_window_to_image->Modified();
+            viewer->_seg_window_to_image->Update();
+            // get the latest rendered frame
+            vtkImageData* latest_frame = viewer->_seg_window_to_image->GetOutput();
+            int* dims = latest_frame->GetDimensions();
+            size_t num_bytes = dims[0] * dims[1] * latest_frame->GetNumberOfScalarComponents();     // width * height * num_channels
+
+            unsigned char* pixels = static_cast<unsigned char*>(latest_frame->GetScalarPointer()); 
+            // copy to buffer
+            {
+                std::lock_guard<std::mutex> lock(viewer->_seg_image_data_mutex);
+                
+                // make sure the image buffer has the appropriate amount of space
+                if (viewer->_seg_image_data.size() != num_bytes)
+                    viewer->_seg_image_data.resize(num_bytes);
+                
+                std::memcpy(viewer->_seg_image_data.data(), pixels, num_bytes);
+            }
+        }
     }
 }
 
@@ -431,6 +474,33 @@ void VTKViewer::_updateCamera()
         _renderer->GetActiveCamera()->SetParallelProjection(true);
     else
         _renderer->GetActiveCamera()->SetParallelProjection(false);
+
+    if (_segmentation_rendering)
+    {
+        // set position
+        _seg_renderer->GetActiveCamera()->SetPosition(new_state.pos[0], new_state.pos[1], new_state.pos[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set view angle
+        _seg_renderer->GetActiveCamera()->UseHorizontalViewAngleOn();
+        _seg_renderer->GetActiveCamera()->SetViewAngle(new_state.hfov);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set view direction
+        _seg_renderer->GetActiveCamera()->SetFocalPoint(new_focal_point[0], new_focal_point[1], new_focal_point[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set up direction
+        _seg_renderer->GetActiveCamera()->SetViewUp(new_state.up_dir[0], new_state.up_dir[1], new_state.up_dir[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set camera orthographic
+        if (new_state.is_orthographic)
+            _seg_renderer->GetActiveCamera()->SetParallelProjection(true);
+        else
+            _seg_renderer->GetActiveCamera()->SetParallelProjection(false);
+    }
+    
 }
 
 void VTKViewer::setCameraOrthographic()
@@ -508,6 +578,57 @@ void VTKViewer::setCameraPosition(const Vec3r& pos)
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.pos = pos;
     _camera_state.updated = true;
+}
+
+void VTKViewer::addActorToRenderer(vtkSmartPointer<vtkActor> actor, bool add_to_seg_renderer, const Sim::Object* obj_ptr)
+{
+    // add actor to main renderer
+    _renderer->AddActor(actor);
+
+    if (add_to_seg_renderer && _segmentation_rendering)
+    {
+        // generate new color for this actor
+        int index = _seg_color_to_obj_map.size();
+        Real hue = std::fmod(index * 0.618033988749895, 1.0);
+        double hsv[3] = {hue, 0.9, 0.95};
+        double rgb[3];
+        vtkMath::HSVToRGB(hsv, rgb);
+
+        // add entry to color -> obj map
+        Eigen::Vector<unsigned char, 3> color;
+        color[0] = static_cast<unsigned char>(std::round(255*rgb[0]));
+        color[1] = static_cast<unsigned char>(std::round(255*rgb[1]));
+        color[2] = static_cast<unsigned char>(std::round(255*rgb[2]));
+
+        _seg_color_to_obj_map.insert({color, obj_ptr});
+
+        // create separate actor for segmentation scene
+        vtkNew<vtkActor> seg_actor;
+        seg_actor->SetUserTransform(actor->GetUserTransform());
+
+        vtkPolyData* polyData = vtkPolyData::SafeDownCast(actor->GetMapper()->GetInput());
+        if (!polyData) 
+        {
+            // mapper input isn't a vtkPolyData, fall back to sharing the mapper
+            seg_actor->SetMapper(actor->GetMapper());
+        } 
+        else 
+        {
+            vtkNew<vtkPolyDataMapper> seg_mapper;
+            seg_mapper->SetInputData(polyData);
+            seg_mapper->ScalarVisibilityOff();
+            seg_actor->SetMapper(seg_mapper);
+        }
+        
+        seg_actor->GetProperty()->SetLighting(false);
+        seg_actor->GetProperty()->SetAmbient(1.0);
+        seg_actor->GetProperty()->SetDiffuse(0.0);
+        seg_actor->GetProperty()->SetSpecular(0.0);
+        seg_actor->GetProperty()->SetInterpolationToFlat();
+        seg_actor->GetProperty()->SetColor(rgb[0], rgb[1], rgb[2]);
+
+        _seg_renderer->AddActor(seg_actor);
+    }
 }
 
 void VTKViewer::update()
@@ -596,13 +717,26 @@ void VTKViewer::copyImageBufferToExternalBuffer(unsigned char* external_buffer)
 {
     if (!_offscreen_rendering)
     {
-        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Offscreen rendering must be enabled to copy image buffer." << std::endl;
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Offscreen rendering must be enabled to copy image buffer. Enable this in the .yaml config file." << std::endl;
         throw std::runtime_error("Offscreen rendering not enabled");
         return;
     }
 
     std::lock_guard<std::mutex> lock(_image_data_mutex);
     std::memcpy(external_buffer, _image_data.data(), _image_data.size());
+}
+
+void VTKViewer::copySegImageBufferToExternalBuffer(unsigned char* external_buffer)
+{
+    if (!_segmentation_rendering)
+    {
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Segmentation rendering must be enabled to copy image buffer. Enable this in the .yaml config file." << std::endl;
+        throw std::runtime_error("Segmentation rendering not enabled");
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(_seg_image_data_mutex);
+    std::memcpy(external_buffer, _seg_image_data.data(), _seg_image_data.size());
 }
 
 void VTKViewer::_processKeyboardEvent(SimulationInput::Key key, SimulationInput::KeyAction action, int modifiers)

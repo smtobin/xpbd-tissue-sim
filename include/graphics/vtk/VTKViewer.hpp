@@ -3,6 +3,7 @@
 
 #include "graphics/Viewer.hpp"
 #include "config/render/SimulationRenderConfig.hpp"
+#include "common/EigenHash.hpp"
 
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
@@ -19,6 +20,11 @@
 #include <atomic>
 #include <functional>
 #include <mutex>
+
+namespace Sim
+{
+    class Object;
+}
 
 namespace Graphics
 {
@@ -57,6 +63,13 @@ public:
     void setPreRenderCallback(std::function<void()> cb) { _prerender_callback = std::move(cb); }
 
     explicit VTKViewer(const std::string& title, const Config::SimulationRenderConfig& render_config);
+
+    /** Adds a vtkActor to the renderer. Optionally will add the actor to the segmentation renderer (if it exists), and store an entry
+     * for the color -> obj_ptr map.
+     */
+    void addActorToRenderer(vtkSmartPointer<vtkActor> actor, bool add_to_seg_renderer=false, const Sim::Object* obj_ptr=nullptr);
+
+    const std::unordered_map<Eigen::Vector<unsigned char,3>, const Sim::Object*, EigenHash<Eigen::Vector<unsigned char,3>>>& segColorToObjMap() const { return _seg_color_to_obj_map; }
 
     virtual void update() override;
 
@@ -138,6 +151,11 @@ public:
      */
     void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
 
+    /** Copoies the segmentation image buffer to some external buffer. It is assumed that the external buffer has the appropriate amount of space.
+     * This can be ensured by first querying width and height of the viewer.
+     */
+    void copySegImageBufferToExternalBuffer(unsigned char* external_buffer);
+
     /** Updates the circle vignette mask. Used when the viewer changes size. */
     void updateCircleMask();
 
@@ -179,6 +197,21 @@ private:
 
     /** Guards the pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
     std::mutex _image_data_mutex;
+
+    /** Whether or not to generate a segmentation mask rendering for the scene. Set by the config. */
+    bool _segmentation_rendering = false;
+    /** Renderer for segmentation image */
+    vtkSmartPointer<vtkOpenGLRenderer> _seg_renderer;
+    /** Offscreen window for rendering the segmentation image */
+    vtkSmartPointer<vtkRenderWindow> _seg_window;
+    /** Renders the offscreen window to a vtkImage */
+    vtkSmartPointer<vtkWindowToImageFilter> _seg_window_to_image;
+    /** Stores the segmentation pixel data */
+    std::vector<unsigned char> _seg_image_data;
+    /** Stores a map from pixel color -> object */
+    std::unordered_map<Eigen::Vector<unsigned char, 3>, const Sim::Object*, EigenHash<Eigen::Vector<unsigned char, 3>>> _seg_color_to_obj_map;
+    /** Guards the segmentation pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
+    std::mutex _seg_image_data_mutex;
 
     /** Whether or not to crop the center circle of the image using a mask. */
     bool _circle_crop = false;

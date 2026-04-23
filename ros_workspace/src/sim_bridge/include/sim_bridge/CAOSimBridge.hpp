@@ -18,6 +18,8 @@ private:
     void _setupPartialViewPointCloudPublishers();
     void _setupRemovedElementsPublishers();
 
+    void _setupSegmentationMaskPublishers();
+
     template <typename XPBDMeshObject_BaseType>
     void _setupRemovedElementsPublisherForMesh(int index, XPBDMeshObject_BaseType* xpbd_obj);
 
@@ -39,6 +41,19 @@ private:
 
     /** Publisher for removed element information */
     std::vector<rclcpp::Publisher<sim_bridge::msg::RemovedElementArray>::SharedPtr> _removed_elements_publishers;
+
+    /** Publishers for segmentation mask images */
+    std::vector<unsigned char> _flipped_image_buffer;
+    sensor_msgs::msg::Image _seg_image_msg;
+    sensor_msgs::msg::Image _arm1_seg_mask_msg;
+    sensor_msgs::msg::Image _arm2_seg_mask_msg;
+    sensor_msgs::msg::Image _tumor_seg_mask_msg;
+    sensor_msgs::msg::Image _trachea_seg_mask_msg;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _seg_image_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _arm1_seg_mask_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _arm2_seg_mask_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _tumor_seg_mask_publisher;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr _trachea_seg_mask_publisher;
 };
 
 #endif // __CAO_SIM_BRIDGE_HPP

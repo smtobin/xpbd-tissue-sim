@@ -55,13 +55,18 @@ create-skybox: false
 # static color background for the sim
 background: [0.1, 0.1, 0.1] # dark gray
 # width and height of the window created for the sim
-window-width: 1000
-window-height: 1000
+window-width: 800
+window-height: 800
 
 # whether or not to render offscreen to an image buffer
 # Note: only possible with VTK graphics
 # Another Note: necessary for publishing images over ROS2
-offscreen-rendering: true
+offscreen-rendering: false
+
+# whether or not to render a segmentation map of the camera view
+# Note: only possible with VTK graphics
+# Another Note: necessary for publishing segmentation maps over ROS2
+segmentation-rendering: false
 
 # whether or not to add the circle vignette to the rendered image
 # this mimics the output of the actual Virtuoso endoscope image

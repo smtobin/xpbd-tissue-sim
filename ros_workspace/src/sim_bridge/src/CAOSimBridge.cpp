@@ -3,9 +3,17 @@
 CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
     : VirtuosoCTAnatomySimBridge(sim)
 {
+    this->declare_parameter("publish_segmentations", false);
+
     _setupPartialViewPointCloudPublishers();
     _setupRemovedElementsPublishers();
     _setupToolTracheaCollisionPublisher();
+
+    if (this->get_parameter("publish_segmentations").as_bool())
+    {
+        _setupSegmentationMaskPublishers();
+    }
+    
 }
 
 void CAOSimBridge::_setupPartialViewPointCloudPublishers()
@@ -252,4 +260,171 @@ void CAOSimBridge::_setupToolTracheaCollisionPublisher()
         };
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm1_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arm2_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
+}
+
+void CAOSimBridge::_setupSegmentationMaskPublishers()
+{
+    _seg_image_publisher = this->create_publisher<sensor_msgs::msg::Image>("/sim/output/seg_image", 3);
+    _arm1_seg_mask_publisher = this->create_publisher<sensor_msgs::msg::Image>("/sim/output/seg_mask_arm1", 3);
+    _arm2_seg_mask_publisher = this->create_publisher<sensor_msgs::msg::Image>("/sim/output/seg_mask_arm2", 3);
+    _tumor_seg_mask_publisher = this->create_publisher<sensor_msgs::msg::Image>("/sim/output/seg_mask_tumor", 3);
+    _trachea_seg_mask_publisher = this->create_publisher<sensor_msgs::msg::Image>("/sim/output/seg_mask_trachea", 3);
+
+
+    const Sim::Object* arm1 = _sim->virtuosoRobot()->arm1();
+    const Sim::Object* tool1 = nullptr;
+    if (arm1)
+        tool1 = _sim->virtuosoRobot()->arm1()->tool();
+
+
+    const Sim::Object* arm2 = _sim->virtuosoRobot()->arm2();
+    const Sim::Object* tool2 = nullptr;
+    if (arm2)
+        tool2 = _sim->virtuosoRobot()->arm2()->tool();
+
+    const Sim::Object* tumor = _sim->objects().template get<std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>().front().get();
+    const Sim::Object* trachea = _sim->objects().template get<std::unique_ptr<Sim::RigidMeshObject>>().front().get();
+
+    // make sure that VTK is being used as the graphics backend
+    Graphics::VTKViewer* viewer = dynamic_cast<Graphics::VTKViewer*>(_sim->graphicsScene()->viewer());
+    if (!viewer)
+    {
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "VTK graphics must be used to publish images over ROS2." << RST << std::endl;
+        assert(0);
+        return;
+    }
+
+    // go through each object in the segmentation scene check to see if its one we care about
+    // if it is, store the color
+    Eigen::Vector<unsigned char, 3> arm1_color(255,255,255);
+    Eigen::Vector<unsigned char, 3> arm2_color(255,255,255);
+    Eigen::Vector<unsigned char, 3> tool1_color(255,255,255);
+    Eigen::Vector<unsigned char, 3> tool2_color(255,255,255);
+    Eigen::Vector<unsigned char, 3> tumor_color(255,255,255);
+    Eigen::Vector<unsigned char, 3> trachea_color(255,255,255);
+    for (const auto& [color, obj] : viewer->segColorToObjMap())
+    {
+        if (arm1 && obj == arm1)
+            arm1_color = color;
+        else if (arm2 && obj == arm2)
+            arm2_color = color;
+        else if (tool1 && obj == tool1)
+            tool1_color = color;
+        else if (tool2 && obj == tool2)
+            tool2_color = color;
+        else if (tumor && obj == tumor)
+            tumor_color = color;
+        else if (trachea && obj == trachea)
+            trachea_color = color;
+    }
+
+    auto configure_image_msg = [&](sensor_msgs::msg::Image& image_msg)
+    {
+        // configure initial image
+        image_msg.header.frame_id = "sim/camera";
+        image_msg.height = viewer->height();
+        image_msg.width = viewer->width();
+        image_msg.encoding = "mono8";
+        image_msg.is_bigendian = false;
+        image_msg.step = image_msg.width;
+
+        size_t num_bytes = image_msg.width * image_msg.height;
+        image_msg.data.resize(num_bytes, 0);
+    };
+    configure_image_msg(_arm1_seg_mask_msg);
+    configure_image_msg(_arm2_seg_mask_msg);
+    configure_image_msg(_tumor_seg_mask_msg);
+    configure_image_msg(_trachea_seg_mask_msg);
+
+    _seg_image_msg.header.frame_id = "sim/camera";
+    _seg_image_msg.height = viewer->height();
+    _seg_image_msg.width = viewer->width();
+    _seg_image_msg.encoding = "rgb8";
+    _seg_image_msg.is_bigendian = false;
+    _seg_image_msg.step = _seg_image_msg.width * 3;
+
+    _seg_image_msg.data.resize(_seg_image_msg.width * _seg_image_msg.height * 3, 0);
+
+    // create the flipped buffer
+    _flipped_image_buffer.resize(viewer->height() * viewer->width() * 3, 0);
+
+    auto image_callback = [this, viewer, 
+        arm1_color, arm2_color, tool1_color, tool2_color, tumor_color, trachea_color]() -> void {
+
+        // resize flipped image buffer and image messge data based on the current size of the viewer
+        size_t num_bytes = viewer->height() * viewer->width();
+        this->_flipped_image_buffer.resize(num_bytes*3);
+        auto allocate_image_msg = [&](sensor_msgs::msg::Image& image_msg)
+        {
+            image_msg.height = viewer->height();
+            image_msg.width = viewer->width();
+            image_msg.step = image_msg.width;
+            image_msg.data.resize(num_bytes);
+        };
+        allocate_image_msg(this->_arm1_seg_mask_msg);
+        allocate_image_msg(this->_arm2_seg_mask_msg);
+        allocate_image_msg(this->_tumor_seg_mask_msg);
+        allocate_image_msg(this->_trachea_seg_mask_msg);
+
+        this->_seg_image_msg.height = viewer->height();
+        this->_seg_image_msg.width = viewer->width();
+        this->_seg_image_msg.step = _seg_image_msg.width * 3;
+        this->_seg_image_msg.data.resize(num_bytes*3);
+        
+
+        // copy VTK image into flipped buffer (VTK uses a different coordinate system where bottom-left is (0,0), so the image is flipped vertically)
+        viewer->copySegImageBufferToExternalBuffer(this->_flipped_image_buffer.data());
+
+        // copy row by row, flipping vertically
+        size_t row_bytes = this->_seg_image_msg.width * 3;
+        for (unsigned y = 0; y < this->_seg_image_msg.height; ++y) {
+            unsigned char* src_row = this->_flipped_image_buffer.data() + y * row_bytes;
+            unsigned char* dst_row = this->_seg_image_msg.data.data() + (this->_seg_image_msg.height - 1 - y) * row_bytes;
+            std::memcpy(dst_row, src_row, row_bytes);
+        }
+
+        // now go through the flipped bytes, and look for colors that we care about
+        for (unsigned y = 0; y < this->_seg_image_msg.height; y++)
+        {
+            for (unsigned x = 0; x < this->_seg_image_msg.width; x++)
+            {
+                unsigned pixel_ind = x + y*_seg_image_msg.width;
+                unsigned char* pixel = this->_seg_image_msg.data.data() + 3*pixel_ind;
+
+                // arm1 segmentation mask includes arm1 and tool1
+                if ((pixel[0] == arm1_color[0] && pixel[1] == arm1_color[1] && pixel[2] == arm1_color[2]) ||
+                    (pixel[0] == tool1_color[0] && pixel[1] == tool1_color[1] && pixel[2] == tool1_color[2]))
+                    this->_arm1_seg_mask_msg.data[pixel_ind] = 255;
+                else
+                    this->_arm1_seg_mask_msg.data[pixel_ind] = 0;
+
+                // arm2 segmentation mask includes arm2 and tool2
+                if ((pixel[0] == arm2_color[0] && pixel[1] == arm2_color[1] && pixel[2] == arm2_color[2]) ||
+                    (pixel[0] == tool2_color[0] && pixel[1] == tool2_color[1] && pixel[2] == tool2_color[2]))
+                    this->_arm2_seg_mask_msg.data[pixel_ind] = 255;
+                else
+                    this->_arm2_seg_mask_msg.data[pixel_ind] = 0;
+
+                // tumor segmentation mask
+                if (pixel[0] == tumor_color[0] && pixel[1] == tumor_color[1] && pixel[2] == tumor_color[2])
+                    this->_tumor_seg_mask_msg.data[pixel_ind] = 255;
+                else
+                    this->_tumor_seg_mask_msg.data[pixel_ind] = 0;
+
+                // trachea segmentation mask
+                if (pixel[0] == trachea_color[0] && pixel[1] == trachea_color[1] && pixel[2] == trachea_color[2])
+                    this->_trachea_seg_mask_msg.data[pixel_ind] = 255;
+                else
+                    this->_trachea_seg_mask_msg.data[pixel_ind] = 0;
+            }
+        }
+
+        this->_seg_image_publisher->publish(this->_seg_image_msg);
+        this->_arm1_seg_mask_publisher->publish(this->_arm1_seg_mask_msg);
+        this->_arm2_seg_mask_publisher->publish(this->_arm2_seg_mask_msg);
+        this->_tumor_seg_mask_publisher->publish(this->_tumor_seg_mask_msg);
+        this->_trachea_seg_mask_publisher->publish(this->_trachea_seg_mask_msg);
+    };
+
+    _sim->addCallback(1.0/this->get_parameter("image_publish_rate_hz").as_double(), image_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 }
