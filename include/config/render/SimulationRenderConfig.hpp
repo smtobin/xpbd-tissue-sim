@@ -26,6 +26,7 @@ class SimulationRenderConfig : public Config
         _extractParameter("background", node, _background);
 
         _extractParameter("offscreen-rendering", node, _offscreen_rendering);
+        _extractParameter("segmentation-rendering", node, _segmenetation_rendering);
 
         _extractParameter("window-width", node, _window_width);
         _extractParameter("window-height", node, _window_height);
@@ -42,6 +43,7 @@ class SimulationRenderConfig : public Config
     Vec3r background() const { return _background.value; }
 
     bool offscreenRendering() const { return _offscreen_rendering.value; }
+    bool segmentationRendering() const { return _segmenetation_rendering.value; }
 
     int windowWidth() const { return _window_width.value; }
     int windowHeight() const { return _window_height.value; }
@@ -57,6 +59,7 @@ class SimulationRenderConfig : public Config
     ConfigParameter<Real> _exposure = ConfigParameter<Real>(0.5);
 
     ConfigParameter<bool> _offscreen_rendering = ConfigParameter<bool>(false);
+    ConfigParameter<bool> _segmenetation_rendering = ConfigParameter<bool>(false);
 
     ConfigParameter<int> _window_width = ConfigParameter<int>(600);
     ConfigParameter<int> _window_height = ConfigParameter<int>(600);

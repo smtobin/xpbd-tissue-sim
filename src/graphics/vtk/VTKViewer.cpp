@@ -67,6 +67,20 @@ VTKViewer::VTKViewer(const std::string& title, const Config::SimulationRenderCon
         _image_data.resize(render_config.windowHeight() * render_config.windowWidth() * 3, 0);
     }
 
+    _segmentation_rendering = render_config.segmentationRendering();
+    if (_segmentation_rendering)
+    {
+        _seg_renderer = vtkSmartPointer<vtkOpenGLRenderer>::New();
+        _seg_renderer->SetBackground(0,0,0);    // black background
+
+        _seg_window = vtkSmartPointer<vtkRenderWindow>::New();
+        // _seg_window->SetOffScreenRendering(1);
+        _seg_window->SetSize(render_config.windowWidth(), render_config.windowHeight());
+        _seg_window->AddRenderer(_seg_renderer);
+
+        _seg_window_to_image = vtkSmartPointer<vtkWindowToImageFilter>::New();
+    }
+
     _circle_crop = render_config.circleCrop();
 }
 
@@ -392,6 +406,11 @@ void VTKViewer::renderCallback(vtkObject* /*caller*/, long unsigned int /*event_
                 std::memcpy(viewer->_image_data.data(), pixels, num_bytes);
             }
         }
+
+        if (viewer->_segmentation_rendering)
+        {
+            viewer->_seg_window->Render();
+        }
     }
 }
 
@@ -431,6 +450,33 @@ void VTKViewer::_updateCamera()
         _renderer->GetActiveCamera()->SetParallelProjection(true);
     else
         _renderer->GetActiveCamera()->SetParallelProjection(false);
+
+    if (_segmentation_rendering)
+    {
+        // set position
+        _seg_renderer->GetActiveCamera()->SetPosition(new_state.pos[0], new_state.pos[1], new_state.pos[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set view angle
+        _seg_renderer->GetActiveCamera()->UseHorizontalViewAngleOn();
+        _seg_renderer->GetActiveCamera()->SetViewAngle(new_state.hfov);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set view direction
+        _seg_renderer->GetActiveCamera()->SetFocalPoint(new_focal_point[0], new_focal_point[1], new_focal_point[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set up direction
+        _seg_renderer->GetActiveCamera()->SetViewUp(new_state.up_dir[0], new_state.up_dir[1], new_state.up_dir[2]);
+        _seg_renderer->ResetCameraClippingRange();
+
+        // set camera orthographic
+        if (new_state.is_orthographic)
+            _seg_renderer->GetActiveCamera()->SetParallelProjection(true);
+        else
+            _seg_renderer->GetActiveCamera()->SetParallelProjection(false);
+    }
+    
 }
 
 void VTKViewer::setCameraOrthographic()
@@ -508,6 +554,49 @@ void VTKViewer::setCameraPosition(const Vec3r& pos)
     std::lock_guard<std::mutex> lock(_camera_state_mutex);
     _camera_state.pos = pos;
     _camera_state.updated = true;
+}
+
+void VTKViewer::addActorToRenderer(vtkSmartPointer<vtkActor> actor, bool add_to_seg_renderer, const Sim::Object* obj_ptr)
+{
+    // add actor to main renderer
+    _renderer->AddActor(actor);
+
+    if (add_to_seg_renderer && _segmentation_rendering)
+    {
+        // generate new color for this actor
+        int index = _seg_color_to_obj_map.size();
+        Real hue = std::fmod(index * 0.618033988749895, 1.0);
+        double hsv[3] = {hue, 0.9, 0.95};
+        double rgb[3];
+        vtkMath::HSVToRGB(hsv, rgb);
+
+        // add entry to color -> obj map
+        _seg_color_to_obj_map.insert({Vec3r(rgb[0], rgb[1], rgb[2]), obj_ptr});
+
+        // create separate actor for segmentation scene
+        vtkNew<vtkActor> seg_actor;
+        seg_actor->SetUserTransform(actor->GetUserTransform());
+
+        vtkPolyData* polyData = vtkPolyData::SafeDownCast(actor->GetMapper()->GetInput());
+        if (!polyData) 
+        {
+            // mapper input isn't a vtkPolyData, fall back to sharing the mapper
+            seg_actor->SetMapper(actor->GetMapper());
+        } 
+        else 
+        {
+            vtkNew<vtkPolyDataMapper> seg_mapper;
+            seg_mapper->SetInputData(polyData);
+            seg_mapper->ScalarVisibilityOff();
+            seg_actor->SetMapper(seg_mapper);
+        }
+        
+        seg_actor->GetProperty()->SetLighting(false);
+        seg_actor->GetProperty()->SetAmbient(1.0);
+        seg_actor->GetProperty()->SetColor(rgb[0], rgb[1], rgb[2]);
+
+        _seg_renderer->AddActor(seg_actor);
+    }
 }
 
 void VTKViewer::update()
