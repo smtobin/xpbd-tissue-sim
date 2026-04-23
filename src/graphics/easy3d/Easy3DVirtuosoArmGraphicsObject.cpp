@@ -55,11 +55,9 @@ void Easy3DVirtuosoArmGraphicsObject::_generateInitialMesh()
 {
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = _virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = _virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = _virtuoso_arm->toolTubeFrames();
 
     int num_ot_vertices = (ot_frames.size() * _OT_TUBULAR_RES + 2);
     int num_it_vertices = (it_frames.size() * _IT_TUBULAR_RES + 2);
-    int num_tt_vertices = (tt_frames.size() * _TT_TUBULAR_RES + 2);
 
     const Real ot_r = _virtuoso_arm->outerTubeOuterDiameter() / 2.0;
     const Real it_r = _virtuoso_arm->innerTubeOuterDiameter() / 2.0;
@@ -89,33 +87,6 @@ void Easy3DVirtuosoArmGraphicsObject::_generateInitialMesh()
 
     _e3d_mesh.add_vertex(easy3d::vec3(0.0, 0.0, ot_trans));
     _e3d_mesh.add_vertex(easy3d::vec3(0.0, 0.0, ot_trans + it_trans));
-
-    if (_virtuoso_arm->hasTool())
-    {
-        Real tt_r = _virtuoso_arm->toolTube().outer_dia / 2.0;
-        std::array<Vec3r, _TT_TUBULAR_RES> tt_circle_pts;
-        for (int i = 0; i < _TT_TUBULAR_RES; i++)
-        {
-            Real angle = i * 2 * M_PI / _TT_TUBULAR_RES;
-            Vec3r circle_pt(tt_r * std::cos(angle), tt_r * std::sin(angle), 0.0);
-            tt_circle_pts[i] = circle_pt;
-        }
-        
-
-        for (unsigned fi = 0; fi < tt_frames.size(); fi++)
-        {
-            const Mat3r rot_mat = tt_frames[fi].transform().rotMat();
-            const Vec3r translation = tt_frames[fi].transform().translation();
-            for (unsigned pi = 0; pi < tt_circle_pts.size(); pi++)
-            {
-                Vec3r transformed_pt = rot_mat * tt_circle_pts[pi] + translation;
-                _e3d_mesh.add_vertex(easy3d::vec3(transformed_pt[0], transformed_pt[1], transformed_pt[2]));
-            }
-        }
-
-        _e3d_mesh.add_vertex(easy3d::vec3(tt_frames[0].origin()[0], tt_frames[0].origin()[1], tt_frames[0].origin()[2]));
-        _e3d_mesh.add_vertex(easy3d::vec3(tt_frames.back().origin()[0], tt_frames.back().origin()[1], tt_frames.back().origin()[2]));
-    }
 
 
     // add face information
@@ -183,55 +154,13 @@ void Easy3DVirtuosoArmGraphicsObject::_generateInitialMesh()
         const int v3 = (ti != _IT_TUBULAR_RES-1) ? v2 + 1 : (it_frames.size()-1)*_IT_TUBULAR_RES;
         _e3d_mesh.add_triangle(easy3d::SurfaceMesh::Vertex(num_ot_vertices+v1), easy3d::SurfaceMesh::Vertex(num_ot_vertices+v2), easy3d::SurfaceMesh::Vertex(num_ot_vertices+v3));
     }
-
-    // inner tube faces
-    if (_virtuoso_arm->hasTool())
-    {
-        for (unsigned fi = 0; fi < tt_frames.size()-1; fi++)
-        {
-            for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-            {
-                const int v1 = fi*_TT_TUBULAR_RES + ti;
-                const int v2 = (ti != _TT_TUBULAR_RES-1) ? v1 + 1 : fi*_TT_TUBULAR_RES;
-                const int v3 = v2 + _TT_TUBULAR_RES;
-                const int v4 = v1 + _TT_TUBULAR_RES;
-                _e3d_mesh.add_quad(easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v1), 
-                    easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v2), 
-                    easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v3), 
-                    easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v4));
-            }
-        }
-
-        // end cap faces
-        for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-        {
-            const int v1 = num_tt_vertices - 2;
-            const int v2 = (ti != _TT_TUBULAR_RES-1) ? ti + 1 : 0;
-            const int v3 = ti;
-            _e3d_mesh.add_triangle(
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v1),
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v2),
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v3));
-        }
-
-        for (int ti = 0; ti < _TT_TUBULAR_RES; ti++)
-        {
-            const int v1 = num_tt_vertices - 1;
-            const int v2 = (tt_frames.size()-1)*_TT_TUBULAR_RES + ti;
-            const int v3 = (ti != _TT_TUBULAR_RES-1) ? v2 + 1 : (tt_frames.size()-1)*_TT_TUBULAR_RES;
-            _e3d_mesh.add_triangle(
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v1),
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v2),
-                easy3d::SurfaceMesh::Vertex(num_ot_vertices+num_it_vertices+v3));
-        }
-    }
+    
 }
 
 void Easy3DVirtuosoArmGraphicsObject::_updateMesh()
 {
     const Sim::VirtuosoArm::OuterTubeFramesArray& ot_frames = _virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& it_frames = _virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tt_frames = _virtuoso_arm->toolTubeFrames();
 
     // make an "outer tube" circle in the XY plane
     Real ot_r = _virtuoso_arm->outerTubeOuterDiameter() / 2.0;
@@ -286,33 +215,6 @@ void Easy3DVirtuosoArmGraphicsObject::_updateMesh()
 
     _e3d_mesh.points()[it_index_offset + it_frames.size()*_IT_TUBULAR_RES] = easy3d::vec3(it_frames[0].origin()[0], it_frames[0].origin()[1], it_frames[0].origin()[2]);
     _e3d_mesh.points()[it_index_offset + it_frames.size()*_IT_TUBULAR_RES+1] = easy3d::vec3(it_frames.back().origin()[0], it_frames.back().origin()[1], it_frames.back().origin()[2]);
-
-    if (_virtuoso_arm->hasTool())
-    {
-        Real tt_r = _virtuoso_arm->toolTube().outer_dia / 2.0;
-        std::array<Vec3r, _TT_TUBULAR_RES> tt_circle_pts;
-        for (int i = 0; i < _TT_TUBULAR_RES; i++)
-        {
-            Real angle = i * 2 * M_PI / _TT_TUBULAR_RES;
-            Vec3r circle_pt(tt_r * std::cos(angle), tt_r * std::sin(angle), 0.0);
-            tt_circle_pts[i] = circle_pt;
-        }
-        
-        int tt_index_offset = it_index_offset + it_frames.size()*_IT_TUBULAR_RES + 2;
-        for (unsigned fi = 0; fi < tt_frames.size(); fi++)
-        {
-            const Mat3r rot_mat = tt_frames[fi].transform().rotMat();
-            const Vec3r translation = tt_frames[fi].transform().translation();
-            for (unsigned pi = 0; pi < tt_circle_pts.size(); pi++)
-            {
-                Vec3r transformed_pt = rot_mat * tt_circle_pts[pi] + translation;
-                _e3d_mesh.points()[tt_index_offset + fi*_TT_TUBULAR_RES + pi] = easy3d::vec3(transformed_pt[0], transformed_pt[1], transformed_pt[2]);
-            }
-        }
-
-        _e3d_mesh.points()[tt_index_offset + tt_frames.size()*_TT_TUBULAR_RES] = easy3d::vec3(tt_frames[0].origin()[0], tt_frames[0].origin()[1], tt_frames[0].origin()[2]);
-        _e3d_mesh.points()[tt_index_offset + tt_frames.size()*_TT_TUBULAR_RES+1] = easy3d::vec3(tt_frames.back().origin()[0], tt_frames.back().origin()[1], tt_frames.back().origin()[2]);
-    }
 
 
     // update face normals

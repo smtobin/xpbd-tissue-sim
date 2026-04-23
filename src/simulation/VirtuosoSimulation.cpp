@@ -1,6 +1,7 @@
 #include "simulation/VirtuosoSimulation.hpp"
 
 #include "utils/GeometryUtils.hpp"
+#include "utils/MathUtils.hpp"
 
 #include <filesystem>
 #include <stdlib.h>
@@ -57,11 +58,6 @@ VirtuosoSimulation::VirtuosoSimulation(const Config::VirtuosoSimulationConfig* c
 void VirtuosoSimulation::setup()
 {
     Simulation::setup();
-    
-    if (_input_device == SimulationInput::Device::MOUSE)
-    {
-        _graphics_scene->viewer()->enableMouseInteraction(false);   // disable mouse interaction with the viewer when using mouse control
-    }
 
     // find the VirtuosoRobot object - necessary for Virtuoso simulation controls
     auto& _virtuoso_robot_objs = _objects.template get<std::unique_ptr<VirtuosoRobot>>();
@@ -142,7 +138,7 @@ void VirtuosoSimulation::notifyMouseMoved(double x, double y)
             
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
             const Vec3r offset = right_vec*dx + up_vec*dy;
-            _moveArm(_active_arm, _tip_cursor1, offset*scaling);
+            _moveArm(_active_arm, _tip_cursor1, offset*scaling, Vec3r::Zero());
         }
     }
 
@@ -181,6 +177,21 @@ void VirtuosoSimulation::notifyKeyPressed(SimulationInput::Key key, SimulationIn
         updateGraphicsCameraPoseToRobotCamFrame();
     }
 
+    else if (key == SimulationInput::Key::SPACE && action == SimulationInput::KeyAction::PRESS)
+    {
+        if (_input_device == SimulationInput::Device::MOUSE)
+        {
+            _graphics_scene->viewer()->enableMouseInteraction(false);   // disable mouse interaction with the viewer when actively using mouse control (space bar is pressed)
+        }
+    }
+    else if (key == SimulationInput::Key::SPACE && action == SimulationInput::KeyAction::RELEASE)
+    {
+        if (_input_device == SimulationInput::Device::MOUSE)
+        {
+            _graphics_scene->viewer()->enableMouseInteraction(true);   // enable mouse interaction with the viewer when not actively using mouse control (space bar is released)
+        }
+    }
+
     Simulation::notifyKeyPressed(key, action, modifiers);
 
 }
@@ -197,7 +208,7 @@ void VirtuosoSimulation::notifyMouseScrolled(double dx, double dy)
 
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
             const Vec3r offset = view_dir*dy;
-            _moveArm(_active_arm, _tip_cursor1, offset*scaling);
+            _moveArm(_active_arm, _tip_cursor1, offset*scaling, Vec3r::Zero());
         }
     }
 
@@ -230,9 +241,9 @@ void VirtuosoSimulation::setArm1TipPosition(const Vec3r& tip_pos)
     assert(_virtuoso_robot && _virtuoso_robot->hasArm1());
 
     {
-        std::lock_guard<std::mutex> l(_arm1_tip_pos.mtx);
-        _arm1_tip_pos.state = tip_pos;
-        _arm1_tip_pos.has_new = true;
+        std::lock_guard<std::mutex> l(_arm1_tip_pose.mtx);
+        _arm1_tip_pose.state.setTranslation(tip_pos);
+        _arm1_tip_pose.has_new = true;
     }
 }
 void VirtuosoSimulation::setArm2TipPosition(const Vec3r& tip_pos)
@@ -240,9 +251,29 @@ void VirtuosoSimulation::setArm2TipPosition(const Vec3r& tip_pos)
     assert(_virtuoso_robot && _virtuoso_robot->hasArm2());
 
     {
-        std::lock_guard<std::mutex> l(_arm2_tip_pos.mtx);
-        _arm2_tip_pos.state = tip_pos;
-        _arm2_tip_pos.has_new = true;
+        std::lock_guard<std::mutex> l(_arm2_tip_pose.mtx);
+        _arm2_tip_pose.state.setTranslation(tip_pos);
+        _arm2_tip_pose.has_new = true;
+    }
+}
+void VirtuosoSimulation::setArm1TipPose(const Geometry::TransformationMatrix& tip_pose)
+{
+    assert(_virtuoso_robot && _virtuoso_robot->hasArm1());
+
+    {
+        std::lock_guard<std::mutex> l(_arm1_tip_pose.mtx);
+        _arm1_tip_pose.state = tip_pose;
+        _arm1_tip_pose.has_new = true;
+    }
+}
+void VirtuosoSimulation::setArm2TipPose(const Geometry::TransformationMatrix& tip_pose)
+{
+    assert(_virtuoso_robot && _virtuoso_robot->hasArm2());
+
+    {
+        std::lock_guard<std::mutex> l(_arm2_tip_pose.mtx);
+        _arm2_tip_pose.state = tip_pose;
+        _arm2_tip_pose.has_new = true;
     }
 }
 void VirtuosoSimulation::setArm1ToolState(int tool_state)
@@ -266,7 +297,7 @@ void VirtuosoSimulation::setArm2ToolState(int tool_state)
     }
 }
 
-void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, const Vec3r& dp)
+void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, const Vec3r& dp, const Vec3r& dR)
 {
     Vec3r dp_clamped = dp;
     Real max_dp = 1e-4;
@@ -275,9 +306,15 @@ void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, co
         dp_clamped = dp * (1e-4 / dp.norm());
     }
     // move the tip cursor and the active arm tip position
-    const Vec3r current_tip_position = arm->commandedTipPosition();
+    Geometry::TransformationMatrix cur_commanded_pose = arm->commandedTipPose();
+    const Vec3r current_tip_position = cur_commanded_pose.translation();
     const Vec3r new_commanded_position = current_tip_position + dp_clamped;
-    arm->setCommandedTipPosition(new_commanded_position);
+
+    const Mat3r current_rot = cur_commanded_pose.rotMat();
+    const Mat3r new_rot = current_rot * MathUtils::Exp_so3(dR);
+
+    Geometry::TransformationMatrix new_pose(new_rot, new_commanded_position);
+    arm->setCommandedTipPose(new_pose);
 
     if (_show_tip_cursor)
         cursor->setPosition(new_commanded_position);
@@ -373,6 +410,8 @@ void VirtuosoSimulation::_timeStep()
             HHD handle = device_handles[i];
             Vec3r last_pos = _haptic_device_manager->lastPosition(handle);
             Vec3r cur_pos = _haptic_device_manager->position(handle);
+            Mat3r last_rot = _haptic_device_manager->lastOrientation(handle);
+            Mat3r cur_rot = _haptic_device_manager->orientation(handle);
             const Vec3r cur_force = _haptic_device_manager->force(handle);
 
             bool button1_pressed = _haptic_device_manager->button1Pressed(handle);
@@ -392,7 +431,9 @@ void VirtuosoSimulation::_timeStep()
                 rot_mat.col(0) = rot_mat.col(1).cross(rot_mat.col(2));
                 // transform from camera frame to global frame
                 Vec3r dx_sim = rot_mat * dx_camera;
-                _moveArm(arm, cursor, dx_sim*0.00005);
+
+                Vec3r dR = MathUtils::Minus_SO3(cur_rot, last_rot);
+                _moveArm(arm, cursor, dx_sim*0.00005, dR);
 
                 // transform force from global frame to haptic frame
                 Vec3r cam_force = rot_mat.transpose() * arm->unfilteredCollisionForce();
@@ -438,17 +479,17 @@ void VirtuosoSimulation::_timeStep()
         _arm2_joint_state.has_new = false;
     }
 
-    if (_arm1_tip_pos.has_new.load())
+    if (_arm1_tip_pose.has_new.load())
     {
-        std::lock_guard<std::mutex> l(_arm1_tip_pos.mtx);
-        _virtuoso_robot->arm1()->setCommandedTipPosition(_arm1_tip_pos.state);
-        _arm1_tip_pos.has_new = false;
+        std::lock_guard<std::mutex> l(_arm1_tip_pose.mtx);
+        _virtuoso_robot->arm1()->setCommandedTipPose(_arm1_tip_pose.state);
+        _arm1_tip_pose.has_new = false;
     }
-    if (_arm2_tip_pos.has_new.load())
+    if (_arm2_tip_pose.has_new.load())
     {
-        std::lock_guard<std::mutex> l(_arm2_tip_pos.mtx);
-        _virtuoso_robot->arm2()->setCommandedTipPosition(_arm2_tip_pos.state);
-        _arm2_tip_pos.has_new = false;
+        std::lock_guard<std::mutex> l(_arm2_tip_pose.mtx);
+        _virtuoso_robot->arm2()->setCommandedTipPose(_arm2_tip_pose.state);
+        _arm2_tip_pose.has_new = false;
     }
 
     if (_arm1_tool_state.has_new.load())

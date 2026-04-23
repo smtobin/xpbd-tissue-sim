@@ -33,7 +33,9 @@ struct GetObjectTypesFromConfigTypes<TypeList<ConfigTypes...>>
 };
 
 /** The types of simulation Objects the Simulation should expect. These come directly from the SimulationObjectconfigTypes. */
-using SimulationObjectTypes = GetObjectTypesFromConfigTypes<SimulationObjectConfigTypes>::deduped_type;
+using SimulationObjectTypesFromConfigs = GetObjectTypesFromConfigTypes<SimulationObjectConfigTypes>::deduped_type;
+// include the Virtuoso tools
+using SimulationObjectTypes = ConcatenateTypeLists<SimulationObjectTypesFromConfigs, TypeList<Sim::VirtuosoArmTool_Base>>::type;
 
 // define std::variant with const ptr types of all object types
 using SimulationObjectConstPtrVariantType = VariantFromTypeList<SimulationObjectTypes>::const_ptr_type;

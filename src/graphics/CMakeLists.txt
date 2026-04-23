@@ -26,6 +26,8 @@ set(GRAPHICS_HEADERS
     ${GRAPHICS_INCLUDE_DIR}/vtk/VTKMeshGraphicsObject.hpp
     ${GRAPHICS_INCLUDE_DIR}/vtk/VTKVirtuosoArmGraphicsObject.hpp
     ${GRAPHICS_INCLUDE_DIR}/vtk/VTKVirtuosoRobotGraphicsObject.hpp
+    ${GRAPHICS_INCLUDE_DIR}/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.hpp
+    ${GRAPHICS_INCLUDE_DIR}/vtk/VTKVirtuosoArmCauteryToolGraphicsObject.hpp
 )
 
 set(GRAPHICS_SOURCES
@@ -49,6 +51,8 @@ set(GRAPHICS_SOURCES
     ${GRAPHICS_SRC_DIR}/vtk/VTKMeshGraphicsObject.cpp
     ${GRAPHICS_SRC_DIR}/vtk/VTKVirtuosoArmGraphicsObject.cpp
     ${GRAPHICS_SRC_DIR}/vtk/VTKVirtuosoRobotGraphicsObject.cpp
+    ${GRAPHICS_SRC_DIR}/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.cpp
+    ${GRAPHICS_SRC_DIR}/vtk/VTKVirtuosoArmCauteryToolGraphicsObject.cpp
 )
 
 target_sources(Graphics

@@ -189,6 +189,106 @@ void CollisionScene::_collideXPBDFaceWithObject(
      * faces multiple times and create duplicate collision constraints. For now, this is acceptable. But eventually should be improved.
      * 
      */
+    // Real detF = mesh->elementDeformationGradient(elem_ind).determinant();
+    // if (detF < 0.1)
+    // {
+    //     face_ind = -1;  // the face we are about to test does not correspond to a surface face
+        
+    //     std::vector<int> surface_faces = mesh->elementSurfaceFaces(elem_ind);
+    //     const Vec4i& elem_verts = mesh->element(elem_ind);
+        
+    //     // get interior faces and run collision on these
+    //     for (int i = 0; i < 4; i++)
+    //     {
+    //         for (int j = i+1; j < 4; j++)
+    //         {
+    //             for (int k = j+1; k < 4; k++)
+    //             {
+    //                 v1 = elem_verts[i]; v2 = elem_verts[j]; v3 = elem_verts[k];
+
+    //                 // make sure that this face is not on the surface
+    //                 bool on_surface = false;
+    //                 for (const auto& surface_face_ind : surface_faces)
+    //                 {
+    //                     const Vec3i& surface_face = mesh->face(surface_face_ind);
+    //                     if (Geometry::Face(v1, v2, v3) == Geometry::Face(surface_face[0], surface_face[1], surface_face[2]))
+    //                     {
+    //                         on_surface = true;
+    //                         break;
+    //                     }
+    //                 }
+    //                 if (on_surface)
+    //                     continue;
+                    
+    //                 // test the face
+    //                 _lowDiscrepancySampling(char_dim, mesh->vertex(v1), mesh->vertex(v2), mesh->vertex(v3), test_func);
+                    
+    //             }
+    //         }
+    //     }
+    // }
+}
+
+template<bool IsFirstOrder>
+void CollisionScene::_collideXPBDFaceWithObject(
+    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const
+{
+    const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
+
+    if (!mesh->faceValid(face_ind))
+        return;
+
+    const auto* sdf = virtuoso_arm_tool->SDF();
+    Real char_dim = virtuoso_arm_tool->characteristicDimension();
+
+    const Vec3i& f = mesh->face(face_ind);
+    int v1 = f[0]; int v2 = f[1]; int v3 = f[2];
+    const Vec3r& p1 = mesh->vertex(v1);
+    const Vec3r& p2 = mesh->vertex(v2);
+    const Vec3r& p3 = mesh->vertex(v3);
+
+    // check if centroid of face is close
+    const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
+
+    const Real p1p2 = (p2-p1).norm();
+    const Real p1p3 = (p3-p1).norm();
+    const Real p2p3 = (p3-p2).norm();
+
+    const Real max_edge = std::max({p1p2, p1p3, p2p3});
+    if (centroid_dist > max_edge/2)
+        return;
+    
+    int elem_ind = mesh->elementWithFace(face_ind);
+
+    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm_tool](const Vec3r& x, const Vec3r& bary_coords) {
+        Real distance = sdf->evaluate(x);
+        Vec3r gradient = sdf->gradient(x);
+        if (distance <= 1e-4)
+        {
+            const Vec3r surface_x = x - gradient*distance;
+            Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+                xpbd_mesh_obj->addStaticCollisionConstraint(
+                    sdf, surface_x, gradient,
+                    v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2],
+                    elem_ind, face_ind
+                );
+            
+            virtuoso_arm_tool->addCollisionConstraint(std::move(proj_ref));
+        }
+    };
+
+    _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
+
+    // check if we should collide the Virtuoso arm with other internal faces of the element
+    // we need to do this when the element is inverted, or near inverted (say det(F) < 0.1)
+    // this way, if/when we remove the element in contact, the new faces created will not be penetrating the SDF!
+    /** 
+     * 
+     * 
+     * TODO: for an inverted element with multiple surface faces, this part will do duplicate work and check the interior
+     * faces multiple times and create duplicate collision constraints. For now, this is acceptable. But eventually should be improved.
+     * 
+     */
     Real detF = mesh->elementDeformationGradient(elem_ind).determinant();
     if (detF < 0.1)
     {
@@ -336,6 +436,51 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::XPB
     // std::cout << "DeformableSDF distance: " << dist << std::endl;
 }
 
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, Sim::Object* obj)
+{
+    const Geometry::VirtuosoArmToolSDF* tool_sdf = virtuoso_arm_tool->SDF();
+    const Geometry::SDF* obj_sdf = obj->SDF();
+
+    Vec3r tool_cp = tool_sdf->findContactPoint(obj_sdf);
+    Real dist = obj_sdf->evaluate(tool_cp);
+
+    if (dist < 0)
+    {
+        // put global contact point on tool in the local inner tube end frame
+        Vec3r cp_local = virtuoso_arm_tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool_cp - virtuoso_arm_tool->arm()->innerTubeEndFrame().origin());
+        virtuoso_arm_tool->arm()->addRigidCollision(cp_local, obj_sdf);
+    }
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool, Sim::VirtuosoArm* arm)
+{
+    // ignore these collisions - handled by arm-tool callback
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::VirtuosoArmTool_Base* tool2)
+{
+    if (tool1 > tool2)
+        return;
+
+    const Geometry::VirtuosoArmToolSDF* tool1_sdf = tool1->SDF();
+    const Geometry::VirtuosoArmToolSDF* tool2_sdf = tool2->SDF();
+
+    Vec3r tool1_cp = tool1_sdf->findContactPoint(tool2_sdf);
+    Real dist = tool2_sdf->evaluate(tool1_cp);
+
+    if (dist < 0)
+    {
+        Vec3r grad = tool2_sdf->gradient(tool1_cp);
+        Vec3r tool2_cp = tool1_cp - grad*dist;
+
+        Vec3r tool1_cp_local = tool1->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool1_cp - tool1->arm()->innerTubeEndFrame().origin());
+        Vec3r tool2_cp_local = tool2->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (tool2_cp - tool1->arm()->innerTubeEndFrame().origin());
+        tool1->arm()->addVirtuosoArmCollision(tool1_cp_local, tool2->arm(), tool2_cp_local);
+    }
+}
+
+
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* /*xpbd_mesh_obj1*/, Sim::XPBDMeshObject_Base_<IsFirstOrder>* /*xpbd_mesh_obj2*/)
 {
@@ -351,6 +496,15 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
     }
 }
 
+template <bool IsFirstOrder>
+void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool)
+{
+    for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
+    {
+        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, face_ind);
+    }
+}
+
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2)
 {
     if (virtuoso_arm1 >= virtuoso_arm2)
@@ -360,31 +514,6 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
     // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
     const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm1->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm1->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm1->toolTubeFrames();
-    
-    if (virtuoso_arm1->hasTool())
-    {
-        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
-        {
-            Vec3r p1 = tool_tube_frames[i].origin();
-            Vec3r p2 = tool_tube_frames[i+1].origin();
-            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, virtuoso_arm2->SDF());
-            
-            if (dist < virtuoso_arm1->toolTube().outer_dia/2.0)
-            {
-                Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo result = virtuoso_arm2->SDF()->evaluateWithGradientAndNodeInfo(p1 + s*(p2-p1));
-                // collision between inner tube and other SDF!
-                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and other Virtuoso arm! s=" << s << ", dist=" << dist << std::endl;
-                virtuoso_arm1->addVirtuosoArmCollision(
-                    outer_tube_frames.size() + inner_tube_frames.size() + i, s, 
-                    virtuoso_arm2, result.node_index, result.interp_factor);
-                // virtuoso_arm2->addVirtuosoArmCollision(
-                //     result.node_index, result.interp_factor,
-                //     virtuoso_arm1, outer_tube_frames.size() + inner_tube_frames.size() + i, s
-                // );
-            }
-        }
-    }
 
     for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
     {
@@ -429,13 +558,64 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
     }
 }
 
-void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj)
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::VirtuosoArmTool_Base* tool)
 {
+    // make sure that the object is not the tool attached to the arm
+    if (virtuoso_arm->tool() &&  virtuoso_arm->tool() == tool)
+        return;
+        
     // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
     // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
     const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
     const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm->innerTubeFrames();
-    const Sim::VirtuosoArm::ToolTubeFramesArray& tool_tube_frames = virtuoso_arm->toolTubeFrames();
+    
+    for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = outer_tube_frames[i].origin();
+        Vec3r p2 = outer_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, tool->SDF());
+        
+        if (dist < virtuoso_arm->outerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between outer tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            Vec3r cp_arm = p1 + (p2-p1)*s;
+            Vec3r grad = tool->SDF()->gradient(cp_arm);
+            Vec3r cp_tool = cp_arm - grad*dist;
+            Vec3r cp_tool_local = tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (cp_tool - tool->arm()->innerTubeEndFrame().origin());
+            virtuoso_arm->addVirtuosoArmCollision(i, s, tool->arm(), cp_tool_local);
+        }
+    }
+
+    for (unsigned i = 0; i < inner_tube_frames.size()-1; i++)
+    {
+        Vec3r p1 = inner_tube_frames[i].origin();
+        Vec3r p2 = inner_tube_frames[i+1].origin();
+        auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, tool->SDF());
+        
+        if (dist < virtuoso_arm->innerTubeOuterDiameter()/2.0)
+        {
+            // collision between inner tube and other SDF!
+            // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
+            Vec3r cp_arm = p1 + (p2-p1)*s;
+            Vec3r grad = tool->SDF()->gradient(cp_arm);
+            Vec3r cp_tool = cp_arm - grad*dist;
+            Vec3r cp_tool_local = tool->arm()->innerTubeEndFrame().transform().rotMat().transpose() * (cp_tool - tool->arm()->innerTubeEndFrame().origin());
+            virtuoso_arm->addVirtuosoArmCollision(outer_tube_frames.size() + i, s, tool->arm(), cp_tool_local);
+        }
+    }
+}
+
+void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj)
+{
+    // make sure that the object is not the tool attached to the arm
+    if (virtuoso_arm->tool() &&  (Sim::Object*)virtuoso_arm->tool() == obj)
+        return;
+        
+    // for each segment of the Virtuoso arm, find the point on the segment that is most deeply penetration the other object
+    // this is a univariate optimization problem: we want to find s such that SDF(p(s)) is minimized where p(s) is the position along segment centerline
+    const Sim::VirtuosoArm::OuterTubeFramesArray& outer_tube_frames = virtuoso_arm->outerTubeFrames();
+    const Sim::VirtuosoArm::InnerTubeFramesArray& inner_tube_frames = virtuoso_arm->innerTubeFrames();
     
     for (unsigned i = 0; i < outer_tube_frames.size()-1; i++)
     {
@@ -462,23 +642,6 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Obj
             // collision between inner tube and other SDF!
             // std::cout << "Collision between inner tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
             virtuoso_arm->addRigidCollision(outer_tube_frames.size() + i, s, obj->SDF());
-        }
-    }
-
-    if (virtuoso_arm->hasTool())
-    {
-        for (unsigned i = 0; i < tool_tube_frames.size()-1; i++)
-        {
-            Vec3r p1 = tool_tube_frames[i].origin();
-            Vec3r p2 = tool_tube_frames[i+1].origin();
-            auto [s, dist] = _findDeepestPenetratingPointOnSegment(p1, p2, obj->SDF());
-            
-            if (dist < virtuoso_arm->toolTube().outer_dia/2.0)
-            {
-                // collision between inner tube and other SDF!
-                // std::cout << "Collision between tool tube segment (" << i << "," << i+1 << ") and SDF! s=" << s << ", dist=" << dist << std::endl;
-                virtuoso_arm->addRigidCollision(outer_tube_frames.size() + inner_tube_frames.size() + i, s, obj->SDF());
-            }
         }
     }
 }

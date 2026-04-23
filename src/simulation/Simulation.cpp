@@ -144,10 +144,10 @@ void Simulation::setup()
 
                 int max_refinement_level = xpbd_obj->maxRefinementLevel();
 
-                const typename Sim::VirtuosoArm::SDFType* sdf1 = nullptr;
-                const typename Sim::VirtuosoArm::SDFType* sdf2 = nullptr;
-                if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->SDF();
-                if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->SDF();
+                const typename Sim::VirtuosoArmTool_Base::SDFType* sdf1 = nullptr;
+                const typename Sim::VirtuosoArmTool_Base::SDFType* sdf2 = nullptr;
+                if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->tool()->SDF();
+                if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->tool()->SDF();
                 const Geometry::Mesh* mesh = xpbd_obj->mesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
@@ -171,27 +171,25 @@ void Simulation::setup()
                     // only refine around cautery tool tip (i.e. not the whole tube)
                     if (sdf1)
                     {
-                        Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo best_result;
-                        best_result.distance = std::numeric_limits<Real>::max();
+                        Real best_distance = std::numeric_limits<Real>::max();
                         for (const auto& pt : pts_to_test)
                         {
-                            auto result = sdf1->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
-                            if (result.distance < best_result.distance)
-                                best_result = result;
+                            Real distance = sdf1->evaluate(pt);
+                            if (distance < best_distance)
+                                best_distance = distance;
                         }
-                        sdf_dist1 = best_result.distance;
+                        sdf_dist1 = best_distance;
                     }
                     if (sdf2)
                     {
-                        Geometry::VirtuosoArmSDF::DistanceAndGradientWithNodeInfo best_result;
-                        best_result.distance = std::numeric_limits<Real>::max();
+                        Real best_distance = std::numeric_limits<Real>::max();
                         for (const auto& pt : pts_to_test)
                         {
-                            auto result = sdf2->evaluateWithGradientAndNodeInfo(pt, true);  // only query the tool tip
-                            if (result.distance < best_result.distance)
-                                best_result = result;
+                            Real distance = sdf2->evaluate(pt);
+                            if (distance < best_distance)
+                                best_distance = distance;
                         }
-                        sdf_dist2 = best_result.distance;
+                        sdf_dist2 = best_distance;
                     }
 
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);

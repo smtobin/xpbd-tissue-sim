@@ -3,6 +3,8 @@
 
 #include "simobject/Object.hpp"
 #include "simobject/XPBDMeshObjectBaseWrapper.hpp"
+#include "simobject/VirtuosoArmTools.hpp"
+
 
 #include "geometry/CoordinateFrame.hpp"
 #include "geometry/VirtuosoArmSDF.hpp"
@@ -25,11 +27,19 @@ class XPBDMeshObject_BasePtrWrapper;
 /** Simple struct to store information about active collisions between the arm and another object. */
 struct VirtuosoArmRigidCollision
 {
+    static constexpr int _TOOL_COLLISION_NODE_INDEX = 10000;    // some arbitrary large number
+
     /** The node index for the first node of the segment in collision */
     int node_index;
     /** Interpolation parameter in [0,1] for the specific point in collision along the segment. */
     mutable Real interp;
     mutable Real prev_interp;
+    /** Whether this is a tool collision. */
+    bool is_tool;
+    /** Contact point offset for the contact point on the tool, expressed in the inner tube end frame. 
+     * Only applies for tool-rigid collisions. */
+    mutable Vec3r contact_point;
+    mutable Vec3r prev_tip_moment;
 
     /** The SDF for the rigid body in collision. */
     const Geometry::SDF* rigid_sdf;
@@ -39,9 +49,46 @@ struct VirtuosoArmRigidCollision
      */
     mutable Vec3r force;
 
+    /** Arm collision constructor */
     VirtuosoArmRigidCollision(int node_index_, Real interp_, const Geometry::SDF* rigid_sdf_)
-        : node_index(node_index_), interp(interp_), prev_interp(interp_), rigid_sdf(rigid_sdf_), force(0,0,0)
+        : node_index(node_index_), interp(interp_), prev_interp(interp_), 
+        is_tool(false), contact_point(0,0,0), prev_tip_moment(0,0,0),
+        rigid_sdf(rigid_sdf_), force(0,0,0)
     {
+    }
+
+    /** Tool collision constructor */
+    VirtuosoArmRigidCollision(const Vec3r& contact_point_, const Geometry::SDF* rigid_sdf_)
+        : node_index(_TOOL_COLLISION_NODE_INDEX), interp(0), prev_interp(0),
+          is_tool(true), contact_point(contact_point_), prev_tip_moment(0,0,0),
+        rigid_sdf(rigid_sdf_), force(0,0,0)
+    {
+    }
+
+    /** Default constructor for serialization */
+    VirtuosoArmRigidCollision() {}
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, node_index);
+        pack(buf, interp);
+        pack(buf, prev_interp);
+        pack(buf, is_tool);
+        pack(buf, contact_point);
+        pack(buf, prev_tip_moment);
+        pack(buf, rigid_sdf);
+        pack(buf, force);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, node_index);
+        unpack(buf, interp);
+        unpack(buf, prev_interp);
+        unpack(buf, is_tool);
+        unpack(buf, contact_point);
+        unpack(buf, prev_tip_moment);
+        unpack(buf, rigid_sdf);
+        unpack(buf, force);
     }
 };
 
@@ -65,12 +112,18 @@ struct VirtuosoArmRigidCollision_Equal
 
 struct VirtuosoArmVirtuosoArmCollision
 {
+    static constexpr int _TOOL_COLLISION_NODE_INDEX = 10000;    // some arbitrary large number
+
     /** Info for the first arm in collision */
     VirtuosoArm* arm1;
     int node_index1;
     Real interp1;
     int last_node_index1;
     Real last_interp1;
+
+    bool is_tool1;
+    Vec3r contact_point1;
+    Vec3r last_tip_moment1;
 
     /** Info for the second arm in collision */
     VirtuosoArm* arm2;
@@ -79,53 +132,100 @@ struct VirtuosoArmVirtuosoArmCollision
     int last_node_index2;
     Real last_interp2;
 
+    bool is_tool2;
+    Vec3r contact_point2;
+    Vec3r last_tip_moment2;
+
     /** Force info */
     Vec3r force;
 
+    /** Constructor for tube-tube collision */
     VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, int node_index2_, Real interp2_)
         : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+        is_tool1(false), contact_point1(0,0,0), last_tip_moment1(0,0,0),
          arm2(arm2_), node_index2(node_index2_), interp2(interp2_), last_node_index2(node_index2_), last_interp2(interp2_),
+         is_tool2(false), contact_point2(0,0,0), last_tip_moment2(0,0,0),
           force(0,0,0)
     {
     }
-};
 
-struct VirtuosoArmTool
-{
-    Real outer_dia;
-    Real inner_dia;
-    Real E;
-    Real G;
-    Real I;
-    Real J;
-
-    VirtuosoArmTool(Real outer_dia_, Real inner_dia_, Real E_)
-        : outer_dia(outer_dia_), inner_dia(inner_dia_), E(E_)
+    /** Constructor for tube-tool collision */
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, int node_index1_, Real interp1_, VirtuosoArm* arm2_, const Vec3r& contact_point2_)
+        : arm1(arm1_), node_index1(node_index1_), interp1(interp1_), last_node_index1(node_index1_), last_interp1(interp1_),
+        is_tool1(false), contact_point1(0,0,0), last_tip_moment1(0,0,0),
+        arm2(arm2_), node_index2(_TOOL_COLLISION_NODE_INDEX), interp2(0), last_node_index2(_TOOL_COLLISION_NODE_INDEX), last_interp2(0),
+        is_tool2(true), contact_point2(contact_point2_), last_tip_moment2(0,0,0),
+        force(0,0,0)
     {
-        G = E / (2*(1+0.3));
-        I = M_PI/4 * (outer_dia*outer_dia*outer_dia*outer_dia/16 - inner_dia*inner_dia*inner_dia*inner_dia/16);
-        J = 2*I;
     }
 
-    /** TODO: Add tool action function somehow */
-};
+    /** Constructor for tool-tool collision */
+    VirtuosoArmVirtuosoArmCollision(VirtuosoArm* arm1_, const Vec3r& contact_point1_, VirtuosoArm* arm2_, const Vec3r& contact_point2_)
+        : arm1(arm1_), node_index1(_TOOL_COLLISION_NODE_INDEX), interp1(0), last_node_index1(_TOOL_COLLISION_NODE_INDEX), last_interp1(0),
+        is_tool1(true), contact_point1(contact_point1_), last_tip_moment1(0,0,0),
+        arm2(arm2_), node_index2(_TOOL_COLLISION_NODE_INDEX), interp2(0), last_node_index2(_TOOL_COLLISION_NODE_INDEX), last_interp2(0),
+        is_tool2(true), contact_point2(contact_point2_), last_tip_moment2(0,0,0),
+        force(0,0,0)
+    {
+    }
 
-static VirtuosoArmTool VirtuosoArmTool_None(0, 0, 0);
-static VirtuosoArmTool VirtuosoArmTool_Palpation(0.7e-3, 0.5e-3, 60e9);
-static VirtuosoArmTool VirtuosoArmTool_Spatula(0.7e-3, 0.5e-3, 60e9);     /** TODO: find actual properties of spatula tool tube */
-static VirtuosoArmTool VirtuosoArmTool_Grasper(0.7e-3, 0.5e-3, 60e9);     /** These are just made up for now */
-static VirtuosoArmTool VirtuosoArmTool_Cautery(0.7e-3, 0.5e-3, 60e9);     /** TODO: find actual properties of cautery tool tube */
+    /** Default constructor for serialization */
+    VirtuosoArmVirtuosoArmCollision() {}
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, arm1);
+        pack(buf, node_index1);
+        pack(buf, interp1);
+        pack(buf, last_node_index1);
+        pack(buf, last_interp1);
+        pack(buf, is_tool1);
+        pack(buf, contact_point1);
+        pack(buf, last_tip_moment1);
+
+        pack(buf, arm2);
+        pack(buf, node_index2);
+        pack(buf, interp2);
+        pack(buf, last_node_index2);
+        pack(buf, last_interp2);
+        pack(buf, is_tool2);
+        pack(buf, contact_point2);
+        pack(buf, last_tip_moment2);
+        pack(buf, force);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, arm1);
+        unpack(buf, node_index1);
+        unpack(buf, interp1);
+        unpack(buf, last_node_index1);
+        unpack(buf, last_interp1);
+        unpack(buf, is_tool1);
+        unpack(buf, contact_point1);
+        unpack(buf, last_tip_moment1);
+
+        unpack(buf, arm2);
+        unpack(buf, node_index2);
+        unpack(buf, interp2);
+        unpack(buf, last_node_index2);
+        unpack(buf, last_interp2);
+        unpack(buf, is_tool2);
+        unpack(buf, contact_point2);
+        unpack(buf, last_tip_moment2);
+
+        unpack(buf, force);
+    }
+};
 
 class VirtuosoArm : public Object
 {
 
-    private:
+public:
     /** Number of frames along the tube (i.e. number of integration points for each section) */
     constexpr static int NUM_OT_CURVE_FRAMES = 10;      // number of coordinate frames defined along the curved section of the outer tube
     constexpr static int NUM_OT_STRAIGHT_FRAMES = 5;    // number of coordinate frames defined along the straight distal section of the outer tube
     constexpr static int NUM_OT_FRAMES = NUM_OT_CURVE_FRAMES + NUM_OT_STRAIGHT_FRAMES; // total number of coordinate frames defined along the outer tube
     constexpr static int NUM_IT_FRAMES = 10;            // number of coordinate frames defined along the (exposed part of the) inner tube
-    constexpr static int NUM_TT_FRAMES = 10;            // number of coordinate frames defined along the (exposed part of the) tool tube
 
     /** Joint limits */
     constexpr static Real MAX_OT_TRANSLATION = 20e-3;    // maximum outer tube translation (joint limit on Virtuoso system)
@@ -139,13 +239,11 @@ class VirtuosoArm : public Object
 
     constexpr static double GRASPING_RADIUS = 0.002;    // grasping radius for the grasper tool
 
-    public:
     using ConfigType = Config::VirtuosoArmConfig;
     using SDFType = Geometry::VirtuosoArmSDF;
     
     using OuterTubeFramesArray = std::array<Geometry::CoordinateFrame, NUM_OT_CURVE_FRAMES + NUM_OT_STRAIGHT_FRAMES>;
     using InnerTubeFramesArray = std::array<Geometry::CoordinateFrame, NUM_IT_FRAMES>;
-    using ToolTubeFramesArray = std::array<Geometry::CoordinateFrame, NUM_TT_FRAMES>;
 
     /** The type of tool attached to the tip of the arm */
     enum class ToolType
@@ -165,11 +263,6 @@ class VirtuosoArm : public Object
         TIMER,      // uses a timer and a threshold to approximate the time taken to cut
         THERMAL     // applies heat input to the tissue according to power-resistance curve
     };
-
-    /** Maps types in the ToolType enum to their corresponding structs with properties.
-     * TODO: this probably shouldn't be necessary, but we'll keep it for now
-     */
-    static std::map<ToolType, VirtuosoArmTool> TOOL_TYPE_TO_STRUCT;
 
     /** State of a tube at a given point along the tube.
      * Used in the statics model for the Virtuoso arm, where we integrate from the base to the tip, keeping track of
@@ -332,9 +425,10 @@ class VirtuosoArm : public Object
     Real outerTubeRotation() const { return _ot_rotation; }
     Real outerTubeDistalStraightLength() const { return _ot_distal_straight_length; }
     int toolState() const { return _tool_state; }
-    bool hasTool() const { return (_tool_type != ToolType::NONE); }
+    bool hasTool() const { return _tool.get(); }
     ToolType toolType() const { return _tool_type; }
-    const VirtuosoArmTool& toolTube() const { return _tool_tube; }
+    const VirtuosoArmTool_Base* tool() const { return _tool.get(); }
+    VirtuosoArmTool_Base* tool() { return _tool.get(); }
 
     void setInnerTubeTranslation(double t) { _it_translation = (t >= 0) ? t : 0; _stale_frames = true; }
     void setInnerTubeRotation(double r) { _it_rotation = r; _stale_frames = true; }
@@ -353,11 +447,13 @@ class VirtuosoArm : public Object
 
     const OuterTubeFramesArray& outerTubeFrames() const { return _ot_frames; }
     const InnerTubeFramesArray& innerTubeFrames() const { return _it_frames; }
-    const ToolTubeFramesArray& toolTubeFrames() const { return _tt_frames; }
 
     Vec3r actualTipPosition() const;
-    Vec3r commandedTipPosition() const{ return _commanded_tip_position; }
+    Geometry::TransformationMatrix actualTipPose() const;
+    Vec3r commandedTipPosition() const{ return _commanded_tip_pose.translation(); }
+    const Geometry::TransformationMatrix& commandedTipPose() const { return _commanded_tip_pose; }
     void setCommandedTipPosition(const Vec3r& new_position);
+    void setCommandedTipPose(const Geometry::TransformationMatrix& pose);
 
     Vec3r tipForce() const { return _tip_force; }
     Vec3r tipMoment() const { return _tip_moment; }
@@ -388,7 +484,10 @@ class VirtuosoArm : public Object
     void clearCollisionConstraints();
 
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
+    void addRigidCollision(const Vec3r& contact_point, const Geometry::SDF* sdf);
     void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
+    void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, const Vec3r& contact_point);
+    void addVirtuosoArmCollision(const Vec3r& contact_point1, VirtuosoArm* other, const Vec3r& contact_point2);
 
     const std::unordered_set<VirtuosoArmRigidCollision, VirtuosoArmRigidCollision_Hash, VirtuosoArmRigidCollision_Equal>& 
         rigidCollisions() const { return _rigid_collisions; }
@@ -396,10 +495,8 @@ class VirtuosoArm : public Object
 
     const Vec3r& outerTubeNodalForce(int node_index) const { return _ot_nodal_forces[node_index]; }
     const Vec3r& innerTubeNodalForce(int node_index) const { return _it_nodal_forces[node_index]; }
-    const Vec3r& toolTubeNodalForce(int node_index) const { return _tt_nodal_forces[node_index]; }
     void setOuterTubeNodalForce(int node_index, const Vec3r& force);
     void setInnerTubeNodalForce(int node_index, const Vec3r& force);
-    void setToolTubeNodalForce(int node_index, const Vec3r& force);
     void applyNodalForce(int node_index, Real interp, const Vec3r& force);
 
     const XPBDMeshObject_BasePtrWrapper& toolManipulatedObject() const { return _tool_manipulated_object; }
@@ -523,14 +620,13 @@ class VirtuosoArm : public Object
     ToolType _tool_type; // type of tool used on this arm
     CuttingModel _cutting_model; // the type of cutting model to use (only applies when the cautery tool is equipped)
     Real _cutting_model_time_threshold; // the time threshold to be used for the "timer" cutting model (only applies when this cutting model is used)
-    Real _tool_tube_length; // exposed length of the tool tube, in m
-    VirtuosoArmTool _tool_tube = VirtuosoArmTool_None; // stores the tool tube properties
+
+    std::unique_ptr<VirtuosoArmTool_Base> _tool;
     
 
 
     XPBDMeshObject_BasePtrWrapper _tool_manipulated_object; // the deformable object that this tool is manipulating
-    Vec3r _tool_position; // position of the tool in global coordinates (note that this may be different than the inner tube tip position)
-    Vec3r _commanded_tip_position; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
+    Geometry::TransformationMatrix _commanded_tip_pose; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
     std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
     std::vector<CollisionConstraintInfo> _collision_constraints;
@@ -546,6 +642,10 @@ class VirtuosoArm : public Object
 
     Vec3r _tip_force;
     Vec3r _tip_moment;
+
+    /** Tip force and moment due to tool-tissue collisions from the last time step. */
+    Vec3r _last_xpbd_tool_tip_force;
+    Vec3r _last_xpbd_tool_tip_moment;
 
     /** The unfiltered net collision force felt by the tube.
      * This is the nominal total collision force (expressed in the global frame), added up across all the collision constraints.
@@ -567,11 +667,9 @@ class VirtuosoArm : public Object
     
     OuterTubeFramesArray _ot_frames;  // coordinate frames along the backbone of the exposed part of the outer tube
     InnerTubeFramesArray _it_frames;  // coordinate frames along the backbone of the exposed part of the inner tube
-    ToolTubeFramesArray _tt_frames;   // coordinate frames along the backbone of the exposed part of the tool tube
 
     std::array<Vec3r, NUM_OT_FRAMES> _ot_nodal_forces;
     std::array<Vec3r, NUM_IT_FRAMES> _it_nodal_forces;
-    std::array<Vec3r, NUM_TT_FRAMES> _tt_nodal_forces;
 
     bool _stale_frames;     // true if the joint variables have been updated and the coordinate frames need to be recomputed
 
@@ -580,7 +678,6 @@ class VirtuosoArm : public Object
      */
     bool _stale_ot_compliance_interp = true;
     bool _stale_it_compliance_interp = true;
-    bool _stale_tt_compliance_interp = true;
 
     /** Interpolation coefficients for the compliance matrix interpolation along the appropriate section of the arm.
      * i.e. C_ij = a0 + a1*s + a2*s^2 + a3*s^3
@@ -590,7 +687,6 @@ class VirtuosoArm : public Object
      */
     std::array<Mat3r, 4> _ot_compliance_coeff;
     std::array<Mat3r, 4> _it_compliance_coeff;
-    std::array<Mat3r, 4> _tt_compliance_coeff;
 
     /** Signed Distance Field for the Virtuoso arm. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;

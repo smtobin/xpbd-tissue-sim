@@ -74,6 +74,62 @@ static void RK4(const StateType& state0, TIterator t_start, TIterator t_end,
 
 }
 
+static Mat3r quatToMat(const Vec4r& quat)
+{
+    Mat3r mat;
+    mat(0,0) = 1 - 2*quat[1]*quat[1] - 2*quat[2]*quat[2];
+    mat(0,1) = 2*quat[0]*quat[1] - 2*quat[3]*quat[2];
+    mat(0,2) = 2*quat[0]*quat[2] + 2*quat[3]*quat[1];
+    mat(1,0) = 2*quat[0]*quat[1] + 2*quat[3]*quat[2];
+    mat(1,1) = 1 - 2*quat[0]*quat[0] - 2*quat[2]*quat[2];
+    mat(1,2) = 2*quat[1]*quat[2] - 2*quat[3]*quat[0];
+    mat(2,0) = 2*quat[0]*quat[2] - 2*quat[3]*quat[1];
+    mat(2,1) = 2*quat[1]*quat[2] + 2*quat[3]*quat[0];
+    mat(2,2) = 1 - 2*quat[0]*quat[0] - 2*quat[1]*quat[1];
+
+    return mat;
+}
+
+static Vec4r matToQuat(const Mat3r& mat)
+{
+    Vec4r q;
+
+    // code adapted from https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+    const Real trace = mat.trace();
+    if( trace > 0 )
+    {
+        Real s = Real(0.5) / std::sqrt(trace + 1);
+        q[3] = Real(0.25) / s;
+        q[0] = ( mat(2,1) - mat(1,2) ) * s;
+        q[1] = ( mat(0,2) - mat(2,0) ) * s;
+        q[2] = ( mat(1,0) - mat(0,1) ) * s;
+    } 
+    else
+    {
+        if ( mat(0,0) > mat(1,1) && mat(0,0) > mat(2,2) ) {
+            Real s = 2 * std::sqrt( 1 + mat(0,0) - mat(1,1) - mat(2,2));
+            q[3] = (mat(2,1) - mat(1,2) ) / s;
+            q[0] = Real(0.25) * s;
+            q[1] = (mat(0,1) + mat(1,0) ) / s;
+            q[2] = (mat(0,2) + mat(2,0) ) / s;
+        } else if (mat(1,1) > mat(2,2)) {
+            Real s = 2 * std::sqrt( 1 + mat(1,1) - mat(0,0) - mat(2,2));
+            q[3] = (mat(0,2) - mat(2,0) ) / s;
+            q[0] = (mat(0,1) + mat(1,0) ) / s;
+            q[1] = 0.25f * s;
+            q[2] = (mat(1,2) + mat(2,1) ) / s;
+        } else {
+            Real s = 2 * std::sqrt( 1 + mat(2,2) - mat(0,0) - mat(1,1) );
+            q[3] = (mat(1,0) - mat(0,1) ) / s;
+            q[0] = (mat(0,2) + mat(2,0) ) / s;
+            q[1] = (mat(1,2) + mat(2,1) ) / s;
+            q[2] = 0.25f * s;
+        }
+    }
+    
+    return q;
+}
+
 static Mat3r Skew3(const Vec3r& vec)
 {
     Mat3r mat;
@@ -81,6 +137,52 @@ static Mat3r Skew3(const Vec3r& vec)
            vec(2),  0,          -vec(0),
            -vec(1), vec(0),     0;
     return mat;
+}
+
+static Vec3r Vee3(const Mat3r& mat)
+{
+    return Vec3r(mat(2,1), mat(0,2), mat(1,0));
+}
+
+static Mat3r Exp_so3(const Vec3r& vec)
+{
+    const Mat3r skew = Skew3(vec);
+    Real mag = vec.norm();
+
+    if (mag < Real(1e-8))
+        return Mat3r::Identity() + skew;
+    
+    return Mat3r::Identity() + std::sin(mag) / mag * skew + (1 - std::cos(mag)) / (mag * mag) * skew * skew;
+}
+
+static Vec3r Log_SO3(const Mat3r& mat)
+{
+    // std::cout << "\n===Log_SO3===" << std::endl;
+    // std::cout << "  mat:\n" << mat << std::endl;
+    // std::cout << "  mat.trace()-3: " << mat.trace()-3 << std::endl;
+    Real theta = std::acos( std::min(0.5 * mat.trace() - 0.5, Real(1.0)));  // make sure 1/2 tr(mat) - 1/2 is not >1, will get NaNs. This may happen due to numerical drift
+    // std::cout << "  theta: " << theta << std::endl;
+
+    if (std::abs(theta) < Real(1e-14))
+    {
+        return Vec3r::Zero();
+    }
+
+    const Vec3r skew_vec3 = Vee3(mat - mat.transpose());
+    // std::cout << "  skew_vec3: " << skew_vec3 << std::endl;
+
+    if (std::abs(mat.trace()) < Real(1e-8))
+    {
+        return 0.5 * (1 + theta*theta/6.0 + 7*theta*theta*theta*theta/360.0) * skew_vec3;
+    }
+
+    // std::cout << " 2*std::sin(theta): " << 2*std::sin(theta) << std::endl;
+    return theta / ( 2*std::sin(theta)) * skew_vec3;
+}
+
+static Vec3r Minus_SO3(const Mat3r& mat1, const Mat3r& mat2)
+{
+    return Log_SO3(mat2.transpose() * mat1);
 }
 
 };

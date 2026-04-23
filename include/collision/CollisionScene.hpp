@@ -106,9 +106,17 @@ class CollisionScene
         if (collisions)
         {
             if (virtuoso_robot->hasArm1())
+            {
                 addObject(virtuoso_robot->arm1(), collisions);
+                if (virtuoso_robot->arm1()->tool())
+                    addObject(virtuoso_robot->arm1()->tool(), collisions);
+            }
             if (virtuoso_robot->hasArm2())
+            {
                 addObject(virtuoso_robot->arm2(), collisions);
+                if (virtuoso_robot->arm2()->tool())
+                    addObject(virtuoso_robot->arm2()->tool(), collisions);
+            }
         }
     }
 
@@ -173,11 +181,18 @@ class CollisionScene
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm);
     template<bool IsFirstOrder>
+    void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool);
+    template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::RigidObject* rigid_obj);
     template<bool IsFirstOrder>
     void _collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj);
 
+    void _collideObjectPair(Sim::VirtuosoArmTool_Base* tool, Sim::Object* obj);
+    void _collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::VirtuosoArmTool_Base* tool2);
+    void _collideObjectPair(Sim::VirtuosoArmTool_Base* tool, Sim::VirtuosoArm* arm);
+
     void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2);
+    void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::VirtuosoArmTool_Base* tool);
     void _collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::Object* obj);
     std::pair<Real,Real> _findDeepestPenetratingPointOnSegment(const Vec3r& p1, const Vec3r& p2, const Geometry::SDF* sdf);
 
@@ -185,6 +200,8 @@ class CollisionScene
     void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const;
     template<bool IsFirstOrder>
     void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const;
+    template<bool IsFirstOrder>
+    void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const;
 
     void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func) const;
 
