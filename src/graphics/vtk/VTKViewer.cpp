@@ -730,8 +730,8 @@ void VTKViewer::copySegImageBufferToExternalBuffer(unsigned char* external_buffe
 {
     if (!_segmentation_rendering)
     {
-        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Offscreen rendering must be enabled to copy image buffer. Enable this in the .yaml config file." << std::endl;
-        throw std::runtime_error("Offscreen rendering not enabled");
+        std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "Segmentation rendering must be enabled to copy image buffer. Enable this in the .yaml config file." << std::endl;
+        throw std::runtime_error("Segmentation rendering not enabled");
         return;
     }
 
