@@ -58,11 +58,6 @@ VirtuosoSimulation::VirtuosoSimulation(const Config::VirtuosoSimulationConfig* c
 void VirtuosoSimulation::setup()
 {
     Simulation::setup();
-    
-    if (_input_device == SimulationInput::Device::MOUSE)
-    {
-        _graphics_scene->viewer()->enableMouseInteraction(false);   // disable mouse interaction with the viewer when using mouse control
-    }
 
     // find the VirtuosoRobot object - necessary for Virtuoso simulation controls
     auto& _virtuoso_robot_objs = _objects.template get<std::unique_ptr<VirtuosoRobot>>();
@@ -180,6 +175,21 @@ void VirtuosoSimulation::notifyKeyPressed(SimulationInput::Key key, SimulationIn
     else if (key == SimulationInput::Key::TAB && action == SimulationInput::KeyAction::PRESS)
     {
         updateGraphicsCameraPoseToRobotCamFrame();
+    }
+
+    else if (key == SimulationInput::Key::SPACE && action == SimulationInput::KeyAction::PRESS)
+    {
+        if (_input_device == SimulationInput::Device::MOUSE)
+        {
+            _graphics_scene->viewer()->enableMouseInteraction(false);   // disable mouse interaction with the viewer when actively using mouse control (space bar is pressed)
+        }
+    }
+    else if (key == SimulationInput::Key::SPACE && action == SimulationInput::KeyAction::RELEASE)
+    {
+        if (_input_device == SimulationInput::Device::MOUSE)
+        {
+            _graphics_scene->viewer()->enableMouseInteraction(true);   // enable mouse interaction with the viewer when not actively using mouse control (space bar is released)
+        }
     }
 
     Simulation::notifyKeyPressed(key, action, modifiers);

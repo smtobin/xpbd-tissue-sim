@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Haptic"
+input-device: "Mouse"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: true
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
