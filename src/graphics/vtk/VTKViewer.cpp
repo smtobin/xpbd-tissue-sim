@@ -600,7 +600,6 @@ void VTKViewer::addActorToRenderer(vtkSmartPointer<vtkActor> actor, bool add_to_
         color[1] = static_cast<unsigned char>(std::round(255*rgb[1]));
         color[2] = static_cast<unsigned char>(std::round(255*rgb[2]));
 
-        std::cout << "Adding obj addr " << obj_ptr << " to seg -> obj map!" << std::endl;
         _seg_color_to_obj_map.insert({color, obj_ptr});
 
         // create separate actor for segmentation scene

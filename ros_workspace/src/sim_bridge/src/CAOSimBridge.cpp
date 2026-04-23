@@ -304,10 +304,6 @@ void CAOSimBridge::_setupSegmentationMaskPublishers()
     Eigen::Vector<unsigned char, 3> trachea_color(255,255,255);
     for (const auto& [color, obj] : viewer->segColorToObjMap())
     {
-        std::cout << "\narm1 addr: " << (void*)arm1 << std::endl;
-        std::cout << "obj addr: " << (void*)obj << std::endl;
-        std::cout << "arm1 name: " << arm1->name() << std::endl;
-        std::cout << "obj name: " << obj->name() << std::endl;
         if (arm1 && obj == arm1)
             arm1_color = color;
         else if (arm2 && obj == arm2)
@@ -321,8 +317,6 @@ void CAOSimBridge::_setupSegmentationMaskPublishers()
         else if (trachea && obj == trachea)
             trachea_color = color;
     }
-
-    std::cout << "arm1 color: " << arm1_color.transpose() << std::endl;
 
     auto configure_image_msg = [&](sensor_msgs::msg::Image& image_msg)
     {
