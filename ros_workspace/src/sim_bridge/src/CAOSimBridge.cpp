@@ -3,10 +3,17 @@
 CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
     : VirtuosoCTAnatomySimBridge(sim)
 {
+    this->declare_parameter("publish_segmentations", false);
+
     _setupPartialViewPointCloudPublishers();
     _setupRemovedElementsPublishers();
     _setupToolTracheaCollisionPublisher();
-    _setupSegmentationMaskPublishers();
+
+    if (this->get_parameter("publish_segmentations").as_bool())
+    {
+        _setupSegmentationMaskPublishers();
+    }
+    
 }
 
 void CAOSimBridge::_setupPartialViewPointCloudPublishers()
