@@ -989,9 +989,16 @@ void VirtuosoArm::_cauteryToolAction()
         {
             // stores (element index, element refinement level) pairs
             std::unordered_set<int> elements_to_remove;
-            for (const auto& collision_proj_ref : _tool->collisionConstraints())
+            // dynamic cast = yuck, but kind of unavoidable here I think
+            // we need the Cautery class so we can check if it is a wire collision
+            VirtuosoArmCauteryTool* cautery_tool = dynamic_cast<VirtuosoArmCauteryTool*>(_tool.get());
+
+            for (unsigned i = 0; i < _tool->collisionConstraints().size(); i++)
             {
-                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0)
+                const auto& collision_proj_ref = _tool->collisionConstraints()[i];
+                bool is_wire_collision = cautery_tool->isWireCollisionConstraint(i);
+
+                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0 || !is_wire_collision)
                     continue;
 
                 // get element 
@@ -1020,9 +1027,17 @@ void VirtuosoArm::_cauteryToolAction()
 
             Geometry::MeshProperty<Real>& time_prop = obj_mesh->template getElementProperty<Real>("time-in-contact");
             std::unordered_set<int> elements_in_contact;
-            for (const auto& collision_proj_ref : _tool->collisionConstraints())
+
+            // dynamic cast = yuck, but kind of unavoidable here I think
+            // we need the Cautery class so we can check if it is a wire collision
+            VirtuosoArmCauteryTool* cautery_tool = dynamic_cast<VirtuosoArmCauteryTool*>(_tool.get());
+
+            for (unsigned i = 0; i < _tool->collisionConstraints().size(); i++)
             {
-                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0)
+                const auto& collision_proj_ref = _tool->collisionConstraints()[i];
+                bool is_wire_collision = cautery_tool->isWireCollisionConstraint(i);
+
+                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0 || !is_wire_collision)
                     continue;
 
                 // get element 

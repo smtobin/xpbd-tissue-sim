@@ -84,6 +84,11 @@ public:
 
     virtual Vec3r findContactPoint(const SDF* sdf) const override;
 
+    /** Returns true if the queried point is closest to the "wire" part of the cautery tool.
+     * Returns false otherwise (i.e. when it is closest to the cermaic part).
+     */
+    bool closestToWire(const Vec3r& x) const;
+
     const Sim::VirtuosoArmCauteryTool* cautery() const { return _cautery; }
 
 protected:

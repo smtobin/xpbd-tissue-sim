@@ -65,13 +65,13 @@ public:
     /** Add a XPBD->static collision constraint projector.
      * Used for getting collision force with deformable objects.
      */
-    void addCollisionConstraint(Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>&& collision_proj_ref)
+    virtual void addCollisionConstraint(Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>&& collision_proj_ref)
     {
         _collision_proj_refs.push_back(std::move(collision_proj_ref));
     }
 
     /** Clear XPBD->static collision constraint projectors. */
-    void clearCollisionConstraints()
+    virtual void clearCollisionConstraints()
     {
         _collision_proj_refs.clear();
     }
@@ -180,6 +180,21 @@ public:
         _name = _name + "_cautery";
     }
 
+    /** Add a XPBD->static collision constraint projector.
+     * Used for getting collision force with deformable objects.
+     */
+    virtual void addCollisionConstraint(Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>&& collision_proj_ref) override;
+
+    /** Clear XPBD->static collision constraint projectors. */
+    virtual void clearCollisionConstraints() override
+    {
+        _collision_proj_refs.clear();
+        _closest_to_wire.clear();
+    }
+
+    /** Returns true if the collision constraint at the specified index is a collision with the wire part of the cautery tool. */
+    bool isWireCollisionConstraint(int index) const { return _closest_to_wire[index]; }
+
     /** Spatula tool is not a nested tube */
     virtual bool isTube() const override { return false; }
 
@@ -205,6 +220,11 @@ public:
 
 private:
     std::optional<SDFType> _sdf;
+
+    /** Keep track of which collision constraints are collisions with the wire part of the cautery tool.
+     * Indices in this vector match indices in the collision constraints vector.
+     */
+    std::vector<bool> _closest_to_wire;
 };
 
 } // namespace Sim

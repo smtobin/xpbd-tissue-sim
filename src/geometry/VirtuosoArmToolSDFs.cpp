@@ -183,6 +183,22 @@ void VirtuosoArmCauteryToolSDF::deserialize(const std::byte*& buf)
     unpack(buf, _cautery);
 }
 
+bool VirtuosoArmCauteryToolSDF::closestToWire(const Vec3r& x) const
+{
+    Geometry::TransformationMatrix it_tip_transform = _cautery->arm()->innerTubeEndFrame().transform();
+    Vec3r x_body = it_tip_transform.rotMat().transpose() * (x - it_tip_transform.translation());
+
+    // dist to ceramic part
+    Real ceramic_z = std::clamp(x_body[2], Real(0.0), Sim::VirtuosoArmCauteryTool::CERAMIC_LENGTH);
+    Real ceramic_dist = (x_body - Vec3r(0,0,ceramic_z)).norm() - Sim::VirtuosoArmCauteryTool::CERAMIC_DIA/2;
+
+    // dist to wire part
+    Real wire_z = std::clamp(x_body[2], Sim::VirtuosoArmCauteryTool::CERAMIC_LENGTH, Sim::VirtuosoArmCauteryTool::CERAMIC_LENGTH+Sim::VirtuosoArmCauteryTool::WIRE_LENGTH);
+    Real wire_dist = (x_body - Vec3r(0,0,wire_z)).norm() - Sim::VirtuosoArmCauteryTool::WIRE_DIA/2;
+
+    return wire_dist < ceramic_dist;
+}
+
 Real VirtuosoArmCauteryToolSDF::evaluate(const Vec3r& x) const
 {
     Geometry::TransformationMatrix it_tip_transform = _cautery->arm()->innerTubeEndFrame().transform();

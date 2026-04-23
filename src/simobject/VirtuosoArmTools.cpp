@@ -66,6 +66,21 @@ Geometry::CoordinateFrame VirtuosoArmCauteryTool::wireFrame() const
     return _arm->innerTubeEndFrame()*T;
 }
 
+/** Add a XPBD->static collision constraint projector.
+     * Used for getting collision force with deformable objects.
+     */
+void VirtuosoArmCauteryTool::addCollisionConstraint(Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>&& collision_proj_ref)
+{
+    // contact point on the deformable object
+    Vec3r def_cp = collision_proj_ref.constraint()->deformableObjectContactPoint();
+
+    bool closest_to_wire = _sdf->closestToWire(def_cp);
+    _closest_to_wire.push_back(closest_to_wire);
+
+    // evaluate the cautery SDF, to see if it is closest to the "Wire" part of the tool
+    _collision_proj_refs.push_back(std::move(collision_proj_ref));
+}
+
 /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
 Geometry::AABB VirtuosoArmCauteryTool::boundingBox() const
 {
