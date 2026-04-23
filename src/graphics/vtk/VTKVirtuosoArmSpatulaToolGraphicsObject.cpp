@@ -105,10 +105,22 @@ VTKVirtuosoArmSpatulaToolGraphicsObject::VTKVirtuosoArmSpatulaToolGraphicsObject
     extrude->SetVector(0, thickness, 0);
     extrude->CappingOn();
 
+    
+
+    // smooth normals
+    vtkNew<vtkPolyDataNormals> normal_generator;
+    normal_generator->SetInputConnection(extrude->GetOutputPort());
+    normal_generator->SetFeatureAngle(30.0);
+    normal_generator->SplittingOff();
+    normal_generator->ConsistencyOn();
+    normal_generator->ComputePointNormalsOn();
+    normal_generator->ComputeCellNormalsOff();
+    normal_generator->Update();
+
     // Mapper + Actor
     vtkSmartPointer<vtkPolyDataMapper> mapper =
         vtkSmartPointer<vtkPolyDataMapper>::New();
-    mapper->SetInputConnection(extrude->GetOutputPort());
+    mapper->SetInputConnection(normal_generator->GetOutputPort());
 
     _vtk_actor = vtkSmartPointer<vtkActor>::New();
     _vtk_actor->SetMapper(mapper);
