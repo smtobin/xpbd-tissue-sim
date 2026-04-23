@@ -69,6 +69,8 @@ public:
      */
     void addActorToRenderer(vtkSmartPointer<vtkActor> actor, bool add_to_seg_renderer=false, const Sim::Object* obj_ptr=nullptr);
 
+    const std::unordered_map<Eigen::Vector<unsigned char,3>, const Sim::Object*, EigenHash<Eigen::Vector<unsigned char,3>>>& segColorToObjMap() const { return _seg_color_to_obj_map; }
+
     virtual void update() override;
 
     virtual int width() const override;
@@ -149,6 +151,11 @@ public:
      */
     void copyImageBufferToExternalBuffer(unsigned char* external_buffer);
 
+    /** Copoies the segmentation image buffer to some external buffer. It is assumed that the external buffer has the appropriate amount of space.
+     * This can be ensured by first querying width and height of the viewer.
+     */
+    void copySegImageBufferToExternalBuffer(unsigned char* external_buffer);
+
     /** Updates the circle vignette mask. Used when the viewer changes size. */
     void updateCircleMask();
 
@@ -202,7 +209,9 @@ private:
     /** Stores the segmentation pixel data */
     std::vector<unsigned char> _seg_image_data;
     /** Stores a map from pixel color -> object */
-    std::unordered_map<Vec3r, const Sim::Object*, EigenHash<Vec3r>> _seg_color_to_obj_map;
+    std::unordered_map<Eigen::Vector<unsigned char, 3>, const Sim::Object*, EigenHash<Eigen::Vector<unsigned char, 3>>> _seg_color_to_obj_map;
+    /** Guards the segmentation pixel data. The simulation thread and render thread may try to access the pixel data simultanesously. */
+    std::mutex _seg_image_data_mutex;
 
     /** Whether or not to crop the center circle of the image using a mask. */
     bool _circle_crop = false;

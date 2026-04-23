@@ -55,8 +55,8 @@ create-skybox: false
 # static color background for the sim
 background: [0.1, 0.1, 0.1] # dark gray
 # width and height of the window created for the sim
-window-width: 1000
-window-height: 1000
+window-width: 600
+window-height: 600
 
 # whether or not to render offscreen to an image buffer
 # Note: only possible with VTK graphics

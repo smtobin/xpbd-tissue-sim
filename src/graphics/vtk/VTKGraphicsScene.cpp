@@ -138,7 +138,7 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
         {
             std::unique_ptr<VTKVirtuosoArmGraphicsObject> arm1_graphics_obj = 
                 std::make_unique<VTKVirtuosoArmGraphicsObject>(robot->arm1()->name(), robot->arm1(), render_config);
-            _vtk_viewer->addActorToRenderer(arm1_graphics_obj->actor(), true, obj);
+            _vtk_viewer->addActorToRenderer(arm1_graphics_obj->actor(), true, robot->arm1());
             _graphics_objects.push_back(std::move(arm1_graphics_obj));
 
             if (robot->arm1()->tool())
@@ -150,7 +150,7 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
         {
             std::unique_ptr<VTKVirtuosoArmGraphicsObject> arm2_graphics_obj = 
                 std::make_unique<VTKVirtuosoArmGraphicsObject>(robot->arm2()->name(), robot->arm2(), render_config);
-            _vtk_viewer->addActorToRenderer(arm2_graphics_obj->actor(), true, obj);
+            _vtk_viewer->addActorToRenderer(arm2_graphics_obj->actor(), true, robot->arm2());
             _graphics_objects.push_back(std::move(arm2_graphics_obj));
 
             if (robot->arm2()->tool())
