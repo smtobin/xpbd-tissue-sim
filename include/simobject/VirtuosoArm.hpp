@@ -64,6 +64,32 @@ struct VirtuosoArmRigidCollision
         rigid_sdf(rigid_sdf_), force(0,0,0)
     {
     }
+
+    /** Default constructor for serialization */
+    VirtuosoArmRigidCollision() {}
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, node_index);
+        pack(buf, interp);
+        pack(buf, prev_interp);
+        pack(buf, is_tool);
+        pack(buf, contact_point);
+        pack(buf, prev_tip_moment);
+        pack(buf, rigid_sdf);
+        pack(buf, force);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, node_index);
+        unpack(buf, interp);
+        unpack(buf, prev_interp);
+        unpack(buf, is_tool);
+        unpack(buf, contact_point);
+        unpack(buf, prev_tip_moment);
+        unpack(buf, rigid_sdf);
+        unpack(buf, force);
+    }
 };
 
 struct VirtuosoArmRigidCollision_Hash
@@ -141,6 +167,53 @@ struct VirtuosoArmVirtuosoArmCollision
         is_tool2(true), contact_point2(contact_point2_), last_tip_moment2(0,0,0),
         force(0,0,0)
     {
+    }
+
+    /** Default constructor for serialization */
+    VirtuosoArmVirtuosoArmCollision() {}
+
+    void serialize(std::vector<std::byte>& buf) const
+    {
+        pack(buf, arm1);
+        pack(buf, node_index1);
+        pack(buf, interp1);
+        pack(buf, last_node_index1);
+        pack(buf, last_interp1);
+        pack(buf, is_tool1);
+        pack(buf, contact_point1);
+        pack(buf, last_tip_moment1);
+
+        pack(buf, arm2);
+        pack(buf, node_index2);
+        pack(buf, interp2);
+        pack(buf, last_node_index2);
+        pack(buf, last_interp2);
+        pack(buf, is_tool2);
+        pack(buf, contact_point2);
+        pack(buf, last_tip_moment2);
+        pack(buf, force);
+    }
+    void deserialize(const std::byte*& buf)
+    {
+        unpack(buf, arm1);
+        unpack(buf, node_index1);
+        unpack(buf, interp1);
+        unpack(buf, last_node_index1);
+        unpack(buf, last_interp1);
+        unpack(buf, is_tool1);
+        unpack(buf, contact_point1);
+        unpack(buf, last_tip_moment1);
+
+        unpack(buf, arm2);
+        unpack(buf, node_index2);
+        unpack(buf, interp2);
+        unpack(buf, last_node_index2);
+        unpack(buf, last_interp2);
+        unpack(buf, is_tool2);
+        unpack(buf, contact_point2);
+        unpack(buf, last_tip_moment2);
+
+        unpack(buf, force);
     }
 };
 

@@ -43,6 +43,9 @@ public:
     virtual void update() override {}
     virtual void velocityUpdate() override {}
 
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
     VirtuosoArm* arm() { return _arm; }
     const VirtuosoArm* arm() const { return _arm; }
     void setArm(VirtuosoArm* arm) { _arm = arm; }
@@ -118,6 +121,9 @@ public:
         _name = _name + "_spatula";
     }
 
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
     /** Spatula tool is not a nested tube */
     virtual bool isTube() const override { return false; }
 
@@ -179,6 +185,9 @@ public:
         _char_dim = WIRE_DIA;
         _name = _name + "_cautery";
     }
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
 
     /** Add a XPBD->static collision constraint projector.
      * Used for getting collision force with deformable objects.

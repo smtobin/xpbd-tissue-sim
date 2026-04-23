@@ -1910,23 +1910,33 @@ void VirtuosoArm::serialize(std::vector<std::byte>& buf) const
     pack(buf, _tool_type);
     pack(buf, _cutting_model);
     pack(buf, _cutting_model_time_threshold);
+    pack(buf, _tool);
     pack(buf, _tool_manipulated_object);
     pack(buf, _commanded_tip_pose);
     pack(buf, _grasped_vertices);
     pack(buf, _grasping_constraints);
     pack(buf, _collision_constraints);
+    pack(buf, _rigid_collisions);
+    pack(buf, _virtuoso_arm_collisions);
     pack(buf, _arm_base_position);
     pack(buf, _arm_base_rotation);
     pack(buf, _tip_force);
     pack(buf, _tip_moment);
+    pack(buf, _last_xpbd_tool_tip_force);
+    pack(buf, _last_xpbd_tool_tip_moment);
     pack(buf, _unfiltered_collision_force);
     pack(buf, _filtered_collision_force);
+    pack(buf, _xpbd_collision_forces);
     pack(buf, _arm_base_frame);
     pack(buf, _ot_frames);
     pack(buf, _it_frames);
     pack(buf, _ot_nodal_forces);
     pack(buf, _it_nodal_forces);
     pack(buf, _stale_frames);
+    pack(buf, _stale_ot_compliance_interp);
+    pack(buf, _stale_it_compliance_interp);
+    pack(buf, _ot_compliance_coeff);
+    pack(buf, _it_compliance_coeff);
     pack(buf, _sdf);
 }
 
@@ -1948,23 +1958,33 @@ void VirtuosoArm::deserialize(const std::byte*& buf)
     unpack(buf, _tool_type);
     unpack(buf, _cutting_model);
     unpack(buf, _cutting_model_time_threshold);
+    unpack(buf, _tool);
     unpack(buf, _tool_manipulated_object);
     unpack(buf, _commanded_tip_pose);
     unpack(buf, _grasped_vertices);
     unpack(buf, _grasping_constraints);
     unpack(buf, _collision_constraints);
+    unpack(buf, _rigid_collisions);
+    unpack(buf, _virtuoso_arm_collisions);
     unpack(buf, _arm_base_position);
     unpack(buf, _arm_base_rotation);
     unpack(buf, _tip_force);
     unpack(buf, _tip_moment);
+    unpack(buf, _last_xpbd_tool_tip_force);
+    unpack(buf, _last_xpbd_tool_tip_moment);
     unpack(buf, _unfiltered_collision_force);
     unpack(buf, _filtered_collision_force);
+    unpack(buf, _xpbd_collision_forces);
     unpack(buf, _arm_base_frame);
     unpack(buf, _ot_frames);
     unpack(buf, _it_frames);
     unpack(buf, _ot_nodal_forces);
     unpack(buf, _it_nodal_forces);
     unpack(buf, _stale_frames);
+    unpack(buf, _stale_ot_compliance_interp);
+    unpack(buf, _stale_it_compliance_interp);
+    unpack(buf, _ot_compliance_coeff);
+    unpack(buf, _it_compliance_coeff);
     unpack(buf, _sdf);
 }
 

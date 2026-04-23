@@ -29,6 +29,19 @@ std::pair<Vec3r, Vec3r> VirtuosoArmTool_Base::collisionTipForceAndMoment()
     
 }
 
+void VirtuosoArmTool_Base::serialize(std::vector<std::byte>& buf) const
+{
+    Object::serialize(buf);
+    pack(buf, _arm);
+    pack(buf, _collision_proj_refs);
+}
+void VirtuosoArmTool_Base::deserialize(const std::byte*& buf)
+{
+    Object::deserialize(buf);
+    unpack(buf, _arm);
+    unpack(buf, _collision_proj_refs);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,6 +57,17 @@ Geometry::CoordinateFrame VirtuosoArmSpatulaTool::tipFrame() const
     // spatula frame is along the z-direction
     Geometry::TransformationMatrix T(Mat3r::Identity(), tipOffset());
     return _arm->innerTubeEndFrame()*T;
+}
+
+void VirtuosoArmSpatulaTool::serialize(std::vector<std::byte>& buf) const
+{
+    VirtuosoArmTool_Base::serialize(buf);
+    pack(buf, _sdf);
+}
+void VirtuosoArmSpatulaTool::deserialize(const std::byte*& buf)
+{
+    VirtuosoArmTool_Base::deserialize(buf);
+    unpack(buf, _sdf);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -92,6 +116,19 @@ Geometry::AABB VirtuosoArmCauteryTool::boundingBox() const
     Geometry::AABB bbox(std::min(base[0], tip[0]), std::min(base[1], tip[1]), std::min(base[2], tip[2]),
                         std::max(base[0], tip[0]), std::max(base[1], tip[1]), std::max(base[2], tip[2]) );
     return bbox;
+}
+
+void VirtuosoArmCauteryTool::serialize(std::vector<std::byte>& buf) const
+{
+    VirtuosoArmTool_Base::serialize(buf);
+    pack(buf, _sdf);
+    pack(buf, _closest_to_wire);
+}
+void VirtuosoArmCauteryTool::deserialize(const std::byte*& buf)
+{
+    VirtuosoArmTool_Base::deserialize(buf);
+    unpack(buf, _sdf);
+    unpack(buf, _closest_to_wire);
 }
 
 } // namespace SimObject
