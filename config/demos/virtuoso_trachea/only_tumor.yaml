@@ -66,7 +66,7 @@ offscreen-rendering: false
 # whether or not to render a segmentation map of the camera view
 # Note: only possible with VTK graphics
 # Another Note: necessary for publishing segmentation maps over ROS2
-segmentation-rendering: true
+segmentation-rendering: false
 
 # whether or not to add the circle vignette to the rendered image
 # this mimics the output of the actual Virtuoso endoscope image
