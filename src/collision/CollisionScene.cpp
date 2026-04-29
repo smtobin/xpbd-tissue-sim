@@ -263,7 +263,7 @@ void CollisionScene::_collideXPBDFaceWithObject(
     auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm_tool](const Vec3r& x, const Vec3r& bary_coords) {
         Real distance = sdf->evaluate(x);
         Vec3r gradient = sdf->gradient(x);
-        if (distance <= 1e-4)
+        if (distance <= 1e-3)
         {
             const Vec3r surface_x = x - gradient*distance;
             Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
@@ -289,6 +289,10 @@ void CollisionScene::_collideXPBDFaceWithObject(
      * faces multiple times and create duplicate collision constraints. For now, this is acceptable. But eventually should be improved.
      * 
      */
+    // HACK: for now, only do this for the cautery tool
+    if (!dynamic_cast<Sim::VirtuosoArmCauteryTool*>(virtuoso_arm_tool))
+        return;
+
     Real detF = mesh->elementDeformationGradient(elem_ind).determinant();
     if (detF < 0.1)
     {

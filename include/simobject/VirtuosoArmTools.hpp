@@ -135,18 +135,7 @@ public:
     virtual Geometry::CoordinateFrame tipFrame() const override;
 
     /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
-    virtual Geometry::AABB boundingBox() const
-    {
-        Geometry::TransformationMatrix T = spatulaFrame().transform();
-        Vec3r halfsize = T.rotMat().col(0) * WIDTH/2 + T.rotMat().col(1) * THICKNESS/2 + T.rotMat().col(2) * LENGTH/2;
-        Vec3r center = T.translation();
-        Vec3r c1 = center - halfsize;
-        Vec3r c2 = center + halfsize;
-
-        Geometry::AABB bbox(std::min(c1[0], c2[0]), std::min(c1[1], c2[1]), std::min(c1[2], c2[2]),
-                            std::max(c1[0], c2[0]), std::max(c1[1], c2[1]), std::max(c1[2], c2[2]) );
-        return bbox;
-    }
+    virtual Geometry::AABB boundingBox() const;
 
     virtual void createSDF() override 
     { 

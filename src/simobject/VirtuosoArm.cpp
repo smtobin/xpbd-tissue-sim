@@ -534,6 +534,12 @@ void VirtuosoArm::velocityUpdate()
     if (hasTool())
     {
         auto [tool_tip_force, tool_tip_moment] = _tool->collisionTipForceAndMoment();
+        
+        // two stages:
+        //  (1) complementary filter to smooth out large jumps in force/moment
+        //  (2) clamping force and moment to outright prevent large jumps in force/moment
+
+        // complementary filter
         Vec3r new_tip_force = Vec3r::Zero();
         Vec3r new_tip_moment = Vec3r::Zero();
         if (tool_tip_force.squaredNorm() >= _last_xpbd_tool_tip_force.squaredNorm())
@@ -546,6 +552,20 @@ void VirtuosoArm::velocityUpdate()
         else
             new_tip_moment = (1-unload_frac)*_last_xpbd_tool_tip_moment + unload_frac*tool_tip_moment;
 
+        // clamp force and moment
+        Real max_force_diff = 1e-3;
+        Vec3r tip_force_diff = new_tip_force - _last_xpbd_tool_tip_force;
+        Real tip_force_diff_mag = tip_force_diff.norm();
+        if (tip_force_diff_mag > 1e-8)
+            new_tip_force = _last_xpbd_tool_tip_force + std::min(max_force_diff,tip_force_diff_mag)*tip_force_diff/tip_force_diff_mag;
+
+        Real max_moment_diff = 1e-3;
+        Vec3r tip_moment_diff = new_tip_moment - _last_xpbd_tool_tip_moment;
+        Real tip_moment_diff_mag = tip_moment_diff.norm();
+        if (tip_moment_diff_mag > 1e-8)
+            new_tip_moment = _last_xpbd_tool_tip_moment + std::min(max_moment_diff,tip_moment_diff_mag)*tip_moment_diff/tip_moment_diff_mag;
+
+        // update force and moment contributions
         _filtered_collision_force += new_tip_force;
         _unfiltered_collision_force += tool_tip_force;
 

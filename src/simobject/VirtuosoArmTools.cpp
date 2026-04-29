@@ -45,6 +45,21 @@ void VirtuosoArmTool_Base::deserialize(const std::byte*& buf)
 
 ////////////////////////////////////////////////////////////////////////////////////
 
+Geometry::AABB VirtuosoArmSpatulaTool::boundingBox() const
+{
+    Geometry::TransformationMatrix T = spatulaFrame().transform();
+
+    // half extent
+    Vec3r e(WIDTH/2, THICKNESS/2, LENGTH/2);
+    // rotated half extent
+    Mat3r R_abs = T.rotMat().cwiseAbs();
+    Vec3r e_world = R_abs*e;
+
+    Vec3r center = T.translation();
+    Geometry::AABB bbox(center-e_world, center+e_world);
+    return bbox;
+}
+
 Geometry::CoordinateFrame VirtuosoArmSpatulaTool::spatulaFrame() const
 {
     // spatula frame is along the z-direction
@@ -109,12 +124,15 @@ void VirtuosoArmCauteryTool::addCollisionConstraint(Solver::ConstraintProjectorR
 Geometry::AABB VirtuosoArmCauteryTool::boundingBox() const
 {
     Geometry::TransformationMatrix T = _arm->innerTubeEndFrame().transform();
-    // Vec3r halfsize = T.rotMat().col(0) * CERAMIC_DIA/2 + T.rotMat().col(1) * CERAMIC_DIA/2 + T.rotMat().col(2) * CERAMIC_LENGTH/2;
-    Vec3r base = T.translation();
-    Vec3r tip = tipFrame().origin();
+    Vec3r center = T.translation() + T.rotMat()*Vec3r(0,0,CERAMIC_LENGTH);
 
-    Geometry::AABB bbox(std::min(base[0], tip[0]), std::min(base[1], tip[1]), std::min(base[2], tip[2]),
-                        std::max(base[0], tip[0]), std::max(base[1], tip[1]), std::max(base[2], tip[2]) );
+    // half extent
+    Vec3r e(CERAMIC_DIA/2, CERAMIC_DIA/2, (CERAMIC_LENGTH+WIRE_LENGTH)/2);
+    // rotated half extent
+    Mat3r R_abs = T.rotMat().cwiseAbs();
+    Vec3r e_world = R_abs*e;
+
+    Geometry::AABB bbox(center-e_world, center+e_world);
     return bbox;
 }
 

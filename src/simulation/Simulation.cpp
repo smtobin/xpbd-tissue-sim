@@ -148,25 +148,26 @@ void Simulation::setup()
                 const typename Sim::VirtuosoArmTool_Base::SDFType* sdf2 = nullptr;
                 if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->tool()->SDF();
                 if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->tool()->SDF();
-                const Geometry::Mesh* mesh = xpbd_obj->mesh();
+                const Geometry::TetMesh* mesh = xpbd_obj->tetMesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
                 // std::unordered_set<int> verts_to_refine;
                 // std::unordered_set<int> verts_to_coarsen;
-                for (const auto& i : mesh->faces().validIndices())
+                for (const auto& i : mesh->elements().validIndices())
                 {
-                    const Vec3i& f = mesh->face(i);
-                    const Vec3r& p1 = mesh->vertex(f[0]);
-                    const Vec3r& p2 = mesh->vertex(f[1]);
-                    const Vec3r& p3 = mesh->vertex(f[2]);
+                    const Vec4i& e = mesh->element(i);
+                    const Vec3r& p1 = mesh->vertex(e[0]);
+                    const Vec3r& p2 = mesh->vertex(e[1]);
+                    const Vec3r& p3 = mesh->vertex(e[2]);
+                    const Vec3r& p4 = mesh->vertex(e[3]);
 
-                    std::array<Vec3r, 4> pts_to_test = {p1, p2, p3, (p1+p2+p3)/3.0};
+                    std::array<Vec3r, 5> pts_to_test = {p1, p2, p3, p4, (p1+p2+p3+p4)/4.0};
 
                     // check if face centroid is close to either arm by querying each SDF
                     Real sdf_dist1 = std::numeric_limits<Real>::max();
                     Real sdf_dist2 = std::numeric_limits<Real>::max();
 
-                    int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
+                    // int element_with_face = xpbd_obj->tetMesh()->elementWithFace(i);
 
                     // only refine around cautery tool tip (i.e. not the whole tube)
                     if (sdf1)
@@ -196,18 +197,18 @@ void Simulation::setup()
                     if (min_dist < 1.5e-3)
                     {
 
-                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) < max_refinement_level)
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(i) < max_refinement_level)
                         {
-                            elems_to_refine.insert(element_with_face);
+                            elems_to_refine.insert(i);
                         }
 
                         
                     }
                     else if (min_dist > 5e-3)
                     {
-                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(element_with_face) > 0)
+                        if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(i) > 0)
                         {
-                            elems_to_coarsen.insert(element_with_face);
+                            elems_to_coarsen.insert(i);
                         }
                     }
                 }

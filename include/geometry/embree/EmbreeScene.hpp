@@ -9,6 +9,7 @@
 #include "geometry/embree/EmbreeMeshGeometry.hpp"
 #include "geometry/embree/EmbreeTetMeshGeometry.hpp"
 #include "geometry/embree/EmbreeVirtuosoArmGeometry.hpp"
+#include "geometry/embree/EmbreeObjectGeometry.hpp"
 #include "geometry/embree/EmbreeQueryStructs.hpp"
 
 #include "simobject/MeshObject.hpp"
@@ -160,12 +161,7 @@ class EmbreeScene
     /** Creates an EmbreeHit result struct from a RTCRayHit result */
     EmbreeRayHit _processRayHit(const RTCRayHit& rayhit, const Vec3r& origin, const Vec3r& dir) const;
 
-    template<typename ObjectType>
-    unsigned _setupObject(const ObjectType* /* obj_ptr */)
-    {
-        return std::numeric_limits<unsigned>::max();
-    }
-    
+    unsigned _setupObject(const Sim::Object* obj_ptr);
     unsigned _setupObject(const Sim::MeshObject* mesh_obj);
     unsigned _setupObject(const Sim::TetMeshObject* tet_mesh_obj);
     unsigned _setupObject(const Sim::VirtuosoArm* arm_obj);
@@ -205,17 +201,19 @@ class EmbreeScene
     RTCScene _ray_scene;
     
     /** maps object pointers to their Embree user geometries */ 
-    std::map<const Sim::MeshObject*, EmbreeMeshGeometry*> _mesh_to_embree_geom;
-    std::map<const Sim::TetMeshObject*, EmbreeTetMeshGeometry*> _tet_mesh_to_embree_geom;
-    std::map<const Sim::VirtuosoArm*, EmbreeVirtuosoArmGeometry*> _arm_to_embree_geom;
+    std::unordered_map<const Sim::MeshObject*, EmbreeMeshGeometry*> _mesh_to_embree_geom;
+    std::unordered_map<const Sim::TetMeshObject*, EmbreeTetMeshGeometry*> _tet_mesh_to_embree_geom;
+    std::unordered_map<const Sim::VirtuosoArm*, EmbreeVirtuosoArmGeometry*> _arm_to_embree_geom;
+    std::unordered_map<const Sim::Object*, EmbreeObjectGeometry*> _obj_to_embree_geom;
 
     /** maps Embree geomID back to object pointers */
-    std::map<unsigned, SimulationObjectConstPtrVariantType> _geomID_to_obj;
+    std::unordered_map<unsigned, SimulationObjectConstPtrVariantType> _geomID_to_obj;
 
     /** Stores all the Embree user geometries */
     std::vector<std::unique_ptr<EmbreeMeshGeometry>> _embree_mesh_geoms;
     std::vector<std::unique_ptr<EmbreeTetMeshGeometry>> _embree_tet_mesh_geoms;
     std::vector<std::unique_ptr<EmbreeVirtuosoArmGeometry>> _embree_arm_geoms;
+    std::vector<std::unique_ptr<EmbreeObjectGeometry>> _embree_obj_geoms;
 
     bool _hasAVX512;
     bool _hasAVX;

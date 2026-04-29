@@ -106,6 +106,48 @@ unsigned EmbreeScene::_setupEmbreeForTetMesh(EmbreeTetMeshGeometry& tet_mesh_geo
     return geom_id;
 }
 
+unsigned EmbreeScene::_setupObject(const Sim::Object* obj_ptr)
+{
+    // make sure that obj has not already been added to Embree scene
+    if (_obj_to_embree_geom.count(obj_ptr) > 0)
+        assert(0 && "Object has already been added to Embree scene!");
+
+
+    /** Create user geometry */
+
+    // create new EmbreeVirtuosoArmGeometry for the arm
+    _embree_obj_geoms.emplace_back(std::make_unique<EmbreeObjectGeometry>(obj_ptr));
+    EmbreeObjectGeometry* geom = _embree_obj_geoms.back().get();
+
+    // store the new user geometry by its pointer in the maps
+    _obj_to_embree_geom[obj_ptr] = geom;
+
+
+    /** Add to ray-casting scene */
+
+    // create a user-geometry type
+    RTCGeometry rtc_geom = rtcNewGeometry(_device, RTC_GEOMETRY_TYPE_USER);
+    unsigned geom_id = rtcAttachGeometry(_ray_scene, rtc_geom);
+    geom->setGeomID(geom_id);
+
+    rtcSetGeometryBuildQuality(rtc_geom, RTC_BUILD_QUALITY_REFIT);
+
+    // set custom user data
+    rtcSetGeometryUserPrimitiveCount(rtc_geom, 1);
+    rtcSetGeometryUserData(rtc_geom, geom);
+
+    // set custom callbacks
+    rtcSetGeometryBoundsFunction(rtc_geom, EmbreeObjectGeometry::boundsFuncObject, nullptr);
+    rtcSetGeometryIntersectFunction(rtc_geom, EmbreeObjectGeometry::intersectFuncObject);
+
+    // commit geometry to scene
+    rtcCommitGeometry(rtc_geom);
+    rtcCommitScene(_ray_scene);     // this will build BVH
+    rtcReleaseGeometry(rtc_geom);
+
+    return geom_id;
+}
+
 unsigned EmbreeScene::_setupObject(const Sim::MeshObject* obj_ptr)
 {
     // make sure that object has not already been added to Embree scene

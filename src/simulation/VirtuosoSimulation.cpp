@@ -203,7 +203,7 @@ void VirtuosoSimulation::notifyMouseScrolled(double dx, double dy)
     {
         if (_keys_held[SimulationInput::Key::SPACE] > 0) // space bar = clutch
         {
-            const Real scaling = 0.00005;
+            const Real scaling = 0.0001;
             const Vec3r view_dir = _graphics_scene->cameraViewDirection();
 
             const Vec3r current_tip_position = _active_arm->commandedTipPosition();
@@ -300,10 +300,10 @@ void VirtuosoSimulation::setArm2ToolState(int tool_state)
 void VirtuosoSimulation::_moveArm(Sim::VirtuosoArm* arm, RigidSphere* cursor, const Vec3r& dp, const Vec3r& dR)
 {
     Vec3r dp_clamped = dp;
-    Real max_dp = 1e-4;
-    if (dp.norm() > 1e-4)
+    Real max_dp = 2e-5;
+    if (dp.norm() > 2e-5)
     {
-        dp_clamped = dp * (1e-4 / dp.norm());
+        dp_clamped = dp * (2e-5 / dp.norm());
     }
     // move the tip cursor and the active arm tip position
     Geometry::TransformationMatrix cur_commanded_pose = arm->commandedTipPose();
