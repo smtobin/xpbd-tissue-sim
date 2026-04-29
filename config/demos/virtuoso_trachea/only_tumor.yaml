@@ -5,9 +5,9 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Haptic"
+input-device: "Mouse"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
-show-tip-cursor: true
+show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
 enable-mouse-interaction: true
 # scale the force feedback tot he haptic device (0 means no force feedback)
@@ -66,7 +66,7 @@ offscreen-rendering: false
 # whether or not to render a segmentation map of the camera view
 # Note: only possible with VTK graphics
 # Another Note: necessary for publishing segmentation maps over ROS2
-segmentation-rendering: false
+segmentation-rendering: true
 
 # whether or not to add the circle vignette to the rendered image
 # this mimics the output of the actual Virtuoso endoscope image
