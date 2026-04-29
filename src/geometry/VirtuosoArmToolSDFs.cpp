@@ -57,7 +57,7 @@ Real VirtuosoArmSpatulaToolSDF::evaluate(const Vec3r& x) const
     // Extrude along Z
     Vec2r w = Vec2r(d2, std::abs(x_body[1]) - Sim::VirtuosoArmSpatulaTool::THICKNESS/2);
     Vec2r w_max( std::max(w[0], Real(0.0)), std::max(w[1], Real(0.0)) );
-    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/4;
+    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/2;
 
     Real a = d2;
     Real b = w[1];
@@ -114,7 +114,7 @@ Vec3r VirtuosoArmSpatulaToolSDF::gradient(const Vec3r& x) const
     Vec3r grad_b(0.0, sy, 0.0);
 
     // smooth max
-    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/4;
+    Real k = Sim::VirtuosoArmSpatulaTool::THICKNESS/2;
 
     Real t = 0.5 + 0.5 * (b - a) / k;
 
