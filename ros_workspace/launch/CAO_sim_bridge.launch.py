@@ -100,7 +100,7 @@ def generate_launch_description():
             {"image_publish_rate_hz": 5.0},    # publish rate of the image topic(s) (i.e. rendered camera image and segmentation masks)
             {"publish_images": False},       # whether or not to publish the rendered simulation image
             {"publish_segmentations": False}, # whether or not to publish the segmentation masks
-            {"partial_view_pc": False},      # whether or not to publish partial-view point cloud
+            {"partial_view_pc": True},      # whether or not to publish partial-view point cloud
             {"partial_view_pc_hfov": 80.0},   # degrees
             {"partial_view_pc_vfov": 50.0},   # degrees
             {"partial_view_pc_sample_density": 1.0},   # rays per degree (i.e. higher = denser point cloud)

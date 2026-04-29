@@ -25,6 +25,7 @@ set(GEOMETRY_HEADERS
     ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeMeshGeometry.hpp
     ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeTetMeshGeometry.hpp
     ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeVirtuosoArmGeometry.hpp
+    ${GEOMETRY_INCLUDE_DIR}/embree/EmbreeObjectGeometry.hpp
 )
 
 set(GEOMETRY_SOURCES
@@ -43,6 +44,7 @@ set(GEOMETRY_SOURCES
     ${GEOMETRY_SRC_DIR}/embree/EmbreeMeshGeometry.cpp
     ${GEOMETRY_SRC_DIR}/embree/EmbreeTetMeshGeometry.cpp
     ${GEOMETRY_SRC_DIR}/embree/EmbreeVirtuosoArmGeometry.cpp
+    ${GEOMETRY_SRC_DIR}/embree/EmbreeObjectGeometry.cpp
 )
 
 target_sources(Geometry
