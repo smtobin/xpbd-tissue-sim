@@ -192,7 +192,7 @@ objects:
       name: "Arm2"
       type: "VirtuosoArm"
       material: "Nitinol"
-      tool-type: "none"
+      tool-type: "cautery"
       cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
       time-threshold: 0.03  # in seconds of wall-clock time
       outer-tube-diameter: 1.56e-3
