@@ -14,10 +14,16 @@
 #include "sensor_msgs/msg/image.hpp"
 
 #include "sim_bridge/msg/sparse_matrix.hpp"
+#include "sim_bridge/msg/vertices_list.hpp"
+#include "sim_bridge/msg/faces_list.hpp"
+#include "sim_bridge/msg/elements_list.hpp"
+#include "sim_bridge/msg/mesh_state.hpp"
+#include "sim_bridge/msg/factor_graph_state.hpp"
 #include <Eigen/Sparse>
 
 #include "sim_bridge/srv/save_checkpoint.hpp"
 #include "sim_bridge/srv/restore_checkpoint.hpp"
+#include "sim_bridge/srv/factor_graph_state.hpp"
 
 #include "geometry/Mesh.hpp"
 #include "simobject/XPBDMeshObjectBase.hpp"
@@ -27,6 +33,7 @@
 
 #include <chrono>
 #include <thread>
+#include <variant>
 
 template <typename SimulationType>
 class SimBridge : public rclcpp::Node
@@ -37,7 +44,6 @@ class SimBridge : public rclcpp::Node
     {
         this->declare_parameter("use_wall_time_for_publishing", true);
         this->declare_parameter("publish_rate_hz", 30.0);
-        this->declare_parameter("publish_matrices", false);
         this->declare_parameter("image_publish_rate_hz", 10.0);
         this->declare_parameter("publish_images", false);
 
@@ -55,24 +61,6 @@ class SimBridge : public rclcpp::Node
         _mesh_pcl_messages.resize(num_xpbd_objs);
         _mesh_pcl_publishers.resize(num_xpbd_objs);
 
-        
-        if (this->get_parameter("publish_matrices").as_bool())
-        {
-            std::cout << "Resizing vectors... " << std::endl;
-            _stiffness_mat_messages.resize(num_xpbd_objs);
-            _stiffness_mat_publishers.resize(num_xpbd_objs);
-
-            _vertices_mat_messages.resize(num_xpbd_objs);
-            _vertices_mat_publishers.resize(num_xpbd_objs);
-
-            _faces_mat_messages.resize(num_xpbd_objs);
-            _faces_mat_publishers.resize(num_xpbd_objs);
-
-            _elements_mat_messages.resize(num_xpbd_objs);
-            _elements_mat_publishers.resize(num_xpbd_objs);
-            std::cout << "Done." << std::endl;
-        }
-
         if (this->get_parameter("publish_images").as_bool())
         {
             _setupImagePublisher();
@@ -81,31 +69,31 @@ class SimBridge : public rclcpp::Node
         // set up callbacks to publish mesh as Mesh msg and PCL point cloud msg
         int index = 0;
         sim_objects.template for_each_element<std::unique_ptr<Sim::XPBDMeshObject_Base>, std::unique_ptr<Sim::FirstOrderXPBDMeshObject_Base>>([&index, this](auto& obj){
+            // store the first deformable XPBD object that we come across
+            // this will be the one whose information we publish for factor graph
+            // for vast majority of simulations, there will only be one deformable mesh anyways
+            _first_xpbd_obj = obj.get();
+            
             const Geometry::Mesh* deformable_mesh = obj->mesh();
             _setupDeformableMeshPclPublisher(index, deformable_mesh);
-            
-            if (this->get_parameter("publish_matrices").as_bool())
-            {
-                std::cout << "Setting up matrix publishers for index " << index << "..." << std::endl;
-                _setupStiffnessMatrixPublisher(index, obj.get());
-                _setupVerticesMatrixPublisher(index, obj.get());
-                _setupFacesMatrixPublisher(index, obj.get());
-                _setupElementsMatrixPublisher(index, obj.get());
-                std::cout << "Done." << std::endl;
-            }
-
             index++;
         });
 
-        // set up checkpoint servers
-        _save_checkpoint_server = this->create_service<sim_bridge::srv::SaveCheckpoint>(
+        // set up checkpoint services
+        _save_checkpoint_service = this->create_service<sim_bridge::srv::SaveCheckpoint>(
             "/sim/checkpoint/save",
             std::bind(&SimBridge::_saveCheckpoint, this, std::placeholders::_1, std::placeholders::_2)
         );
 
-        _restore_checkpoint_server = this->create_service<sim_bridge::srv::RestoreCheckpoint>(
+        _restore_checkpoint_service = this->create_service<sim_bridge::srv::RestoreCheckpoint>(
             "/sim/checkpoint/restore",
             std::bind(&SimBridge::_restoreCheckpoint, this, std::placeholders::_1, std::placeholders::_2)
+        );
+
+        // set up factor graph service
+        _factor_graph_service = this->create_service<sim_bridge::srv::FactorGraphState>(
+            "/sim/factor_graph_state",
+            std::bind(&SimBridge::_factorGraphState, this, std::placeholders::_1, std::placeholders::_2) 
         );
     }
 
@@ -410,6 +398,117 @@ private:
         
     }
 
+    void _factorGraphState(const std::shared_ptr<sim_bridge::srv::FactorGraphState::Request> /* req */, std::shared_ptr<sim_bridge::srv::FactorGraphState::Response> res)
+    {
+        // assemble vertices, faces, and elements
+        // block until sim is ready to give these
+        auto future = _sim->addOneTimeCallbackBlocking([&res, this]() {
+            std::visit([&](const auto& obj) {
+                sim_bridge::msg::FactorGraphState& fg_msg = res->fg_state;
+                
+                const Geometry::TetMesh* mesh = obj->tetMesh();
+
+                // universal header
+                // everything in sim/world frame
+                std_msgs::msg::Header header;
+                header.stamp = this->now();
+                header.frame_id = "sim/world";
+
+                fg_msg.header = header;
+                fg_msg.sim_mesh.header = header;
+
+                // set up vertices
+                fg_msg.sim_mesh.vertices.header = header;
+                fg_msg.sim_mesh.vertices.size = mesh->numVertices();
+                fg_msg.sim_mesh.vertices.data.resize(3*mesh->vertices().totalSize());
+                fg_msg.sim_mesh.vertices.valid.resize(mesh->vertices().totalSize());
+                for (unsigned i = 0; i < mesh->vertices().totalSize(); i++)
+                {
+                    if (mesh->vertexValid(i))
+                    {
+                        Vec3r v = mesh->vertex(i);
+                        fg_msg.sim_mesh.vertices.data[3*i] = v[0];
+                        fg_msg.sim_mesh.vertices.data[3*i+1] = v[1];
+                        fg_msg.sim_mesh.vertices.data[3*i+2] = v[2];
+                        fg_msg.sim_mesh.vertices.valid[i] = true;
+                    }   
+                    else
+                    {
+                        fg_msg.sim_mesh.vertices.valid[i] = false;
+                    }
+                }
+
+                // set up faces
+                sim_bridge::msg::FacesList& faces = fg_msg.sim_mesh.faces;
+                faces.header = header;
+                faces.size = mesh->numFaces();
+                faces.data.resize(3*mesh->faces().totalSize());
+                faces.valid.resize(mesh->faces().totalSize());
+                for (unsigned i = 0; i < mesh->faces().totalSize(); i++)
+                {
+                    if (mesh->faceValid(i))
+                    {
+                        Vec3i f = mesh->face(i);
+                        faces.data[3*i] = f[0];
+                        faces.data[3*i+1] = f[1];
+                        faces.data[3*i+2] = f[2];
+                        faces.valid[i] = true;
+                    }   
+                    else
+                    {
+                        faces.valid[i] = false;
+                    }
+                }
+
+                // set up elements
+                sim_bridge::msg::ElementsList& elements = fg_msg.sim_mesh.elements;
+                elements.header = header;
+                elements.size = mesh->numElements();
+                elements.data.resize(4*mesh->elements().totalSize());
+                elements.valid.resize(mesh->elements().totalSize());
+                for (unsigned i = 0; i < mesh->elements().totalSize(); i++)
+                {
+                    if (mesh->elementValid(i))
+                    {
+                        Vec4i e = mesh->element(i);
+                        elements.data[3*i] = e[0];
+                        elements.data[3*i+1] = e[1];
+                        elements.data[3*i+2] = e[2];
+                        elements.data[3*i+3] = e[3];
+                        elements.valid[i] = true;
+                    }   
+                    else
+                    {
+                        elements.valid[i] = false;
+                    }
+                }
+
+                // compute stiffness matrix
+                Eigen::SparseMatrix<Real> stiffness_mat = obj->stiffnessMatrix();
+                fg_msg.sim_stiffness_mat.header = header;
+                fg_msg.sim_stiffness_mat.rows = stiffness_mat.rows();
+                fg_msg.sim_stiffness_mat.cols = stiffness_mat.cols();
+                std::cout << "Stiffness matrix: " << stiffness_mat.rows() << " x " << stiffness_mat.cols() << " with " << stiffness_mat.nonZeros() << " nonzero entries." << std::endl;
+                fg_msg.sim_stiffness_mat.row_indices.reserve(stiffness_mat.nonZeros());
+                fg_msg.sim_stiffness_mat.col_indices.reserve(stiffness_mat.nonZeros());
+                fg_msg.sim_stiffness_mat.values.reserve(stiffness_mat.nonZeros());
+                for (int k = 0; k < stiffness_mat.outerSize(); ++k) 
+                {
+                    for (Eigen::SparseMatrix<Real>::InnerIterator it(stiffness_mat, k); it; ++it) 
+                    {
+                        fg_msg.sim_stiffness_mat.row_indices.push_back(it.row());
+                        fg_msg.sim_stiffness_mat.col_indices.push_back(it.col());
+                        fg_msg.sim_stiffness_mat.values.push_back(it.value());
+                    }
+                }
+
+            }, this->_first_xpbd_obj);
+            
+        });
+
+        future.wait();
+    }
+
 protected:
     /** Publishers */
     std::vector<unsigned char> _flipped_image_buffer;
@@ -432,8 +531,12 @@ protected:
     std::vector<rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr> _elements_mat_publishers;
 
     /** Save and restore checkpoint services */
-    rclcpp::Service<sim_bridge::srv::SaveCheckpoint>::SharedPtr _save_checkpoint_server;
-    rclcpp::Service<sim_bridge::srv::RestoreCheckpoint>::SharedPtr _restore_checkpoint_server;
+    rclcpp::Service<sim_bridge::srv::SaveCheckpoint>::SharedPtr _save_checkpoint_service;
+    rclcpp::Service<sim_bridge::srv::RestoreCheckpoint>::SharedPtr _restore_checkpoint_service;
+
+    /** Factor graph service */
+    std::variant<Sim::XPBDMeshObject_Base*, Sim::FirstOrderXPBDMeshObject_Base*> _first_xpbd_obj;
+    rclcpp::Service<sim_bridge::srv::FactorGraphState>::SharedPtr _factor_graph_service;
 
     /** Pointer to the actively running Simulation object */
     SimulationType* _sim;
