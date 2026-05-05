@@ -119,6 +119,9 @@ public:
 
     Mesh(Mesh &&other);
 
+    Mesh& operator=(const Mesh& other);
+    Mesh& operator=(Mesh&& other);
+
     virtual ~Mesh() = default;
 
     virtual void serialize(std::vector<std::byte>& buf) const;

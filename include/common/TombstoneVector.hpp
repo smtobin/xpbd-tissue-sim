@@ -5,7 +5,7 @@
 #include "common/Pack.hpp"
 
 #include <vector>
-#include <deque>
+#include <queue>
 #include <exception>
 
 
@@ -72,14 +72,14 @@ public:
         for (const auto& empty : empty_indices)
         {
             _data[empty] = std::nullopt;
-            _empty_indices.push_back(empty);
+            _empty_indices.push(empty);
         }
     }
 
     /** Access raw data */
     const std::vector<optional_type>& vec() const { return _data; }
     /** Access list of empty indices */
-    const std::deque<size_t>& emptyIndices() const { return _empty_indices; }
+    const std::queue<size_t>& emptyIndices() const { return _empty_indices; }
 
     /** Loading and saving to byte array */
     void serialize(std::vector<std::byte>& buf) const
@@ -138,7 +138,7 @@ public:
         if (!_empty_indices.empty())
         {
             size_t index = _empty_indices.front();
-            _empty_indices.pop_front();
+            _empty_indices.pop();
             _data[index] = value;
             _num_valid++;
             return index;
@@ -156,7 +156,7 @@ public:
         if (!_empty_indices.empty())
         {
             size_t index = _empty_indices.front();
-            _empty_indices.pop_front();
+            _empty_indices.pop();
             _data[index] = std::move(value);
             _num_valid++;
             return index;
@@ -175,7 +175,7 @@ public:
         if (!_empty_indices.empty())
         {
             size_t index = _empty_indices.front();
-            _empty_indices.pop_front();
+            _empty_indices.pop();
             _data[index].emplace(std::forward<Args>(args)...);
             _num_valid++;
             return index;
@@ -194,7 +194,7 @@ public:
         if (index < _data.size() && _data[index].has_value())
         {
             _data[index].reset();
-            _empty_indices.push_back(index);
+            _empty_indices.push(index);
             _num_valid--;
         }
     }
@@ -213,7 +213,7 @@ public:
     void clear()
     {
         _data.clear();
-        _empty_indices = std::deque<size_t>();
+        _empty_indices = std::queue<size_t>();
         _num_valid = 0;
     }
 
@@ -247,7 +247,7 @@ public:
         }
 
         _data = std::move(new_data);
-        _empty_indices = std::deque<size_t>();  // clear empty indices
+        _empty_indices = std::queue<size_t>();  // clear empty indices
     }
 
     class iterator
@@ -445,7 +445,7 @@ public:
 private:
 
     /** A queue to keep track of empty indices that we can fill in */
-    std::deque<size_t> _empty_indices;
+    std::queue<size_t> _empty_indices;
 
     /** Storage of data */
     std::vector<optional_type> _data;

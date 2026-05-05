@@ -58,10 +58,6 @@ class TetMesh : public Mesh
      */
     TetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces, const std::vector<Vec4i>& elements);
 
-    TetMesh(const TetMesh& other);
-
-    TetMesh(TetMesh&& other);
-
     virtual ~TetMesh() = default;
 
     virtual void serialize(std::vector<std::byte>& buf) const override;

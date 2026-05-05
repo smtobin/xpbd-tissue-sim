@@ -73,7 +73,11 @@ class SimBridge : public rclcpp::Node
             // store the first deformable XPBD object that we come across
             // this will be the one whose information we publish for factor graph
             // for vast majority of simulations, there will only be one deformable mesh anyways
-            _first_xpbd_obj = obj.get();
+            if (index == 0)
+            {
+                _first_xpbd_obj = obj.get();
+                _xpbd_mesh_at_last_fg_query = *(obj->refinedTetMesh());
+            }
             
             const Geometry::Mesh* deformable_mesh = obj->mesh();
             _setupDeformableMeshPclPublisher(index, deformable_mesh);
@@ -399,15 +403,15 @@ private:
         
     }
 
-    void _factorGraphState(const std::shared_ptr<sim_bridge::srv::FactorGraphState::Request> /* req */, std::shared_ptr<sim_bridge::srv::FactorGraphState::Response> res)
+    void _factorGraphState(const std::shared_ptr<sim_bridge::srv::FactorGraphState::Request> req, std::shared_ptr<sim_bridge::srv::FactorGraphState::Response> res)
     {
         // assemble vertices, faces, and elements
         // block until sim is ready to give these
-        auto future = _sim->addOneTimeCallbackBlocking([&res, this]() {
-            std::visit([&](const auto& obj) {
+        auto future = _sim->addOneTimeCallbackBlocking([&req, &res, this]() {
+            std::visit([&](auto& obj) {
                 sim_bridge::msg::FactorGraphState& fg_msg = res->fg_state;
                 
-                const Geometry::TetMesh* mesh = obj->tetMesh();
+                Geometry::RefinedTetMesh* mesh = obj->refinedTetMesh();
 
                 // universal header
                 // everything in sim/world frame
@@ -418,79 +422,7 @@ private:
                 fg_msg.header = header;
                 fg_msg.sim_mesh.header = header;
 
-                // set up vertices
-                sim_bridge::msg::VerticesList& vertices = fg_msg.sim_mesh.vertices;
-                vertices.header = header;
-                vertices.size = mesh->numVertices();
-                // copy over valid vertices
-                vertices.data.resize(3*mesh->vertices().totalSize());
-                for (unsigned i = 0; i < mesh->vertices().totalSize(); i++)
-                {
-                    if (mesh->vertexValid(i))
-                    {
-                        Vec3r v = mesh->vertex(i);
-                        vertices.data[3*i] = v[0];
-                        vertices.data[3*i+1] = v[1];
-                        vertices.data[3*i+2] = v[2];
-                    }
-                }
-                // copy over the invalid vertex indices
-                const auto& invalid_vertices = mesh->vertices().emptyIndices();
-                vertices.invalid_indices.reserve(invalid_vertices.size());
-                for (const auto& invalid_index : invalid_vertices)
-                {
-                    vertices.invalid_indices.push_back(invalid_index);
-                }
-
-                // set up faces
-                sim_bridge::msg::FacesList& faces = fg_msg.sim_mesh.faces;
-                faces.header = header;
-                faces.size = mesh->numFaces();
-                // copy over the valid faces
-                faces.data.resize(3*mesh->faces().totalSize());
-                for (unsigned i = 0; i < mesh->faces().totalSize(); i++)
-                {
-                    if (mesh->faceValid(i))
-                    {
-                        Vec3i f = mesh->face(i);
-                        faces.data[3*i] = f[0];
-                        faces.data[3*i+1] = f[1];
-                        faces.data[3*i+2] = f[2];
-                    }
-                }
-                // copy over the invalid face indices
-                const auto& invalid_faces = mesh->faces().emptyIndices();
-                faces.invalid_indices.reserve(invalid_faces.size());
-                for (const auto& invalid_index : invalid_faces)
-                {
-                    faces.invalid_indices.push_back(invalid_index);
-                }
-
-                // set up elements
-                sim_bridge::msg::ElementsList& elements = fg_msg.sim_mesh.elements;
-                elements.header = header;
-                elements.size = mesh->numElements();
-                elements.data.resize(4*mesh->elements().totalSize());
-                // copy over the valid elements
-                for (unsigned i = 0; i < mesh->elements().totalSize(); i++)
-                {
-                    if (mesh->elementValid(i))
-                    {
-                        Vec4i e = mesh->element(i);
-                        elements.data[4*i] = e[0];
-                        elements.data[4*i+1] = e[1];
-                        elements.data[4*i+2] = e[2];
-                        elements.data[4*i+3] = e[3];
-                    }
-                }
-
-                // copy over the invalid element indices
-                const auto& invalid_elements = mesh->elements().emptyIndices();
-                elements.invalid_indices.reserve(invalid_elements.size());
-                for (const auto& invalid_index : invalid_elements)
-                {
-                    elements.invalid_indices.push_back(invalid_index);
-                }
+                _copyMeshToMeshStateMsg(fg_msg.sim_mesh, header, mesh);
 
                 // compute stiffness matrix
                 Eigen::SparseMatrix<Real> stiffness_mat = obj->stiffnessMatrix();
@@ -511,11 +443,104 @@ private:
                     }
                 }
 
+                // if desired, update the last mesh to with the same topological operations so that it has the same topology as the current mesh
+                if (req->update_last_mesh)
+                {
+                    // update the vertices of the last mesh according to the last factor graph state
+                    for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
+                    {
+                        Vec3r v = Eigen::Map<Vec3r>(req->last_mesh.vertices.data.data() + 3*ind);
+                        this->_xpbd_mesh_at_last_fg_query.setVertex(ind, v);
+                    }
+
+                    // apply topological operations
+                    for (const auto& operation : mesh->topologicalOperationCache())
+                    {
+                        operation.applyOperation(this->_xpbd_mesh_at_last_fg_query);
+                    }
+
+                    // copy new mesh to msg
+                    _copyMeshToMeshStateMsg(res->updated_last_mesh, header, &this->_xpbd_mesh_at_last_fg_query);
+                }
+                // regardless, clear the operations cache
+                mesh->clearTopologicalOperationCache();
+                this->_xpbd_mesh_at_last_fg_query = *mesh;
+
             }, this->_first_xpbd_obj);
             
         });
 
         future.wait();
+    }
+
+    void _copyMeshToMeshStateMsg(sim_bridge::msg::MeshState& msg, const std_msgs::msg::Header& header, const Geometry::TetMesh* mesh) const
+    {
+        // set up vertices
+        sim_bridge::msg::VerticesList& vertices = msg.vertices;
+        vertices.header = header;
+        vertices.size = mesh->numVertices();
+        // copy over valid vertices
+        vertices.data.resize(3*mesh->vertices().totalSize());
+        vertices.invalid_indices.reserve(mesh->vertices().totalSize() - mesh->numVertices());
+        for (unsigned i = 0; i < mesh->vertices().totalSize(); i++)
+        {
+            if (mesh->vertexValid(i))
+            {
+                Vec3r v = mesh->vertex(i);
+                vertices.data[3*i] = v[0];
+                vertices.data[3*i+1] = v[1];
+                vertices.data[3*i+2] = v[2];
+            }
+            else
+            {
+                vertices.invalid_indices.push_back(i);
+            }
+        }
+
+        // set up faces
+        sim_bridge::msg::FacesList& faces = msg.faces;
+        faces.header = header;
+        faces.size = mesh->numFaces();
+        // copy over the valid faces
+        faces.data.resize(3*mesh->faces().totalSize());
+        faces.invalid_indices.reserve(mesh->faces().totalSize() - mesh->numFaces());
+        for (unsigned i = 0; i < mesh->faces().totalSize(); i++)
+        {
+            if (mesh->faceValid(i))
+            {
+                Vec3i f = mesh->face(i);
+                faces.data[3*i] = f[0];
+                faces.data[3*i+1] = f[1];
+                faces.data[3*i+2] = f[2];
+            }
+            else
+            {
+                faces.invalid_indices.push_back(i);
+            }
+        }
+
+        // set up elements
+        sim_bridge::msg::ElementsList& elements = msg.elements;
+        elements.header = header;
+        elements.size = mesh->numElements();
+        elements.data.resize(4*mesh->elements().totalSize());
+        elements.invalid_indices.reserve(mesh->elements().totalSize() - mesh->numElements());
+        // copy over the valid elements
+        for (unsigned i = 0; i < mesh->elements().totalSize(); i++)
+        {
+            if (mesh->elementValid(i))
+            {
+                Vec4i e = mesh->element(i);
+                elements.data[4*i] = e[0];
+                elements.data[4*i+1] = e[1];
+                elements.data[4*i+2] = e[2];
+                elements.data[4*i+3] = e[3];
+            }
+            else
+            {
+                elements.invalid_indices.push_back(i);
+            }
+        }
     }
 
 protected:
@@ -545,6 +570,7 @@ protected:
 
     /** Factor graph service */
     std::variant<Sim::XPBDMeshObject_Base*, Sim::FirstOrderXPBDMeshObject_Base*> _first_xpbd_obj;
+    Geometry::RefinedTetMesh _xpbd_mesh_at_last_fg_query;  // copy of the mesh of the xpbd obj when the service was last queried
     rclcpp::Service<sim_bridge::srv::FactorGraphState>::SharedPtr _factor_graph_service;
 
     /** Pointer to the actively running Simulation object */

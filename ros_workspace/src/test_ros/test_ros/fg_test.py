@@ -16,6 +16,7 @@ class FGClient(Node):
             self.get_logger().info('Service not available, waiting...')
 
         self.req = FactorGraphState.Request()
+        self.req.update_last_mesh = False
 
         # Call service once per second
         self.timer = self.create_timer(3.0, self.send_request)
