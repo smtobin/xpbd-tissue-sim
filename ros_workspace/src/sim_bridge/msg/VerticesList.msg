@@ -6,5 +6,5 @@ std_msgs/Header header
 uint32 size
 # flattened vertices list - 3N x 1 array
 float64[] data
-# what vertices are valid (true = valid, false = invalid) - N x 1 array
-bool[] valid
+# a list indices that "invalid" - i.e. correspond to vertices that no longer exist in the mesh
+int32[] invalid_indices

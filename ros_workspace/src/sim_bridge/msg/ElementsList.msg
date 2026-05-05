@@ -7,5 +7,5 @@ std_msgs/Header header
 uint32 size
 # flattened faces list - 4N x 1 array
 int32[] data
-# what faces are valid (true = valid, false = invalid) - N x 1 array
-bool[] valid
+# a list indices that "invalid" - i.e. correspond to elements that no longer exist in the mesh
+int32[] invalid_indices

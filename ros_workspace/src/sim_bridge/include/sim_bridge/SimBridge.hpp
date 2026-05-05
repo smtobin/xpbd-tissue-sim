@@ -34,6 +34,7 @@
 #include <chrono>
 #include <thread>
 #include <variant>
+#include <queue>
 
 template <typename SimulationType>
 class SimBridge : public rclcpp::Node
@@ -418,32 +419,35 @@ private:
                 fg_msg.sim_mesh.header = header;
 
                 // set up vertices
-                fg_msg.sim_mesh.vertices.header = header;
-                fg_msg.sim_mesh.vertices.size = mesh->numVertices();
-                fg_msg.sim_mesh.vertices.data.resize(3*mesh->vertices().totalSize());
-                fg_msg.sim_mesh.vertices.valid.resize(mesh->vertices().totalSize());
+                sim_bridge::msg::VerticesList& vertices = fg_msg.sim_mesh.vertices;
+                vertices.header = header;
+                vertices.size = mesh->numVertices();
+                // copy over valid vertices
+                vertices.data.resize(3*mesh->vertices().totalSize());
                 for (unsigned i = 0; i < mesh->vertices().totalSize(); i++)
                 {
                     if (mesh->vertexValid(i))
                     {
                         Vec3r v = mesh->vertex(i);
-                        fg_msg.sim_mesh.vertices.data[3*i] = v[0];
-                        fg_msg.sim_mesh.vertices.data[3*i+1] = v[1];
-                        fg_msg.sim_mesh.vertices.data[3*i+2] = v[2];
-                        fg_msg.sim_mesh.vertices.valid[i] = true;
-                    }   
-                    else
-                    {
-                        fg_msg.sim_mesh.vertices.valid[i] = false;
+                        vertices.data[3*i] = v[0];
+                        vertices.data[3*i+1] = v[1];
+                        vertices.data[3*i+2] = v[2];
                     }
+                }
+                // copy over the invalid vertex indices
+                const auto& invalid_vertices = mesh->vertices().emptyIndices();
+                vertices.invalid_indices.reserve(invalid_vertices.size());
+                for (const auto& invalid_index : invalid_vertices)
+                {
+                    vertices.invalid_indices.push_back(invalid_index);
                 }
 
                 // set up faces
                 sim_bridge::msg::FacesList& faces = fg_msg.sim_mesh.faces;
                 faces.header = header;
                 faces.size = mesh->numFaces();
+                // copy over the valid faces
                 faces.data.resize(3*mesh->faces().totalSize());
-                faces.valid.resize(mesh->faces().totalSize());
                 for (unsigned i = 0; i < mesh->faces().totalSize(); i++)
                 {
                     if (mesh->faceValid(i))
@@ -452,12 +456,14 @@ private:
                         faces.data[3*i] = f[0];
                         faces.data[3*i+1] = f[1];
                         faces.data[3*i+2] = f[2];
-                        faces.valid[i] = true;
-                    }   
-                    else
-                    {
-                        faces.valid[i] = false;
                     }
+                }
+                // copy over the invalid face indices
+                const auto& invalid_faces = mesh->faces().emptyIndices();
+                faces.invalid_indices.reserve(invalid_faces.size());
+                for (const auto& invalid_index : invalid_faces)
+                {
+                    faces.invalid_indices.push_back(invalid_index);
                 }
 
                 // set up elements
@@ -465,7 +471,7 @@ private:
                 elements.header = header;
                 elements.size = mesh->numElements();
                 elements.data.resize(4*mesh->elements().totalSize());
-                elements.valid.resize(mesh->elements().totalSize());
+                // copy over the valid elements
                 for (unsigned i = 0; i < mesh->elements().totalSize(); i++)
                 {
                     if (mesh->elementValid(i))
@@ -475,12 +481,15 @@ private:
                         elements.data[4*i+1] = e[1];
                         elements.data[4*i+2] = e[2];
                         elements.data[4*i+3] = e[3];
-                        elements.valid[i] = true;
-                    }   
-                    else
-                    {
-                        elements.valid[i] = false;
                     }
+                }
+
+                // copy over the invalid element indices
+                const auto& invalid_elements = mesh->elements().emptyIndices();
+                elements.invalid_indices.reserve(invalid_elements.size());
+                for (const auto& invalid_index : invalid_elements)
+                {
+                    elements.invalid_indices.push_back(invalid_index);
                 }
 
                 // compute stiffness matrix
