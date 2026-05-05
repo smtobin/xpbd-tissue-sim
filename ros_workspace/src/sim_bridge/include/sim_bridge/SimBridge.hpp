@@ -471,10 +471,10 @@ private:
                     if (mesh->elementValid(i))
                     {
                         Vec4i e = mesh->element(i);
-                        elements.data[3*i] = e[0];
-                        elements.data[3*i+1] = e[1];
-                        elements.data[3*i+2] = e[2];
-                        elements.data[3*i+3] = e[3];
+                        elements.data[4*i] = e[0];
+                        elements.data[4*i+1] = e[1];
+                        elements.data[4*i+2] = e[2];
+                        elements.data[4*i+3] = e[3];
                         elements.valid[i] = true;
                     }   
                     else

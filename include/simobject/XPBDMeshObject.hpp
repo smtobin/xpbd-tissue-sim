@@ -20,6 +20,8 @@
 #include "gpu/resource/XPBDMeshObjectGPUResource.hpp"
 #endif
 
+#include <Eigen/Sparse>
+
 #include <unordered_map>
 
 namespace Sim

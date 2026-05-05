@@ -18,7 +18,7 @@ class FGClient(Node):
         self.req = FactorGraphState.Request()
 
         # Call service once per second
-        self.timer = self.create_timer(1.0, self.send_request)
+        self.timer = self.create_timer(3.0, self.send_request)
 
     def send_request(self):
         self.get_logger().info(f'Sending request for factor graph state...')
