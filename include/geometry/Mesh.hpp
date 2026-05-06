@@ -294,11 +294,11 @@ public:
     
         if (default_value.has_value())
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), default_value.value(), is_field);
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, _vertices.totalSize(), default_value.value(), is_field);
         }
         else
         {
-            _vertex_properties.template emplace_back<MeshProperty<T>>(name, numVertices(), is_field);
+            _vertex_properties.template emplace_back<MeshProperty<T>>(name, _vertices.totalSize(), is_field);
         }
     }
 
@@ -365,11 +365,11 @@ public:
     
         if (default_value.has_value())
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), default_value.value(), is_field);
+            _face_properties.template emplace_back<MeshProperty<T>>(name, _faces.totalSize(), default_value.value(), is_field);
         }
         else
         {
-            _face_properties.template emplace_back<MeshProperty<T>>(name, numFaces(), is_field);
+            _face_properties.template emplace_back<MeshProperty<T>>(name, _faces.totalSize(), is_field);
         }
     }
 

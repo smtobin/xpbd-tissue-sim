@@ -53,34 +53,6 @@ public:
         }
     }
 
-    /** Initializes the underlying vector from another vector, and a vector of empty indices.
-     * It is assumed that the vector of empty indices is ordered in the same way as the FIFO queue.
-     * 
-     * Use a template to generalize for index vectors of int, unsigned, size_t, etc.
-     */
-    template <typename IndexType>
-    TombstoneVector(const std::vector<T>& vec, const std::vector<IndexType>& empty_indices)
-        : _empty_indices(), _data(vec.size()), _num_valid(0)
-    {
-        // copy over data
-        for (size_t i = 0; i < vec.size(); i++)
-        {
-            _data[i] = vec[i];
-        }
-
-        // make the empty indices as invalid
-        for (const auto& empty : empty_indices)
-        {
-            _data[empty] = std::nullopt;
-            _empty_indices.push(empty);
-        }
-    }
-
-    /** Access raw data */
-    const std::vector<optional_type>& vec() const { return _data; }
-    /** Access list of empty indices */
-    const std::queue<size_t>& emptyIndices() const { return _empty_indices; }
-
     /** Loading and saving to byte array */
     void serialize(std::vector<std::byte>& buf) const
     {

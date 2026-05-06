@@ -170,11 +170,11 @@ class TetMesh : public Mesh
     
         if (default_value.has_value())
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), default_value.value(), is_field);
+            _element_properties.template emplace_back<MeshProperty<T>>(name, _elements.totalSize(), default_value.value(), is_field);
         }
         else
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), is_field);
+            _element_properties.template emplace_back<MeshProperty<T>>(name, _elements.totalSize(), is_field);
         }
     }
 

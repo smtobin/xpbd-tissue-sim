@@ -245,7 +245,6 @@ public:
      *  - element coarsening
      *  - element removal
      * 
-     * Stores the 
      */
     struct TopologicalOperation
     {
@@ -322,7 +321,7 @@ public:
      * 
      * If the specified element was not created with mesh refinement, this function does nothing.
      */
-    bool coarsenElement(int element_index, int coarsening_level, bool absolute=false);
+    bool coarsenElement(int element_index, int coarsening_level, bool absolute=false, bool clear_latest=true);
 
     /** Returns the current set of vertex indices that are hanging (i.e. non-conforming). */
     const std::unordered_map<int, Edge>& hangingVertices() const { return _hanging_vertices; }
@@ -454,9 +453,7 @@ private:
 
     /** === HELPERS FOR ELEMENT REFINEMENT === */
 
-    /** The implementation of element refinement */
     bool _refineElement(int element_index, int refinement_level, bool absolute=false);
-
     /** When we are preparing to refine an element, we need to update child features (up to the refinement level).
      * 
      * We update only the child features of the features in the element who either don't have a parent feature or have a parent feature
