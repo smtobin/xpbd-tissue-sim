@@ -43,11 +43,16 @@ Mesh::Mesh(const Mesh& other)
 {
     _vertices = other._vertices;
     _faces = other._faces;
+    _vertex_normals = other._vertex_normals;
+    _initial_vertices = other._initial_vertices;
+    _vertex_adjacent_vertices = other._vertex_adjacent_vertices;
+
     _unrotated_size_xyz = other._unrotated_size_xyz;
     _mesh_origin = other._mesh_origin;
     _vertex_properties = other._vertex_properties;
     _face_properties = other._face_properties;
-    _vertex_adjacent_vertices = other._vertex_adjacent_vertices;
+
+    _topology_version = other._topology_version;
 
     // NOTE: we do NOT do anything with the GPU resource - if we are copying this mesh, we don't want to just automatically create a new GPU resource if we don't need to
     // (we can't copy the GPU resource since it's a unique_ptr)
@@ -57,15 +62,67 @@ Mesh::Mesh(Mesh&& other)
 {
     _vertices = std::move(other._vertices);
     _faces = std::move(other._faces);
+    _vertex_normals = std::move(other._vertex_normals);
+    _initial_vertices = std::move(other._initial_vertices);
+    _vertex_adjacent_vertices = std::move(other._vertex_adjacent_vertices);
+
     _unrotated_size_xyz = std::move(other._unrotated_size_xyz);
     _mesh_origin = std::move(other._mesh_origin);
     _vertex_properties = std::move(other._vertex_properties);
     _face_properties = std::move(other._face_properties);
-    _vertex_adjacent_vertices = std::move(other._vertex_adjacent_vertices);
+
+    _topology_version = std::move(other._topology_version);
 
  #ifdef HAVE_CUDA
     _gpu_resource = std::move(other._gpu_resource);
  #endif
+}
+
+Mesh& Mesh::operator=(const Mesh& other)
+{
+    if (this != &other)
+    {
+        _vertices = other._vertices;
+        _faces = other._faces;
+        _vertex_normals = other._vertex_normals;
+        _initial_vertices = other._initial_vertices;
+        _vertex_adjacent_vertices = other._vertex_adjacent_vertices;
+
+        _unrotated_size_xyz = other._unrotated_size_xyz;
+        _mesh_origin = other._mesh_origin;
+        _vertex_properties = other._vertex_properties;
+        _face_properties = other._face_properties;
+
+        _topology_version = other._topology_version;
+
+        // NOTE: we do NOT do anything with the GPU resource - if we are copying this mesh, we don't want to just automatically create a new GPU resource if we don't need to
+        // (we can't copy the GPU resource since it's a unique_ptr)
+    }
+    return *this;
+}
+
+Mesh& Mesh::operator=(Mesh&& other)
+{
+    if (this != &other)
+    {
+        _vertices = std::move(other._vertices);
+        _faces = std::move(other._faces);
+        _vertex_normals = std::move(other._vertex_normals);
+        _initial_vertices = std::move(other._initial_vertices);
+        _vertex_adjacent_vertices = std::move(other._vertex_adjacent_vertices);
+
+        _unrotated_size_xyz = std::move(other._unrotated_size_xyz);
+        _mesh_origin = std::move(other._mesh_origin);
+        _vertex_properties = std::move(other._vertex_properties);
+        _face_properties = std::move(other._face_properties);
+
+        _topology_version = std::move(other._topology_version);
+
+#ifdef HAVE_CUDA
+        _gpu_resource = std::move(other._gpu_resource);
+#endif
+    }
+    return *this;
 }
 
 void Mesh::_computeAdjacentVertices()

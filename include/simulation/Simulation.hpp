@@ -27,6 +27,7 @@
 #include <thread>
 #include <optional>
 #include <functional>
+#include <future>
 
 namespace Sim
 {
@@ -173,6 +174,29 @@ class Simulation
 
             _one_time_callbacks.push_back(std::move(wrapper));
         }
+
+        template<typename CallbackT>
+        std::future<void> addOneTimeCallbackBlocking(CallbackT&& lambda)
+        {
+            auto promise = std::make_shared<std::promise<void>>();
+            std::future<void> future = promise->get_future();
+
+            std::function<void()> wrapper = [lambda = std::forward<CallbackT>(lambda),
+                                            promise]() mutable {
+                try {
+                    lambda();
+                    promise->set_value();
+                } catch (...) {
+                    promise->set_exception(std::current_exception());
+                }
+            };
+
+            {
+                std::lock_guard<std::mutex> lock(_callbacks_mutex);
+                _one_time_callbacks.push_back(std::move(wrapper));
+            }
+            return future;
+        }
     
     protected:
         /** Helper to add an object to the simulation given an ObjectConfig.
@@ -286,6 +310,9 @@ class Simulation
          * Useful for scheduling keyboard events in a thread-safe way, e.g. resetting the sim
          */
         std::vector<std::function<void()>> _one_time_callbacks;
+
+        /** Mutex for thread-safe queueing of callbacks */
+        std::mutex _callbacks_mutex;
 
         /** storage of all Objects in the simulation.
          * These objects will evolve in time through the update() method that they all provide

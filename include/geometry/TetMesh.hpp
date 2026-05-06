@@ -58,10 +58,6 @@ class TetMesh : public Mesh
      */
     TetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& faces, const std::vector<Vec4i>& elements);
 
-    TetMesh(const TetMesh& other);
-
-    TetMesh(TetMesh&& other);
-
     virtual ~TetMesh() = default;
 
     virtual void serialize(std::vector<std::byte>& buf) const override;
@@ -174,11 +170,11 @@ class TetMesh : public Mesh
     
         if (default_value.has_value())
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), default_value.value(), is_field);
+            _element_properties.template emplace_back<MeshProperty<T>>(name, _elements.totalSize(), default_value.value(), is_field);
         }
         else
         {
-            _element_properties.template emplace_back<MeshProperty<T>>(name, numElements(), is_field);
+            _element_properties.template emplace_back<MeshProperty<T>>(name, _elements.totalSize(), is_field);
         }
     }
 

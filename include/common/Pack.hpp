@@ -133,6 +133,11 @@ void pack(std::vector<std::byte>& buf, const std::queue<T>& queue);
 template<typename T>
 void unpack(const std::byte*& cursor, std::queue<T>& queue);
 
+template<typename T>
+void pack(std::vector<std::byte>& buf, const std::deque<T>& queue);
+template<typename T>
+void unpack(const std::byte*& cursor, std::deque<T>& queue);
+
 template<typename Derived>
 std::enable_if_t<std::is_base_of_v<Eigen::MatrixBase<Derived>, Derived>>
 pack(std::vector<std::byte>& buf, const Derived& mat);
@@ -515,6 +520,29 @@ inline void unpack(const std::byte*& cursor, std::queue<T>& queue)
         unpack(cursor, val);
         queue.push(std::move(val));
     }
+}
+
+/** std::deque */
+template<typename T>
+inline void pack(std::vector<std::byte>& buf, const std::deque<T>& deque)
+{
+    // pack size of queue
+    pack(buf, deque.size());
+
+    // pack elements
+    for (const auto& v : deque)
+        pack(buf, v);
+}
+
+template<typename T>
+inline void unpack(const std::byte*& cursor, std::deque<T>& deque)
+{
+    size_t size;
+    unpack(cursor, size);
+    deque.resize(size);
+
+    for (auto& v : deque)
+        unpack(cursor, v);
 }
 
 

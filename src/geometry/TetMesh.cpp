@@ -17,39 +17,6 @@ TetMesh::TetMesh(const std::vector<Vec3r>& vertices, const std::vector<Vec3i>& f
     setCurrentStateAsUndeformedState();
 }
 
-TetMesh::TetMesh(const TetMesh& other)
-    : Mesh(other)
-{
-    _elements = other._elements;
-
-    _vertex_to_elements_map = other._vertex_to_elements_map;
-    _edge_to_elements_map = other._edge_to_elements_map;
-    _face_to_elements_map = other._face_to_elements_map;
-
-    _surface_face_to_element_map = other._surface_face_to_element_map;
-    _element_to_surface_faces_map = other._element_to_surface_faces_map;
-
-    _element_inv_undeformed_basis = other._element_inv_undeformed_basis;
-    _element_rest_volumes = other._element_rest_volumes;
-    
-}
-
-TetMesh::TetMesh(TetMesh&& other)
-    : Mesh(other)
-{
-    _elements = std::move(other._elements);
-    _vertex_to_elements_map = std::move(other._vertex_to_elements_map);
-    _edge_to_elements_map = std::move(other._edge_to_elements_map);
-    _face_to_elements_map = std::move(other._face_to_elements_map);
-
-    _surface_face_to_element_map = std::move(other._surface_face_to_element_map);
-    _element_to_surface_faces_map = other._element_to_surface_faces_map;
-
-    _element_inv_undeformed_basis = std::move(other._element_inv_undeformed_basis);
-    _element_rest_volumes = std::move(other._element_rest_volumes);
-    
-}
-
 void TetMesh::_computeAdjacentVertices()
 {
     _vertex_adjacent_vertices.resize(_vertices.totalSize());

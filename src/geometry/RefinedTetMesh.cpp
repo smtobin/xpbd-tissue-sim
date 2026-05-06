@@ -253,6 +253,8 @@ TetMesh::RemovedElement RefinedTetMesh::removeElement(int elem_index)
     _latest_removed_hanging_vertices.clear();
 
     // std::cout << "refined_mesh.removeElement(" << elem_index << ");" << std::endl;
+    // add to the list of topological operations
+    _topological_operation_cache.emplace_back(TopologicalOperation::Type::REMOVE, elem_index);
 
     // check all the vertices of the tet we are removing to see if they are hanging
     Vec4i elem_to_remove = element(elem_index);     // important: make a copy of the vertices here
@@ -274,7 +276,7 @@ TetMesh::RemovedElement RefinedTetMesh::removeElement(int elem_index)
             if (elem_to_refine != ElementTreeNode::INVALID_INDEX)
             {
                 // std::cout << "  Refining adjacent element " << elem_to_refine << std::endl;
-                refineElement(elem_to_refine, elem_to_remove_refinement_level, true, false);
+                _refineElement(elem_to_refine, elem_to_remove_refinement_level, true);
             }
         }
     }
@@ -1135,7 +1137,30 @@ std::tuple<int,int,int,int> RefinedTetMesh::_matchFaceNodeToChildFaceNodeIndices
     return {ind1, ind2, ind3, ind4};
 }
 
-bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute, bool clear_latest)
+bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool absolute)
+{
+    _latest_new_vertices.clear();
+    _latest_removed_vertices.clear();
+    _latest_new_faces.clear();
+    _latest_new_elements.clear();
+    _latest_removed_elements.clear();
+    _latest_new_hanging_vertices.clear();
+    _latest_removed_hanging_vertices.clear();
+
+    bool refined = _refineElement(element_index, refinement_level, absolute);
+
+    // increment the topology version and store the topological operation if we actually refined something
+    if (refined)
+    {
+        _topological_operation_cache.emplace_back(TopologicalOperation::Type::REFINE, element_index, refinement_level, absolute);
+        _topology_version++;
+    }
+        
+
+    return refined;
+}
+
+bool RefinedTetMesh::_refineElement(int element_index, int refinement_level, bool absolute)
 {
     // std::cout << "\n=== Refining element " << element_index << std::endl;
     assert(elementValid(element_index));
@@ -1144,21 +1169,7 @@ bool RefinedTetMesh::refineElement(int element_index, int refinement_level, bool
     /** === Step 1: Prepare for the refinement algorithm. === */
 
     const Vec4i base_element = element(element_index);  // don't use a ref here since the element will soon be removed
-
-
-    // clear the latest added vertices and elements
-    if (clear_latest)
-    {
-        _latest_new_vertices.clear();
-        _latest_removed_vertices.clear();
-        _latest_new_faces.clear();
-        _latest_new_elements.clear();
-        _latest_removed_elements.clear();
-        _latest_new_hanging_vertices.clear();
-        _latest_removed_hanging_vertices.clear();
-
-        // std::cout << "refined_mesh.refineElement(" << element_index << ", " << refinement_level << ", " << absolute << ", " << clear_latest << ");" << std::endl;
-    }
+    // std::cout << "refined_mesh.refineElement(" << element_index << ", " << refinement_level << ", " << absolute << ", " << clear_latest << ");" << std::endl;
 
     // what we really care about is the RELATIVE refinement level
     // when absolute=true, the specified refinement level is the absolute depth to refine to ==> it is possible we are already there!
@@ -1813,6 +1824,8 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
 
     // increment the topology version
     _topology_version++;
+    // add the operation to the operation cache
+    _topological_operation_cache.emplace_back(TopologicalOperation::Type::COARSEN, element_index, coarsening_level, absolute);
 
     // add the element associated with root_node to the mesh
     // do this before we remove child elements so that the vertices associated with the root element don't get deleted

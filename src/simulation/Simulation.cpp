@@ -282,12 +282,12 @@ void Simulation::update()
         }
 
         // execute one-time callbacks
-        for (auto& cb : _one_time_callbacks)
+        std::vector<std::function<void()>> to_run;
         {
-            cb();
+            std::lock_guard<std::mutex> lock(_callbacks_mutex);
+            std::swap(to_run, _one_time_callbacks); // drain atomically
         }
-        // clear the one-time callbacks after executing them
-        _one_time_callbacks.clear();
+        for (auto& cb : to_run) cb();
 
         // if the simulation is ahead of the current elapsed wall time, stall
         if (_sim_mode == Config::SimulationMode::VISUALIZATION && _time > wall_time_elapsed_s)

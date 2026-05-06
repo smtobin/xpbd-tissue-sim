@@ -48,8 +48,14 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SparseMatrix.msg"
   "msg/RemovedElement.msg"
   "msg/RemovedElementArray.msg"
+  "msg/VerticesList.msg"
+  "msg/FacesList.msg"
+  "msg/ElementsList.msg"
+  "msg/MeshState.msg"
+  "msg/FactorGraphState.msg"
   "srv/SaveCheckpoint.srv"
   "srv/RestoreCheckpoint.srv"
+  "srv/FactorGraphState.srv"
   DEPENDENCIES std_msgs
   DEPENDENCIES geometry_msgs
 )

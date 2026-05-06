@@ -1346,17 +1346,28 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
 {
     // auto t_start = std::chrono::high_resolution_clock::now();
 
-    // assemble global delC matrix
-    size_t num_elastic_constraints = _constraints.template get<Solver::DeviatoricConstraint>().size() + _constraints.template get<Solver::HydrostaticConstraint>().size();
-    // size_t num_constraints = _constraints.size();
+    // the stiffness matrix only concerns the elastic constraints - i.e. the hydrostatic and deviatoric constraints
+    // With adaptive mesh refinement, there may be some "inactive" constraints in the constraint vector, since
+    //    the index of each hydrostatic and deviatoric constraint in the respective constraint arrays is the index of the element
+    //    with those constraints in the element array.
+    //
+    // Thus, we iterate through the elements instead of the constraints themselves, and only compute contributions for constraints that correspond to
+    //    valid elements.
+
+    /** Step 1: Assemble global delC matrix */
+
+    // number of elastic constraints = number of active elements * 2
+    size_t num_elastic_constraints = 2*tetMesh()->numElements();
+
+    // allocate space for the constraint vector and constraint compliances vector
     _stiffness_matrix_C_vec = VecXr::Zero(num_elastic_constraints);
-    // _stiffness_matrix_orig_delC = MatXr::Zero(num_elastic_constraints, 3*_mesh->numVertices());
     _stiffness_matrix_alpha_inv_vec = VecXr::Zero(num_elastic_constraints);
 
     // auto t_alloc = std::chrono::high_resolution_clock::now();
     // double alloc_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc - t_start).count() / 1.0e6;
     // std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_ms << " ms" << std::endl;
 
+    // allocate space for the triplets used to build the sparse delC matrix
     std::vector<Eigen::Triplet<Real>> delC_triplets;
     delC_triplets.reserve(12*num_elastic_constraints);   // each constraint gradient has 12 nonzeros
 
@@ -1364,9 +1375,8 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
     // double alloc_delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_alloc_delC - t_alloc).count() / 1.0e6;
     // std::cout << "Zeroing C vec and alpha inv vec took: " << alloc_delC_ms << " ms" << std::endl;
 
-    // iterate through each constraint and put its gradient into the global delC matrix
-    int constraint_index = 0;
-    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
+    // helper function to put constraint graidnet into global delC matrix
+    auto process_constraint = [&](const auto& constraint, int constraint_index)
     {
         // get the gradient from the constraint
         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
@@ -1392,34 +1402,48 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
         _stiffness_matrix_alpha_inv_vec[constraint_index] = 1.0/constraint.alpha();
 
         _stiffness_matrix_C_vec[constraint_index] = C;
+    };
 
+    // iterate through each constraint and put its gradient into the global delC matrix
+    const Geometry::TetMesh::elements_vec_type& elements = tetMesh()->elements();
+    const std::vector<Solver::HydrostaticConstraint>& hyd_constraints = _constraints.template get<Solver::HydrostaticConstraint>();
+    const std::vector<Solver::DeviatoricConstraint>& dev_constraints = _constraints.template get<Solver::DeviatoricConstraint>();
+
+    // keep track of the constraint index that we are on
+    int constraint_index = 0;
+    for (const auto& elem_index : elements.validIndices())
+    {
+        process_constraint(hyd_constraints[elem_index], constraint_index);
         constraint_index++;
-    });
+        process_constraint(dev_constraints[elem_index], constraint_index);
+        constraint_index++;
+    }
 
     // auto t_delC = std::chrono::high_resolution_clock::now();
     // double delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC - t_alloc_delC).count() / 1.0e6;
     // std::cout << "Computing delC triplets took: " << delC_ms << " ms" << std::endl;
 
-    // std::cout << "delC triplets size: " << delC_triplets.size() << ", 12*num_elastic_constraints: " << 12*num_elastic_constraints << std::endl;
-
-    Eigen::SparseMatrix<Real> delC(num_elastic_constraints, 3*_mesh->numVertices());
+    // build delC matrix from triplets
+    Eigen::SparseMatrix<Real> delC(num_elastic_constraints, 3*_mesh->vertices().totalSize());
     delC.setFromTriplets(delC_triplets.begin(), delC_triplets.end());
 
     // auto t_delC_ass = std::chrono::high_resolution_clock::now();
     // double delC_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC_ass - t_delC).count() / 1.0e6;
     // std::cout << "Assembling delC triplets took: " << delC_ass_ms << " ms" << std::endl;
 
+    /** Step 2: compute the Hessian term */
+
     // compute the Hessian term
     std::vector<Eigen::Triplet<Real>> hessian_triplets;
-    hessian_triplets.reserve(144*num_elastic_constraints + 3*_mesh->numVertices());
+    hessian_triplets.reserve(144*num_elastic_constraints + 3*_mesh->vertices().totalSize());
 
     // "fix" all the fixed vertices in the mesh by adding a large amount to the diagonal corresponding to their 3 DOF
-    for (int i = 0; i < _mesh->numVertices(); i++)
+    for (const auto& vertex_index : _mesh->vertices().validIndices())
     {
-        if (vertexFixed(i))
+        if (vertexFixed(vertex_index))
         {
             for (int j = 0; j < 3; j++)
-                hessian_triplets.emplace_back(3*i+j,3*i+j, 1e9);
+                hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
         }
     }
 
@@ -1427,8 +1451,8 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
     // double hess_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess - t_delC_ass).count() / 1.0e6;
     // std::cout << "Reserving Hessian triplets took: " << hess_ms << " ms" << std::endl;
 
-    constraint_index = 0;
-    _constraints.template for_each_element<Solver::DeviatoricConstraint, Solver::HydrostaticConstraint>([&](const auto& constraint)
+    // helper lambda for computing Hessian term of constraint
+    auto compute_hessian = [&](const auto& constraint, int constraint_index)
     {
         // get the 12x12 Hessian matrix from the constraint
         using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
@@ -1455,11 +1479,16 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
                 }
             }
         }
+    };
 
-        // std::cout << "\nNEW Constraint " << constraint_index << " Hessian mat:\n" << hessian_mat << std::endl;
-
+    constraint_index = 0;
+    for (const auto& elem_index : elements.validIndices())
+    {
+        compute_hessian(hyd_constraints[elem_index], constraint_index);
         constraint_index++;
-    });
+        compute_hessian(dev_constraints[elem_index], constraint_index);
+        constraint_index++;
+    }
 
     // auto t_hess_triplet = std::chrono::high_resolution_clock::now();
     // double hess_triplet_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_triplet - t_hess).count() / 1.0e6;
@@ -1467,7 +1496,9 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
 
     // std::cout << "144*num_elastic_constraints: " << 144*num_elastic_constraints << ", hessian_triplets size: " << hessian_triplets.size() << std::endl;
 
-    Eigen::SparseMatrix<Real> stiffness_matrix(3*_mesh->numVertices(), 3*_mesh->numVertices());
+    /** Step 3: Assemble stiffness matrix */
+    // start with Hessian terms
+    Eigen::SparseMatrix<Real> stiffness_matrix(3*_mesh->vertices().totalSize(), 3*_mesh->vertices().totalSize());
     stiffness_matrix.setFromTriplets(hessian_triplets.begin(), hessian_triplets.end());
 
     // auto t_hess_ass = std::chrono::high_resolution_clock::now();
@@ -1476,6 +1507,7 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
 
     // std::cout << "NEW stiffness matrix hessian term:\n" << _stiffness_matrix_hessian_term << std::endl;
 
+    // then add the delC^T * alpha^{-1} * delC term
     stiffness_matrix += (delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * delC);
 
     // auto t_add = std::chrono::high_resolution_clock::now();

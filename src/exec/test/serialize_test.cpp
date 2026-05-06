@@ -14,7 +14,7 @@ int main()
     };
     for (const auto& index : initially_refined_elements)
     {
-        refined_mesh.refineElement(index, 1, true, false);
+        refined_mesh.refineElement(index, 1, true);
     }
 
     std::cout << "Num elements when saving: " << refined_mesh.numElements() << std::endl;

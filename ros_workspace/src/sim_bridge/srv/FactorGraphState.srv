@@ -1,0 +1,6 @@
+bool compute_stiffness_matrix
+bool update_last_mesh
+MeshState last_mesh
+---
+FactorGraphState fg_state
+MeshState updated_last_mesh

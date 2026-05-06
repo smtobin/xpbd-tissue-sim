@@ -240,6 +240,46 @@ public:
         {}
     };
 
+    /** Simple struct that stores information about a performed topological operation on the mesh, i.e.
+     *  - element refinement
+     *  - element coarsening
+     *  - element removal
+     * 
+     */
+    struct TopologicalOperation
+    {
+        enum class Type
+        {
+            REFINE=0,
+            COARSEN,
+            REMOVE
+        };
+
+        // which operation
+        Type operation;
+        // index of element that the topological operation was applied to
+        int element_index;
+        // refinement/coarsening level (when applicable)
+        int level;
+        // whether or not the level is "absolute" or relative (when applicable)
+        bool absolute;
+
+        TopologicalOperation(Type operation_, int element_index_, int level_=-1, bool absolute_=false)
+            : operation(operation_), element_index(element_index_), level(level_), absolute(absolute_)
+        {} 
+
+        /** Applies the represented topological operation to a RefinedTetMesh class */
+        void applyOperation(RefinedTetMesh& mesh) const
+        {
+            if (operation == Type::REFINE)
+                mesh.refineElement(element_index, level, absolute);
+            else if (operation == Type::COARSEN)
+                mesh.coarsenElement(element_index, level, absolute);
+            else if (operation == Type::REMOVE)
+                mesh.removeElement(element_index);
+        }
+    };
+
     RefinedTetMesh() = default; // required for deserialization
     
     /** Constructs a refineable tetrahedral mesh, initialized from a set of vertices, faces, and elements.
@@ -270,7 +310,7 @@ public:
      * Each parent tetrahedron at each level is split into 8 equal volume tetrahedra by introducing 6 new vertices at edge midpoints.
      * No duplicate vertices are created, and hanging vertices are tracked.
     */
-    bool refineElement(int element_index, int refinement_level, bool absolute=false, bool clear_latest=true);
+    bool refineElement(int element_index, int refinement_level, bool absolute=false);
 
     /** Recursively coarsens the specified element coarsening_level times.
      * This function assumes that the element was created from hiearchical subdivision. (i.e. from the refineElement function)
@@ -312,6 +352,11 @@ public:
      * This function accounts for hanging vertices.
      */
     std::vector<Edge> boundaryEdges() const;
+
+    /** Returns the topological operation cache. */
+    const std::vector<TopologicalOperation> topologicalOperationCache() const { return _topological_operation_cache; }
+    /** Clears the topological operation cache. */
+    void clearTopologicalOperationCache() { _topological_operation_cache.clear(); }
 
 protected:
     
@@ -408,6 +453,7 @@ private:
 
     /** === HELPERS FOR ELEMENT REFINEMENT === */
 
+    bool _refineElement(int element_index, int refinement_level, bool absolute=false);
     /** When we are preparing to refine an element, we need to update child features (up to the refinement level).
      * 
      * We update only the child features of the features in the element who either don't have a parent feature or have a parent feature
@@ -548,6 +594,17 @@ protected:
     /** Stores the most recently added hanging vertices (from a refineElement or coarsenElement call) */
     std::vector<NewVertex> _latest_new_hanging_vertices;
     std::vector<int> _latest_removed_hanging_vertices;
+
+    /** Caches the previously applied topological operations.
+     * This cache is updated every time a topological operation is done, i.e. whenever
+     *      refineElement(), coarsenElement(), or removeElement()
+     * is called.
+     * 
+     * This cache can be periodically cleared (i.e. when the operations are applied to another mesh)
+     * 
+     * TODO: maybe associate each entry with topological version number instead of it being a cache that is cleared
+     */
+    std::vector<TopologicalOperation> _topological_operation_cache;
 
 };
 
