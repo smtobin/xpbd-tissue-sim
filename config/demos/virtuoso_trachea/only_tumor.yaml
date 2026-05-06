@@ -202,7 +202,7 @@ objects:
       outer-tube-rotation: -45
       inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 10e-3
+      inner-tube-translation: 1e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20

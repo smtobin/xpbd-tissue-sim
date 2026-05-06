@@ -447,16 +447,24 @@ private:
                 if (req->update_last_mesh)
                 {
                     // update the vertices of the last mesh according to the last factor graph state
+                    // std::cout << "Updating vertices..." << std::endl;
                     for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
                     {
                         Vec3r v = Eigen::Map<Vec3r>(req->last_mesh.vertices.data.data() + 3*ind);
                         this->_xpbd_mesh_at_last_fg_query.setVertex(ind, v);
                     }
+                    // std::cout << "Done." << std::endl;
 
                     // apply topological operations
                     for (const auto& operation : mesh->topologicalOperationCache())
                     {
+                        // std::cout << "Applying operation ";
+                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REFINE) std::cout << "Refine";
+                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::COARSEN) std::cout << "Coarsen";
+                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REMOVE) std::cout << "Remove";
+                        // std::cout << "(" << operation.element_index << ", " << operation.level << ", " << operation.absolute << ")..." << std::endl;
                         operation.applyOperation(this->_xpbd_mesh_at_last_fg_query);
+                        // std::cout << "Done." << std::endl;
                     }
 
                     // copy new mesh to msg
