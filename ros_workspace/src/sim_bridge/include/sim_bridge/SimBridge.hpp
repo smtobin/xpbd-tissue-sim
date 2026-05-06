@@ -449,6 +449,18 @@ private:
                 // if desired, update the last mesh to with the same topological operations so that it has the same topology as the current mesh
                 if (req->update_last_mesh)
                 {
+                    // make sure that the last mesh in the request has the expected number of vertices
+                    if ( (req->last_mesh.vertices.data.size() != 3*this->_xpbd_mesh_at_last_fg_query.vertices().totalSize()) ||
+                         (req->last_mesh.vertices.data.size()/3 - req->last_mesh.vertices.invalid_indices.size() != this->_xpbd_mesh_at_last_fg_query.numVertices()) )
+                    {
+                        std::cout << KRED << BOLD << "FATAL: " << RST << KRED << " Number of vertices provided in the 'last_mesh' field of the FG state request does not match the expected number of vertices." << std::endl;
+                        std::cout << "\t Total vertices in 'last_mesh': " << req->last_mesh.vertices.data.size()/3 << ", Expected total vertices: " << this->_xpbd_mesh_at_last_fg_query.vertices().totalSize() << std::endl;
+                        std::cout << "\t Valid vertices in 'last_mesh': " << req->last_mesh.vertices.data.size()/3 - req->last_mesh.vertices.invalid_indices.size() <<
+                            ", Expected valid vertices: " << this->_xpbd_mesh_at_last_fg_query.numVertices() << RST << std::endl;
+
+                        assert(0);
+                    }
+
                     // update the vertices of the last mesh according to the last factor graph state
                     // std::cout << "Updating vertices..." << std::endl;
                     for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
