@@ -1,3 +1,4 @@
+bool compute_stiffness_matrix
 bool update_last_mesh
 MeshState last_mesh
 ---

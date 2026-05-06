@@ -425,21 +425,24 @@ private:
                 _copyMeshToMeshStateMsg(fg_msg.sim_mesh, header, mesh);
 
                 // compute stiffness matrix
-                Eigen::SparseMatrix<Real> stiffness_mat = obj->stiffnessMatrix();
-                fg_msg.sim_stiffness_mat.header = header;
-                fg_msg.sim_stiffness_mat.rows = stiffness_mat.rows();
-                fg_msg.sim_stiffness_mat.cols = stiffness_mat.cols();
-                std::cout << "Stiffness matrix: " << stiffness_mat.rows() << " x " << stiffness_mat.cols() << " with " << stiffness_mat.nonZeros() << " nonzero entries." << std::endl;
-                fg_msg.sim_stiffness_mat.row_indices.reserve(stiffness_mat.nonZeros());
-                fg_msg.sim_stiffness_mat.col_indices.reserve(stiffness_mat.nonZeros());
-                fg_msg.sim_stiffness_mat.values.reserve(stiffness_mat.nonZeros());
-                for (int k = 0; k < stiffness_mat.outerSize(); ++k) 
+                if (req->compute_stiffness_matrix)
                 {
-                    for (Eigen::SparseMatrix<Real>::InnerIterator it(stiffness_mat, k); it; ++it) 
+                    Eigen::SparseMatrix<Real> stiffness_mat = obj->stiffnessMatrix();
+                    fg_msg.sim_stiffness_mat.header = header;
+                    fg_msg.sim_stiffness_mat.rows = stiffness_mat.rows();
+                    fg_msg.sim_stiffness_mat.cols = stiffness_mat.cols();
+                    std::cout << "Stiffness matrix: " << stiffness_mat.rows() << " x " << stiffness_mat.cols() << " with " << stiffness_mat.nonZeros() << " nonzero entries." << std::endl;
+                    fg_msg.sim_stiffness_mat.row_indices.reserve(stiffness_mat.nonZeros());
+                    fg_msg.sim_stiffness_mat.col_indices.reserve(stiffness_mat.nonZeros());
+                    fg_msg.sim_stiffness_mat.values.reserve(stiffness_mat.nonZeros());
+                    for (int k = 0; k < stiffness_mat.outerSize(); ++k) 
                     {
-                        fg_msg.sim_stiffness_mat.row_indices.push_back(it.row());
-                        fg_msg.sim_stiffness_mat.col_indices.push_back(it.col());
-                        fg_msg.sim_stiffness_mat.values.push_back(it.value());
+                        for (Eigen::SparseMatrix<Real>::InnerIterator it(stiffness_mat, k); it; ++it) 
+                        {
+                            fg_msg.sim_stiffness_mat.row_indices.push_back(it.row());
+                            fg_msg.sim_stiffness_mat.col_indices.push_back(it.col());
+                            fg_msg.sim_stiffness_mat.values.push_back(it.value());
+                        }
                     }
                 }
 

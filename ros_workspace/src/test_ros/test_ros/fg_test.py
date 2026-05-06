@@ -18,11 +18,12 @@ class FGClient(Node):
 
         self.req = FactorGraphState.Request()
         self.req.update_last_mesh = False
+        self.req.compute_stiffness_matrix = True
         
         
         self.timer = None
 
-        # Trigger initial call AFTER spinning starts
+        # initial call to FG service to get the initial mesh
         self.init_timer = self.create_timer(1, self.send_initial_request)
 
     def send_initial_request(self):
