@@ -194,7 +194,7 @@ void Simulation::setup()
                     }
 
                     Real min_dist = std::min(sdf_dist1, sdf_dist2);
-                    if (min_dist < 1.5e-3)
+                    if (min_dist < xpbd_obj->refinementDistanceThreshold())
                     {
 
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(i) < max_refinement_level)
@@ -204,7 +204,7 @@ void Simulation::setup()
 
                         
                     }
-                    else if (min_dist > 5e-3)
+                    else if (min_dist > 3.5*xpbd_obj->refinementDistanceThreshold())
                     {
                         if (xpbd_obj->refinedTetMesh()->elementRefinementLevel(i) > 0)
                         {

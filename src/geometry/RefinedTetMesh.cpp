@@ -151,6 +151,13 @@ int RefinedTetMesh::_addFace(const Vec3i& new_face, int elem_with_face)
     // same as before, but now we append the new face index to the list of newly added faces
     int new_face_index = TetMesh::_addFace(new_face, elem_with_face);
     _latest_new_faces.push_back(new_face_index);
+    
+    // if there is a FaceNode already associated with this face, mark it as on the surface
+    if (auto it = _face_to_face_node_map.find(Face(new_face[0], new_face[1], new_face[2])); it != _face_to_face_node_map.end())
+    {
+        int face_node_index = it->second;
+        _face_nodes[face_node_index].on_surface = true;
+    }
 
     return new_face_index;
 }
@@ -1946,6 +1953,153 @@ bool RefinedTetMesh::coarsenElement(int element_index, int coarsening_level, boo
     });
 
     return true;
+}
+
+std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> RefinedTetMesh::submeshForElementClass(int element_class) const
+{
+    std::vector<int> class_vertices_vec;
+    std::vector<Vec3i> class_faces_vec;
+    std::vector<int> class_elements;
+    if (!hasElementProperty<int>("class"))
+        return {class_vertices_vec, class_faces_vec, class_elements};
+    
+    const MeshProperty<int>& class_eprop = getElementProperty<int>("class");
+
+    std::unordered_set<int> class_vertices;
+    std::unordered_set<Face, FaceHash> class_faces;
+    
+
+    // go through all elements and find the elements that have the specified class
+    for (const auto& elem_index : _elements.validIndices())
+    {
+        if (class_eprop.get(elem_index) == element_class)
+        {
+            // add to list of elements of the desired class
+            class_elements.push_back(elem_index);
+
+            const Vec4i& elem = element(elem_index);
+
+            // go through vertices of this element and add to the list of vertices
+            for (int k = 0; k < 4; k++)
+                class_vertices.insert(elem[k]);
+
+            // check each face of the element to see if it is on the "surface" of the submesh
+            // this is the case when (1) there is no other element that shares the faces or (2) the element that shares the face has a different class
+            // (note that this assumes there is no refinement boundary within the submesh)
+            auto check_face = [&] (const Face& query_face)
+            {
+                auto faces_range = _face_to_elements_map.equal_range(query_face);
+                // see if there are any adjacent elements (i.e element indices that are not the element we are removing)
+                int adj_elem_index = -1;
+                for (auto it = faces_range.first; it != faces_range.second; it++)
+                {
+                    if (it->second != elem_index)
+                    {
+                        adj_elem_index = it->second;
+                        break;
+                    }
+                }
+
+                // we didn't find any adjacent elements
+                if (adj_elem_index == -1)
+                {
+                    // see if there is a face node for this face (i.e. is this face part of refinement?)
+                    auto it = _face_to_face_node_map.find(query_face);
+                    if (it != _face_to_face_node_map.end())
+                    {
+                        // there is an associated face node
+                        // check if the face node is on the surface
+                        if (_face_nodes[it->second].on_surface)
+                        {
+                            class_faces.insert(query_face);
+                        }
+                        else
+                        {
+                            // no elements share this face, not on the surface:
+                            // now we must traverse the tree and see if adjacent elements share part of this face
+                            // go up the tree first
+                            int cur_index = _face_nodes[it->second].parent_face_node;
+                            while (cur_index != ElementTreeNode::INVALID_INDEX)
+                            {
+                                // check the face -> element map for a hit
+                                auto range = _face_to_elements_map.equal_range(_face_nodes[cur_index].face);
+                                if (range.first != range.second)
+                                {
+                                    // hit
+                                    int found_elem_index = range.first->second;
+                                    if (class_eprop.get(found_elem_index) != element_class)
+                                    {
+                                        class_faces.insert(query_face);
+                                        return;
+                                    }
+                                }
+                                cur_index = _face_nodes[cur_index].parent_face_node;
+                            }
+
+                            // nothing found going up the tree - traverse towards children now
+                            // go all the way to the leaf face node - this should have an element associated with it
+                            int leaf_index = it->second;
+                            while(!_face_nodes[leaf_index].is_leaf)
+                            {
+                                for (const auto& child : _face_nodes[leaf_index].child_face_nodes)
+                                {
+                                    if (child != ElementTreeNode::INVALID_INDEX)
+                                    {
+                                        leaf_index = child;
+                                        break;
+                                    }
+                                }
+                            }
+                            // the face node index we are at should correspond to a leaf
+                            // check the class of the element associated with the face
+                            auto range = _face_to_elements_map.equal_range(_face_nodes[leaf_index].face);
+                            if (range.first != range.second)
+                            {
+                                // hit
+                                int found_elem_index = range.first->second;
+                                if (class_eprop.get(found_elem_index) != element_class)
+                                {
+                                    class_faces.insert(query_face);
+                                }
+
+                                return;
+                            }
+                        }
+                        
+                    }
+                    else
+                    {
+                        // this face is on the surface
+                        class_faces.insert(query_face);
+                    }
+                    
+                }
+                // the adjacent element has a different class ==> face is on the outer surface of the submesh
+                else if (class_eprop.get(adj_elem_index) != element_class)
+                    class_faces.insert(query_face);
+            };
+
+            check_face( Face(elem[0], elem[1], elem[2]) );
+            check_face( Face(elem[0], elem[2], elem[3]) );
+            check_face( Face(elem[0], elem[1], elem[3]) );
+            check_face( Face(elem[1], elem[2], elem[3]) );
+        }
+    } 
+
+    // copy information from sets to vectors
+    // vertices
+    for (const auto& v : class_vertices)
+    {
+        class_vertices_vec.push_back(v);
+    }
+
+    // faces
+    for (const auto& f : class_faces)
+    {
+        class_faces_vec.push_back(Vec3i(f.index1, f.index2, f.index3));
+    }
+    
+    return {class_vertices_vec, class_faces_vec, class_elements};
 }
 
 std::unordered_set<int> RefinedTetMesh::verifyHangingVertices() const

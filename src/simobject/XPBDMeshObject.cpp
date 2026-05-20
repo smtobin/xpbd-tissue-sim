@@ -57,6 +57,9 @@ XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, 
         std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "No materials were specified!" << RST << std::endl;
         assert(0);
     }
+
+    // set the material of the base object to the first material
+    _material_class = _material_classes[0];
 }
 
 template<bool IsFirstOrder>
@@ -74,6 +77,7 @@ void XPBDMeshObject_Base_<IsFirstOrder>::serialize(std::vector<std::byte>& buf) 
     pack(buf, _heat_solver);
     pack(buf, _adaptive_mesh_refinement);
     pack(buf, _max_refinement_level);
+    pack(buf, _refinement_distance_threshold);
     pack(buf, _damping_multiplier);
     pack(buf, _adjust_b_to_material);
     pack(buf, _vertex_B);
@@ -94,6 +98,7 @@ void XPBDMeshObject_Base_<IsFirstOrder>::deserialize(const std::byte*& buf)
     unpack(buf, _heat_solver);
     unpack(buf, _adaptive_mesh_refinement);
     unpack(buf, _max_refinement_level);
+    unpack(buf, _refinement_distance_threshold);
     unpack(buf, _damping_multiplier);
     unpack(buf, _adjust_b_to_material);
     unpack(buf, _vertex_B);
@@ -144,6 +149,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
 
     // deepest level to refine to
     _max_refinement_level = config->maxRefinementLevel();
+
+    // distance threshold for refinement
+    _refinement_distance_threshold = config->refinementDistanceThreshold();
 
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)

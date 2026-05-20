@@ -247,6 +247,7 @@ public:
 
     bool adaptiveMeshRefinement() const { return _adaptive_mesh_refinement; }
     int maxRefinementLevel() const { return _max_refinement_level; }
+    Real refinementDistanceThreshold() const { return _refinement_distance_threshold; }
 
 
     /** === Miscellaneous useful methods === */
@@ -310,6 +311,9 @@ protected:
 
     /** When adaptive mesh refinement is enabled, the maximum number of recursive refinements of base elements that are allowed. Set by the config. */
     int _max_refinement_level;
+
+    /** The distance threshold to use to decide when refinement happens. */
+    Real _refinement_distance_threshold;
 
 
     /** === Class members specific to when the object is 1st-order === */

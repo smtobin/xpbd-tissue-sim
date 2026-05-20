@@ -22,7 +22,8 @@ setup(
         'console_scripts': [
             'matrix_test = test_ros.matrix_test:main',
             'removed_elements_test = test_ros.removed_elements_test:main',
-            'fg_test = test_ros.fg_test:main'
+            'fg_test = test_ros.fg_test:main',
+            'focal_lesion_fg_test = test_ros.focal_lesion_fg_test:main'
         ],
     },
 )

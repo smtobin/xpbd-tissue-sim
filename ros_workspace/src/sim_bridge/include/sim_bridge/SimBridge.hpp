@@ -449,41 +449,7 @@ private:
                 // if desired, update the last mesh to with the same topological operations so that it has the same topology as the current mesh
                 if (req->update_last_mesh)
                 {
-                    // make sure that the last mesh in the request has the expected number of vertices
-                    if ( (req->last_mesh.vertices.data.size() != 3*this->_xpbd_mesh_at_last_fg_query.vertices().totalSize()) ||
-                         (req->last_mesh.vertices.data.size()/3 - req->last_mesh.vertices.invalid_indices.size() != this->_xpbd_mesh_at_last_fg_query.numVertices()) )
-                    {
-                        std::cout << KRED << BOLD << "FATAL: " << RST << KRED << " Number of vertices provided in the 'last_mesh' field of the FG state request does not match the expected number of vertices." << std::endl;
-                        std::cout << "\t Total vertices in 'last_mesh': " << req->last_mesh.vertices.data.size()/3 << ", Expected total vertices: " << this->_xpbd_mesh_at_last_fg_query.vertices().totalSize() << std::endl;
-                        std::cout << "\t Valid vertices in 'last_mesh': " << req->last_mesh.vertices.data.size()/3 - req->last_mesh.vertices.invalid_indices.size() <<
-                            ", Expected valid vertices: " << this->_xpbd_mesh_at_last_fg_query.numVertices() << RST << std::endl;
-
-                        assert(0);
-                    }
-
-                    // update the vertices of the last mesh according to the last factor graph state
-                    // std::cout << "Updating vertices..." << std::endl;
-                    for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
-                    {
-                        Vec3r v = Eigen::Map<Vec3r>(req->last_mesh.vertices.data.data() + 3*ind);
-                        this->_xpbd_mesh_at_last_fg_query.setVertex(ind, v);
-                    }
-                    // std::cout << "Done." << std::endl;
-
-                    // apply topological operations
-                    for (const auto& operation : mesh->topologicalOperationCache())
-                    {
-                        // std::cout << "Applying operation ";
-                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REFINE) std::cout << "Refine";
-                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::COARSEN) std::cout << "Coarsen";
-                        // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REMOVE) std::cout << "Remove";
-                        // std::cout << "(" << operation.element_index << ", " << operation.level << ", " << operation.absolute << ")..." << std::endl;
-                        operation.applyOperation(this->_xpbd_mesh_at_last_fg_query);
-                        // std::cout << "Done." << std::endl;
-                    }
-
-                    // copy new mesh to msg
-                    _copyMeshToMeshStateMsg(res->updated_last_mesh, header, &this->_xpbd_mesh_at_last_fg_query);
+                    _updateLastFactorGraphMesh(req->last_mesh, header, mesh, res->updated_last_mesh);
                 }
                 // regardless, clear the operations cache
                 mesh->clearTopologicalOperationCache();
@@ -496,6 +462,7 @@ private:
         future.wait();
     }
 
+protected:
     void _copyMeshToMeshStateMsg(sim_bridge::msg::MeshState& msg, const std_msgs::msg::Header& header, const Geometry::TetMesh* mesh) const
     {
         // set up vertices
@@ -565,8 +532,45 @@ private:
             }
         }
     }
+    void _updateLastFactorGraphMesh(const sim_bridge::msg::MeshState& last_mesh, const std_msgs::msg::Header& header, Geometry::RefinedTetMesh* mesh, sim_bridge::msg::MeshState& updated_last_mesh)
+    {
+        // make sure that the last mesh in the request has the expected number of vertices
+        if ( (last_mesh.vertices.data.size() != 3*this->_xpbd_mesh_at_last_fg_query.vertices().totalSize()) ||
+                (last_mesh.vertices.data.size()/3 - last_mesh.vertices.invalid_indices.size() != this->_xpbd_mesh_at_last_fg_query.numVertices()) )
+        {
+            std::cout << KRED << BOLD << "FATAL: " << RST << KRED << " Number of vertices provided in the 'last_mesh' field of the FG state request does not match the expected number of vertices." << std::endl;
+            std::cout << "\t Total vertices in 'last_mesh': " << last_mesh.vertices.data.size()/3 << ", Expected total vertices: " << this->_xpbd_mesh_at_last_fg_query.vertices().totalSize() << std::endl;
+            std::cout << "\t Valid vertices in 'last_mesh': " << last_mesh.vertices.data.size()/3 - last_mesh.vertices.invalid_indices.size() <<
+                ", Expected valid vertices: " << this->_xpbd_mesh_at_last_fg_query.numVertices() << RST << std::endl;
 
-protected:
+            assert(0);
+        }
+
+        // update the vertices of the last mesh according to the last factor graph state
+        // std::cout << "Updating vertices..." << std::endl;
+        for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
+        {
+            const Vec3r v = Eigen::Map<const Vec3r>(last_mesh.vertices.data.data() + 3*ind);
+            this->_xpbd_mesh_at_last_fg_query.setVertex(ind, v);
+        }
+        // std::cout << "Done." << std::endl;
+
+        // apply topological operations
+        for (const auto& operation : mesh->topologicalOperationCache())
+        {
+            // std::cout << "Applying operation ";
+            // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REFINE) std::cout << "Refine";
+            // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::COARSEN) std::cout << "Coarsen";
+            // if (operation.operation == Geometry::RefinedTetMesh::TopologicalOperation::Type::REMOVE) std::cout << "Remove";
+            // std::cout << "(" << operation.element_index << ", " << operation.level << ", " << operation.absolute << ")..." << std::endl;
+            operation.applyOperation(this->_xpbd_mesh_at_last_fg_query);
+            // std::cout << "Done." << std::endl;
+        }
+
+        // copy new mesh to msg
+        _copyMeshToMeshStateMsg(updated_last_mesh, header, &this->_xpbd_mesh_at_last_fg_query);
+    }
+
     /** Publishers */
     std::vector<unsigned char> _flipped_image_buffer;
     sensor_msgs::msg::Image _image_msg;
