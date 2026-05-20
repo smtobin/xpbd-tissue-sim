@@ -656,7 +656,7 @@ std::pair<int, Real> TetMesh::averageTetEdgeLength() const
     return std::pair<int,Real>(edges.size(), total_length/edges.size());
 }
 
-std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> TetMesh::submeshForElementClass(int element_class)
+std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> TetMesh::submeshForElementClass(int element_class) const
 {
     std::vector<int> class_vertices_vec;
     std::vector<Vec3i> class_faces_vec;

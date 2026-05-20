@@ -358,6 +358,11 @@ public:
     /** Clears the topological operation cache. */
     void clearTopologicalOperationCache() { _topological_operation_cache.clear(); }
 
+    /** Returns list of vertex indices, vector of faces, and list of element indices for a "submesh" corresponding to a specific element class.
+     * Overrides the TetMesh implementation to account for refinement boundaries within submeshes.
+     */
+    virtual std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> submeshForElementClass(int element_class) const override;
+
 protected:
     
     /** Updates the vertex -> element map when we are removing an element with index element_index.

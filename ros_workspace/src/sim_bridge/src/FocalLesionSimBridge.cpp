@@ -82,7 +82,7 @@ void FocalLesionSimBridge::_focalLesionFactorGraphState(
             // update lesion information
 
             // get submesh for the lesion class
-            const auto [lesion_vertices, lesion_faces, lesion_elements] = obj->tetMesh()->submeshForElementClass(this->_lesion_class_index);
+            const auto [lesion_vertices, lesion_faces, lesion_elements] = mesh->submeshForElementClass(this->_lesion_class_index);
             // copy over data
             // vertices
             res->lesion_vertices.reserve(lesion_vertices.size());
