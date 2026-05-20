@@ -57,6 +57,9 @@ XPBDMeshObject_Base_<IsFirstOrder>::XPBDMeshObject_Base_(const Simulation* sim, 
         std::cerr << KRED << BOLD << "FATAL: " << RST << KRED << "No materials were specified!" << RST << std::endl;
         assert(0);
     }
+
+    // set the material of the base object to the first material
+    _material_class = _material_classes[0];
 }
 
 template<bool IsFirstOrder>
