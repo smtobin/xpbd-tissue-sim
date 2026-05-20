@@ -86,57 +86,30 @@ int main(int argc, char* argv[])
 
     Geometry::TetMesh combined_mesh = MeshUtils::loadTetMeshFromGmshFile(combined_mesh_filename);
     Vec3r combined_mesh_cm = combined_mesh.massCenter();
+    std::cout << "bounding box: " << combined_mesh.boundingBox().min.transpose() << " to " << combined_mesh.boundingBox().max.transpose() << std::endl;
 
-    // load combined mesh from file
-    Config::MeshObjectConfig config(combined_mesh_filename, std::nullopt, std::nullopt, std::nullopt, false, false, false, Vec4r(0,0,0,0));
-    Config::ObjectConfig obj_config("combined", "default", combined_mesh_cm, Vec3r::Zero(), Vec3r::Zero(), false, false, Config::ObjectRenderConfig());
-    
-    Config::XPBDMeshObjectConfig xpbd_config(obj_config, config);
-    auto combined_mesh_obj = xpbd_config.createObject(&dummy_sim);
-    combined_mesh_obj->setup();
-    std::cout << "bounding box: " << combined_mesh_obj->mesh()->boundingBox().min.transpose() << " to " << combined_mesh_obj->mesh()->boundingBox().max.transpose() << std::endl;
-
-    // add the combined mesh to the Embree scene
-    // this will create a scene for the tetrahedra that we can do point queries on
-    embree_scene.addObject(combined_mesh_obj.get());
-    embree_scene.update();
 
     std::vector<int> elem_classes(combined_mesh.numElements(), 0);
     for (const auto& [mesh_filename, class_int] : separate_meshes)
     // for (unsigned i = 0; i < class_mesh_filenames.size(); i++)
     {
-        // load the class mesh from file - this will convert any .obj or .stl to .msh
-        Geometry::TetMesh class_mesh = MeshUtils::loadTetMeshFromGmshFile(mesh_filename);
+        int num_overlap = 0;
 
-        std::cout << "bounding box: " << class_mesh.boundingBox().min.transpose() << " to " << class_mesh.boundingBox().max.transpose() << std::endl;
+        // load the class mesh from file
+        Geometry::Mesh class_mesh = MeshUtils::loadSurfaceMeshFromFile(mesh_filename);
 
-        int num_hits = 0;
-
-        // go through each element of the combined mesh and see if its centroid is inside any tetrahedra of the class mesh
-        // just brute force it for now
-        for (int e = 0; e < combined_mesh.numElements(); e++)
+        for (const auto& elem_index : combined_mesh.elements().validIndices())
         {
-            const Eigen::Vector4i& element = combined_mesh.element(e);
-            Vec3r c = (combined_mesh.vertex(element[0]) + combined_mesh.vertex(element[1]) + combined_mesh.vertex(element[2]) + combined_mesh.vertex(element[3]))/4.0;
-            for (int class_e = 0; class_e < class_mesh.numElements(); class_e++)
+            Vec3r c = combined_mesh.elementCentroid(elem_index);
+            if (class_mesh.isInside(c))
             {
-                const Eigen::Vector4i& class_element = class_mesh.element(class_e);
-                const Vec3r& v1 = class_mesh.vertex(class_element[0]);
-                const Vec3r& v2 = class_mesh.vertex(class_element[1]);
-                const Vec3r& v3 = class_mesh.vertex(class_element[2]);
-                const Vec3r& v4 = class_mesh.vertex(class_element[3]);
-                
-                bool in_tet = Geometry::EmbreeTetMeshGeometry::isPointInTetrahedron(c, v1, v2, v3, v4);
-                if (in_tet)
-                {
-                    num_hits++;
-                    elem_classes[e] = class_int;
-                    break;
-                }
+                elem_classes[elem_index] = class_int;
+                num_overlap++;
             }
         }
 
-        std::cout << mesh_filename << " overlapped with " << num_hits << " tetrahedra!" << std::endl;
+        std::cout << "bounding box: " << class_mesh.boundingBox().min.transpose() << " to " << class_mesh.boundingBox().max.transpose() << std::endl;
+        std::cout << mesh_filename << " contained centroids of " << num_overlap << " tetrahedra!" << std::endl;
     }
 
     std::string out_filename = combined_mesh_filename.substr(0,combined_mesh_filename.length()-4) + "_element_classes.txt";

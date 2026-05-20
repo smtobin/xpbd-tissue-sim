@@ -79,11 +79,29 @@ show-camera-axes: false
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
 materials:
   -
-    name: "Raw Chicken Breast"
-    label: "Tumor"
+    name: "Prostate Phantom"
+    label: "Prostate"
     # material parameters
     density: 1060
-    E: 0.07e6
+    E: 0.1e6
+    nu: 0.4
+    # rendering settings
+    color: [1.0, 0.6, 0.5]
+    cut-color: [0.12, 0.08, 0.0]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.2
+    smooth-normals: false
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+  
+  -
+    name: "Lesion"
+    label: "Prostate"
+    # material parameters
+    density: 1060
+    E: 0.5e6
     nu: 0.4
     # rendering settings
     color: [1.0, 0.6, 0.5]
@@ -113,7 +131,8 @@ objects:
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
     fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
-    material: "Raw Chicken Breast"
+    element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
+    materials: ["Prostate Phantom", "Lesion"]
 
     scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning

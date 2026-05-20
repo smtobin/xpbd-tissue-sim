@@ -543,6 +543,33 @@ Vec3r Mesh::massCenter() const
     return weighted_volume / total_volume;
 }
 
+bool Mesh::isInside(const Vec3r& p) const
+{
+    Real total = 0;
+    for (const auto& f : _faces)
+    {
+        // compute solid angle for each face
+        Vec3r a = vertex(f[0]) - p;
+        Vec3r b = vertex(f[1]) - p;
+        Vec3r c = vertex(f[2]) - p;
+
+        Real la = a.norm();
+        Real lb = b.norm();
+        Real lc = c.norm();
+
+        Real numerator = a.dot(b.cross(c));
+        Real denominator = la*lb*lc + a.dot(b)*lc + b.dot(c)*la + c.dot(a)*lb;
+        Real solid_angle = 2.0 * std::atan2(numerator, denominator);
+
+        total += solid_angle;
+    }
+    // winding number = normalized total solid angle
+    Real w = total / (4.0 * M_PI);
+
+    // if winding number > 0.5, then the point is inside the mesh
+    return std::abs(w) > 0.5;
+}
+
 void Mesh::writeMeshToObjFile(const std::string& filename) const
 {
     std::ofstream obj_file(filename);

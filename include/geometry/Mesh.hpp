@@ -277,6 +277,9 @@ public:
      */
     void writeMeshToObjFile(const std::string &filename) const;
 
+    /** Checks if a point p is inside the mesh. Uses winding number approach. (O(n) computation) */
+    bool isInside(const Vec3r& p) const;
+
     /** Creates a vertex property with the specified name, and optional default value. */
     template <typename T>
     void addVertexProperty(const std::string &name, std::optional<T> default_value = std::nullopt, bool is_field = false)
