@@ -5,11 +5,32 @@ from sim_bridge.srv import FactorGraphState, FocalLesionFactorGraphState
 import numpy as np
 import scipy.sparse as sp
 
+from visualization_msgs.msg import Marker
+from visualization_msgs.msg import MarkerArray
+from geometry_msgs.msg import Point
+
 
 class FocalLesionFGClient(Node):
     def __init__(self):
         super().__init__('matrix_subscriber')
         self.client = self.create_client(FocalLesionFactorGraphState, '/sim/focal_lesion_factor_graph_state')
+
+        # publishers for visualization
+        self.prostate_mesh_publisher = self.create_publisher(
+            MarkerArray,
+            'prostate_mesh_markers',
+            10
+        )
+
+        self.lesion_mesh_publisher = self.create_publisher(
+            MarkerArray,
+            'lesion_mesh_markers',
+            10
+        )
+
+        # colors for output meshes
+        self.prostate_color = [1.0, 0.6, 0.5, 0.2]
+        self.lesion_color = [1.0, 0.0, 1.0, 0.8]
 
          # Wait for service to be available
         while not self.client.wait_for_service(timeout_sec=1.0):
@@ -72,9 +93,58 @@ class FocalLesionFGClient(Node):
             self.get_logger().info(f'Current mesh: {fg_state.sim_mesh.vertices.size} vertices (total), {fg_state.sim_mesh.faces.size} faces (total), and {fg_state.sim_mesh.elements.size} elements (total)')
             self.get_logger().info(f'Updated last mesh: {updated_last_mesh.vertices.size} vertices (total), {updated_last_mesh.faces.size} faces (total), and {updated_last_mesh.elements.size} elements (total)')
             self.get_logger().info(f'Received {stiffness_mat.rows}x{stiffness_mat.cols} sparse matrix with {sparse_mat.count_nonzero()} nonzero entries')
+
+            self.publish_mesh(fg_state.sim_mesh.vertices, fg_state.sim_mesh.faces, self.prostate_mesh_publisher, self.prostate_color)
+            self.publish_mesh(fg_state.sim_mesh.vertices, response.lesion_faces, self.lesion_mesh_publisher, self.lesion_color)
         except Exception as e:
             self.get_logger().error(f'Service call failed: {e}')
 
+    def publish_mesh(self, vertices_list, faces_list, publisher, color):
+
+        marker = Marker()
+
+        marker.header.frame_id = "sim/world"
+        marker.header.stamp = self.get_clock().now().to_msg()
+
+        marker.ns = "mesh"
+        marker.id = 0
+
+        marker.type = Marker.TRIANGLE_LIST
+        marker.action = Marker.ADD
+
+        # Pose
+        marker.pose.orientation.w = 1.0
+
+        # Scale must be 1 for TRIANGLE_LIST
+        marker.scale.x = 1.0
+        marker.scale.y = 1.0
+        marker.scale.z = 1.0
+
+        # Color
+        marker.color.r = color[0]
+        marker.color.g = color[1]
+        marker.color.b = color[2]
+        marker.color.a = color[3]
+
+        # Add triangles
+        faces = np.reshape(faces_list.data, (-1,3))
+        vertices = np.reshape(vertices_list.data, (-1,3))
+        for face in faces:
+            for vertex_index in face:
+
+                vx, vy, vz = vertices[vertex_index]
+
+                p = Point()
+                p.x = vx
+                p.y = vy
+                p.z = vz
+
+                marker.points.append(p)
+
+        marker_array = MarkerArray()
+        marker_array.markers.append(marker)
+
+        publisher.publish(marker_array)
         
 
 def main(args=None):
