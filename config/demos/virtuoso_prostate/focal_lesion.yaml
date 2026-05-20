@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -41,8 +41,8 @@ end-time: 5000000000000
 # - to be very clear: this specifies the CT -> VB transform, i.e. it transforms a point in the CT frame into the VB frame
 #     (this is the robotics convention, opposite the convention that tf uses)
 # - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
-CT-to-VB-transform-translation: [0.110, 0.137, 0.075]  # in meters
-CT-to-VB-transform-rotation: [0, 0, 0]  # XYZ Euler angle convention
+CT-to-VB-transform-translation: [0.1, 0.1, 0.15]  # in meters
+CT-to-VB-transform-rotation: [0.6, 0, 0]  # XYZ Euler angle convention
 
 
 # === Simulation rendering settings ===
@@ -79,23 +79,6 @@ show-camera-axes: false
 # these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
 materials:
   -
-    name: "Human Trachea"
-    label: "Trachea"
-    # material parameters
-    density: 1030
-    E: 5e6
-    nu: 0.49
-    # rendering settings
-    color: [1.0, 0.5, 0.4]
-    render-type: "PBR"
-    metallic: 0.0
-    roughness: 0.4
-    smooth-normals: true
-    draw-points: false
-    draw-edges: false
-    draw-faces: true
-    
-  -
     name: "Raw Chicken Breast"
     label: "Tumor"
     # material parameters
@@ -108,9 +91,9 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: true
+    smooth-normals: false
     draw-points: false
-    draw-edges: false
+    draw-edges: true
     draw-faces: true
 
   -
@@ -126,10 +109,10 @@ materials:
 # === Objects in the sim ===
 objects:
   -
-    name: "Tumor"
+    name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
+    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
     material: "Raw Chicken Breast"
 
     scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
@@ -148,19 +131,8 @@ objects:
 
     adaptive-mesh-refinement: true
     max-refinement-level: 2
-    refinement-distance-threshold: 1.5e-3
+    refinement-distance-threshold: 3e-3
     compute-heat-conduction: false
-
-  -
-    name: "Trachea"
-    type: "RigidMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    material: "Human Trachea"
-    scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
-    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
-
-    collisions: false
-    fixed: true
 
   -
     name: "Robot"

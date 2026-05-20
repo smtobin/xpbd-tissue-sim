@@ -72,6 +72,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::_heat_solver;
     using Base::_adaptive_mesh_refinement;
     using Base::_max_refinement_level;
+    using Base::_refinement_distance_threshold;
     using Base::_damping_multiplier;
     using Base::_adjust_b_to_material;
     using Base::_vertex_B;
