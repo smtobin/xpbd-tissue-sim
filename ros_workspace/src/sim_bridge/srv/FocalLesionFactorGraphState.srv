@@ -1,0 +1,14 @@
+bool compute_stiffness_matrix
+bool update_last_mesh
+MeshState last_mesh
+---
+FactorGraphState fg_state
+MeshState updated_last_mesh
+
+# lesion-specific information
+# indices of vertices that correspond to the lesion
+int32[] lesion_vertices
+# list of faces that correspond to the lesion-prostate interface
+FacesList lesion_faces
+# indices of elements that correspond to the lesion
+int32[] lesion_elements
