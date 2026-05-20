@@ -148,6 +148,9 @@ class TetMesh : public Mesh
      */
     std::pair<int, Real> averageTetEdgeLength() const;
 
+    /** Returns list of vertex indices, vector of faces, and list of element indices for a "submesh" corresponding to a specific element class. */
+    std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> submeshForElementClass(int element_class);
+
 #ifdef HAVE_CUDA
     virtual void createGPUResource() override;
 #endif

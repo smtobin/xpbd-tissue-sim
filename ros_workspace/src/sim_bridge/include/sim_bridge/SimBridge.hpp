@@ -449,7 +449,7 @@ private:
                 // if desired, update the last mesh to with the same topological operations so that it has the same topology as the current mesh
                 if (req->update_last_mesh)
                 {
-                    _updateLastFactorGraphMesh(req->last_mesh, header, req->updated_last_mesh);
+                    _updateLastFactorGraphMesh(req->last_mesh, header, mesh, res->updated_last_mesh);
                 }
                 // regardless, clear the operations cache
                 mesh->clearTopologicalOperationCache();
@@ -532,7 +532,7 @@ protected:
             }
         }
     }
-    void _updateLastFactorGraphMesh(const sim_bridge::msg::MeshState& last_mesh, const std::msgs::msg::Header& header, sim_bridge::msg::MeshState& updated_last_mesh) const
+    void _updateLastFactorGraphMesh(const sim_bridge::msg::MeshState& last_mesh, const std_msgs::msg::Header& header, Geometry::RefinedTetMesh* mesh, sim_bridge::msg::MeshState& updated_last_mesh)
     {
         // make sure that the last mesh in the request has the expected number of vertices
         if ( (last_mesh.vertices.data.size() != 3*this->_xpbd_mesh_at_last_fg_query.vertices().totalSize()) ||
@@ -550,7 +550,7 @@ protected:
         // std::cout << "Updating vertices..." << std::endl;
         for (const auto& ind : this->_xpbd_mesh_at_last_fg_query.vertices().validIndices())
         {
-            Vec3r v = Eigen::Map<Vec3r>(last_mesh.vertices.data.data() + 3*ind);
+            const Vec3r v = Eigen::Map<const Vec3r>(last_mesh.vertices.data.data() + 3*ind);
             this->_xpbd_mesh_at_last_fg_query.setVertex(ind, v);
         }
         // std::cout << "Done." << std::endl;

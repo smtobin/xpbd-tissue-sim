@@ -56,6 +56,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SaveCheckpoint.srv"
   "srv/RestoreCheckpoint.srv"
   "srv/FactorGraphState.srv"
+  "srv/FocalLesionFactorGraphState.srv"
   DEPENDENCIES std_msgs
   DEPENDENCIES geometry_msgs
 )
@@ -166,6 +167,7 @@ add_executable(${PROJECT_NAME}_node
   src/VirtuosoCTAnatomySimBridge.cpp
   src/CAOSimBridge.cpp
   src/BPHSimBridge.cpp
+  src/FocalLesionSimBridge.cpp
 )
 
 # === Link Dependencies ===

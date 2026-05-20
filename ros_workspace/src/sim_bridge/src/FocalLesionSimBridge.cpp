@@ -4,18 +4,18 @@ FocalLesionSimBridge::FocalLesionSimBridge(Sim::VirtuosoCTAnatomySimulation* sim
     : BPHSimBridge(sim)
 {
     // set up factor graph service
-    _focal_lesion_factor_graph_service = this->create_service<sim_bridge::srv::FactorGraphState>(
+    _focal_lesion_factor_graph_service = this->create_service<sim_bridge::srv::FocalLesionFactorGraphState>(
         "/sim/focal_lesion_factor_graph_state",
-        std::bind(&SimBridge::_focalLesionFactorGraphState, this, std::placeholders::_1, std::placeholders::_2) 
+        std::bind(&FocalLesionSimBridge::_focalLesionFactorGraphState, this, std::placeholders::_1, std::placeholders::_2) 
     );
 
     // get the element class the corresponds to the lesion
     std::visit([&] (auto& obj_ptr) {
-        const auto& element_classes = obj_ptr->elementClasses();
-        std::string class_name = "Lesion";
-        for (unsigned i = 0; i < element_classes.size(); i++)
+        const auto& material_classes = obj_ptr->materialClasses();
+        std::string lesion_material = "Lesion";
+        for (unsigned i = 0; i < material_classes.size(); i++)
         {
-            if (element_classes[i].name() == class_name)
+            if (material_classes[i]->name() == lesion_material)
             {
                 this->_lesion_class_index = i;
                 break;
@@ -73,13 +73,40 @@ void FocalLesionSimBridge::_focalLesionFactorGraphState(
             // if desired, update the last mesh to with the same topological operations so that it has the same topology as the current mesh
             if (req->update_last_mesh)
             {
-                _updateLastFactorGraphMesh(req->last_mesh, header, req->updated_last_mesh);
+                _updateLastFactorGraphMesh(req->last_mesh, header, mesh, res->updated_last_mesh);
             }
             // regardless, clear the operations cache
             mesh->clearTopologicalOperationCache();
             this->_xpbd_mesh_at_last_fg_query = *mesh;
 
-            // TODO: update information about the lesion
+            // update lesion information
+
+            // get submesh for the lesion class
+            const auto [lesion_vertices, lesion_faces, lesion_elements] = obj->tetMesh()->submeshForElementClass(this->_lesion_class_index);
+            // copy over data
+            // vertices
+            res->lesion_vertices.reserve(lesion_vertices.size());
+            for (const auto& lesion_vertex : lesion_vertices)
+                res->lesion_vertices.push_back(lesion_vertex);
+
+            // faces
+            res->lesion_faces.header = header;
+            res->lesion_faces.size = lesion_faces.size();
+            res->lesion_faces.data.reserve(3*lesion_faces.size());
+            res->lesion_faces.invalid_indices.clear();  // all faces valid, don't need to worry about invalid indices
+            for (const auto& lesion_face : lesion_faces)
+            {
+                res->lesion_faces.data.push_back(lesion_face[0]);
+                res->lesion_faces.data.push_back(lesion_face[1]);
+                res->lesion_faces.data.push_back(lesion_face[2]);
+            }
+
+            // elements
+            res->lesion_elements.reserve(lesion_elements.size());
+            for (const auto& lesion_element : lesion_elements)
+                res->lesion_elements.push_back(lesion_element);
+
+            
 
         }, this->_first_xpbd_obj);
         
