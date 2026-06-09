@@ -8,6 +8,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "std_msgs/msg/int8.hpp"
+#include "std_msgs/msg/float64.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <tf2_ros/transform_listener.h>
@@ -97,8 +98,8 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _arm2_tip_position_subscriber;     // subscribes to tip position commands for arm2
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr _arm1_tip_position_covariance_subscriber;     // subscribes to tip position commands for arm1
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr _arm2_tip_position_covariance_subscriber;     // subscribes to tip position commands for arm2
-    rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr _arm1_tool_state_subscriber;              // subscribes to tool state commands for arm1
-    rclcpp::Subscription<std_msgs::msg::Int8>::SharedPtr _arm2_tool_state_subscriber;              // subscribes to tool state commands for arm2
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr _arm1_tool_state_subscriber;              // subscribes to tool state commands for arm1
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr _arm2_tool_state_subscriber;              // subscribes to tool state commands for arm2
 };
 
 #endif // __VIRTUOSO_SIM_BRIDGE_HPP

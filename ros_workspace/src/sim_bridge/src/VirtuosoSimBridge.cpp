@@ -671,22 +671,24 @@ void VirtuosoSimBridge::_setupSubscribers()
     if (_sim->virtuosoRobot()->hasArm1())
     {
         auto arm1_tool_state_callback = 
-            [this](std_msgs::msg::Int8::UniquePtr msg) -> void {
-                this->_sim->setArm1ToolState(msg->data);
+            [this](std_msgs::msg::Float64::UniquePtr msg) -> void {
+                int on = msg->data != 0.0;
+                this->_sim->setArm1ToolState(on);
         };
 
-        _arm1_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/sim/input/arm1_tool_state", 10, arm1_tool_state_callback);
+        _arm1_tool_state_subscriber = this->create_subscription<std_msgs::msg::Float64>("/sim/input/arm1_tool_state", 10, arm1_tool_state_callback);
     }
 
     // set up subscriber callback to take in tool state for arm 2
     if (_sim->virtuosoRobot()->hasArm2())
     {
         auto arm2_tool_state_callback = 
-            [this](std_msgs::msg::Int8::UniquePtr msg) -> void {
-                this->_sim->setArm2ToolState(msg->data);
+            [this](std_msgs::msg::Float64::UniquePtr msg) -> void {
+                int on = msg->data != 0.0;
+                this->_sim->setArm2ToolState(on);
         };
 
-        _arm2_tool_state_subscriber = this->create_subscription<std_msgs::msg::Int8>("/sim/input/arm2_tool_state", 10, arm2_tool_state_callback);
+        _arm2_tool_state_subscriber = this->create_subscription<std_msgs::msg::Float64>("/sim/input/arm2_tool_state", 10, arm2_tool_state_callback);
     }
     
 }
