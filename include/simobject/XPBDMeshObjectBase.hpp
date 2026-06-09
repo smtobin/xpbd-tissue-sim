@@ -194,6 +194,14 @@ public:
     virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>  
     addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr) = 0;
 
+    /** Adds an attachment constraint applied to the vertex at the specified index
+     * @param v_ind : the index of the vertex
+     * @param attach_ind : the index of the attachment point in the vector
+     * @param attach_pos_ptr : a pointer to the vector that contains the attachment point
+     */
+    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>  
+    addAttachmentConstraint(int v_ind, int attach_ind, const std::vector<Vec3r>* attach_pos_ptr) = 0;
+
     /** Clears all attachment constraint that are on this object. */
     virtual void clearAttachmentConstraints() = 0;
 
