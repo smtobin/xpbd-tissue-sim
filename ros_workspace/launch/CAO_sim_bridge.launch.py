@@ -64,22 +64,25 @@ def generate_launch_description():
             # these topics subscribe to a PoseStamped topic
             # and will automatically apply the transform from the frame they are expressed in to ves/left/base
             # (provided that a tf transform exists relating the two frames)
-            # ('/sim/input/arm1_tip_pos', '/ves/left/joint/measured_cp'),
-            # ('/sim/input/arm2_tip_pos', '/ves/right/joint/measured_cp'),
+            ('/sim/input/arm1_tip_pos', '/ves/left/joint/measured_cp'),
+            ('/sim/input/arm2_tip_pos', '/ves/right/joint/measured_cp'),
+
+            ('/sim/input/arm1_tool_state', '/ves/left/measured_tool'),
+            ('/sim/input/arm2_tool_state', '/ves/right/measured_tool'),
 
             ### OR, USE SMOOTHER OUTPUT
             # these topics subscribe to PoseWithCovarianceStamped topic
             # and will automatically apply the transform from the frame they are expressed in to ves/left/base
             # (provided that a tf transform exists relating the two frames)
-            ('/sim/input/arm1_tip_pos_with_covar', '/ves_smoother/left/tip_pose'),
-            ('/sim/input/arm2_tip_pos_with_covar', '/ves_smoother/right/tip_pose'),
+            # ('/sim/input/arm1_tip_pos_with_covar', '/ves_smoother/left/tip_pose'),
+            # ('/sim/input/arm2_tip_pos_with_covar', '/ves_smoother/right/tip_pose'),
 
             # USE SERVO_CP WHEN RUNNING WITH TRAINING
             # ('/sim/input/arm1_tip_pos', '/ves/left/joint/servo_cp'),
             # ('/sim/input/arm2_tip_pos', '/ves/right/joint/servo_cp'),
             
-            ('/sim/input/arm1_tool_state', '/ves/left/set_tool'),
-            ('/sim/input/arm2_tool_state', '/ves/right/set_tool'),
+            # ('/sim/input/arm1_tool_state', '/ves/left/setpoint_tool'),
+            # ('/sim/input/arm2_tool_state', '/ves/right/setpoint_tool'),
 
 
             # === Remappings for simulation outputs ===
