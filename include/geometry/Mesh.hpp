@@ -140,6 +140,8 @@ public:
     /** Returns a non-const-reference to the faces of the mesh. */
     faces_vec_type &faces() { return _faces; }
 
+    const std::vector<Vec3r>& initialVertices() const { return _initial_vertices; }
+
     /** Number of verticees in the mesh. */
     int numVertices() const { return _vertices.size(); }
     /** Number of faces in the mesh. */

@@ -17,16 +17,26 @@ class AttachmentConstraint : public Constraint
     AttachmentConstraint() = default;
     explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr);
 
+    explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, int attached_ind, const std::vector<Vec3r>* attached_vec_ptr);
+
+    explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r& attached_pos);
+
     virtual void serialize(std::vector<std::byte>& buf) const override
     {
         Constraint::serialize(buf);
+        pack(buf, _attached_pos);
         pack(buf, _attached_pos_ptr);
+        pack(buf, _attached_vec_ptr);
+        pack(buf, _attached_pos_ind);
     }
     
     virtual void deserialize(const std::byte*& buf) override
     {
         Constraint::deserialize(buf);
+        unpack(buf, _attached_pos);
         unpack(buf, _attached_pos_ptr);
+        unpack(buf, _attached_vec_ptr);
+        unpack(buf, _attached_pos_ind);
     }
 
     int numPositions() const override { return NUM_POSITIONS; }
@@ -41,7 +51,7 @@ class AttachmentConstraint : public Constraint
      */
     inline void evaluate(Real* C) const override
     {
-        *C = ( _positions[0].position() - (*_attached_pos_ptr) ).norm();
+        *C = ( _positions[0].position() - _attachmentPosition() ).norm();
     }
 
     /** Computes the gradient of this constraint in vector form with pre-allocated memory.
@@ -51,7 +61,7 @@ class AttachmentConstraint : public Constraint
      */
     inline void gradient(Real* grad) const override
     {
-        const Vec3r& attach_pt = (*_attached_pos_ptr);
+        Vec3r attach_pt = _attachmentPosition();
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         if (dist < Real(1e-12))
         {
@@ -78,7 +88,7 @@ class AttachmentConstraint : public Constraint
      */
     void evaluateWithGradient(Real* C, Real* grad) const override
     {
-        const Vec3r& attach_pt = (*_attached_pos_ptr);
+        Vec3r attach_pt = _attachmentPosition();
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         *C = dist;
 
@@ -103,7 +113,26 @@ class AttachmentConstraint : public Constraint
     #endif
 
     private:
+    /** Helper for getting the attached position given what constructor was used */
+    Vec3r _attachmentPosition() const
+    {
+        if (_attached_pos_ptr)
+            return *_attached_pos_ptr;
+        else if (_attached_vec_ptr)
+            return _attached_vec_ptr->at(_attached_pos_ind);
+        else
+            return _attached_pos;
+    }
+
+    /** Option 1: static attached position */
+    Vec3r _attached_pos;
+
+    /** Option 2: pointer to attached position */
     const Vec3r* _attached_pos_ptr;
+
+    /** Option 3: point to vector + index of attached position */
+    const std::vector<Vec3r>* _attached_vec_ptr;
+    int _attached_pos_ind;
 
 };
 
