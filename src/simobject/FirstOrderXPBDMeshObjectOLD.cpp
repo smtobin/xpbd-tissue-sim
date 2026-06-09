@@ -70,7 +70,7 @@ void FirstOrderXPBDMeshObject<SolverType, TypeList<ConstraintTypes...>>::_create
     this->_constraints.template reserve<Solver::DeviatoricConstraint>(this->tetMesh()->numElements());
     this->_constraints.template reserve<Solver::StaticDeformableCollisionConstraint>(1000*this->_mesh->numFaces());
     this->_constraints.template reserve<Solver::RigidDeformableCollisionConstraint>(this->_mesh->numFaces());
-    this->_constraints.template reserve<Solver::AttachmentConstraint>(this->_mesh->numVertices());
+    this->_constraints.template reserve<Solver::OffsetAttachmentConstraint>(this->_mesh->numVertices());
 
     // create constraint(s) for each element
     for (int i = 0; i < this->tetMesh()->numElements(); i++)

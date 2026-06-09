@@ -22,7 +22,6 @@ FocalLesionSimBridge::FocalLesionSimBridge(Sim::VirtuosoCTAnatomySimulation* sim
             }
         }
     }, _first_xpbd_obj);
-    std::variant<Sim::XPBDMeshObject_Base*, Sim::FirstOrderXPBDMeshObject_Base*> _first_xpbd_obj;
 }
 
 void FocalLesionSimBridge::_focalLesionFactorGraphState(

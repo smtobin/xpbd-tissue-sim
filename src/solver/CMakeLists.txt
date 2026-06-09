@@ -5,7 +5,7 @@ set(SOLVER_INCLUDE_DIR "../../include/solver")
 set(SOLVER_SRC_DIR "./")
 
 set(SOLVER_HEADERS
-    ${SOLVER_INCLUDE_DIR}/constraint/AttachmentConstraint.hpp
+    ${SOLVER_INCLUDE_DIR}/constraint/OffsetAttachmentConstraint.hpp
     ${SOLVER_INCLUDE_DIR}/constraint/CollisionConstraint.hpp
     ${SOLVER_INCLUDE_DIR}/constraint/Constraint.hpp
     ${SOLVER_INCLUDE_DIR}/constraint/DeviatoricConstraint.hpp
@@ -37,6 +37,7 @@ set(SOLVER_SOURCES
     ${SOLVER_SRC_DIR}/constraint/StaticDeformableCollisionConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/RigidDeformableCollisionConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/DeformableDeformableCollisionConstraint.cpp
+    ${SOLVER_SRC_DIR}/constraint/OffsetAttachmentConstraint.cpp
     ${SOLVER_SRC_DIR}/constraint/AttachmentConstraint.cpp
 
     ${SOLVER_SRC_DIR}/xpbd_projector/CombinedNeohookeanConstraintProjector.cpp

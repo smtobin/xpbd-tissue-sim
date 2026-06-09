@@ -190,7 +190,7 @@ void GraspingSimulation::_toggleGrasping()
 
         for (const auto& [obj_vert_pair, offset] : vertices_to_grasp)
         {
-            obj_vert_pair.first->addAttachmentConstraint(obj_vert_pair.second, &_cursor->position(), offset);
+            obj_vert_pair.first->addOffsetAttachmentConstraint(obj_vert_pair.second, &_cursor->position(), offset);
             _grasped_vertices.push_back(obj_vert_pair);
         }
     }
@@ -200,7 +200,7 @@ void GraspingSimulation::_toggleGrasping()
     {
         for (auto& xpbd_mesh_obj : xpbd_mesh_objs)
         {
-            xpbd_mesh_obj->clearAttachmentConstraints();
+            xpbd_mesh_obj->clearOffsetAttachmentConstraints();
         }
         _grasped_vertices.clear();
     }

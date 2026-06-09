@@ -286,7 +286,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
         MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
         for (const auto& v : vertices)
         {
-            fixVertex(v);
+            addAttachmentConstraint(v, &_mesh->initialVertex(v));
         }
     }
 
@@ -391,15 +391,40 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>> 
+XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addOffsetAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+{
+    Real mass = vertexConstraintInertia(v_ind);
+
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+    std::vector<Solver::OffsetAttachmentConstraint>& constraint_vec = _constraints.template get<Solver::OffsetAttachmentConstraint>();
+    constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
+    
+    using ConstraintRefType = Solver::ConstraintReference<Solver::OffsetAttachmentConstraint>;
+    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::clearOffsetAttachmentConstraints()
+{
+    using OffsetAttachmentConstraintProjType = Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>;
+    // clear projectors
+    _solver.template clearProjectorsOfType<OffsetAttachmentConstraintProjType>();
+    // clear constraints
+    _constraints.template clear<Solver::OffsetAttachmentConstraint>();
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>> 
-XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr)
 {
     Real mass = vertexConstraintInertia(v_ind);
 
     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     std::vector<Solver::AttachmentConstraint>& constraint_vec = _constraints.template get<Solver::AttachmentConstraint>();
-    constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
+    constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
@@ -413,6 +438,24 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
     _solver.template clearProjectorsOfType<AttachmentConstraintProjType>();
     // clear constraints
     _constraints.template clear<Solver::AttachmentConstraint>();
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+Vec3r XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::attachmentConstraintTotalForce() const
+{
+    using AttachmentConstraintProjType = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
+
+    Vec3r total_force = Vec3r::Zero();
+
+    // iterate through constraint projectors and compute force associated with the last iteration
+    const std::vector<AttachmentConstraintProjType>& projs = _solver.template getConstraintProjectorsOfType<AttachmentConstraintProjType>();
+    for (const auto& proj : projs)
+    {
+        std::vector<Vec3r> forces = proj.constraintForces();
+        total_force += forces[0];   // attachment constraint only affects one position
+    }
+
+    return total_force;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
