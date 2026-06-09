@@ -967,8 +967,8 @@ void VirtuosoArm::_grasperToolAction()
 
         // for (const auto& [v, offset] : vertices_to_grasp)
         // {
-        //     Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint> proj_ref =
-        //         _tool_manipulated_object.addAttachmentConstraint(v, &tool_position, offset);
+        //     Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint> proj_ref =
+        //         _tool_manipulated_object.addOffsetAttachmentConstraint(v, &tool_position, offset);
         //     _grasping_constraints.push_back(std::move(proj_ref));
         // }
     }
@@ -977,7 +977,7 @@ void VirtuosoArm::_grasperToolAction()
     else if (_tool_state == 0 && _last_tool_state == 1)
     {
         /** TODO: remove just the attachment constraints associated with grasping with this object */
-        _tool_manipulated_object.clearAttachmentConstraints();
+        _tool_manipulated_object.clearOffsetAttachmentConstraints();
         _grasping_constraints.clear();
     }
 

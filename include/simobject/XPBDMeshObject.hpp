@@ -147,16 +147,29 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Clears all collision constraints that are on this object. */
     virtual void clearCollisionConstraints() override;
     
-    /** Adds an attachment constraint applied to the vertex at the specified index. TODO: clean this up a bit? The Vec3r pointer is a bit gross.
+    /** Adds an offset attachment constraint applied to the vertex at the specified index.
      * @param v_ind : the index of the vertex
      * @param attach_pos_ptr : a pointer to the position for the vertex to be attached to
      * @param attachment_offset : an optional offset between the attachment position and the vertex. The vertex position will be (*attach_pos_ptr + attachment_offset).
      */
+    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>>  
+    addOffsetAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset) override;
+
+    /** Clears all offset attachment constraint that are on this object. */
+    virtual void clearOffsetAttachmentConstraints() override;
+
+    /** Adds an attachment constraint applied to the vertex at the specified index
+     * @param v_ind : the index of the vertex
+     * @param attach_pos_ptr : a pointer to the position for the vertex to be attached to
+     */
     virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>  
-    addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset) override;
+    addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr) override;
 
     /** Clears all attachment constraint that are on this object. */
     virtual void clearAttachmentConstraints() override;
+
+    /** Computes the total force exerted on this object from the attachment constraints. */
+    virtual Vec3r attachmentConstraintTotalForce() const override;
 
     /** === Editing mesh topology === */
 

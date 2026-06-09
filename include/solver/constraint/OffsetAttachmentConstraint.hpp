@@ -1,32 +1,38 @@
-#ifndef __ATTACHMENT_CONSTRAINT_HPP
-#define __ATTACHMENT_CONSTRAINT_HPP
+#ifndef __OFFSET_ATTACHMENT_CONSTRAINT_HPP
+#define __OFFSET_ATTACHMENT_CONSTRAINT_HPP
 
 #include "solver/constraint/Constraint.hpp"
 
 #include <iostream>
 
+#ifdef HAVE_CUDA
+#include "gpu/constraint/GPUOffsetAttachmentConstraint.cuh"
+#endif
+
 namespace Solver
 {
 
-class AttachmentConstraint : public Constraint
+class OffsetAttachmentConstraint : public Constraint
 {
     public:
     constexpr static int NUM_POSITIONS = 1;
     constexpr static int NUM_COORDINATES = 4;
 
-    AttachmentConstraint() = default;
-    explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr);
+    OffsetAttachmentConstraint() = default;
+    explicit OffsetAttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
 
     virtual void serialize(std::vector<std::byte>& buf) const override
     {
         Constraint::serialize(buf);
         pack(buf, _attached_pos_ptr);
+        pack(buf, _attachment_offset);
     }
     
     virtual void deserialize(const std::byte*& buf) override
     {
         Constraint::deserialize(buf);
         unpack(buf, _attached_pos_ptr);
+        unpack(buf, _attachment_offset);
     }
 
     int numPositions() const override { return NUM_POSITIONS; }
@@ -41,7 +47,7 @@ class AttachmentConstraint : public Constraint
      */
     inline void evaluate(Real* C) const override
     {
-        *C = ( _positions[0].position() - (*_attached_pos_ptr) ).norm();
+        *C = ( _positions[0].position() - (*_attached_pos_ptr + _attachment_offset) ).norm();
     }
 
     /** Computes the gradient of this constraint in vector form with pre-allocated memory.
@@ -51,7 +57,7 @@ class AttachmentConstraint : public Constraint
      */
     inline void gradient(Real* grad) const override
     {
-        const Vec3r& attach_pt = (*_attached_pos_ptr);
+        const Vec3r& attach_pt = (*_attached_pos_ptr + _attachment_offset);
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         if (dist < Real(1e-12))
         {
@@ -78,7 +84,7 @@ class AttachmentConstraint : public Constraint
      */
     void evaluateWithGradient(Real* C, Real* grad) const override
     {
-        const Vec3r& attach_pt = (*_attached_pos_ptr);
+        const Vec3r& attach_pt = (*_attached_pos_ptr + _attachment_offset);
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         *C = dist;
 
@@ -104,6 +110,7 @@ class AttachmentConstraint : public Constraint
 
     private:
     const Vec3r* _attached_pos_ptr;
+    Vec3r _attachment_offset;
 
 };
 

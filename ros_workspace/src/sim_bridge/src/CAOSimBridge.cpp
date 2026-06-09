@@ -5,6 +5,7 @@ CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
 {
     this->declare_parameter("publish_segmentations", false);
 
+    _setupTumorTracheaAttachmentForcePublisher();
     _setupPartialViewPointCloudPublishers();
     _setupRemovedElementsPublishers();
     _setupToolTracheaCollisionPublisher();
@@ -14,6 +15,33 @@ CAOSimBridge::CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim)
         _setupSegmentationMaskPublishers();
     }
     
+}
+
+void CAOSimBridge::_setupTumorTracheaAttachmentForcePublisher()
+{
+    _tumor_attachment_force_publisher = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/sim/output/tumor_trachea_attachment_force", 10);
+    auto attachment_force_callback = 
+        [this]() -> void
+        {
+            Vec3r force = std::visit([&](const auto& obj_ptr) -> Vec3r {
+                return obj_ptr->attachmentConstraintTotalForce();
+            }, this->_first_xpbd_obj);
+
+            const Geometry::CoordinateFrame& vb_frame = this->_sim->virtuosoRobot()->VBFrame();
+            const Geometry::TransformationMatrix vb_transform_inv = vb_frame.transform().inverse();
+
+            const Vec3r vb_force = vb_transform_inv.rotMat()*force;
+
+            auto message = geometry_msgs::msg::Vector3Stamped();
+            message.header.stamp = this->now();
+            message.header.frame_id = "ves/left/base";
+            message.vector.x = vb_force[0];
+            message.vector.y = vb_force[1];
+            message.vector.z = vb_force[2];
+
+            this->_tumor_attachment_force_publisher->publish(message);
+        };
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), attachment_force_callback, this->get_parameter("use_wall_time_for_publishing").as_bool());
 }
 
 void CAOSimBridge::_setupPartialViewPointCloudPublishers()

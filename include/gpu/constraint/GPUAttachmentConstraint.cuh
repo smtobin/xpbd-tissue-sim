@@ -7,14 +7,14 @@
 
 #include "utils/CudaHelperMath.h"
 
-struct GPUAttachmentConstraint
+struct GPUOffsetAttachmentConstraint
 {
     float3 attached_pos;
     float3 attachment_offset;
     GPUPositionReference positions[1];
     float alpha;
 
-    __host__ GPUAttachmentConstraint( int v0_ind, float inv_m0,
+    __host__ GPUOffsetAttachmentConstraint( int v0_ind, float inv_m0,
                                       const Vec3r& attach_pt, const Vec3r& offset,
                                       float alpha_)
     {
@@ -32,7 +32,7 @@ struct GPUAttachmentConstraint
         alpha = alpha_;
     }
 
-    __device__ GPUAttachmentConstraint() {}
+    __device__ GPUOffsetAttachmentConstraint() {}
 
     constexpr __host__ __device__ static int numPositions() { return 1; } 
 

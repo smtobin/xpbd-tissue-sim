@@ -7,7 +7,7 @@
 #include "gpu/constraint/GPUDeviatoricConstraint.cuh"
 #include "gpu/constraint/GPUStaticDeformableCollisionConstraint.cuh"
 #include "gpu/constraint/GPURigidDeformableCollisionConstraint.cuh"
-#include "gpu/constraint/GPUAttachmentConstraint.cuh"
+#include "gpu/constraint/GPUOffsetAttachmentConstraint.cuh"
 
 #include "gpu/projector/GPUCombinedConstraintProjector.cuh"
 #include "gpu/projector/GPUConstraintProjector.cuh"
@@ -198,14 +198,14 @@ template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPU
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPUHydrostaticConstraint>> (GPUConstraintProjector<true, GPUHydrostaticConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPUStaticDeformableCollisionConstraint>> (GPUConstraintProjector<true, GPUStaticDeformableCollisionConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPURigidDeformableCollisionConstraint>> (GPUConstraintProjector<true, GPURigidDeformableCollisionConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
-template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPUAttachmentConstraint>> (GPUConstraintProjector<true, GPUAttachmentConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
+template __host__ void LaunchProjectConstraints<GPUConstraintProjector<true, GPUOffsetAttachmentConstraint>> (GPUConstraintProjector<true, GPUOffsetAttachmentConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 
 template __host__ void LaunchProjectConstraints<GPUCombinedConstraintProjector<false, GPUDeviatoricConstraint, GPUHydrostaticConstraint>> (GPUCombinedConstraintProjector<false, GPUDeviatoricConstraint, GPUHydrostaticConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPUDeviatoricConstraint>> (GPUConstraintProjector<false, GPUDeviatoricConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPUHydrostaticConstraint>> (GPUConstraintProjector<false, GPUHydrostaticConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPUStaticDeformableCollisionConstraint>> (GPUConstraintProjector<false, GPUStaticDeformableCollisionConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPURigidDeformableCollisionConstraint>> (GPUConstraintProjector<false, GPURigidDeformableCollisionConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
-template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPUAttachmentConstraint>> (GPUConstraintProjector<false, GPUAttachmentConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
+template __host__ void LaunchProjectConstraints<GPUConstraintProjector<false, GPUOffsetAttachmentConstraint>> (GPUConstraintProjector<false, GPUOffsetAttachmentConstraint>* projectors, int num_projectors, const float* vertices, float* new_vertices);
 
 __global__ void CopyVertices(const float* src_vertices, float* dst_vertices, int num_vertices)
 {

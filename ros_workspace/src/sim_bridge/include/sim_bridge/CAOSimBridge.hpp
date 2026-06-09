@@ -14,6 +14,7 @@ public:
     CAOSimBridge(Sim::VirtuosoCTAnatomySimulation* sim);
 
 private:
+    void _setupTumorTracheaAttachmentForcePublisher();
 
     void _setupPartialViewPointCloudPublishers();
     void _setupRemovedElementsPublishers();
@@ -24,6 +25,9 @@ private:
     void _setupRemovedElementsPublisherForMesh(int index, XPBDMeshObject_BaseType* xpbd_obj);
 
     void _setupToolTracheaCollisionPublisher();
+
+    /** Publisher for the tumor-trachea attachment force */
+    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _tumor_attachment_force_publisher;
 
     /** Reusable messages for the point clouds (so we don't reallocate memory every time we publish) */
     sensor_msgs::msg::PointCloud2 _trachea_partial_view_pc_message;

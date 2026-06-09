@@ -12,6 +12,7 @@
 #include "solver/xpbd_projector/ConstraintProjectorReference.hpp"
 #include "solver/constraint/StaticDeformableCollisionConstraint.hpp"
 #include "solver/constraint/RigidDeformableCollisionConstraint.hpp"
+#include "solver/constraint/OffsetAttachmentConstraint.hpp"
 #include "solver/constraint/AttachmentConstraint.hpp"
 
 #include "geometry/DeformableMeshSDF.hpp"
@@ -37,7 +38,7 @@ namespace Solver
     class StaticDeformableCollisionConstraint;
     class RigidDeformableCollisionConstraint;
     class CollisionConstraint;
-    class AttachmentConstraint;
+    class OffsetAttachmentConstraint;
 
     template<bool, class T>
     class ConstraintProjector;
@@ -175,16 +176,29 @@ public:
     /** Clears all collision constraints that are on this object. */
     virtual void clearCollisionConstraints() = 0;
     
-    /** Adds an attachment constraint applied to the vertex at the specified index. TODO: clean this up a bit? The Vec3r pointer is a bit gross.
+    /** Adds an offset attachment constraint applied to the vertex at the specified index.
      * @param v_ind : the index of the vertex
      * @param attach_pos_ptr : a pointer to the position for the vertex to be attached to
      * @param attachment_offset : an optional offset between the attachment position and the vertex. The vertex position will be (*attach_pos_ptr + attachment_offset).
      */
-    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>> 
-    addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset) = 0;
+    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>>  
+    addOffsetAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset) = 0;
+
+    /** Clears all offset attachment constraint that are on this object. */
+    virtual void clearOffsetAttachmentConstraints() = 0;
+
+    /** Adds an attachment constraint applied to the vertex at the specified index
+     * @param v_ind : the index of the vertex
+     * @param attach_pos_ptr : a pointer to the position for the vertex to be attached to
+     */
+    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>  
+    addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr) = 0;
 
     /** Clears all attachment constraint that are on this object. */
     virtual void clearAttachmentConstraints() = 0;
+
+    /** Computes the total force exerted on this object from the attachment constraints. */
+    virtual Vec3r attachmentConstraintTotalForce() const = 0;
 
     /** Performs a check for self collision.
      * If any surface vertices are inside tetrahedra (queries made using Embree), add a collision constraint to fix that.

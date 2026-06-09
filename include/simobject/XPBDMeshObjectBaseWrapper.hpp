@@ -190,13 +190,13 @@ public:
         }, _variant);
     }
 
-    Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>
-    addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+    Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint>
+    addOffsetAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
     {
         return std::visit([&](auto& obj)
         {
-            return Solver::ConstraintProjectorReferenceWrapper<Solver::AttachmentConstraint>(
-                obj->addAttachmentConstraint(v_ind, attach_pos_ptr, attachment_offset)
+            return Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint>(
+                obj->addOffsetAttachmentConstraint(v_ind, attach_pos_ptr, attachment_offset)
             );
         }, _variant);
         
@@ -209,9 +209,9 @@ public:
 
     
 
-    void clearAttachmentConstraints()
+    void clearOffsetAttachmentConstraints()
     {
-        return std::visit([](auto& obj) { obj->clearAttachmentConstraints(); }, _variant);
+        return std::visit([](auto& obj) { obj->clearOffsetAttachmentConstraints(); }, _variant);
     }
 
     /** === Mesh topology === */
