@@ -20,6 +20,8 @@
 #include "gpu/Collision.cuh"
 #endif
 
+#include <omp.h>
+
 // namespace Collision
 // {
 
@@ -131,13 +133,15 @@ void CollisionScene::_lowDiscrepancySampling(Real char_dim, const Vec3r& p1, con
 
 
 template<bool IsFirstOrder>
-void CollisionScene::_collideXPBDFaceWithObject(
+std::vector<CollisionScene::XPBDFaceCollision> CollisionScene::_collideXPBDFaceWithObject(
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
+    std::vector<XPBDFaceCollision> collisions;
+
     if (!mesh->faceValid(face_ind))
-        return;
+        return collisions;
 
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     Real char_dim = virtuoso_arm->characteristicDimension();
@@ -157,27 +161,23 @@ void CollisionScene::_collideXPBDFaceWithObject(
 
     const Real max_edge = std::max({p1p2, p1p3, p2p3});
     if (centroid_dist > max_edge/2)
-        return;
+        return collisions;
     
     int elem_ind = mesh->elementWithFace(face_ind);
 
-    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm, &collisions](const Vec3r& x, const Vec3r& bary_coords) {
         auto result = sdf->evaluateWithGradientAndNodeInfo(x);
         if (result.distance <= char_dim)
         {
             const Vec3r surface_x = x - result.gradient*result.distance;
-            Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                xpbd_mesh_obj->addStaticCollisionConstraint(
-                    sdf, surface_x, result.gradient,
-                    v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2],
-                    elem_ind, face_ind
-                );
-            
-            virtuoso_arm->addCollisionConstraint(std::move(proj_ref), result.node_index, result.interp_factor);
+            collisions.emplace_back(v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2], elem_ind, face_ind,
+                 surface_x, result.node_index, result.interp_factor, result.gradient);
         }
     };
 
     _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
+
+    return collisions;
 
     // check if we should collide the Virtuoso arm with other internal faces of the element
     // we need to do this when the element is inverted, or near inverted (say det(F) < 0.1)
@@ -230,13 +230,15 @@ void CollisionScene::_collideXPBDFaceWithObject(
 }
 
 template<bool IsFirstOrder>
-void CollisionScene::_collideXPBDFaceWithObject(
+std::vector<CollisionScene::XPBDFaceCollision> CollisionScene::_collideXPBDFaceWithObject(
     Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
+    std::vector<XPBDFaceCollision> collisions;
+
     if (!mesh->faceValid(face_ind))
-        return;
+        return collisions;
 
     const auto* sdf = virtuoso_arm_tool->SDF();
     Real char_dim = virtuoso_arm_tool->characteristicDimension();
@@ -256,24 +258,18 @@ void CollisionScene::_collideXPBDFaceWithObject(
 
     const Real max_edge = std::max({p1p2, p1p3, p2p3});
     if (centroid_dist > max_edge/2)
-        return;
+        return collisions;
     
     int elem_ind = mesh->elementWithFace(face_ind);
 
-    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm_tool](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm_tool, &collisions](const Vec3r& x, const Vec3r& bary_coords) {
         Real distance = sdf->evaluate(x);
         Vec3r gradient = sdf->gradient(x);
         if (distance <= 1e-3)
         {
             const Vec3r surface_x = x - gradient*distance;
-            Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
-                xpbd_mesh_obj->addStaticCollisionConstraint(
-                    sdf, surface_x, gradient,
-                    v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2],
-                    elem_ind, face_ind
-                );
-            
-            virtuoso_arm_tool->addCollisionConstraint(std::move(proj_ref));
+
+            collisions.emplace_back(v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2], elem_ind, face_ind, surface_x, gradient);
         }
     };
 
@@ -291,7 +287,7 @@ void CollisionScene::_collideXPBDFaceWithObject(
      */
     // HACK: for now, only do this for the cautery tool
     if (!dynamic_cast<Sim::VirtuosoArmCauteryTool*>(virtuoso_arm_tool))
-        return;
+        return collisions;
 
     Real detF = mesh->elementDeformationGradient(elem_ind).determinant();
     if (detF < 0.1)
@@ -331,15 +327,19 @@ void CollisionScene::_collideXPBDFaceWithObject(
             }
         }
     }
+
+    return collisions;
 }
 
 template<bool IsFirstOrder>
-void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const
+std::vector<CollisionScene::XPBDFaceCollision> CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
+    std::vector<XPBDFaceCollision> collisions;
+
     if (!mesh->faceValid(face_ind))
-        return;
+        return collisions;
 
     const Geometry::SDF* sdf = obj->SDF();
 
@@ -358,26 +358,24 @@ void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirs
     const Real centroid_dist = sdf->evaluate((p1+p2+p3)/3);
     // skip faces that are sufficiently far away
     if (centroid_dist*centroid_dist > max_edge/4)
-        return;
+        return collisions;
 
     int elem_ind = mesh->elementWithFace(face_ind);
 
-    auto test_func = [&face_ind, &f, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &f, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &collisions](const Vec3r& x, const Vec3r& bary_coords) {
         Real dist = sdf->evaluate(x);
         if (dist <= 1e-4)   // some arbitrary distance threshold
         {
             const Vec3r grad = sdf->gradient(x);
             const Vec3r surface_x = x - grad*dist;
-            xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, 
-                f[0], f[1], f[2], bary_coords[0], bary_coords[1], bary_coords[2],
-                elem_ind, face_ind
-            );
+
+            collisions.emplace_back(f[0], f[1], f[2], bary_coords[0], bary_coords[1], bary_coords[2], elem_ind, face_ind, surface_x, grad);
         }
     };
 
     _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
 
-    return;
+    return collisions;
 }
 
 void CollisionScene::_collideObjectPair(Sim::Object* /*obj1*/, Sim::Object* /*obj2*/)
@@ -494,18 +492,78 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm)
 {
-    for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
+    std::vector<XPBDFaceCollision> all_collisions;
+
+    #pragma omp parallel
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm, face_ind);
+        std::vector<XPBDFaceCollision> thread_collisions;
+
+        #pragma omp for schedule(dynamic, 128)
+        for (unsigned i = 0; i < xpbd_mesh_obj->mesh()->faces().totalSize(); i++)
+        {
+            if (!xpbd_mesh_obj->mesh()->faceValid(i))
+                continue;
+
+            std::vector<XPBDFaceCollision> face_collisions = _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm, i);
+            thread_collisions.insert(thread_collisions.end(), face_collisions.begin(), face_collisions.end());
+        }
+
+        #pragma omp critical
+        {
+            all_collisions.insert(all_collisions.end(), thread_collisions.begin(), thread_collisions.end());
+        }
+    }
+    
+    // iterate through all the collisions and add them to the XPBD object and the virtuoso arm in collision
+    for (const auto& collision : all_collisions)
+    {
+        Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+            xpbd_mesh_obj->addStaticCollisionConstraint(
+                virtuoso_arm->SDF(), collision.surface_pt, collision.normal,
+                collision.v1, collision.v2, collision.v3, collision.u, collision.v, collision.w,
+                collision.elem_ind, collision.face_ind
+            );
+        
+        virtuoso_arm->addCollisionConstraint(std::move(proj_ref), collision.node_index, collision.interp_factor);
     }
 }
 
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool)
 {
-    for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
+    std::vector<XPBDFaceCollision> all_collisions;
+
+    #pragma omp parallel
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, face_ind);
+        std::vector<XPBDFaceCollision> thread_collisions;
+
+        #pragma omp for
+        for (unsigned i = 0; i < xpbd_mesh_obj->mesh()->faces().totalSize(); i++)
+        {
+            if (!xpbd_mesh_obj->mesh()->faceValid(i))
+                continue;
+
+            std::vector<XPBDFaceCollision> face_collisions = _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, i);
+            thread_collisions.insert(thread_collisions.end(), face_collisions.begin(), face_collisions.end());
+        }
+
+        #pragma omp critical
+        {
+            all_collisions.insert(all_collisions.end(), thread_collisions.begin(), thread_collisions.end());
+        }
+    }
+    
+    // iterate through all the collisions and add them to the XPBD object and the virtuoso arm in collision
+    for (const auto& collision : all_collisions)
+    {
+        Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+            xpbd_mesh_obj->addStaticCollisionConstraint(
+                virtuoso_arm_tool->SDF(), collision.surface_pt, collision.normal,
+                collision.v1, collision.v2, collision.v3, collision.u, collision.v, collision.w,
+                collision.elem_ind, collision.face_ind
+            );
+        
+        virtuoso_arm_tool->addCollisionConstraint(std::move(proj_ref));
     }
 }
 
@@ -719,9 +777,38 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 template <bool IsFirstOrder>
 void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj2)
 {
-    for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
+    std::vector<XPBDFaceCollision> all_collisions;
+
+    #pragma omp parallel
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, obj2, face_ind);
+        std::vector<XPBDFaceCollision> thread_collisions;
+
+        #pragma omp for
+        for (unsigned i = 0; i < xpbd_mesh_obj->mesh()->faces().totalSize(); i++)
+        {
+            if (!xpbd_mesh_obj->mesh()->faceValid(i))
+                continue;
+
+            std::vector<XPBDFaceCollision> face_collisions = _collideXPBDFaceWithObject(xpbd_mesh_obj, obj2, i);
+            thread_collisions.insert(thread_collisions.end(), face_collisions.begin(), face_collisions.end());
+        }
+
+        #pragma omp critical
+        {
+            all_collisions.insert(all_collisions.end(), thread_collisions.begin(), thread_collisions.end());
+        }
+    }
+    
+    // iterate through all the collisions and add them to the XPBD object and the virtuoso arm in collision
+    for (const auto& collision : all_collisions)
+    {
+        const Vec3i& face = xpbd_mesh_obj->mesh()->face(collision.face_ind);
+        Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint> proj_ref = 
+            xpbd_mesh_obj->addStaticCollisionConstraint(
+                obj2->SDF(), collision.surface_pt, collision.normal,
+                face[0], face[1], face[2], collision.u, collision.v, collision.w,
+                collision.elem_ind, collision.face_ind
+            );
     }
 }
 

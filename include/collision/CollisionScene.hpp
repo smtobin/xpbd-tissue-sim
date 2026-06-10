@@ -34,6 +34,49 @@ class CollisionScene
     public:
     using ObjectVectorType = VariadicVectorContainerFromTypeList<SimulationObjectTypes>::ptr_type;
 
+    struct XPBDFaceCollision
+    {
+        /** Description of collision on the XPBD face */
+        int v1;
+        int v2;
+        int v3;
+        Real u;
+        Real v;
+        Real w;
+        int elem_ind;
+        int face_ind;
+
+        /** Surface point on the SDF */
+        Vec3r surface_pt;
+
+        /** Only applicable for Virtuoso arm collisions */
+        int node_index;
+        Real interp_factor;
+
+        /** Collision normal */
+        Vec3r normal;
+
+        /** Constructor */
+        XPBDFaceCollision(int v1_, int v2_, int v3_, Real u_, Real v_, Real w_,
+             Real elem_ind_, Real face_ind_, const Vec3r& surface_pt_, const Vec3r& normal_)
+            : v1(v1_), v2(v2_), v3(v3_),
+            u(u_), v(v_), w(w_),
+            elem_ind(elem_ind_), face_ind(face_ind_), 
+            surface_pt(surface_pt_),
+            node_index(-1), interp_factor(0),
+            normal(normal_)
+        {}
+
+        XPBDFaceCollision(int v1_, int v2_, int v3_, Real u_, Real v_, Real w_, Real elem_ind_, Real face_ind_,
+             const Vec3r& surface_pt_, int node_index_, Real interp_factor_, const Vec3r& normal_)
+            : v1(v1_), v2(v2_), v3(v3_),
+            u(u_), v(v_), w(w_),
+            elem_ind(elem_ind_), face_ind(face_ind_), 
+            surface_pt(surface_pt_), node_index(node_index_), interp_factor(interp_factor_),
+            normal(normal_)
+        {}
+    };
+
     public:
     /** Constructor - needs a reference back to the simulation to access the time step, current sim time, etc. */
     explicit CollisionScene(const Sim::Simulation* sim, Geometry::EmbreeScene* embree_scene);
@@ -197,11 +240,11 @@ class CollisionScene
     std::pair<Real,Real> _findDeepestPenetratingPointOnSegment(const Vec3r& p1, const Vec3r& p2, const Geometry::SDF* sdf);
 
     template<bool IsFirstOrder>
-    void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const;
+    std::vector<XPBDFaceCollision> _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const;
     template<bool IsFirstOrder>
-    void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const;
+    std::vector<XPBDFaceCollision> _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const;
     template<bool IsFirstOrder>
-    void _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const;
+    std::vector<XPBDFaceCollision> _collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const;
 
     void _lowDiscrepancySampling(Real char_dim, const Vec3r& p1, const Vec3r& p2, const Vec3r& p3, std::function<void(Vec3r, Vec3r)> test_func) const;
 

@@ -357,8 +357,8 @@ void Simulation::_timeStep()
 
 
         _collision_scene->collideObjects();
-        // auto t2 = std::chrono::steady_clock::now();
-        // std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
+        auto t2 = std::chrono::steady_clock::now();
+        std::cout << "Collision detection took " << std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count() << " us\n";
 
         
     }

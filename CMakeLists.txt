@@ -33,6 +33,8 @@ set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
 # by default, use Debug build so we can use gdb easily
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
+option(USE_OPENMP "Enable OpenMP" ON)
+
 
 # === Find External Dependencies ===
 
@@ -204,6 +206,11 @@ target_link_libraries(FEM Eigen3::Eigen Geometry ${PETSC_LIB})
 target_link_options(Haptics PRIVATE
     -Wl, -rpath, ${HD_LIB}
 )
+
+if(USE_OPENMP)
+    find_package(OpenMP REQUIRED)
+    target_link_libraries(Collision OpenMP::OpenMP_CXX)
+endif()
 
 
 # === Create Simulation Libraries ===
