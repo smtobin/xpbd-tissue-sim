@@ -86,8 +86,8 @@ materials:
     E: 0.05e6
     nu: 0.4
     # rendering settings
-    color: [1.0, 0.6, 0.5]
-    cut-color: [0.12, 0.08, 0.0]
+    color: [1.0, 0.1, 0.1]
+    cut-color: [1.0, 0.1, 0.1]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
@@ -105,7 +105,7 @@ materials:
     nu: 0.4
     # rendering settings
     color: [1.0, 0.6, 0.5]
-    cut-color: [0.12, 0.08, 0.0]
+    cut-color: [1.0, 0.6, 0.5]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
@@ -166,7 +166,7 @@ objects:
       name: "Arm1"
       type: "VirtuosoArm"
       material: "Nitinol"
-      tool-type: "spatula"
+      tool-type: "grasper"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3

@@ -264,4 +264,37 @@ Vec3r VirtuosoArmCauteryToolSDF::findContactPoint(const SDF* sdf) const
         return _iterativeClosestPointProjection(sdf, _cautery->tipFrame().origin());
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+VirtuosoArmGraspingToolSDF::VirtuosoArmGraspingToolSDF(const Sim::VirtuosoArmGraspingTool* grasper)
+    : _grasper(grasper)
+{
+}
+
+void VirtuosoArmGraspingToolSDF::serialize(std::vector<std::byte>& buf) const
+{
+    pack(buf, _grasper);
+}
+
+void VirtuosoArmGraspingToolSDF::deserialize(const std::byte*& buf)
+{
+    unpack(buf, _grasper);
+}
+
+Real VirtuosoArmGraspingToolSDF::evaluate(const Vec3r& x) const
+{
+    return std::numeric_limits<Real>::max();
+}
+
+Vec3r VirtuosoArmGraspingToolSDF::gradient(const Vec3r& x) const
+{
+    return Vec3r::Zero();
+}
+
+Vec3r VirtuosoArmGraspingToolSDF::findContactPoint(const SDF* sdf) const
+{
+    return std::numeric_limits<Real>::max() * Vec3r::Ones();
+}
+
 } // namespace Geometry

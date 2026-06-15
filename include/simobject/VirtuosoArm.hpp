@@ -643,6 +643,9 @@ public:
     Vec3r _tip_force;
     Vec3r _tip_moment;
 
+    /** Track the inner tube end position - useful for grasping (we need to give a pointer to a position for the attachment constraint) */
+    Vec3r _it_end_pos;
+
     /** Tip force and moment due to tool-tissue collisions from the last time step. */
     Vec3r _last_xpbd_tool_tip_force;
     Vec3r _last_xpbd_tool_tip_moment;

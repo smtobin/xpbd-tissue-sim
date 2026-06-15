@@ -172,6 +172,11 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
         _vtk_viewer->addActorToRenderer(ptr->wireActor(), true, obj);
         new_graphics_obj = std::move(ptr);
     }
+    else if (const Sim::VirtuosoArmGraspingTool* grasper = dynamic_cast<const Sim::VirtuosoArmGraspingTool*>(obj))
+    {
+        // do nothing for now, no geometry
+        return -1;
+    }
 
      // finally add the GraphicsObject to the list of GraphicsObjects
     _graphics_objects.push_back(std::move(new_graphics_obj));
