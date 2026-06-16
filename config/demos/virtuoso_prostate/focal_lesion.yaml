@@ -5,7 +5,7 @@ name: "Virtuoso Trachea"
 visualization: "VTK"
 
 # the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
-input-device: "Mouse"
+input-device: "Haptic"
 # show the "tip cursor" which is a yellow ball meant to help with depth perception 
 show-tip-cursor: false
 # whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
@@ -83,15 +83,15 @@ materials:
     label: "Prostate"
     # material parameters
     density: 1060
-    E: 0.05e6
+    E: 20e3
     nu: 0.4
     # rendering settings
-    color: [1.0, 0.6, 0.5]
-    cut-color: [0.12, 0.08, 0.0]
+    color: [1.0, 0.05, 0.05]
+    cut-color: [1.0, 0.05, 0.05]
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
     draw-edges: true
     draw-faces: true
@@ -101,7 +101,7 @@ materials:
     label: "Prostate"
     # material parameters
     density: 1060
-    E: 0.3e6
+    E: 120e3
     nu: 0.4
     # rendering settings
     color: [1.0, 0.6, 0.5]
