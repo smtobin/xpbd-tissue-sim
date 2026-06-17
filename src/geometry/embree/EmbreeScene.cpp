@@ -422,67 +422,70 @@ void EmbreeScene::castRays(const std::vector<Vec3r>& origins, const std::vector<
             }
         }
     }
-    else if (_hasAVX)
-    {
-        alignas(32) RTCRayHit8 packet;
-        alignas(32) int valid[8];
+    /** TODO:
+     * This code corrupts memory for some reason... (06/17/26)
+     */
+    // else if (_hasAVX)
+    // {
+    //     alignas(32) RTCRayHit8 packet;
+    //     alignas(32) int valid[8];
 
-        // initialize the memory
-        std::memset(&packet, 0, sizeof(packet));
+    //     // initialize the memory
+    //     std::memset(&packet, 0, sizeof(packet));
 
-        for (unsigned i = 0; i < total_num_rays; i += 8)
-        {
-            unsigned rays_in_packet = std::min(8u, total_num_rays - i);
-            for (unsigned ri = 0; ri < rays_in_packet; ri++)
-            {
-                packet.ray.org_x[ri] = origins[i+ri][0];
-                packet.ray.org_y[ri] = origins[i+ri][1];
-                packet.ray.org_z[ri] = origins[i+ri][2];
+    //     for (unsigned i = 0; i < total_num_rays; i += 8)
+    //     {
+    //         unsigned rays_in_packet = std::min(8u, total_num_rays - i);
+    //         for (unsigned ri = 0; ri < rays_in_packet; ri++)
+    //         {
+    //             packet.ray.org_x[ri] = origins[i+ri][0];
+    //             packet.ray.org_y[ri] = origins[i+ri][1];
+    //             packet.ray.org_z[ri] = origins[i+ri][2];
 
-                packet.ray.dir_x[ri] = dirs[i+ri][0];
-                packet.ray.dir_y[ri] = dirs[i+ri][1];
-                packet.ray.dir_z[ri] = dirs[i+ri][2];
+    //             packet.ray.dir_x[ri] = dirs[i+ri][0];
+    //             packet.ray.dir_y[ri] = dirs[i+ri][1];
+    //             packet.ray.dir_z[ri] = dirs[i+ri][2];
 
-                packet.ray.tnear[ri] = 0;
-                packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
-                packet.ray.flags[ri] = 0;
-                packet.ray.time[ri] = 0;
-                packet.ray.mask[ri] = -1;
+    //             packet.ray.tnear[ri] = 0;
+    //             packet.ray.tfar[ri] = std::numeric_limits<float>::infinity();
+    //             packet.ray.flags[ri] = 0;
+    //             packet.ray.time[ri] = 0;
+    //             packet.ray.mask[ri] = -1;
 
-                packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
-                packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
+    //             packet.hit.geomID[ri] = RTC_INVALID_GEOMETRY_ID;
+    //             packet.hit.instID[ri][0] = RTC_INVALID_GEOMETRY_ID;
 
-                valid[ri] = -1;
-            }
-            for (unsigned ri = rays_in_packet; ri < 8; ri++)
-            {
-                valid[ri] = 0;
-            }
+    //             valid[ri] = -1;
+    //         }
+    //         for (unsigned ri = rays_in_packet; ri < 8; ri++)
+    //         {
+    //             valid[ri] = 0;
+    //         }
 
-            rtcIntersect8(valid, _ray_scene, &packet, nullptr);
+    //         rtcIntersect8(valid, _ray_scene, &packet, nullptr);
 
-            for (unsigned ri = 0; ri < rays_in_packet; ri++)
-            {
-                if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
-                {
-                    auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
-                    float t = packet.ray.tfar[ri];
+    //         for (unsigned ri = 0; ri < rays_in_packet; ri++)
+    //         {
+    //             if (packet.hit.geomID[ri] != RTC_INVALID_GEOMETRY_ID)
+    //             {
+    //                 auto obj_variant = _geomID_to_obj.at(packet.hit.geomID[ri]);
+    //                 float t = packet.ray.tfar[ri];
                     
-                    EmbreeRayHit hit;
-                    hit.obj = obj_variant;
-                    hit.prim_index = packet.hit.primID[ri];
-                    hit.hit_point = origins[i+ri] + t*dirs[i+ri];
-                    hits.push_back(hit);
-                }
-                else
-                {
-                    EmbreeRayHit hit;
-                    hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
-                    hits.push_back(hit);
-                }
-            }
-        }
-    }
+    //                 EmbreeRayHit hit;
+    //                 hit.obj = obj_variant;
+    //                 hit.prim_index = packet.hit.primID[ri];
+    //                 hit.hit_point = origins[i+ri] + t*dirs[i+ri];
+    //                 hits.push_back(hit);
+    //             }
+    //             else
+    //             {
+    //                 EmbreeRayHit hit;
+    //                 hit.obj = static_cast<const Config::XPBDMeshObjectConfig::ObjectType*>(nullptr);
+    //                 hits.push_back(hit);
+    //             }
+    //         }
+    //     }
+    // }
     else
     {
         for (unsigned i = 0; i < total_num_rays; i++)
