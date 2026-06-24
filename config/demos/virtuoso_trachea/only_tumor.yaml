@@ -128,7 +128,8 @@ objects:
   -
     name: "Tumor"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    # filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    filename: "../scripts/tumor.msh"
     fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
     material: "Raw Chicken Breast"
 
