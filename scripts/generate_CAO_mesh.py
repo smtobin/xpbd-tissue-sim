@@ -18,27 +18,6 @@ parser.add_argument('--tumor-vertices', type=int, default=800, help='Number of t
 parser.add_argument('--trachea-vertices', type=int, default=1500, help='Number of target vertices for the trachea mesh.')
 parser.add_argument('-o1', '--tumor-output-msh', default='tumor.msh', help='Output .msh file for the tumor (optional).')
 parser.add_argument('-o2', '--trachea-output-stl', default='trachea.stl', help='Output .stl file for the trachea (optional).')
-parser.add_argument('-e', '--element-classes', help='Output .txt element classes file (optional)')
-
-def face_adjacency(F):
-    edge_to_faces = collections.defaultdict(list)
-
-    for fi, face in enumerate(F):
-        for i in range(3):
-            a = face[i]
-            b = face[(i + 1) % 3]
-            edge = tuple(sorted((a, b)))
-            edge_to_faces[edge].append(fi)
-
-    adj = [[] for _ in range(len(F))]
-
-    for faces in edge_to_faces.values():
-        if len(faces) == 2:
-            f0, f1 = faces
-            adj[f0].append(f1)
-            adj[f1].append(f0)
-
-    return adj
 
 def main():
     # create a tmp directory for saving temp files
@@ -104,80 +83,10 @@ def main():
 
     # === Erode the set of faces at the tumor-trachea boundary ===
     selected = set(close_faces)
-    adj = face_adjacency(FA)
-
-    # find boundary
-    boundary = set()
-    for f in selected:
-        if any(n not in selected for n in adj[f]):  # any adjacent face not in the selected region = boundary
-            boundary.add(f)
-
-    # compute centroids of faces
-    centers = VA[FA].mean(axis=1)
-
-    # multi-seeded Dijkstra for computing distance of each face from the boundary
-    # (thanks ChatGPT)
-    dist = np.full(len(meshA.faces), np.inf)
-    for f in boundary:
-        dist[f] = 0
-
-    import heapq
-    pq = [(0.0, f) for f in boundary]
-    heapq.heapify(pq)
-
-    while pq:
-        d, f = heapq.heappop(pq)
-
-        if d > dist[f]:
-            continue
-
-        for nbr in adj[f]:
-
-            if nbr not in selected:
-                continue
-
-            w = np.linalg.norm(
-                centers[f] - centers[nbr]
-            )
-
-            nd = d + w
-
-            if nd < dist[nbr]:
-                dist[nbr] = nd
-                heapq.heappush(pq, (nd, nbr))
-
-
-    # === Erode so that only ~5% of the original selected area remains ===
-    tris = VA[FA]
-    face_area = 0.5 * np.linalg.norm(
-        np.cross(
-            tris[:,1] - tris[:,0],
-            tris[:,2] - tris[:,0]
-        ),
-        axis=1
-    )
-
-    # cumulative sum to get 95th percentile
-    sel = np.array(list(selected))
-    d = dist[sel]
-    a = face_area[sel]
-    order = np.argsort(d)
-    d = d[order]
-    a = a[order]
-    cum_area = np.cumsum(a)
-    cum_area /= cum_area[-1]
-    threshold = d[np.searchsorted(cum_area, 0.95)]
-    
-    # erode the selection
-    eroded = {
-        f for f in selected
-        if dist[f] > threshold
-    }
-
-    print(f"Eroded down to {len(eroded)} boundary faces")
+    eroded = common.erodeSelectionByArea(selected, VA, FA, 0.95)
 
     # generate the fixed faces file from the eroded selection
-    fixed_faces_filename = os.path.splitext(args.output_msh)[0] + "_fixed_faces.txt"
+    fixed_faces_filename = os.path.splitext(args.tumor_output_msh)[0] + "_fixed_faces.txt"
     with open(fixed_faces_filename, "w") as fixed_faces_file:
         for f_ind in eroded:
             face = FA[f_ind]

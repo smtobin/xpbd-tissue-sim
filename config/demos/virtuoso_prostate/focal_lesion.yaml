@@ -129,9 +129,9 @@ objects:
   -
     name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
-    filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
-    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
-    element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
+    filename: "../resource/demos/prostate/06_24_26/prostate_with_lesion.msh"
+    fixed-faces-filename: "../resource/demos/prostate/06_24_26/prostate_with_lesion_fixed_faces.txt"
+    element-classes-filename: "../resource/demos/prostate/06_24_26/prostate_with_lesion_element_classes.txt"
     materials: ["Prostate Phantom", "Lesion"]
 
     scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)

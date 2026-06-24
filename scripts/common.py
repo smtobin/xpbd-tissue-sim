@@ -188,3 +188,100 @@ def decimateToTargetNumberOfVertices(input_stl, target_vertices, output_stl):
 
     print(f"Saving processed mesh to {output_stl}...")
     ms.save_current_mesh(output_stl)
+
+def face_adjacency(F):
+    edge_to_faces = collections.defaultdict(list)
+
+    for fi, face in enumerate(F):
+        for i in range(3):
+            a = face[i]
+            b = face[(i + 1) % 3]
+            edge = tuple(sorted((a, b)))
+            edge_to_faces[edge].append(fi)
+
+    adj = [[] for _ in range(len(F))]
+
+    for faces in edge_to_faces.values():
+        if len(faces) == 2:
+            f0, f1 = faces
+            adj[f0].append(f1)
+            adj[f1].append(f0)
+
+    return adj
+
+def erodeSelectionByArea(selected, vertices_mat, faces_mat, percentile):
+    adj = face_adjacency(faces_mat)
+
+    # find boundary
+    boundary = set()
+    for f in selected:
+        if any(n not in selected for n in adj[f]):  # any adjacent face not in the selected region = boundary
+            boundary.add(f)
+
+    # compute centroids of faces
+    centers = vertices_mat[faces_mat].mean(axis=1)
+
+    # multi-seeded Dijkstra for computing distance of each face from the boundary
+    # (thanks ChatGPT)
+    dist = np.full(len(faces_mat), np.inf)
+    for f in boundary:
+        dist[f] = 0
+
+    import heapq
+    pq = [(0.0, f) for f in boundary]
+    heapq.heapify(pq)
+
+    while pq:
+        d, f = heapq.heappop(pq)
+
+        if d > dist[f]:
+            continue
+
+        for nbr in adj[f]:
+
+            if nbr not in selected:
+                continue
+
+            w = np.linalg.norm(
+                centers[f] - centers[nbr]
+            )
+
+            nd = d + w
+
+            if nd < dist[nbr]:
+                dist[nbr] = nd
+                heapq.heappush(pq, (nd, nbr))
+
+
+    # === Erode so that only ~5% of the original selected area remains ===
+    tris = vertices_mat[faces_mat]
+    face_area = 0.5 * np.linalg.norm(
+        np.cross(
+            tris[:,1] - tris[:,0],
+            tris[:,2] - tris[:,0]
+        ),
+        axis=1
+    )
+
+    # cumulative sum to get the specified percentile
+    sel = np.array(list(selected))
+    d = dist[sel]
+    a = face_area[sel]
+    order = np.argsort(d)
+    d = d[order]
+    a = a[order]
+    cum_area = np.cumsum(a)
+    cum_area /= cum_area[-1]
+    threshold = d[np.searchsorted(cum_area, percentile)]
+    
+    # erode the selection
+    eroded = {
+        f for f in selected
+        if dist[f] > threshold
+    }
+
+    print(f"Eroded down to {len(eroded)} boundary faces")
+
+    return eroded
+
+    
