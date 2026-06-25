@@ -1,18 +1,22 @@
 import numpy as np
-import pymeshlab
 import argparse
-import os
+import os, shutil
+import pymeshlab
+import collections
 import gmsh
 import math
 import trimesh
-import collections
+from pathlib import Path
+import subprocess
+import random
 from stl import mesh
 
 import common
 
 parser = argparse.ArgumentParser(description='Process STL mesh files')
-parser.add_argument('prostate_stl', help='Prostate surface STL file (From CT)')
-parser.add_argument('lesion_stl', help='Lesion surface STL file (from CT)')
+parser.add_argument('--prostate-stl', help='Prostate surface STL file (From CT)')
+parser.add_argument('--lesion-stl', help='Lesion surface STL file (from CT)')
+parser.add_argument('--prostate-msh', help='Prostate .msh file with lesion. Assumes <filename>_element_classes.txt and <filename>_fixed_faces.txt exist.')
 parser.add_argument('--lesion-vertices', type=int, default=100, help='Numer of target vertices for the lesion mesh')
 parser.add_argument('--prostate-vertices', type=int, default=1000, help='Number of target vertices for the prostate mesh')
 parser.add_argument("--lesion-translation", type=float, nargs=3, default=[0,0,0], help='Additional translation [mm] of the lesion input mesh.')
@@ -178,7 +182,7 @@ def main():
     processed_lesion_stl = tmp_dir + "/lesion.stl"
     common.decimateToTargetNumberOfVertices(args.lesion_stl, args.lesion_vertices, processed_lesion_stl)
 
-    print(f"=== Processing trachea mesh ===")
+    print(f"=== Processing prostate mesh ===")
     processed_prostate_stl = tmp_dir + "/prostate.stl"
     common.decimateToTargetNumberOfVertices(args.prostate_stl, args.prostate_vertices, processed_prostate_stl)
 
@@ -408,10 +412,7 @@ def main():
     # === Generate nominal transform ===
 
     # find tunnel axis - this will be z-axis
-    direction, score = find_tunnel_axis(inner_patch, samples=500)
-
-    print("Best tunnel direction:", direction)
-    print("Score:", score)
+    direction, _ = find_tunnel_axis(inner_patch, samples=500)
 
     inner_patch_center = inner_patch.vertices.mean(axis=0)
     dir_line = trimesh.load_path(
@@ -435,27 +436,39 @@ def main():
 
     from scipy.spatial.transform import Rotation as Rot
     r = Rot.from_matrix(R)
-    print(np.rad2deg(r.as_euler('xyz')))
+    eul_XYZ = np.rad2deg(r.as_euler('xyz'))
 
     p_des = [0,-5,20]
     t = p_des - R @ inner_patch_center
     print(t)
 
-    meshA_vis = prostate_surface.copy()
-    meshA_vis.visual.face_colors = [180, 180, 180, 100]
+    # convert translation to meters
+    t /= 1000
 
-    outer_patch.visual.face_colors = [255, 0, 0, 150]
-    inner_patch.visual.face_colors = [0, 0, 255, 150]
+    # meshA_vis = prostate_surface.copy()
+    # meshA_vis.visual.face_colors = [180, 180, 180, 100]
 
-    transformed_lesion.visual.face_colors = [255,255,0,100]
+    # outer_patch.visual.face_colors = [255, 0, 0, 150]
+    # inner_patch.visual.face_colors = [0, 0, 255, 150]
 
-    trimesh.Scene([
-        # meshA_vis,
-        outer_patch,
-        inner_patch,
-        transformed_lesion,
-        dir_line
-    ]).show(smooth=False)
+    # trimesh.Scene([
+    #     meshA_vis,
+    #     outer_patch,
+    #     inner_patch,
+    #     dir_line
+    # ]).show(smooth=False)
+
+
+    cmd = [
+        "ros2",
+        "launch",
+        "launch/focal_lesion_sim_bridge.launch.py",
+        f"prostate_mesh_filename:={args.output_msh}",
+        f"CT_to_VB_translation:=[{t[0]:.5f},{t[1]:.5f},{t[2]:.5f}]",
+        f"CT_to_VB_rotation:=[{eul_XYZ[0]:.3f},{eul_XYZ[1]:.3f},{eul_XYZ[2]:.3f}]"
+    ]
+
+    subprocess.run(cmd)
 
 
 

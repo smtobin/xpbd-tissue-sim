@@ -155,6 +155,8 @@ int main(int argc, char ** argv)
             }
         }
 
+        std::cout << "CTtoVB translation: " << CTtoVB_translation.transpose() << std::endl;
+        std::cout << "CTtoVB rotation: " << CTtoVB_rotation.transpose() << std::endl;
         config.setCTtoVBTranslation(CTtoVB_translation);
         config.setCTtoVBRotation(CTtoVB_rotation);
 
@@ -204,8 +206,10 @@ int main(int argc, char ** argv)
             {
                 std::filesystem::path mesh_file = prostate_mesh_filename;
                 std::string fixed_faces_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_fixed_faces.txt")).string();
+                std::string element_classes_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_element_classes.txt")).string();
                 xpbd_obj_configs[0].setFilename(prostate_mesh_filename);
                 xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
+                xpbd_obj_configs[0].setElementClassesFilename(element_classes_filename);
             }
         }
 
