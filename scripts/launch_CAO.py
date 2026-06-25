@@ -6,8 +6,13 @@ import math
 import trimesh
 from pathlib import Path
 import subprocess
+import random
 
 import common
+
+parser = argparse.ArgumentParser(description='Launch CAO simulation with ROS node.')
+parser.add_argument('--index', type=int, default=-1, help='The index in the loaded CAO files')
+parser.add_argument("--additional-translation", type=float, nargs=3, default=[0,0,0], help='Additional translation for the CT -> VB transformation.')
 
 def indexCAOs():
     # search through resource/lfs/CAO for tumor and trachea mesh files
@@ -33,7 +38,7 @@ def indexCAOs():
             
     return (tumor_mshs, trachea_stls)
 
-def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
+def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt, additional_translation):
 
     tmp_dir = ".tmp"
     if not os.path.isdir(tmp_dir):
@@ -60,10 +65,17 @@ def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
     T = obb.primitive.transform
     extents = obb.primitive.extents
     long_idx = np.argmax(extents)
-    trachea_axis = T[:3, long_idx]
+    trachea_axis = np.copy(T[:3, long_idx])
+
+    reference_point = tumor.vertices.mean(axis=0)
+    obb_center = T[:3,3]
+    if np.dot(trachea_axis, reference_point - obb_center) < 0:
+        trachea_axis *= -1
 
     # get normal from one of the fixed faces of the tumor - this is the x-axis
     ff_normal = tumor.face_normals[ff_ind]
+    ff_centroid = 1/3 * (tumor.vertices[tumor.faces[ff_ind][0]] + tumor.vertices[tumor.faces[ff_ind][1]] + tumor.vertices[tumor.faces[ff_ind][2]])
+    # ff_centroid = np.mean(tumor.vertices[tumor.faces[ff_ind]], axis=0)
 
     # y-axis = z cross x
     y_axis = np.cross(trachea_axis, ff_normal)
@@ -77,11 +89,9 @@ def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
     z_axis = trachea_axis / np.linalg.norm(trachea_axis)
 
     # make sure tumor is on the right
-    c_diff = T[:3,3] - tumor.vertices.mean(axis=0)
-    if np.dot(x_axis, c_diff) < 0:
+    # if np.dot(x_axis, ff_centroid - obb_center) < 0:
         # flip frame to make tumor on +x
-        x_axis *= -1
-        y_axis *= -1
+        
 
     # assemble rotation matrix
     R = np.zeros((3,3))
@@ -89,7 +99,7 @@ def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
     R[:,1] = y_axis
     R[:,2] = z_axis
 
-    print(R)
+    
 
     # get Euler angles
     from scipy.spatial.transform import Rotation as Rot
@@ -100,8 +110,33 @@ def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
     tumor_centroid = tumor.vertices.mean(axis=0)
     proj_scalar = np.dot(tumor_centroid - T[:3,3], z_axis)
     tumor_trachea_center = T[:3,3] + proj_scalar * z_axis
-    t = -R @ tumor_trachea_center + [0,0,25]
+    offset = np.add([0,-2,30], additional_translation)
+    t = -R @ tumor_trachea_center + offset
+    
+
+    tumor_in_frame = R @ ff_centroid + t
+    print(tumor_in_frame)
+    if tumor_in_frame[0] > 0:
+        x_axis *= -1
+        y_axis *= -1
+
+        R = np.zeros((3,3))
+        R[:,0] = x_axis
+        R[:,1] = y_axis
+        R[:,2] = z_axis
+
+        r = Rot.from_matrix(R)
+        eul_XYZ = np.rad2deg(r.as_euler('xyz'))
+
+        proj_scalar = np.dot(tumor_centroid - T[:3,3], z_axis)
+        tumor_trachea_center = T[:3,3] + proj_scalar * z_axis
+        t = -R @ tumor_trachea_center + offset
+
+    print(R)
     print(t)
+
+    tumor_in_frame = R @ ff_centroid + t
+    print(tumor_in_frame[0])
 
     # uncomment for visualization
     # meshA_vis = tumor.copy()
@@ -140,17 +175,18 @@ def nominalRegistration(tumor_msh, trachea_stl, fixed_faces_txt):
     return eul_XYZ, t
 
 def main():
+    args = parser.parse_args()
+
     tumor_mshs, trachea_stls = indexCAOs()
-    print(tumor_mshs)
-    print(trachea_stls)
 
     gmsh.initialize()
-
-    ind = 5
+    ind = args.index
+    if (ind == -1):
+        ind = random.randint(0, len(tumor_mshs)-1)
 
     # get fixed faces file from tumor msh filename
     fixed_faces_txt = os.path.splitext(tumor_mshs[ind])[0] + "_fixed_faces.txt"
-    eul_XYZ, trans = nominalRegistration(tumor_mshs[ind], trachea_stls[ind], fixed_faces_txt)
+    eul_XYZ, trans = nominalRegistration(tumor_mshs[ind], trachea_stls[ind], fixed_faces_txt, args.additional_translation)
 
     # convert translation to meters
     trans /= 1000
