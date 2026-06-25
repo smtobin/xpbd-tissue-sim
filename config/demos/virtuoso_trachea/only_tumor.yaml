@@ -42,7 +42,7 @@ end-time: 5000000000000
 #     (this is the robotics convention, opposite the convention that tf uses)
 # - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
 CT-to-VB-transform-translation: [0.187, -0.079, 0.098] #[-0.202, -0.043, 0.092]  # in meters
-CT-to-VB-transform-rotation: [-2.30399493,   0.09028757, -81.57081278]  # ZYX Euler angle convention
+CT-to-VB-transform-rotation: [-2.30399493,   0.09028757, -81.57081278]  # XYZ Euler angle convention
 
 
 # === Simulation rendering settings ===
