@@ -146,7 +146,7 @@ def main():
 
     gmsh.initialize()
 
-    ind = 3
+    ind = 5
 
     # get fixed faces file from tumor msh filename
     fixed_faces_txt = os.path.splitext(tumor_mshs[ind])[0] + "_fixed_faces.txt"

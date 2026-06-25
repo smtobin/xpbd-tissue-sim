@@ -24,6 +24,145 @@ def face_key(n1, n2, n3):
     # stable identity: node IDs (NOT coordinates)
     return tuple(sorted((n1, n2, n3)))
 
+# ----------------------------
+# Direction sampling (Fibonacci sphere)
+# ----------------------------
+def fibonacci_sphere(samples=300):
+    points = []
+    offset = 2.0 / samples
+    increment = np.pi * (3.0 - np.sqrt(5.0))
+
+    for i in range(samples):
+        y = ((i * offset) - 1) + (offset / 2)
+        r = np.sqrt(max(0.0, 1 - y * y))
+        phi = i * increment
+
+        x = np.cos(phi) * r
+        z = np.sin(phi) * r
+
+        points.append([x, y, z])
+
+    return np.array(points)
+
+
+# ----------------------------
+# Build orthonormal basis from direction
+# ----------------------------
+def make_basis(d):
+    d = d / np.linalg.norm(d)
+
+    # pick helper vector not parallel to d
+    up = np.array([0.0, 1.0, 0.0])
+    if abs(np.dot(d, up)) > 0.9:
+        up = np.array([1.0, 0.0, 0.0])
+
+    x = np.cross(up, d)
+    x /= np.linalg.norm(x)
+
+    y = np.cross(d, x)
+
+    return x, y, d
+
+
+# ----------------------------
+# Project vertices into 2D plane orthogonal to d
+# ----------------------------
+def project_vertices(vertices, basis):
+    x, y, _ = basis
+    return np.column_stack([
+        vertices @ x,
+        vertices @ y
+    ])
+
+
+# ----------------------------
+# Compute convex hull area in 2D
+# ----------------------------
+def convex_hull_area(points_2d):
+    if len(points_2d) < 3:
+        return 0.0
+
+    # Monotonic chain convex hull (no scipy dependency)
+    pts = np.array(sorted(points_2d.tolist()))
+    
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower = []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(tuple(p))
+
+    upper = []
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(tuple(p))
+
+    hull = lower[:-1] + upper[:-1]
+
+    def polygon_area(poly):
+        area = 0.0
+        for i in range(len(poly)):
+            x1, y1 = poly[i]
+            x2, y2 = poly[(i + 1) % len(poly)]
+            area += x1 * y2 - x2 * y1
+        return abs(area) * 0.5
+
+    return polygon_area(hull)
+
+
+# ----------------------------
+# Score projection openness
+# ----------------------------
+def projection_score(mesh, direction):
+    direction = direction / np.linalg.norm(direction)
+
+    # ---- 1. Surface collapse score (important) ----
+    normals = mesh.face_normals
+    areas = mesh.area_faces
+
+    # how much each face "faces" the view direction
+    collapse = np.sum(areas * np.abs(normals @ direction))
+
+    # lower collapse = more edge-on = more likely tunnel axis
+    collapse_score = 1.0 / (collapse + 1e-9)
+
+    # ---- 2. Vertex spread in projection ----
+    basis = make_basis(direction)
+    proj = project_vertices(mesh.vertices, basis)
+
+    hull_area = convex_hull_area(proj)
+
+    # normalize spread (avoid scale bias)
+    var = np.var(proj, axis=0)
+    spread = np.sqrt(var[0] * var[1]) + 1e-9
+
+    openness = hull_area / spread
+
+    # ---- combined score ----
+    return collapse_score * openness
+
+
+# ----------------------------
+# Main function: find tunnel axis
+# ----------------------------
+def find_tunnel_axis(mesh, samples=400):
+    directions = fibonacci_sphere(samples)
+
+    best_dir = None
+    best_score = -np.inf
+
+    for d in directions:
+        score = projection_score(mesh, d)
+
+        if score > best_score:
+            best_score = score
+            best_dir = d
+
+    return best_dir, best_score
+
 def main():
     args = parser.parse_args()
 
@@ -238,11 +377,11 @@ def main():
     distances = np.abs(distances)
 
     # hull proximity filter - distances less than 50th percentile are the outer surface
-    eps = np.percentile(distances, 50)
-    candidate_outer = distances < eps
+    outer_eps = np.percentile(distances, 50)
+    inner_eps = np.percentile(distances, 60)
 
-    outer_faces = candidate_outer
-    inner_faces = ~outer_faces
+    outer_faces = distances < outer_eps
+    inner_faces = distances > inner_eps
 
     selected = np.where(outer_faces)[0]
     eroded = common.erodeSelectionByArea(selected, prostate_surface.vertices, prostate_surface.faces, 0.8)
@@ -260,14 +399,59 @@ def main():
         process=False
     )
 
+    inner_patch = trimesh.Trimesh(
+        vertices=prostate_surface.vertices,
+        faces=prostate_surface.faces[list(inner_faces)],
+        process=False
+    )
+
+    # === Generate nominal transform ===
+
+    # find tunnel axis - this will be z-axis
+    direction, score = find_tunnel_axis(inner_patch, samples=500)
+
+    print("Best tunnel direction:", direction)
+    print("Score:", score)
+
+    inner_patch_center = inner_patch.vertices.mean(axis=0)
+    dir_line = trimesh.load_path(
+        np.vstack([inner_patch_center, inner_patch_center + 50 * direction])
+    )
+
+    transformed_lesion = trimesh.load(transformed_lesion_stl)
+    lesion_centroid = transformed_lesion.vertices.mean(axis=0)
+    
+    # line from inner patch center to lesion centroid is roughly the y axis
+    approx_y_axis = inner_patch_center - lesion_centroid
+    x_axis = np.cross(approx_y_axis, direction)
+    y_axis = np.cross(direction, x_axis)
+    x_axis /= np.linalg.norm(x_axis)
+    y_axis /= np.linalg.norm(y_axis)
+
+    R = np.zeros((3,3))
+    R[:,0] = x_axis
+    R[:,1] = y_axis
+    R[:,2] = direction
+
+    from scipy.spatial.transform import Rotation as Rot
+    r = Rot.from_matrix(R)
+    print(np.rad2deg(r.as_euler('xyz')))
+
+    p_des = [0,-5,20]
+    t = p_des - R @ inner_patch_center
+    print(t)
+
     meshA_vis = prostate_surface.copy()
     meshA_vis.visual.face_colors = [180, 180, 180, 100]
 
-    outer_patch.visual.face_colors = [255, 0, 0, 255]
+    outer_patch.visual.face_colors = [255, 0, 0, 150]
+    inner_patch.visual.face_colors = [0, 0, 255, 150]
 
     trimesh.Scene([
         meshA_vis,
-        outer_patch
+        outer_patch,
+        inner_patch,
+        dir_line
     ]).show(smooth=False)
 
 

@@ -131,7 +131,7 @@ def main():
 
     # we want tumor centroid to be 20 mm in the z direction
     tumor_centroid = VA.mean(axis=0)
-    p_des = [0,0,0]
+    p_des = [0,0,20]
     t = p_des - R @ tumor_centroid
     print(t)
 
