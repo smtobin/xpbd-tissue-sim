@@ -125,6 +125,7 @@ class XPBDMeshObjectConfig : public ObjectConfig, public MeshObjectConfig
 
     std::vector<std::string> materialClasses() const { return _material_classes.value; }
     std::optional<std::string> elementClassesFilename() const { return _element_classes_filename.value; }
+    void setElementClassesFilename(const std::string& new_filename) { _element_classes_filename.value = new_filename; }
     std::optional<std::string> groundFacesFilename() const { return _ground_faces_filename.value; }
     std::optional<std::string> fixedFacesFilename() const { return _fixed_faces_filename.value; }
     void setFixedFacesFilename(const std::string& new_filename) { _fixed_faces_filename.value = new_filename; }
