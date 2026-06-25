@@ -996,14 +996,24 @@ void VirtuosoArm::_grasperToolAction()
     for (const auto& proj : _grasping_constraints)
     {
         std::vector<Vec3r> forces = proj.constraintForces();
-        total_force += forces[0]; // attachment constraint only affects one vertex, so the vector only has 1 element
+        Vec3r capped_force = -forces[0];
+
+        // cap the force at 20 N 
+        // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
+        Real max_force = tipForce().norm() + 0.5;
+        if (capped_force.norm() > max_force)
+        {
+            capped_force = capped_force / capped_force.norm() * max_force;
+        }
+
+        total_force += capped_force; // attachment constraint only affects one vertex, so the vector only has 1 element
 
         std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
     }
 
     // smooth forces
-    // Vec3r new_tip_force = 0.99*tipForce() + -0.01* -total_force/1;
-    // setTipForce(new_tip_force);
+    Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
+    setTipForce(new_tip_force);
 
     // std::cout << "new tip force: " << new_tip_force.transpose() << std::endl;
 
