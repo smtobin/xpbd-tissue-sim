@@ -41,8 +41,8 @@ end-time: 5000000000000
 # - to be very clear: this specifies the CT -> VB transform, i.e. it transforms a point in the CT frame into the VB frame
 #     (this is the robotics convention, opposite the convention that tf uses)
 # - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
-CT-to-VB-transform-translation: [0.187, -0.079, 0.098] #[-0.202, -0.043, 0.092]  # in meters
-CT-to-VB-transform-rotation: [-2.30399493,   0.09028757, -81.57081278]  # XYZ Euler angle convention
+CT-to-VB-transform-translation: [-0.13282,-0.18542,-0.07714] #[-0.202, -0.043, 0.092]  # in meters
+CT-to-VB-transform-rotation: [-176.09134707,    2.49300161,  -78.03859536]  # XYZ Euler angle convention
 
 
 # === Simulation rendering settings ===
@@ -129,7 +129,7 @@ objects:
     name: "Tumor"
     type: "FirstOrderXPBDMeshObject"
     # filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
-    filename: "../scripts/tumor.msh"
+    filename: "../resource/lfs/CAO/2026-01-30/tue_open_1_1086_tumor_processed.msh"
     # fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
     material: "Raw Chicken Breast"
 
@@ -156,7 +156,7 @@ objects:
     name: "Trachea"
     type: "RigidMeshObject"
     # filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_trachea_d.stl"
-    filename: "../scripts/trachea.stl"
+    filename: "../resource/lfs/CAO/2026-01-30/tue_open_1_1086_trachea_processed.stl"
     material: "Human Trachea"
     scaling: [1e-3, 1e-3, 1e-3]  # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
     # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning

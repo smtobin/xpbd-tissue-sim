@@ -7,7 +7,6 @@ import math
 import trimesh
 import scipy
 import collections
-from sklearn.decomposition import PCA
 
 import common
 
@@ -120,13 +119,19 @@ def main():
     R[:,1] = y_axis
     R[:,2] = z_axis
 
+    print(R)
+
+    from scipy.spatial.transform import Rotation as Rot
+    r = Rot.from_matrix(R)
+    print(np.rad2deg(r.as_euler('xyz')))
+
     # get Euler angles
     eul_XYZ = common.rotation_matrix_to_euler_xyz(R)
     print(np.rad2deg(eul_XYZ))
 
     # we want tumor centroid to be 20 mm in the z direction
     tumor_centroid = VA.mean(axis=0)
-    p_des = [0,0,20]
+    p_des = [0,0,0]
     t = p_des - R @ tumor_centroid
     print(t)
 

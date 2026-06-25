@@ -155,6 +155,8 @@ int main(int argc, char ** argv)
             }
         }
 
+        std::cout << "CTtoVB translation: " << CTtoVB_translation.transpose() << std::endl;
+        std::cout << "CTtoVB rotation: " << CTtoVB_rotation.transpose() << std::endl;
         config.setCTtoVBTranslation(CTtoVB_translation);
         config.setCTtoVBRotation(CTtoVB_rotation);
 
