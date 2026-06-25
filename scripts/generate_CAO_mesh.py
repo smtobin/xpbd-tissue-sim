@@ -7,7 +7,7 @@ import math
 import trimesh
 import scipy
 import collections
-import networkx as nx
+from sklearn.decomposition import PCA
 
 import common
 
@@ -66,7 +66,6 @@ def main():
     meshA = trimesh.Trimesh(vertices=VA, faces=FA, process=False)
     meshB = trimesh.Trimesh(vertices=VB, faces=FB, process=False)
 
-
     # === Find tumor-trachea boundary ===
 
     # Face centroids of tumor
@@ -92,6 +91,45 @@ def main():
             face = FA[f_ind]
             fixed_faces_file.write(f"3 {face[0]} {face[1]} {face[2]} {f_ind}\n")
 
+    # === Compute nominal registration ===
+    # get axis down the trachea - this is the z-axis
+    obb = meshB.bounding_box_oriented
+    T = obb.primitive.transform
+    extents = obb.primitive.extents
+    long_idx = np.argmax(extents)
+    trachea_axis = T[:3, long_idx]
+    
+
+    # get normal from one of the fixed faces of the tumor - this is the x-axis
+    ff_normal = meshA.face_normals[list(eroded)[0]]
+
+    # y-axis = z cross x
+    y_axis = np.cross(trachea_axis, ff_normal)
+
+    # x-axis = y cross z
+    x_axis = np.cross(y_axis, trachea_axis)
+
+    # normalize axes
+    x_axis /= np.linalg.norm(x_axis)
+    y_axis /= np.linalg.norm(y_axis)
+    z_axis = trachea_axis / np.linalg.norm(trachea_axis)
+
+    # assemble rotation matrix
+    R = np.zeros((3,3))
+    R[:,0] = x_axis
+    R[:,1] = y_axis
+    R[:,2] = z_axis
+
+    # get Euler angles
+    eul_XYZ = common.rotation_matrix_to_euler_xyz(R)
+    print(np.rad2deg(eul_XYZ))
+
+    # we want tumor centroid to be 20 mm in the z direction
+    tumor_centroid = VA.mean(axis=0)
+    p_des = [0,0,20]
+    t = p_des - R @ tumor_centroid
+    print(t)
+
     patch = meshA.submesh([list(eroded)], append=True)
 
     meshA_vis = meshA.copy()
@@ -101,10 +139,31 @@ def main():
 
     patch.visual.face_colors = [255, 0, 0, 255]
 
+    origin = VB.mean(axis=0)
+    L = 50
+
+    x_line = trimesh.load_path(
+        np.vstack([origin, origin + L * x_axis])
+    )
+    y_line = trimesh.load_path(
+        np.vstack([origin, origin + L * y_axis])
+    )
+    z_line = trimesh.load_path(
+        np.vstack([origin, origin + L * z_axis])
+    )
+
+    # color them
+    x_line.colors = [[255,0,0,255]]
+    y_line.colors = [[0,255,0,255]]
+    z_line.colors = [[0,0,255,255]]
+
     trimesh.Scene([
         meshA_vis,
         patch,
-        meshB_vis
+        meshB_vis,
+        x_line,
+        y_line,
+        z_line
     ]).show(smooth=False)
 
     shutil.rmtree(tmp_dir)

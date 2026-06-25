@@ -8,6 +8,72 @@ import trimesh
 import collections
 import meshio
 
+def rotation_matrix_to_euler_zyx(R):
+    """
+    Convert rotation matrix to intrinsic ZYX Euler angles.
+
+    Returns:
+        yaw   (about Z)
+        pitch (about Y)
+        roll  (about X)
+    """
+
+    sy = np.sqrt(R[0,0]**2 + R[1,0]**2)
+
+    singular = sy < 1e-6
+
+    if not singular:
+        yaw   = np.arctan2(R[1,0], R[0,0])
+        pitch = np.arctan2(-R[2,0], sy)
+        roll  = np.arctan2(R[2,1], R[2,2])
+    else:
+        # Gimbal lock
+        yaw   = np.arctan2(-R[0,1], R[1,1])
+        pitch = np.arctan2(-R[2,0], sy)
+        roll  = 0.0
+
+    return np.array([yaw, pitch, roll])
+
+def rotation_matrix_to_euler_xyz(R):
+    """
+    Convert a 3x3 rotation matrix to XYZ Euler angles.
+
+    Convention:
+        R = Rx(alpha) @ Ry(beta) @ Rz(gamma)
+
+    Returns:
+        alpha : rotation about X (roll)
+        beta  : rotation about Y (pitch)
+        gamma : rotation about Z (yaw)
+
+    Angles are returned in radians.
+    """
+    R = np.asarray(R, dtype=float)
+
+    if R.shape != (3, 3):
+        raise ValueError("R must be a 3x3 matrix")
+
+    # Detect gimbal lock
+    if abs(R[0, 2]) < 1.0 - 1e-8:
+        beta = np.arcsin(R[0, 2])
+
+        alpha = np.arctan2(-R[1, 2], R[2, 2])
+        gamma = np.arctan2(-R[0, 1], R[0, 0])
+
+    else:
+        # Gimbal lock
+        beta = np.pi / 2 * np.sign(R[0, 2])
+
+        alpha = 0.0
+
+        if R[0, 2] > 0:
+            gamma = np.arctan2(R[1, 0], R[1, 1])
+        else:
+            gamma = np.arctan2(R[1, 0], R[1, 1])
+
+    return alpha, beta, gamma
+
+
 def write_obj(filename, vertices, faces):
 
     with open(filename, "w") as obj_file:

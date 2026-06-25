@@ -65,7 +65,7 @@ def main():
                 [np.sin(rz), np.cos(rz),0],
                 [0,0,1]])
 
-    R = Rz @ Ry @ Rx
+    R = Rx @ Ry @ Rz
 
     S = np.diag(args.lesion_scaling)
 
