@@ -88,6 +88,8 @@ class OffsetAttachmentConstraint : public Constraint
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         *C = dist;
 
+        std::cout << "OffsetAttachmentConstraint::evaluateWithGradient C=" << *C << std::endl;
+
         if (dist < Real(1e-12))
         {
             grad[0] = 1;

@@ -967,7 +967,7 @@ void VirtuosoArm::_grasperToolAction()
                         if (!_tool_manipulated_object.vertexFixed(v))
                         {
                             // compute the attachment offset with respect to the inner tube end position
-                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos) * 0.9;
+                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos);
                             vertices_to_grasp[v] = attachment_offset;
                         }
                 }
@@ -991,16 +991,24 @@ void VirtuosoArm::_grasperToolAction()
     }
 
     // apply tip forces
-    // Vec3r total_force = Vec3r::Zero();
-    // for (const auto& proj : _grasping_constraints)
-    // {
-    //     std::vector<Vec3r> forces = proj.constraintForces();
-    //     total_force += forces[0]; // attachment constraint only affects one vertex, so the vector only has 1 element
-    // }
+    std::cout << "Computing forces..." << std::endl;
+    Vec3r total_force = Vec3r::Zero();
+    for (const auto& proj : _grasping_constraints)
+    {
+        std::vector<Vec3r> forces = proj.constraintForces();
+        total_force += forces[0]; // attachment constraint only affects one vertex, so the vector only has 1 element
+
+        std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
+    }
 
     // smooth forces
     // Vec3r new_tip_force = 0.99*tipForce() + -0.01* -total_force/1;
     // setTipForce(new_tip_force);
+
+    // std::cout << "new tip force: " << new_tip_force.transpose() << std::endl;
+
+    // if (new_tip_force.norm() > 10)
+    //     throw std::runtime_error("fart!");
     
 }
 

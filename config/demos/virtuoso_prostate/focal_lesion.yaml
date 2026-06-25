@@ -91,9 +91,9 @@ materials:
     render-type: "PBR"
     metallic: 0.0
     roughness: 0.2
-    smooth-normals: false
+    smooth-normals: true
     draw-points: false
-    draw-edges: true
+    draw-edges: false
     draw-faces: true
   
   -
@@ -101,7 +101,7 @@ materials:
     label: "Prostate"
     # material parameters
     density: 1060
-    E: 0.3e6
+    E: 0.5e6
     nu: 0.4
     # rendering settings
     color: [1.0, 0.6, 0.5]
@@ -174,7 +174,7 @@ objects:
       outer-tube-rotation: 60
       inner-tube-rotation: 0
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 15e-3
+      inner-tube-translation: 25e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20
