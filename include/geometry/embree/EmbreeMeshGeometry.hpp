@@ -45,8 +45,6 @@ class EmbreeMeshGeometry
     static void intersectFuncTriangleInitialVertices(const RTCIntersectFunctionNArguments *args);
     static bool pointQueryFuncTriangleInitialVertices(RTCPointQueryFunctionArguments *args);
 
-    protected:
-
     static Vec3r _closestPointTriangle(const Vec3r& p, const Vec3r& a, const Vec3r& b, const Vec3r& c);
 
     private:

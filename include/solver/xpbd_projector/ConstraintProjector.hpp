@@ -167,6 +167,9 @@ class ConstraintProjector
             LHS += positions[i].inv_mass * (_delC[3*i]*_delC[3*i] + _delC[3*i+1]*_delC[3*i+1] + _delC[3*i+2]*_delC[3*i+2]);
         }
 
+        if (std::abs(LHS) < 1e-10)
+            return;
+
         // compute RHS of lambda update: -C - alpha_tilde*lambda
         Real RHS = -C - alpha_tilde * _lambda;
 

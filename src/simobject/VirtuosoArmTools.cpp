@@ -149,4 +149,48 @@ void VirtuosoArmCauteryTool::deserialize(const std::byte*& buf)
     unpack(buf, _closest_to_wire);
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+
+Geometry::AABB VirtuosoArmGraspingTool::boundingBox() const
+{
+    Geometry::TransformationMatrix T = tipFrame().transform();
+
+    Geometry::AABB bbox(T.translation(), T.translation());
+    return bbox;
+
+    // // half extent
+    // Vec3r e(WIDTH/2, THICKNESS/2, LENGTH/2);
+    // // rotated half extent
+    // Mat3r R_abs = T.rotMat().cwiseAbs();
+    // Vec3r e_world = R_abs*e;
+
+    // Vec3r center = T.translation();
+    // Geometry::AABB bbox(center-e_world, center+e_world);
+    // return bbox;
+}
+
+
+Geometry::CoordinateFrame VirtuosoArmGraspingTool::tipFrame() const
+{
+    Geometry::TransformationMatrix T(Mat3r::Identity(), tipOffset());
+    return _arm->innerTubeEndFrame()*T;
+}
+
+Geometry::CoordinateFrame VirtuosoArmGraspingTool::graspFrame() const
+{
+    Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0, 0, GRASP_CENTER_OFFSET));
+    return _arm->innerTubeEndFrame()*T;
+}
+
+void VirtuosoArmGraspingTool::serialize(std::vector<std::byte>& buf) const
+{
+    VirtuosoArmTool_Base::serialize(buf);
+    pack(buf, _sdf);
+}
+void VirtuosoArmGraspingTool::deserialize(const std::byte*& buf)
+{
+    VirtuosoArmTool_Base::deserialize(buf);
+    unpack(buf, _sdf);
+}
+
 } // namespace SimObject

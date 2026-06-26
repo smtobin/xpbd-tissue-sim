@@ -225,6 +225,54 @@ private:
     std::vector<bool> _closest_to_wire;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/** Grasing tool
+ * TODO: get real grasper geometry
+ */
+class VirtuosoArmGraspingTool : public VirtuosoArmTool_Base
+{
+public:
+    using SDFType = Geometry::VirtuosoArmGraspingToolSDF;
+
+    /** Static parameters specifying the grasper behavior and shape. */
+    constexpr static Real GRASPING_RADIUS = 2e-3;
+    constexpr static Real GRASP_CENTER_OFFSET = 2e-3;
+
+    VirtuosoArmGraspingTool(const Sim::Simulation* sim, const ConfigType* config, VirtuosoArm* arm)
+        : VirtuosoArmTool_Base(sim, config, arm)
+    {
+        _char_dim = 1e-3;
+        _name = _name + "_grasper";
+    }
+
+    virtual void serialize(std::vector<std::byte>& buf) const override;
+    virtual void deserialize(const std::byte*& buf) override;
+
+    /** Grasper tool is not a nested tube */
+    virtual bool isTube() const override { return false; }
+
+    virtual Vec3r tipOffset() const override { return Vec3r(0,0,0); }
+
+    virtual Geometry::CoordinateFrame tipFrame() const override;
+
+    Geometry::CoordinateFrame graspFrame() const;
+
+    /** Returns the axis-aligned bounding-box (AABB) for this Object in global simulation coordinates. */
+    virtual Geometry::AABB boundingBox() const;
+
+    virtual void createSDF() override 
+    { 
+        if(!_sdf.has_value()) 
+            _sdf = SDFType(this); 
+    }
+
+    virtual const SDFType* SDF() const override { return _sdf.has_value() ? &_sdf.value() : nullptr; }
+
+private:
+    std::optional<SDFType> _sdf;
+
+};
+
 } // namespace Sim
 
 #endif // __VIRTUOSO_ARM_TOOLS_HPP

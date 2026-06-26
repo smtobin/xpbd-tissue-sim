@@ -628,7 +628,7 @@ public:
     XPBDMeshObject_BasePtrWrapper _tool_manipulated_object; // the deformable object that this tool is manipulating
     Geometry::TransformationMatrix _commanded_tip_pose; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
-    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
+    std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint>> _grasping_constraints; // attachment constraints associated with the grasping
     std::vector<CollisionConstraintInfo> _collision_constraints;
 
     /** Stores information about collisions with rigid objects */
@@ -642,6 +642,9 @@ public:
 
     Vec3r _tip_force;
     Vec3r _tip_moment;
+
+    /** Track the inner tube end position - useful for grasping (we need to give a pointer to a position for the attachment constraint) */
+    Vec3r _it_end_pos;
 
     /** Tip force and moment due to tool-tissue collisions from the last time step. */
     Vec3r _last_xpbd_tool_tip_force;

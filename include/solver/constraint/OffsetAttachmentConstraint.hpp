@@ -16,7 +16,7 @@ class OffsetAttachmentConstraint : public Constraint
 {
     public:
     constexpr static int NUM_POSITIONS = 1;
-    constexpr static int NUM_COORDINATES = 4;
+    constexpr static int NUM_COORDINATES = 3;
 
     OffsetAttachmentConstraint() = default;
     explicit OffsetAttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
@@ -87,6 +87,8 @@ class OffsetAttachmentConstraint : public Constraint
         const Vec3r& attach_pt = (*_attached_pos_ptr + _attachment_offset);
         const Real dist = ( _positions[0].position() - attach_pt ).norm();
         *C = dist;
+
+        std::cout << "OffsetAttachmentConstraint::evaluateWithGradient C=" << *C << std::endl;
 
         if (dist < Real(1e-12))
         {
