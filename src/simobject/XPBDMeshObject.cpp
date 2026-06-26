@@ -416,6 +416,40 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::ElementOffsetAttachmentConstraint>> 
+XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addElementOffsetAttachmentConstraint(int elem_ind, const Vec4r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+{
+    const Vec4i& elem = tetMesh()->element(elem_ind);
+    int v1 = elem[0];
+    int v2 = elem[1];
+    int v3 = elem[2];
+    int v4 = elem[3];
+
+    Real m1 = vertexConstraintInertia(v1);
+    Real m2 = vertexConstraintInertia(v2);
+    Real m3 = vertexConstraintInertia(v3);
+    Real m4 = vertexConstraintInertia(v4);
+
+    Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
+
+    std::vector<Solver::ElementOffsetAttachmentConstraint>& constraint_vec = _constraints.template get<Solver::ElementOffsetAttachmentConstraint>();
+    constraint_vec.emplace_back(v1, m1, v2, m2, v3, m3, v4, m4, vec_ptr, bary_coords, attach_pos_ptr, attachment_offset);
+    
+    using ConstraintRefType = Solver::ConstraintReference<Solver::ElementOffsetAttachmentConstraint>;
+    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::clearElementOffsetAttachmentConstraints()
+{
+    using ElementOffsetAttachmentConstraintProjType = Solver::ConstraintProjector<IsFirstOrder, Solver::ElementOffsetAttachmentConstraint>;
+    // clear projectors
+    _solver.template clearProjectorsOfType<ElementOffsetAttachmentConstraintProjType>();
+    // clear constraints
+    _constraints.template clear<Solver::ElementOffsetAttachmentConstraint>();
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>> 
 XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAttachmentConstraint(int v_ind, const Vec3r* attach_pos_ptr)
 {
