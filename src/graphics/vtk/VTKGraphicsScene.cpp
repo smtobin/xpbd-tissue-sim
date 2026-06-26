@@ -7,6 +7,7 @@
 #include "graphics/vtk/VTKVirtuosoRobotGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmCauteryToolGraphicsObject.hpp"
+#include "graphics/vtk/VTKVirtuosoArmGraspingToolGraphicsObject.hpp"
 
 #include "simobject/Object.hpp"
 #include "simobject/MeshObject.hpp"
@@ -174,8 +175,9 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
     }
     else if (const Sim::VirtuosoArmGraspingTool* grasper = dynamic_cast<const Sim::VirtuosoArmGraspingTool*>(obj))
     {
-        // do nothing for now, no geometry
-        return -1;
+        auto ptr = std::make_unique<VTKVirtuosoArmGraspingToolGraphicsObject>(grasper->name(), grasper, render_config);
+        _vtk_viewer->addActorToRenderer(ptr->graspCenterActor(), true, obj);
+        new_graphics_obj = std::move(ptr);
     }
 
      // finally add the GraphicsObject to the list of GraphicsObjects
