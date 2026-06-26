@@ -5,6 +5,8 @@
 #include "solver/constraint/ConstraintReference.hpp"
 #include "solver/xpbd_solver/XPBDSolverUpdates.hpp"
 
+#include "solver/constraint/FaceOffsetAttachmentConstraint.hpp"
+
 #include "common/TypeList.hpp"
 
 #ifdef HAVE_CUDA
@@ -167,6 +169,9 @@ class ConstraintProjector
             LHS += positions[i].inv_mass * (_delC[3*i]*_delC[3*i] + _delC[3*i+1]*_delC[3*i+1] + _delC[3*i+2]*_delC[3*i+2]);
         }
 
+        if (std::abs(LHS) < 1e-10)
+            return;
+
         // compute RHS of lambda update: -C - alpha_tilde*lambda
         Real RHS = -C - alpha_tilde * _lambda;
 
@@ -180,6 +185,11 @@ class ConstraintProjector
             Real update_x = positions[i].inv_mass * _delC[3*i] * dlam;
             Real update_y = positions[i].inv_mass * _delC[3*i+1] * dlam;
             Real update_z = positions[i].inv_mass * _delC[3*i+2] * dlam;
+
+            if (std::is_same_v<Constraint, Solver::FaceOffsetAttachmentConstraint>)
+            {
+                std::cout << "  update: " << update_x << ", " << update_y << ", " << update_z << std::endl;
+            }
             
             coordinate_updates_ptr[3*i].ptr = positions[i].positionPtr();
             coordinate_updates_ptr[3*i].update = update_x;

@@ -12,7 +12,7 @@
 #include "solver/constraint/RigidDeformableCollisionConstraint.hpp"
 #include "solver/constraint/DeformableDeformableCollisionConstraint.hpp"
 #include "solver/constraint/OffsetAttachmentConstraint.hpp"
-#include "solver/constraint/ElementOffsetAttachmentConstraint.hpp"
+#include "solver/constraint/FaceOffsetAttachmentConstraint.hpp"
 #include "solver/constraint/AttachmentConstraint.hpp"
 #include "solver/constraint/MidpointConstraint.hpp"
 
@@ -53,7 +53,7 @@ struct XPBDMeshObjectConstraintConfigurations
     using RigiCollProjector = Solver::RigidBodyConstraintProjector<IsFirstOrder, Solver::RigidDeformableCollisionConstraint>;
     using AttProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
     using OffAttProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>;
-    using ElemOffAttProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::ElementOffsetAttachmentConstraint>;
+    using ElemOffAttProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::FaceOffsetAttachmentConstraint>;
     using MidProjector = Solver::ConstraintProjector<IsFirstOrder, Solver::MidpointConstraint>;
 
     // public typedefs represent XPBDMeshObject constraint configurations

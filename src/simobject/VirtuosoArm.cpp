@@ -4,6 +4,8 @@
 
 #include "config/simobject/VirtuosoArmConfig.hpp"
 
+#include "geometry/embree/EmbreeTetMeshGeometry.hpp"
+
 #include "utils/GeometryUtils.hpp"
 #include "utils/MathUtils.hpp"
 
@@ -944,82 +946,110 @@ void VirtuosoArm::_grasperToolAction()
     // if tool state has changed from 0 to 1, start grasping vertices inside grasping radius
     if (_tool_state == 1 && _last_tool_state == 0)
     {
-        std::map<int, Vec3r> vertices_to_grasp;
+        // std::map<int, Vec3r> vertices_to_grasp;
 
         // quick and dirty way to find all vertices in a sphere
         VirtuosoArmGraspingTool* grasping_tool = dynamic_cast<VirtuosoArmGraspingTool*>(_tool.get());
         assert(grasping_tool);
 
         Vec3r grasp_center = grasping_tool->graspFrame().origin();
-        for (int theta = 0; theta < 360; theta+=30)
-        {
-            for (int phi = 0; phi < 360; phi+=30)
-            {
-                for (double p = 0; p < VirtuosoArmGraspingTool::GRASPING_RADIUS; p+=VirtuosoArmGraspingTool::GRASPING_RADIUS/5.0)
-                {
-                    const double x = grasp_center[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
-                    const double y = grasp_center[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
-                    const double z = grasp_center[2] + p*std::cos(phi*M_PI/180);
-                    int v = _tool_manipulated_object.mesh()->getClosestVertex(Vec3r(x, y, z));
 
-                    // make sure v is inside grasping sphere
-                    if ((grasp_center - _tool_manipulated_object.mesh()->vertex(v)).norm() <= VirtuosoArmGraspingTool::GRASPING_RADIUS)
-                        if (!_tool_manipulated_object.vertexFixed(v))
-                        {
-                            // compute the attachment offset with respect to the inner tube end position
-                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos);
-                            vertices_to_grasp[v] = attachment_offset;
-                        }
-                }
+        Geometry::TetMesh* mesh = _tool_manipulated_object.tetMesh();
+
+        std::unordered_map<int, std::pair<Vec3r,Vec3r>> elements_to_grasp;
+        for (const auto& face_ind : mesh->faces().validIndices())
+        {
+            const Vec3i& face = mesh->face(face_ind);
+            const Vec3r& v1 = mesh->vertex(face[0]);
+            const Vec3r& v2 = mesh->vertex(face[1]);
+            const Vec3r& v3 = mesh->vertex(face[2]);
+
+            // Real sq_dist = Geometry::EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(grasp_center, v1, v2, v3, v4);
+            Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(_it_end_pos, v1, v2, v3);
+            Real dist = (_it_end_pos - cp).norm();
+            if (dist < VirtuosoArmGraspingTool::GRASPING_RADIUS)
+            {
+                const Vec3r face_centroid = (v1+v2+v3)/3;
+                const auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
+                Vec3r attachment_offset = cp - _it_end_pos;
+                elements_to_grasp.insert({face_ind, std::make_pair(Vec3r(u,v,w), attachment_offset)});
             }
         }
 
-        for (const auto& [v, offset] : vertices_to_grasp)
+        for (const auto& [f, barys_and_offset] : elements_to_grasp)
         {
-            Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint> proj_ref =
-                _tool_manipulated_object.addOffsetAttachmentConstraint(v, &_it_end_pos, offset);
+            Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint> proj_ref =
+                _tool_manipulated_object.addFaceOffsetAttachmentConstraint(f, barys_and_offset.first, &_it_end_pos, barys_and_offset.second);
             _grasping_constraints.push_back(std::move(proj_ref));
         }
+        // for (int theta = 0; theta < 360; theta+=30)
+        // {
+        //     for (int phi = 0; phi < 360; phi+=30)
+        //     {
+        //         for (double p = 0; p < VirtuosoArmGraspingTool::GRASPING_RADIUS; p+=VirtuosoArmGraspingTool::GRASPING_RADIUS/5.0)
+        //         {
+        //             const double x = grasp_center[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
+        //             const double y = grasp_center[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
+        //             const double z = grasp_center[2] + p*std::cos(phi*M_PI/180);
+        //             int v = _tool_manipulated_object.mesh()->getClosestVertex(Vec3r(x, y, z));
+
+        //             // make sure v is inside grasping sphere
+        //             if ((grasp_center - _tool_manipulated_object.mesh()->vertex(v)).norm() <= VirtuosoArmGraspingTool::GRASPING_RADIUS)
+        //                 if (!_tool_manipulated_object.vertexFixed(v))
+        //                 {
+        //                     // compute the attachment offset with respect to the inner tube end position
+        //                     const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos);
+        //                     vertices_to_grasp[v] = attachment_offset;
+        //                 }
+        //         }
+        //     }
+        // }
+
+        // for (const auto& [v, offset] : vertices_to_grasp)
+        // {
+        //     Solver::ConstraintProjectorReferenceWrapper<Solver::OffsetAttachmentConstraint> proj_ref =
+        //         _tool_manipulated_object.addOffsetAttachmentConstraint(v, &_it_end_pos, offset);
+        //     _grasping_constraints.push_back(std::move(proj_ref));
+        // }
     }
 
     // if tool state has changed from 1 to 0, stop grasping
     else if (_tool_state == 0 && _last_tool_state == 1)
     {
         /** TODO: remove just the attachment constraints associated with grasping with this object */
-        _tool_manipulated_object.clearOffsetAttachmentConstraints();
+        _tool_manipulated_object.clearFaceOffsetAttachmentConstraints();
         _grasping_constraints.clear();
     }
 
     // apply tip forces
-    std::cout << "Computing forces..." << std::endl;
-    Vec3r total_force = Vec3r::Zero();
-    for (const auto& proj : _grasping_constraints)
-    {
-        std::vector<Vec3r> forces = proj.constraintForces();
-        Vec3r capped_force = -forces[0];
+    // std::cout << "Computing forces..." << std::endl;
+    // Vec3r total_force = Vec3r::Zero();
+    // for (const auto& proj : _grasping_constraints)
+    // {
+    //     std::vector<Vec3r> forces = proj.constraintForces();
+    //     Vec3r capped_force = -forces[0];
 
-        // cap the force at 20 N 
-        // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
-        Real max_force = tipForce().norm() + 0.5;
-        if (capped_force.norm() > max_force)
-        {
-            capped_force = capped_force / capped_force.norm() * max_force;
-        }
+    //     // cap the force at 20 N 
+    //     // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
+    //     Real max_force = tipForce().norm() + 0.5;
+    //     if (capped_force.norm() > max_force)
+    //     {
+    //         capped_force = capped_force / capped_force.norm() * max_force;
+    //     }
 
-        total_force += capped_force; // attachment constraint only affects one vertex, so the vector only has 1 element
+    //     total_force += capped_force; // attachment constraint only affects one vertex, so the vector only has 1 element
 
-        std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
-    }
+    //     std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
+    // }
 
     // smooth forces
-    Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
-    setTipForce(new_tip_force);
+    // Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
+    // setTipForce(new_tip_force);
 
     // std::cout << "new tip force: " << new_tip_force.transpose() << std::endl;
 
     // if (new_tip_force.norm() > 10)
     //     throw std::runtime_error("fart!");
-    
 }
 
 void VirtuosoArm::_cauteryToolAction()

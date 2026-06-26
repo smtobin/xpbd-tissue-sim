@@ -202,13 +202,13 @@ public:
         
     }
 
-    Solver::ConstraintProjectorReferenceWrapper<Solver::ElementOffsetAttachmentConstraint>
-    addElementOffsetAttachmentConstraint(int elem_ind, const Vec4r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+    Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint>
+    addFaceOffsetAttachmentConstraint(int elem_ind, const Vec3r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
     {
         return std::visit([&](auto& obj)
         {
-            return Solver::ConstraintProjectorReferenceWrapper<Solver::ElementOffsetAttachmentConstraint>(
-                obj->addElementOffsetAttachmentConstraint(elem_ind, bary_coords, attach_pos_ptr, attachment_offset)
+            return Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint>(
+                obj->addFaceOffsetAttachmentConstraint(elem_ind, bary_coords, attach_pos_ptr, attachment_offset)
             );
         }, _variant);
         
@@ -226,9 +226,9 @@ public:
         return std::visit([](auto& obj) { obj->clearOffsetAttachmentConstraints(); }, _variant);
     }
 
-    void clearElementOffsetAttachmentConstraints()
+    void clearFaceOffsetAttachmentConstraints()
     {
-        return std::visit([](auto& obj) { obj->clearElementOffsetAttachmentConstraints(); }, _variant);
+        return std::visit([](auto& obj) { obj->clearFaceOffsetAttachmentConstraints(); }, _variant);
     }
 
     /** === Mesh topology === */

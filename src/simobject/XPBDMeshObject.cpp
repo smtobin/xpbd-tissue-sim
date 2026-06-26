@@ -416,37 +416,37 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
-Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::ElementOffsetAttachmentConstraint>> 
-XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addElementOffsetAttachmentConstraint(int elem_ind, const Vec4r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
+Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::FaceOffsetAttachmentConstraint>> 
+XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addFaceOffsetAttachmentConstraint(int face_ind, const Vec3r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset)
 {
-    const Vec4i& elem = tetMesh()->element(elem_ind);
-    int v1 = elem[0];
-    int v2 = elem[1];
-    int v3 = elem[2];
-    int v4 = elem[3];
+    const Vec3i& face = _mesh->face(face_ind);
+    int v1 = face[0];
+    int v2 = face[1];
+    int v3 = face[2];
 
     Real m1 = vertexConstraintInertia(v1);
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
-    Real m4 = vertexConstraintInertia(v4);
+
+    std::cout << "Adding face offset attachment: " << v1 << ", " << v2 << ", " << v3 << std::endl;
 
     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
-    std::vector<Solver::ElementOffsetAttachmentConstraint>& constraint_vec = _constraints.template get<Solver::ElementOffsetAttachmentConstraint>();
-    constraint_vec.emplace_back(v1, m1, v2, m2, v3, m3, v4, m4, vec_ptr, bary_coords, attach_pos_ptr, attachment_offset);
+    std::vector<Solver::FaceOffsetAttachmentConstraint>& constraint_vec = _constraints.template get<Solver::FaceOffsetAttachmentConstraint>();
+    constraint_vec.emplace_back(v1, m1, v2, m2, v3, m3, vec_ptr, bary_coords, attach_pos_ptr, attachment_offset);
     
-    using ConstraintRefType = Solver::ConstraintReference<Solver::ElementOffsetAttachmentConstraint>;
+    using ConstraintRefType = Solver::ConstraintReference<Solver::FaceOffsetAttachmentConstraint>;
     return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
-void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::clearElementOffsetAttachmentConstraints()
+void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::clearFaceOffsetAttachmentConstraints()
 {
-    using ElementOffsetAttachmentConstraintProjType = Solver::ConstraintProjector<IsFirstOrder, Solver::ElementOffsetAttachmentConstraint>;
+    using FaceOffsetAttachmentConstraintProjType = Solver::ConstraintProjector<IsFirstOrder, Solver::FaceOffsetAttachmentConstraint>;
     // clear projectors
-    _solver.template clearProjectorsOfType<ElementOffsetAttachmentConstraintProjType>();
+    _solver.template clearProjectorsOfType<FaceOffsetAttachmentConstraintProjType>();
     // clear constraints
-    _constraints.template clear<Solver::ElementOffsetAttachmentConstraint>();
+    _constraints.template clear<Solver::FaceOffsetAttachmentConstraint>();
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
