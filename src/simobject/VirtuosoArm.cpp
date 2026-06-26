@@ -965,13 +965,25 @@ void VirtuosoArm::_grasperToolAction()
             const Vec3r& v3 = mesh->vertex(face[2]);
 
             // Real sq_dist = Geometry::EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(grasp_center, v1, v2, v3, v4);
-            Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(_it_end_pos, v1, v2, v3);
-            Real dist = (_it_end_pos - cp).norm();
+            Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(grasp_center, v1, v2, v3);
+            Real dist = (grasp_center - cp).norm();
             if (dist < VirtuosoArmGraspingTool::GRASPING_RADIUS)
             {
                 const Vec3r face_centroid = (v1+v2+v3)/3;
-                const auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
-                Vec3r attachment_offset = cp - _it_end_pos;
+                auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
+                if (u > v && u > w)
+                {
+                    u = 1; v = 0; w = 0;
+                }
+                else if ( v > w)
+                {
+                    u = 0; v = 1; w = 0;
+                }
+                else
+                {
+                    u = 0; v = 0; w = 1;
+                }
+                Vec3r attachment_offset = u*v1+v*v2+w*v3 - _it_end_pos;
                 elements_to_grasp.insert({face_ind, std::make_pair(Vec3r(u,v,w), attachment_offset)});
             }
         }
@@ -1023,28 +1035,26 @@ void VirtuosoArm::_grasperToolAction()
 
     // apply tip forces
     // std::cout << "Computing forces..." << std::endl;
-    // Vec3r total_force = Vec3r::Zero();
-    // for (const auto& proj : _grasping_constraints)
-    // {
-    //     std::vector<Vec3r> forces = proj.constraintForces();
-    //     Vec3r capped_force = -forces[0];
+    Vec3r total_force = Vec3r::Zero();
+    for (const auto& proj : _grasping_constraints)
+    {
+        std::vector<Vec3r> forces = proj.constraintForces();
+        Vec3r capped_force = -std::reduce(forces.cbegin(), forces.cend());
 
-    //     // cap the force at 20 N 
-    //     // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
-    //     Real max_force = tipForce().norm() + 0.5;
-    //     if (capped_force.norm() > max_force)
-    //     {
-    //         capped_force = capped_force / capped_force.norm() * max_force;
-    //     }
+        // cap the force at 20 N 
+        // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
+        Real max_force = tipForce().norm() + 0.5;
+        if (capped_force.norm() > max_force)
+        {
+            capped_force = capped_force / capped_force.norm() * max_force;
+        }
 
-    //     total_force += capped_force; // attachment constraint only affects one vertex, so the vector only has 1 element
-
-    //     std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
-    // }
+        total_force += capped_force; 
+    }
 
     // smooth forces
-    // Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
-    // setTipForce(new_tip_force);
+    Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
+    setTipForce(new_tip_force);
 
     // std::cout << "new tip force: " << new_tip_force.transpose() << std::endl;
 

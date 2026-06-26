@@ -428,8 +428,6 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addFace
     Real m2 = vertexConstraintInertia(v2);
     Real m3 = vertexConstraintInertia(v3);
 
-    std::cout << "Adding face offset attachment: " << v1 << ", " << v2 << ", " << v3 << std::endl;
-
     Geometry::Mesh::vertices_vec_type* vec_ptr = &_mesh->vertices();
 
     std::vector<Solver::FaceOffsetAttachmentConstraint>& constraint_vec = _constraints.template get<Solver::FaceOffsetAttachmentConstraint>();

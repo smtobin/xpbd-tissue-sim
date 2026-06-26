@@ -159,7 +159,7 @@ objects:
     material: "Nitinol"
     # don't prescribe any initial position or rotation - it is completely arbitrary since we are positioning meshes to be in the VB frame
 
-    collisions: false
+    collisions: true
 
     arms:
     -

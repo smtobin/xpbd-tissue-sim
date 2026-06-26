@@ -51,7 +51,7 @@ class FaceOffsetAttachmentConstraint : public Constraint
      */
     inline void evaluate(Real* C) const override
     {
-        *C = ( _elementPoint() - (*_attached_pos_ptr + _attachment_offset) ).squaredNorm();
+        *C = ( _elementPoint() - (*_attached_pos_ptr + _attachment_offset) ).norm();
     }
 
     /** Computes the gradient of this constraint in vector form with pre-allocated memory.
@@ -63,18 +63,28 @@ class FaceOffsetAttachmentConstraint : public Constraint
     {
         Vec3r attach_pt = (*_attached_pos_ptr + _attachment_offset);
         Vec3r element_pt = _elementPoint();
+        const Real dist = ( element_pt - attach_pt ).norm();
 
-        grad[0] = 2*_bary_coords[0] * (element_pt[0] - attach_pt[0]);
-        grad[1] = 2*_bary_coords[0] * (element_pt[1] - attach_pt[1]);
-        grad[2] = 2*_bary_coords[0] * (element_pt[2] - attach_pt[2]);
+        if (dist < Real(1e-12))
+        {
+            grad[0] = 1; grad[3] = 1; grad[6] = 1;
+            grad[1] = 0; grad[4] = 0; grad[7] = 0;
+            grad[2] = 0; grad[5] = 0; grad[8] = 0;
+        }
+        else
+        {
+            grad[0] = _bary_coords[0] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[1] = _bary_coords[0] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[2] = _bary_coords[0] * (element_pt[2] - attach_pt[2]) / dist;
 
-        grad[3] = 2*_bary_coords[1] * (element_pt[0] - attach_pt[0]);
-        grad[4] = 2*_bary_coords[1] * (element_pt[1] - attach_pt[1]);
-        grad[5] = 2*_bary_coords[1] * (element_pt[2] - attach_pt[2]);
+            grad[3] = _bary_coords[1] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[4] = _bary_coords[1] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[5] = _bary_coords[1] * (element_pt[2] - attach_pt[2]) / dist;
 
-        grad[6] = 2*_bary_coords[2] * (element_pt[0] - attach_pt[0]);
-        grad[7] = 2*_bary_coords[2] * (element_pt[1] - attach_pt[1]);
-        grad[8] = 2*_bary_coords[2] * (element_pt[2] - attach_pt[2]);
+            grad[6] = _bary_coords[2] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[7] = _bary_coords[2] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[8] = _bary_coords[2] * (element_pt[2] - attach_pt[2]) / dist;
+        }
     }
 
 
@@ -90,29 +100,29 @@ class FaceOffsetAttachmentConstraint : public Constraint
     {
         Vec3r attach_pt = (*_attached_pos_ptr + _attachment_offset);
         Vec3r element_pt = _elementPoint();
-        std::cout << "Attach pt: " << attach_pt.transpose() << std::endl;
-        std::cout << "attach pos ptr: " << _attached_pos_ptr << std::endl;
-        std::cout << "element pt: " << element_pt.transpose() << std::endl;
-        const Real dist_sq = ( element_pt - attach_pt ).squaredNorm();
-        *C = dist_sq;
+        const Real dist = ( element_pt - attach_pt ).norm();
+        *C = dist;
 
-        grad[0] = 2*_bary_coords[0] * (element_pt[0] - attach_pt[0]);
-        grad[1] = 2*_bary_coords[0] * (element_pt[1] - attach_pt[1]);
-        grad[2] = 2*_bary_coords[0] * (element_pt[2] - attach_pt[2]);
+        if (dist < Real(1e-12))
+        {
+            grad[0] = 1; grad[3] = 1; grad[6] = 1;
+            grad[1] = 0; grad[4] = 0; grad[7] = 0;
+            grad[2] = 0; grad[5] = 0; grad[8] = 0;
+        }
+        else
+        {
+            grad[0] = _bary_coords[0] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[1] = _bary_coords[0] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[2] = _bary_coords[0] * (element_pt[2] - attach_pt[2]) / dist;
 
-        grad[3] = 2*_bary_coords[1] * (element_pt[0] - attach_pt[0]);
-        grad[4] = 2*_bary_coords[1] * (element_pt[1] - attach_pt[1]);
-        grad[5] = 2*_bary_coords[1] * (element_pt[2] - attach_pt[2]);
+            grad[3] = _bary_coords[1] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[4] = _bary_coords[1] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[5] = _bary_coords[1] * (element_pt[2] - attach_pt[2]) / dist;
 
-        grad[6] = 2*_bary_coords[2] * (element_pt[0] - attach_pt[0]);
-        grad[7] = 2*_bary_coords[2] * (element_pt[1] - attach_pt[1]);
-        grad[8] = 2*_bary_coords[2] * (element_pt[2] - attach_pt[2]);
-
-        
-        std::cout << "C = " << *C << "  diff=" << (element_pt - attach_pt).transpose() << std::endl;
-
-        if (std::isnan(*C))
-            throw std::runtime_error("nan");
+            grad[6] = _bary_coords[2] * (element_pt[0] - attach_pt[0]) / dist;
+            grad[7] = _bary_coords[2] * (element_pt[1] - attach_pt[1]) / dist;
+            grad[8] = _bary_coords[2] * (element_pt[2] - attach_pt[2]) / dist;
+        }
         
     }
 
@@ -122,7 +132,6 @@ class FaceOffsetAttachmentConstraint : public Constraint
         Vec3r pt = Vec3r::Zero();
         for (int i = 0; i < 3; i++)
         {
-            std::cout << "  iter " << i << " position: " << _positions[i].position().transpose() << "  ind: " << _positions[i].index << "  bary " << _bary_coords[i] << std::endl;
             pt += _positions[i].position() * _bary_coords[i];
         }
 
