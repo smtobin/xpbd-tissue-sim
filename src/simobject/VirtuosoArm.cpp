@@ -37,7 +37,7 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _max_ot_rotation_speed = config->maxOTRotationSpeed();
     _max_it_rotation_speed = config->maxITRotationSpeed();
 
-    _tool_state = 0;  // default tool state is off
+    _tool_state = 0; // default tool state is off
     _tool_type = config->toolType();
     _cutting_model = config->cuttingModel();
     _cutting_model_time_threshold = config->cuttingModelTimeThreshold();
@@ -48,7 +48,10 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     else if (config->toolType() == ToolType::CAUTERY)
         _tool = std::make_unique<Sim::VirtuosoArmCauteryTool>(_sim, config, nullptr);
     else if (config->toolType() == ToolType::GRASPER)
+    {
         _tool = std::make_unique<Sim::VirtuosoArmGraspingTool>(_sim, config, nullptr);
+        _tool_state = 1; // 1 = open for the grasper
+    }
 
     _arm_base_position = config->baseInitialPosition();
     Vec3r initial_rot_xyz = config->baseInitialRotation() * M_PI / 180.0;
@@ -943,8 +946,8 @@ void VirtuosoArm::_spatulaToolAction()
 
 void VirtuosoArm::_grasperToolAction()
 {
-    // if tool state has changed from 0 to 1, start grasping vertices inside grasping radius
-    if (_tool_state == 1 && _last_tool_state == 0)
+    // if tool state has changed from 1 (open) to 0 (grasped), start grasping vertices inside grasping radius
+    if (_tool_state == 0 && _last_tool_state == 1)
     {
         // std::map<int, Vec3r> vertices_to_grasp;
 
@@ -1031,8 +1034,8 @@ void VirtuosoArm::_grasperToolAction()
         }
     }
 
-    // if tool state has changed from 1 to 0, stop grasping
-    else if (_tool_state == 0 && _last_tool_state == 1)
+    // if tool state has changed from 0 (grapsed) to 1 (open), stop grasping
+    else if (_tool_state == 1 && _last_tool_state == 0)
     {
         /** TODO: remove just the attachment constraints associated with grasping with this object */
         // _tool_manipulated_object.clearFaceOffsetAttachmentConstraints();
