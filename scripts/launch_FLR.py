@@ -423,23 +423,42 @@ def main():
     lesion_centroid = transformed_lesion.vertices.mean(axis=0)
     
     # line from inner patch center to lesion centroid is roughly the y axis
-    approx_y_axis = inner_patch_center - lesion_centroid
-    x_axis = np.cross(approx_y_axis, direction)
-    y_axis = np.cross(direction, x_axis)
-    x_axis /= np.linalg.norm(x_axis)
+    # approx_y_axis = inner_patch_center - lesion_centroid
+    # x_axis = np.cross(approx_y_axis, direction)
+    # y_axis = np.cross(direction, x_axis)
+    # x_axis /= np.linalg.norm(x_axis)
+    # y_axis /= np.linalg.norm(y_axis)
+    # z_axis = direction / np.linalg.norm(direction)
+
+    z_axis = direction / np.linalg.norm(direction)
+
+    y0 = inner_patch_center - lesion_centroid
+    y0 /= np.linalg.norm(y0)
+
+    # remove any z component
+    y_axis = y0 - np.dot(y0, z_axis) * z_axis
     y_axis /= np.linalg.norm(y_axis)
+
+    x_axis = np.cross(y_axis, z_axis)
+    x_axis /= np.linalg.norm(x_axis)
+
+    # recompute y to ensure orthogonality
+    y_axis = np.cross(z_axis, x_axis)
 
     R = np.zeros((3,3))
     R[:,0] = x_axis
     R[:,1] = y_axis
-    R[:,2] = direction
+    R[:,2] = z_axis
 
+    print(R)
+
+    ## TODO: WHY IS THIS TRANSPOSE??
     from scipy.spatial.transform import Rotation as Rot
-    r = Rot.from_matrix(R)
+    r = Rot.from_matrix(R.T)
     eul_XYZ = np.rad2deg(r.as_euler('xyz'))
 
-    p_des = [0,-5,20]
-    t = p_des - R @ inner_patch_center
+    p_des = [0,10,30]
+    t = p_des - R.T @ inner_patch_center
     print(t)
 
     # convert translation to meters
@@ -451,11 +470,25 @@ def main():
     # outer_patch.visual.face_colors = [255, 0, 0, 150]
     # inner_patch.visual.face_colors = [0, 0, 255, 150]
 
+    
+    # xline = trimesh.load_path(
+    #     np.vstack([inner_patch_center, inner_patch_center + 40 * x_axis])
+    # )
+    # yline = trimesh.load_path(
+    #     np.vstack([inner_patch_center, inner_patch_center + 40 * y_axis])
+    # )
+    # zline = trimesh.load_path(
+    #     np.vstack([inner_patch_center, inner_patch_center + 40 * z_axis])
+    # )
+
     # trimesh.Scene([
     #     meshA_vis,
     #     outer_patch,
     #     inner_patch,
-    #     dir_line
+    #     dir_line,
+    #     xline,
+    #     yline,
+    #     zline
     # ]).show(smooth=False)
 
 
