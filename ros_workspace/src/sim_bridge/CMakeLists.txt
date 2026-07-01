@@ -53,6 +53,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ElementsList.msg"
   "msg/MeshState.msg"
   "msg/FactorGraphState.msg"
+  "msg/PointOnFace.msg"
+  "msg/LocalStiffnessMatrix.msg"
   "srv/SaveCheckpoint.srv"
   "srv/RestoreCheckpoint.srv"
   "srv/FactorGraphState.srv"
@@ -226,6 +228,64 @@ target_include_directories(${PROJECT_NAME}_node PUBLIC
 target_compile_features(${PROJECT_NAME}_node PUBLIC c_std_99 cxx_std_17)
 
 install(TARGETS ${PROJECT_NAME}_node
+  DESTINATION lib/${PROJECT_NAME})
+
+
+
+# === Stiffness map node ===
+add_executable(stiffness_map_sim_bridge_node
+  src/stiffness_map_sim_bridge_node.cpp
+  src/StiffnessMapSimBridge.cpp
+)
+
+ament_target_dependencies(stiffness_map_sim_bridge_node rclcpp std_msgs geometry_msgs shape_msgs sensor_msgs tf2_ros tf2 tf2_geometry_msgs)
+# sim dependencies
+target_link_libraries(stiffness_map_sim_bridge_node
+  XPBDSim::Simulation
+  XPBDSim::VirtuosoSimulation
+  XPBDSim::GraspingSimulation
+  XPBDSim::PalpationSimulation
+  XPBDSim::FixedObjectSimulation
+  XPBDSim::StiffnessMapSimulation
+  XPBDSim::Collision
+  XPBDSim::Config
+  XPBDSim::Geometry
+  XPBDSim::SimObject
+  XPBDSim::Solver
+  XPBDSim::Graphics
+  XPBDSim::Haptics
+  XPBDSim::Geometry
+  XPBDSim::GeometryUtils
+  XPBDSim::MeshUtils
+  assimp
+  gmsh::shared
+  Eigen3::Eigen
+  yaml-cpp::yaml-cpp
+  easy3d::core
+  easy3d::util
+  easy3d::renderer
+  easy3d::viewer
+  embree
+  HD
+  HDU
+  mesh2sdf
+  ${VTK_LIBRARIES}
+  ${PETSC_LIB}
+)
+
+target_link_libraries(stiffness_map_sim_bridge_node "${cpp_typesupport_target}")
+
+vtk_module_autoinit(
+  TARGETS stiffness_map_sim_bridge_node
+  MODULES ${VTK_LIBRARIES}
+)
+
+target_include_directories(stiffness_map_sim_bridge_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_compile_features(stiffness_map_sim_bridge_node PUBLIC c_std_99 cxx_std_17)
+
+install(TARGETS stiffness_map_sim_bridge_node
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

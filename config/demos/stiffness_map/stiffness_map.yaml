@@ -1,0 +1,127 @@
+# === Simulation parameters ===
+# name of the simulation
+name: "Virtuoso Trachea"
+# visualization backend to use ("VTK" or "Easy3D")
+visualization: "VTK"
+
+# the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Mouse"
+# show the "tip cursor" which is a yellow ball meant to help with depth perception 
+show-tip-cursor: false
+# whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
+enable-mouse-interaction: true
+# scale the force feedback tot he haptic device (0 means no force feedback)
+haptic-force-scaling: 0
+
+# device names for haptic devices
+# these can be set using the OpenHaptics setup program
+# device-name1: "LeftOmni"
+# device-name2: "RightOmni"
+# device-name1: "Omni"
+
+# acceleration due to gravity
+g-accel: 0 # m/s2
+
+# simulation "mode" - should always use As Fast As Possible ("AFAP") with 1st order sims
+sim-mode: "AFAP"
+# sim-mode: "Frame-by-frame"
+# the "time step" (doesn't correspond to physical time for 1st order sims)
+time-step: 3.33e-3
+# the rate (Hz) at which to do collision detection
+collision-rate: 100
+# the rate (Hz) at which to draw to the screen
+fps: 30
+# the simulation end time
+end-time: 5000000000000
+
+displacement-magnitude: 1e-4
+time-to-steady-state: 50
+
+
+# === Simulation rendering settings ===
+# global exposure for PBR rendering
+exposure: 0.2
+# filename to the HDR image used for lighting in the PBR model
+hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
+# whether or not to create a skybox from the HDR image
+create-skybox: false
+# static color background for the sim
+background: [0.1, 0.1, 0.1] # dark gray
+# width and height of the window created for the sim
+window-width: 800
+window-height: 800
+
+# whether or not to display camera axes in the bottom left corner
+show-camera-axes: true
+
+# === Specify materials used by objects in the sim ===
+# these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
+materials:
+  -
+    name: "Human Trachea"
+    label: "Trachea"
+    # material parameters
+    density: 1030
+    E: 5e6
+    nu: 0.49
+    # rendering settings
+    color: [1.0, 0.5, 0.4]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.4
+    smooth-normals: false
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+    
+  -
+    name: "Raw Chicken Breast"
+    label: "Tumor"
+    # material parameters
+    density: 1060
+    E: 0.07e6
+    nu: 0.4
+    # rendering settings
+    color: [1.0, 0.6, 0.5]
+    cut-color: [1.0, 0.4, 0.3]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.2
+    smooth-normals: false
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+
+
+# === Objects in the sim ===
+objects:
+  -
+    name: "Tumor"
+    type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
+    # filename: "../resource/lfs/CAO/2026-01-30/tue_open_1_1086_tumor_processed.msh"
+    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    material: "Raw Chicken Breast"
+
+    scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+
+    num-solver-iters: 1
+    num-local-collision-iters: 5
+    residual-policy: "Never"
+    solver-type: "Gauss-Seidel"
+    constraint-type: "Stable-Neohookean-Combined"
+    damping-multiplier: 2e5
+    adjust-damping-to-material: True
+
+    collisions: true
+    self-collisions: false
+
+    adaptive-mesh-refinement: true
+    max-refinement-level: 2
+    refinement-distance-threshold: 1.5e-3
+    compute-heat-conduction: false
+
+  
+
+
