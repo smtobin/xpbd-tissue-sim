@@ -4,6 +4,8 @@
 
 #include "config/simobject/VirtuosoArmConfig.hpp"
 
+#include "geometry/embree/EmbreeTetMeshGeometry.hpp"
+
 #include "utils/GeometryUtils.hpp"
 #include "utils/MathUtils.hpp"
 
@@ -35,7 +37,7 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _max_ot_rotation_speed = config->maxOTRotationSpeed();
     _max_it_rotation_speed = config->maxITRotationSpeed();
 
-    _tool_state = 0;  // default tool state is off
+    _tool_state = 0; // default tool state is off
     _tool_type = config->toolType();
     _cutting_model = config->cuttingModel();
     _cutting_model_time_threshold = config->cuttingModelTimeThreshold();
@@ -46,7 +48,10 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     else if (config->toolType() == ToolType::CAUTERY)
         _tool = std::make_unique<Sim::VirtuosoArmCauteryTool>(_sim, config, nullptr);
     else if (config->toolType() == ToolType::GRASPER)
+    {
         _tool = std::make_unique<Sim::VirtuosoArmGraspingTool>(_sim, config, nullptr);
+        _tool_state = 1; // 1 = open for the grasper
+    }
 
     _arm_base_position = config->baseInitialPosition();
     Vec3r initial_rot_xyz = config->baseInitialRotation() * M_PI / 180.0;
@@ -941,38 +946,85 @@ void VirtuosoArm::_spatulaToolAction()
 
 void VirtuosoArm::_grasperToolAction()
 {
-    // if tool state has changed from 0 to 1, start grasping vertices inside grasping radius
-    if (_tool_state == 1 && _last_tool_state == 0)
+    // if tool state has changed from 1 (open) to 0 (grasped), start grasping vertices inside grasping radius
+    if (_tool_state == 0 && _last_tool_state == 1)
     {
-        std::map<int, Vec3r> vertices_to_grasp;
+        // std::map<int, Vec3r> vertices_to_grasp;
 
         // quick and dirty way to find all vertices in a sphere
         VirtuosoArmGraspingTool* grasping_tool = dynamic_cast<VirtuosoArmGraspingTool*>(_tool.get());
         assert(grasping_tool);
 
         Vec3r grasp_center = grasping_tool->graspFrame().origin();
-        for (int theta = 0; theta < 360; theta+=30)
-        {
-            for (int phi = 0; phi < 360; phi+=30)
-            {
-                for (double p = 0; p < VirtuosoArmGraspingTool::GRASPING_RADIUS; p+=VirtuosoArmGraspingTool::GRASPING_RADIUS/5.0)
-                {
-                    const double x = grasp_center[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
-                    const double y = grasp_center[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
-                    const double z = grasp_center[2] + p*std::cos(phi*M_PI/180);
-                    int v = _tool_manipulated_object.mesh()->getClosestVertex(Vec3r(x, y, z));
 
-                    // make sure v is inside grasping sphere
-                    if ((grasp_center - _tool_manipulated_object.mesh()->vertex(v)).norm() <= VirtuosoArmGraspingTool::GRASPING_RADIUS)
-                        if (!_tool_manipulated_object.vertexFixed(v))
-                        {
-                            // compute the attachment offset with respect to the inner tube end position
-                            const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos);
-                            vertices_to_grasp[v] = attachment_offset;
-                        }
+        Geometry::TetMesh* mesh = _tool_manipulated_object.tetMesh();
+
+        // std::unordered_map<int, std::pair<Vec3r,Vec3r>> elements_to_grasp;
+        std::unordered_map<int, Vec3r> vertices_to_grasp;
+        for (const auto& face_ind : mesh->faces().validIndices())
+        {
+            const Vec3i& face = mesh->face(face_ind);
+            const Vec3r& v1 = mesh->vertex(face[0]);
+            const Vec3r& v2 = mesh->vertex(face[1]);
+            const Vec3r& v3 = mesh->vertex(face[2]);
+
+            // Real sq_dist = Geometry::EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(grasp_center, v1, v2, v3, v4);
+            Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(grasp_center, v1, v2, v3);
+            Real dist = (grasp_center - cp).norm();
+            if (dist < VirtuosoArmGraspingTool::GRASPING_RADIUS)
+            {
+                // const Vec3r face_centroid = (v1+v2+v3)/3;
+                // auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
+                // if (u > v && u > w)
+                // {
+                //     u = 1; v = 0; w = 0;
+                // }
+                // else if ( v > w)
+                // {
+                //     u = 0; v = 1; w = 0;
+                // }
+                // else
+                // {
+                //     u = 0; v = 0; w = 1;
+                // }
+                for (int i = 0; i < 3; i++)
+                {
+                    vertices_to_grasp.insert({face[i], mesh->vertex(face[i]) - _it_end_pos});
                 }
+                
+                // Vec3r attachment_offset = u*v1+v*v2+w*v3 - _it_end_pos;
+                // elements_to_grasp.insert({face_ind, std::make_pair(Vec3r(u,v,w), attachment_offset)});
             }
         }
+
+        // for (const auto& [f, barys_and_offset] : elements_to_grasp)
+        // {
+        //     Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint> proj_ref =
+        //         _tool_manipulated_object.addFaceOffsetAttachmentConstraint(f, barys_and_offset.first, &_it_end_pos, barys_and_offset.second);
+        //     _grasping_constraints.push_back(std::move(proj_ref));
+        // }
+        // for (int theta = 0; theta < 360; theta+=30)
+        // {
+        //     for (int phi = 0; phi < 360; phi+=30)
+        //     {
+        //         for (double p = 0; p < VirtuosoArmGraspingTool::GRASPING_RADIUS; p+=VirtuosoArmGraspingTool::GRASPING_RADIUS/5.0)
+        //         {
+        //             const double x = grasp_center[0] + p*std::sin(phi*M_PI/180)*std::cos(theta*M_PI/180);
+        //             const double y = grasp_center[1] + p*std::sin(phi*M_PI/180)*std::sin(theta*M_PI/180);
+        //             const double z = grasp_center[2] + p*std::cos(phi*M_PI/180);
+        //             int v = _tool_manipulated_object.mesh()->getClosestVertex(Vec3r(x, y, z));
+
+        //             // make sure v is inside grasping sphere
+        //             if ((grasp_center - _tool_manipulated_object.mesh()->vertex(v)).norm() <= VirtuosoArmGraspingTool::GRASPING_RADIUS)
+        //                 if (!_tool_manipulated_object.vertexFixed(v))
+        //                 {
+        //                     // compute the attachment offset with respect to the inner tube end position
+        //                     const Vec3r attachment_offset = (_tool_manipulated_object.mesh()->vertex(v) - _it_end_pos);
+        //                     vertices_to_grasp[v] = attachment_offset;
+        //                 }
+        //         }
+        //     }
+        // }
 
         for (const auto& [v, offset] : vertices_to_grasp)
         {
@@ -982,33 +1034,32 @@ void VirtuosoArm::_grasperToolAction()
         }
     }
 
-    // if tool state has changed from 1 to 0, stop grasping
-    else if (_tool_state == 0 && _last_tool_state == 1)
+    // if tool state has changed from 0 (grapsed) to 1 (open), stop grasping
+    else if (_tool_state == 1 && _last_tool_state == 0)
     {
         /** TODO: remove just the attachment constraints associated with grasping with this object */
+        // _tool_manipulated_object.clearFaceOffsetAttachmentConstraints();
         _tool_manipulated_object.clearOffsetAttachmentConstraints();
         _grasping_constraints.clear();
     }
 
     // apply tip forces
-    std::cout << "Computing forces..." << std::endl;
+    // std::cout << "Computing forces..." << std::endl;
     Vec3r total_force = Vec3r::Zero();
     for (const auto& proj : _grasping_constraints)
     {
         std::vector<Vec3r> forces = proj.constraintForces();
-        Vec3r capped_force = -forces[0];
+        Vec3r capped_force = -std::reduce(forces.cbegin(), forces.cend());
 
         // cap the force at 20 N 
         // sometimes on initial grasp, the sim hasn't converged and forces are crazy large
-        Real max_force = tipForce().norm() + 0.5;
+        Real max_force = tipForce().norm() + 0.25;
         if (capped_force.norm() > max_force)
         {
             capped_force = capped_force / capped_force.norm() * max_force;
         }
 
-        total_force += capped_force; // attachment constraint only affects one vertex, so the vector only has 1 element
-
-        std::cout << "forces[0]: " << forces[0].transpose() << std::endl;
+        total_force += capped_force; 
     }
 
     // smooth forces
@@ -1019,7 +1070,6 @@ void VirtuosoArm::_grasperToolAction()
 
     // if (new_tip_force.norm() > 10)
     //     throw std::runtime_error("fart!");
-    
 }
 
 void VirtuosoArm::_cauteryToolAction()

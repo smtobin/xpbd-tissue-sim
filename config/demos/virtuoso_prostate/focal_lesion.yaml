@@ -42,7 +42,7 @@ end-time: 5000000000000
 #     (this is the robotics convention, opposite the convention that tf uses)
 # - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
 CT-to-VB-transform-translation: [0.1, 0.1, 0.15]  # in meters
-CT-to-VB-transform-rotation: [0.6, 0, 0]  # XYZ Euler angle convention
+CT-to-VB-transform-rotation: [34.4, 0, 0]  # XYZ Euler angle convention
 
 
 # === Simulation rendering settings ===
@@ -93,7 +93,7 @@ materials:
     roughness: 0.2
     smooth-normals: true
     draw-points: false
-    draw-edges: false
+    draw-edges: true
     draw-faces: true
   
   -
@@ -170,11 +170,11 @@ objects:
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 6e-3
+      outer-tube-translation: 0e-3
       outer-tube-rotation: 60
       inner-tube-rotation: 0
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 25e-3
+      inner-tube-translation: 0e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20
@@ -190,11 +190,11 @@ objects:
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 6e-3
+      outer-tube-translation: 0e-3
       outer-tube-rotation: -45
       inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 10e-3
+      inner-tube-translation: 0e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20

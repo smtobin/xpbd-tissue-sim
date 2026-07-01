@@ -26,7 +26,9 @@ class VirtuosoCTAnatomySimulationConfig : public VirtuosoSimulationConfig
 
     Geometry::TransformationMatrix CTtoVBTransform() const
     {
-        Mat3r rot_mat = GeometryUtils::quatToMat(GeometryUtils::eulXYZ2Quat(_CT_to_VB_rotation.value[0], _CT_to_VB_rotation.value[1], _CT_to_VB_rotation.value[2]));
+        Mat3r rot_mat = GeometryUtils::quatToMat(GeometryUtils::eulXYZ2Quat(_CT_to_VB_rotation.value[0] * M_PI/180.0, _CT_to_VB_rotation.value[1] * M_PI/180.0, _CT_to_VB_rotation.value[2] * M_PI/180.0));
+        
+        std::cout << "Rot: " << rot_mat << std::endl;
         return Geometry::TransformationMatrix(rot_mat, _CT_to_VB_translation.value);
     }
 

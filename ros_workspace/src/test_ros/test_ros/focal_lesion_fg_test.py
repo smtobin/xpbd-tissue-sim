@@ -29,8 +29,8 @@ class FocalLesionFGClient(Node):
         )
 
         # colors for output meshes
-        self.prostate_color = [1.0, 0.6, 0.5, 0.2]
-        self.lesion_color = [1.0, 0.0, 1.0, 1.0]
+        self.prostate_color = [1.0, 0.05, 0.05, 0.2]
+        self.lesion_color = [0.0, 1.0, 1.0, 1.0]
 
          # Wait for service to be available
         while not self.client.wait_for_service(timeout_sec=1.0):
@@ -64,7 +64,7 @@ class FocalLesionFGClient(Node):
             self.get_logger().info(f'Initial mesh: {response.fg_state.sim_mesh.vertices.size} vertices (total size), {response.fg_state.sim_mesh.faces.size} faces (total size), and {response.fg_state.sim_mesh.elements.size} elements (total size)')
 
             # now start periodic timer
-            self.timer = self.create_timer(1.0, self.send_request)
+            self.timer = self.create_timer(0.2, self.send_request)
 
         except Exception as e:
             self.get_logger().error(f'Initial call failed: {e}')

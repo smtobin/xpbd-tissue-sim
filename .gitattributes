@@ -1,0 +1,2 @@
+resource/lfs/** filter=lfs diff=lfs merge=lfs -text
+resource/lfs/FLR filter=lfs diff=lfs merge=lfs -text

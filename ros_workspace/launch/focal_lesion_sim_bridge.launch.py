@@ -38,7 +38,7 @@ def generate_launch_description():
 
     CTtoVBRotation_arg = DeclareLaunchArgument(
         'CT_to_VB_rotation',
-        default_value = TextSubstitution(text='[0.6, 0, 0]'),
+        default_value = TextSubstitution(text='[34.4, 0, 0]'),
         description='Specifies the rotation part of the (initial) CT -> VB transform. Specified as XYZ Euler angles, in degrees.'
     )
 

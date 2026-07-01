@@ -13,6 +13,7 @@
 #include "solver/constraint/StaticDeformableCollisionConstraint.hpp"
 #include "solver/constraint/RigidDeformableCollisionConstraint.hpp"
 #include "solver/constraint/OffsetAttachmentConstraint.hpp"
+#include "solver/constraint/FaceOffsetAttachmentConstraint.hpp"
 #include "solver/constraint/AttachmentConstraint.hpp"
 
 #include "geometry/DeformableMeshSDF.hpp"
@@ -186,6 +187,18 @@ public:
 
     /** Clears all offset attachment constraint that are on this object. */
     virtual void clearOffsetAttachmentConstraints() = 0;
+
+    /** Adds an face offset attachment constraint applied to the vertex at the specified index.
+     * @param face_ind : the index of the face
+     * @param bary_coords : the barycentric coordinates describing the point within the face that is attached
+     * @param attach_pos_ptr : a pointer to the position for the vertex to be attached to
+     * @param attachment_offset : an optional offset between the attachment position and the vertex. The vertex position will be (*attach_pos_ptr + attachment_offset).
+     */
+    virtual Solver::ConstraintProjectorReference<Solver::ConstraintProjector<IsFirstOrder, Solver::FaceOffsetAttachmentConstraint>>  
+    addFaceOffsetAttachmentConstraint(int elem_ind, const Vec3r& bary_coords, const Vec3r* attach_pos_ptr, const Vec3r& attachment_offset) = 0;
+
+    /** Clears all element offset attachment constraint that are on this object. */
+    virtual void clearFaceOffsetAttachmentConstraints() = 0;
 
     /** Adds an attachment constraint applied to the vertex at the specified index
      * @param v_ind : the index of the vertex
