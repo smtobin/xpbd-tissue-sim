@@ -214,6 +214,7 @@ add_library(VirtuosoSimulation)
 add_library(PalpationSimulation)
 add_library(InitialDeformationSimulation)
 add_library(FixedObjectSimulation)
+add_library(StiffnessMapSimulation)
 add_subdirectory("src/simulation")
 
 
@@ -226,6 +227,7 @@ target_link_libraries(VirtuosoSimulation Simulation Haptics)
 target_link_libraries(PalpationSimulation VirtuosoSimulation)
 target_link_libraries(InitialDeformationSimulation Config Simulation)
 target_link_libraries(FixedObjectSimulation Config Simulation)
+target_link_libraries(StiffnessMapSimulation Config Simulation)
 
 
 
@@ -250,6 +252,9 @@ target_link_libraries(PalpationDemo PalpationSimulation)
 
 add_executable(FixedObjectSim src/exec/fixed_object_main.cpp)
 target_link_libraries(FixedObjectSim FixedObjectSimulation)
+
+add_executable(StiffnessMapSim src/exec/stiffness_map_main.cpp)
+target_link_libraries(StiffnessMapSim StiffnessMapSimulation)
 
 add_executable(InitialDeformationTest src/exec/initial_deformation_test_main.cpp)
 target_link_libraries(InitialDeformationTest InitialDeformationSimulation)

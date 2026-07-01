@@ -175,6 +175,30 @@ install(TARGETS FixedObjectSimulation EXPORT XPBDSim-targets
 install(FILES ${FIXED_CUBE_SIMULATION_HEADERS}
     DESTINATION include/${PROJECT_NAME}/simulation)
 
+###################################
+# Stiffness map simulation
+###################################
+set (STIFFNESS_MAP_SIMULATION_HEADERS
+    "${SIMULATION_INCLUDE_DIR}/StiffnessMapSimulation.hpp"
+)
+
+set (STIFFNESS_MAP_SIMULATION_SOURCES
+    "${SIMULATION_SRC_DIR}/StiffnessMapSimulation.cpp"
+)
+
+target_sources(StiffnessMapSimulation
+    PRIVATE
+        ${STIFFNESS_MAP_SIMULATION_HEADERS}
+        ${STIFFNESS_MAP_SIMULATION_SOURCES}    
+)
+
+install(TARGETS StiffnessMapSimulation EXPORT XPBDSim-targets
+    RUNTIME DESTINATION bin/${PROJECT_NAME}
+    LIBRARY DESTINATION bin/${PROJECT_NAME}
+)
+install(FILES ${STIFFNESS_MAP_SIMULATION_HEADERS}
+    DESTINATION include/${PROJECT_NAME}/simulation)
+
 # target_sources(BeamStretchSimulation
 #     PRIVATE
 #         ${SIMULATION_INCLUDE_DIR}/BeamStretchSimulation.hpp
