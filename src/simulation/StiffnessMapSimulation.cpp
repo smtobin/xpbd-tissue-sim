@@ -94,7 +94,7 @@ void StiffnessMapSimulation::_timeStep()
     {
         std::cout << " Reached steady-state for direction " << _dir_index << "! Reading force..." << std::endl;
         std::vector<Vec3r> constraint_forces = _attachment_constraint_proj.constraintForces();
-        Vec3r net_force = -std::reduce(constraint_forces.cbegin(), constraint_forces.cend());
+        Vec3r net_force = std::reduce(constraint_forces.cbegin(), constraint_forces.cend());
 
         _cur_stiffness_matrix.col(_dir_index) = net_force / _displacement_magnitude;
 

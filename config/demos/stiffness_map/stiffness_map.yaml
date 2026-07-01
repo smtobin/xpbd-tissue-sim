@@ -34,7 +34,7 @@ fps: 30
 # the simulation end time
 end-time: 5000000000000
 
-displacement-magnitude: 1e-4
+displacement-magnitude: 1e-6
 time-to-steady-state: 50
 
 
