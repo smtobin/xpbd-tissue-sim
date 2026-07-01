@@ -73,6 +73,7 @@ void XPBDMeshObject_Base_<IsFirstOrder>::serialize(std::vector<std::byte>& buf) 
     pack(buf, _material_classes);
     pack(buf, _vertex_masses);
     pack(buf, _is_fixed_vertex);
+    pack(buf, _vertex_applied_force);
     pack(buf, _sdf);
     pack(buf, _heat_solver);
     pack(buf, _adaptive_mesh_refinement);
@@ -94,6 +95,7 @@ void XPBDMeshObject_Base_<IsFirstOrder>::deserialize(const std::byte*& buf)
     unpack(buf, _material_classes);
     unpack(buf, _vertex_masses);
     unpack(buf, _is_fixed_vertex);
+    unpack(buf, _vertex_applied_force);
     unpack(buf, _sdf);
     unpack(buf, _heat_solver);
     unpack(buf, _adaptive_mesh_refinement);
@@ -235,6 +237,9 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
     {
         _previous_vertices[vert_ind] = _mesh->vertex(vert_ind);
     }
+
+    // initialize vertex applied forces
+    _vertex_applied_force.resize(_mesh->vertices().totalSize(), Vec3r::Zero());
     
     // initialize each vertex's velocity with the specified bulk initial velocity
     _vertex_velocities.resize(_mesh->vertices().totalSize());
@@ -683,8 +688,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_m
     {
         for (const auto& index : _mesh->vertices().validIndices())
         {
-            const Real dz = -_sim->gAccel() * _vertex_masses[index] * dt / _vertex_B[index];
-            _mesh->displaceVertex(index, Vec3r(0,0,dz));
+            Vec3r g_force = Vec3r(0, 0, -_sim->gAccel() * _vertex_masses[index]);
+            Vec3r total_force = g_force + _vertex_applied_force[index];
+            Vec3r dx = total_force * dt / _vertex_B[index];
+            _mesh->displaceVertex(index, dx);
         }
         
     }
@@ -696,8 +703,10 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_m
             _mesh->displaceVertex(index, dt*_vertex_velocities[index]);
 
             // external forces (right now just gravity, which acts in -z direction)
-            const Real dz = -_sim->gAccel() * dt * dt;
-            _mesh->displaceVertex(index, Vec3r(0, 0, dz));
+            Vec3r g_force = Vec3r(0, 0, -_sim->gAccel() * _vertex_masses[index]);
+            Vec3r total_force = g_force + _vertex_applied_force[index];
+            Vec3r dx = total_force * dt * dt / _vertex_masses[index];
+            _mesh->displaceVertex(index, dx);
         }
     }
 }

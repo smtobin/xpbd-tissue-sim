@@ -5,12 +5,13 @@ namespace Sim
 
 StiffnessMapSimulation::StiffnessMapSimulation(const Config::StiffnessMapSimulationConfig* config)
     : Simulation(config),
-    _displacement_magnitude(config->displacementMagnitude()),
+    _force_magnitude(config->displacementMagnitude()),
     _time_to_steady_state(config->timeToSteadyState()),
-    _applying_force(false)
-    
+    _force_application_time(-100000),
+    _applying_force(false),
+    _releasing_force(false)
 {
-    // _query_points.emplace(0, Vec3r(0.3, 0.5, 0.2));
+    _query_points.emplace(0, Vec3r(0.3, 0.5, 0.2));
 }
 
 void StiffnessMapSimulation::setup()
@@ -34,13 +35,10 @@ void StiffnessMapSimulation::_timeStep()
     Simulation::_timeStep();
 
     // if we are not already applying a displacement and there is a query point in the queue, start applying a displacement
-    if (!_applying_force && !_query_points.empty())
+    if (!_applying_force && !_releasing_force && !_query_points.empty() && _time > _force_application_time + _time_to_steady_state*2)
     {
         _applying_force = true;
         _dir_index = 0;
-
-        // record the time that we started applying this force
-        _displacement_application_time = _time;
 
         // get the query point at the front of the queue
         _cur_query_point = _query_points.front();
@@ -57,9 +55,9 @@ void StiffnessMapSimulation::_timeStep()
         const Vec3r& v1 = _tissue_obj.mesh()->vertex(face[0]);
         const Vec3r& v2 = _tissue_obj.mesh()->vertex(face[1]);
         const Vec3r& v3 = _tissue_obj.mesh()->vertex(face[2]);
-        _initial_attach_position = _cur_query_point.face_barys[0]*v1 + _cur_query_point.face_barys[1]*v2 + _cur_query_point.face_barys[2]*v3;
+        _initial_position = _cur_query_point.face_barys[0]*v1 + _cur_query_point.face_barys[1]*v2 + _cur_query_point.face_barys[2]*v3;
 
-        std::cout << "  Initial position: " << _initial_attach_position.transpose() << std::endl;
+        std::cout << "  Initial position: " << _initial_position.transpose() << std::endl;
 
         if (_tissue_obj.vertexFixed(face[0]) || _tissue_obj.vertexFixed(face[1]) || _tissue_obj.vertexFixed(face[2]))
         {
@@ -67,63 +65,87 @@ void StiffnessMapSimulation::_timeStep()
             _applying_force = false;
             return;
         }
-        
 
-        // the prescribed displacement is initially in the x direction
-        _prescribed_displacement = Vec3r(_displacement_magnitude, 0, 0);
-        _attach_position = _initial_attach_position + _prescribed_displacement;
+        // record the time that we started applying this force
+        _force_application_time = _time;
 
-        std::cout << "  Attach position: " << _attach_position.transpose() << std::endl;
-
-        std::cout << " Creating attachment constraint..." << std::endl;
-        // create the face attachment constraint
-        _attachment_constraint_proj = _tissue_obj.addFaceOffsetAttachmentConstraint(
-            _cur_query_point.face_ind,
-            _cur_query_point.face_barys,
-            &_attach_position,
-            Vec3r::Zero()
-        );
-
-        std::cout << " Displacement application time: " << _displacement_application_time << std::endl;
-        std::cout << " Waiting until: " << _displacement_application_time + _time_to_steady_state << std::endl;
+        // apply forces proportional to barycentric coordinates
+        Vec3r total_force = _force_magnitude*Vec3r(1,0,0);
+        for (int i = 0; i < 3; i++)
+        {
+            Vec3r force_i = _cur_query_point.face_barys[i]*total_force;
+            _tissue_obj.setVertexAppliedForce(face[i], force_i);
+        }
     }
 
     // assume that after a certain amount of time we have reached steady state
-    // calculate the force and assemble the stiffness matrix
-    if (_applying_force && _time > _displacement_application_time + _time_to_steady_state)
+    // calculate the net displacement and assemble the compliance matrix
+    // then, release the applied force
+    if (_applying_force && _time > _force_application_time + _time_to_steady_state)
     {
         std::cout << " Reached steady-state for direction " << _dir_index << "! Reading force..." << std::endl;
-        std::vector<Vec3r> constraint_forces = _attachment_constraint_proj.constraintForces();
-        Vec3r net_force = std::reduce(constraint_forces.cbegin(), constraint_forces.cend());
+        // std::vector<Vec3r> constraint_forces = _attachment_constraint_proj.constraintForces();
+        // Vec3r net_force = std::reduce(constraint_forces.cbegin(), constraint_forces.cend());
 
-        _cur_stiffness_matrix.col(_dir_index) = net_force / _displacement_magnitude;
+        const Vec3i& face = _tissue_obj.mesh()->face(_cur_query_point.face_ind);
+        const Vec3r& v1 = _tissue_obj.mesh()->vertex(face[0]);
+        const Vec3r& v2 = _tissue_obj.mesh()->vertex(face[1]);
+        const Vec3r& v3 = _tissue_obj.mesh()->vertex(face[2]);
+        Vec3r cur_attach_position = _cur_query_point.face_barys[0]*v1 + _cur_query_point.face_barys[1]*v2 + _cur_query_point.face_barys[2]*v3;
+        Vec3r displacement = cur_attach_position - _initial_position;
 
-        // reset the displacement application time
-        _displacement_application_time = _time;
+        _cur_compliance_matrix.col(_dir_index) = displacement / _force_magnitude;
 
-        // switch the prescribed displacement
+        for (int i = 0; i < 3; i++)
+        {
+            _tissue_obj.setVertexAppliedForce(face[i], Vec3r::Zero());
+        }
+
+        // release the force
+        _releasing_force = true;
+        _applying_force = false;
+    }
+
+    // assume that after a certain amount of time releasing the force we have reached steady state (the initial state) again
+    // apply the next force
+    if (_releasing_force && _time > _force_application_time + 2*_time_to_steady_state)
+    {
+        std::cout << " Reached steady-state after releasing force for direction " << _dir_index << "! Moving to next direction..." << std::endl;
+
+        const Vec3i& face = _tissue_obj.mesh()->face(_cur_query_point.face_ind);
+        const Vec3r& v1 = _tissue_obj.mesh()->vertex(face[0]);
+        const Vec3r& v2 = _tissue_obj.mesh()->vertex(face[1]);
+        const Vec3r& v3 = _tissue_obj.mesh()->vertex(face[2]);
+        _initial_position = _cur_query_point.face_barys[0]*v1 + _cur_query_point.face_barys[1]*v2 + _cur_query_point.face_barys[2]*v3;
+
+        // switch the prescribed force
         _dir_index++;
+        Vec3r total_force = Vec3r::Zero();
         if (_dir_index == 1)
-            _prescribed_displacement = Vec3r(0, _displacement_magnitude, 0);
+            total_force = _force_magnitude*Vec3r(0,1,0);
         else if (_dir_index == 2)
-            _prescribed_displacement = Vec3r(0, 0, _displacement_magnitude);
+            total_force = _force_magnitude*Vec3r(0,0,1);
         else
         {
             // dir_index > 2 ==> we are done
             _applying_force = false;
-            _tissue_obj.clearFaceOffsetAttachmentConstraints();
-            std::cout << "Stiffness matrix:\n" << _cur_stiffness_matrix << std::endl;
-            _results.emplace_back(_cur_query_point, _cur_stiffness_matrix);
+            _releasing_force = false;
+            std::cout << "Stiffness matrix:\n" << _cur_compliance_matrix << std::endl;
+            _results.emplace_back(_cur_query_point, _cur_compliance_matrix);
 
             return;
         }
 
-        // update the attach position
-        _attach_position = _initial_attach_position + _prescribed_displacement;
-    }
-    else if (_applying_force)
-    {
-        // std::cout << " Waiting..." << std::endl;
+        for (int i = 0; i < 3; i++)
+        {
+            Vec3r force_i = _cur_query_point.face_barys[i]*total_force;
+            _tissue_obj.setVertexAppliedForce(face[i], force_i);
+        }
+
+        _applying_force = true;
+
+        // reset the displacement application time
+        _force_application_time = _time;
     }
 }
 

@@ -24,7 +24,7 @@ setup(
             'removed_elements_test = test_ros.removed_elements_test:main',
             'fg_test = test_ros.fg_test:main',
             'focal_lesion_fg_test = test_ros.focal_lesion_fg_test:main',
-            'local_stiffness_mat_test = test_ros.local_stiffness_mat_test:main'
+            'local_compliance_mat_test = test_ros.local_compliance_mat_test:main'
         ],
     },
 )

@@ -54,7 +54,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MeshState.msg"
   "msg/FactorGraphState.msg"
   "msg/PointOnFace.msg"
-  "msg/LocalStiffnessMatrix.msg"
+  "msg/LocalComplianceMatrix.msg"
   "srv/SaveCheckpoint.srv"
   "srv/RestoreCheckpoint.srv"
   "srv/FactorGraphState.srv"

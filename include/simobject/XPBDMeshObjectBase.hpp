@@ -114,6 +114,10 @@ public:
      */
     bool vertexFixed(int index) const { return _is_fixed_vertex[index]; }
 
+    /** Force applied to the vertex. */
+    Vec3r vertexAppliedForce(int index) const { return _vertex_applied_force[index]; }
+    void setVertexAppliedForce(int index, const Vec3r& new_force) { _vertex_applied_force[index] = new_force; }
+
     /** The mass of the vertex at the specified index.
      * @param index : the index of the vertex
      * @returns the mass of the vertex at the specified index
@@ -336,6 +340,8 @@ protected:
     std::vector<Real> _vertex_masses;
     /** Whether or not a given vertex is fixed. */
     std::vector<bool> _is_fixed_vertex;
+    /** Force applied at a vertex. */
+    std::vector<Vec3r> _vertex_applied_force;
 
     /** Signed Distance Field for the deformable object. Must be created explicitly with createSDF(). */
     std::optional<SDFType> _sdf;

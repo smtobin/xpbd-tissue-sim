@@ -14,15 +14,15 @@ public:
         : SimulationConfig(node)
     {
         _extractParameter("time-to-steady-state", node, _time_to_steady_state);
-        _extractParameter("displacement-magnitude", node, _displacement_magnitude);
+        _extractParameter("displacement-magnitude", node, _force_magnitude);
     }
 
     Real timeToSteadyState() const { return _time_to_steady_state.value; }
-    Real displacementMagnitude() const { return _displacement_magnitude.value; }
+    Real displacementMagnitude() const { return _force_magnitude.value; }
 
 protected:
     ConfigParameter<Real> _time_to_steady_state = ConfigParameter<Real>(1);
-    ConfigParameter<Real> _displacement_magnitude = ConfigParameter<Real>(5e-3);
+    ConfigParameter<Real> _force_magnitude = ConfigParameter<Real>(5e-3);
 };
 
 } // namespace Config

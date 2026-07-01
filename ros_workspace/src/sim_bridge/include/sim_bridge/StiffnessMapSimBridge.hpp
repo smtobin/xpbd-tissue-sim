@@ -15,7 +15,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 
-#include "sim_bridge/msg/local_stiffness_matrix.hpp"
+#include "sim_bridge/msg/local_compliance_matrix.hpp"
 #include "sim_bridge/msg/point_on_face.hpp"
 
 class StiffnessMapSimBridge : public rclcpp::Node
@@ -28,7 +28,7 @@ protected:
 
     Sim::StiffnessMapSimulation* _sim;
 
-    rclcpp::Publisher<sim_bridge::msg::LocalStiffnessMatrix>::SharedPtr _stiffness_mat_publisher;
+    rclcpp::Publisher<sim_bridge::msg::LocalComplianceMatrix>::SharedPtr _compliance_mat_publisher;
     rclcpp::Subscription<sim_bridge::msg::PointOnFace>::SharedPtr _query_subscriber;
 
     // last index in the vector of results published

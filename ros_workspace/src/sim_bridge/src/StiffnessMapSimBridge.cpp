@@ -6,7 +6,7 @@ StiffnessMapSimBridge::StiffnessMapSimBridge(Sim::StiffnessMapSimulation* sim)
      _last_ind_published(-1)
 {
     // set up publisher for local stiffness matrices
-    _stiffness_mat_publisher = this->create_publisher<sim_bridge::msg::LocalStiffnessMatrix>("sim/output/local_stiffness_mats", 10);
+    _compliance_mat_publisher = this->create_publisher<sim_bridge::msg::LocalComplianceMatrix>("sim/output/local_stiffness_mats", 10);
 
     auto publisher_callback = [this]() -> void
     {
@@ -16,7 +16,7 @@ StiffnessMapSimBridge::StiffnessMapSimBridge(Sim::StiffnessMapSimulation* sim)
             _last_ind_published++;
 
             // new results - publish the next one
-            sim_bridge::msg::LocalStiffnessMatrix msg;
+            sim_bridge::msg::LocalComplianceMatrix msg;
             msg.header.stamp = this->now();
             msg.header.frame_id = "sim/world";
 
@@ -25,12 +25,12 @@ StiffnessMapSimBridge::StiffnessMapSimBridge(Sim::StiffnessMapSimulation* sim)
             msg.point_on_face.face_barys.x = barys[0];
             msg.point_on_face.face_barys.y = barys[1];
             msg.point_on_face.face_barys.z = barys[2];
-            msg.stiffness_mat.resize(9);
+            msg.compliance_mat.resize(9);
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
-                    msg.stiffness_mat[3*i + j] = results[_last_ind_published].stiffness_mat(i,j);
+                    msg.compliance_mat[3*i + j] = results[_last_ind_published].compliance_mat(i,j);
             
-            this->_stiffness_mat_publisher->publish(msg);
+            this->_compliance_mat_publisher->publish(msg);
         }
     };
     _sim->addCallback(1.0/30.0, publisher_callback);

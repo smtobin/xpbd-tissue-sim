@@ -68,6 +68,7 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     using Base::_material_classes;
     using Base::_vertex_masses;
     using Base::_is_fixed_vertex;
+    using Base::_vertex_applied_force;
     using Base::_sdf;
     using Base::_heat_solver;
     using Base::_adaptive_mesh_refinement;

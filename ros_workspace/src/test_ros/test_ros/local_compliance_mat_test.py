@@ -1,19 +1,19 @@
 import rclpy
 from rclpy.node import Node
-from sim_bridge.msg import PointOnFace, LocalStiffnessMatrix
+from sim_bridge.msg import PointOnFace, LocalComplianceMatrix
 import numpy as np
 import scipy.sparse as sp
 import time
 
 
-class LocalStiffnessMatTester(Node):
+class LocalComplianceMatTester(Node):
     def __init__(self):
         super().__init__('stiffness_matrix_test')
         
-        self.stiffness_mat_subscription = self.create_subscription(
-            LocalStiffnessMatrix,
+        self.compliance_mat_subscription = self.create_subscription(
+            LocalComplianceMatrix,
             'sim/output/local_stiffness_mats',
-            self.stiffness_mat_callback,
+            self.compliance_mat_callback,
             10)
 
         self.query_point_publisher = self.create_publisher(
@@ -43,17 +43,17 @@ class LocalStiffnessMatTester(Node):
 
             
 
-    def stiffness_mat_callback(self, msg):
+    def compliance_mat_callback(self, msg):
         print("Received message!")
 
-        K = np.array(msg.stiffness_mat, dtype=np.float32).reshape((3, 3))
-        print(f"Stiffness at Face {msg.point_on_face.face_ind}, Bary coords ({msg.point_on_face.face_barys.x}, {msg.point_on_face.face_barys.y}, {msg.point_on_face.face_barys.z}):\n{K}")
+        K = np.array(msg.compliance_mat, dtype=np.float32).reshape((3, 3))
+        print(f"Compliance at Face {msg.point_on_face.face_ind}, Bary coords ({msg.point_on_face.face_barys.x}, {msg.point_on_face.face_barys.y}, {msg.point_on_face.face_barys.z}):\n{K}")
 
         
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LocalStiffnessMatTester()
+    node = LocalComplianceMatTester()
     
     try:
         rclpy.spin(node)

@@ -29,10 +29,10 @@ public:
     struct QueryResult
     {
         QueryPoint query_point;
-        Mat3r stiffness_mat;
+        Mat3r compliance_mat;
 
         QueryResult(QueryPoint qp, Mat3r mat)
-            : query_point(qp), stiffness_mat(mat)
+            : query_point(qp), compliance_mat(mat)
         {}
     };
 
@@ -58,7 +58,7 @@ protected:
 
     XPBDMeshObject_BasePtrWrapper _tissue_obj;    // the tissue XPBD object that is being manipulated
 
-    Real _displacement_magnitude; 
+    Real _force_magnitude; 
     Real _time_to_steady_state;
 
     
@@ -66,18 +66,17 @@ protected:
     
     QueryPoint _cur_query_point;
     int _dir_index;
-    Vec3r _initial_attach_position;
-    Vec3r _attach_position;
-    Vec3r _prescribed_displacement;
-    Mat3r _cur_stiffness_matrix;
+    Vec3r _initial_position;
+    Mat3r _cur_compliance_matrix;
 
     Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint> _attachment_constraint_proj;
 
-    Real _displacement_application_time;
+    Real _force_application_time;
 
     std::vector<QueryResult> _results;
 
     bool _applying_force;
+    bool _releasing_force;
 };
 
 } // namespace Sim

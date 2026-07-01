@@ -139,6 +139,16 @@ public:
         return std::visit([&](const auto& obj) { return obj->vertexFixed(index); }, _variant);
     }
 
+    Vec3r vertexAppliedForce(int index) const
+    {
+        return std::visit([&](const auto& obj) { return obj->vertexAppliedForce(index); }, _variant);
+    }
+
+    void setVertexAppliedForce(int index, const Vec3r& new_force)
+    {
+        std::visit([&](const auto& obj) { obj->setVertexAppliedForce(index, new_force); }, _variant);
+    }
+
     Real vertexMass(int index) const
     {
         return std::visit([&](const auto& obj) { return obj->vertexMass(index); }, _variant);

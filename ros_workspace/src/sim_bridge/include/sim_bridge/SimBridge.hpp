@@ -228,7 +228,7 @@ private:
     void _setupStiffnessMatrixPublisher(int index, XPBDMeshObject_BaseType* xpbd_obj)
     {
         std::string topic_name = "/sim/output/stiffness_mat_" + std::to_string(index);
-        _stiffness_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
+        _compliance_mat_publishers[index] = this->create_publisher<sim_bridge::msg::SparseMatrix>(topic_name, 3);
         
         auto mat_callback = 
             [this, index, xpbd_obj]() -> void {
@@ -252,7 +252,7 @@ private:
                     }
                 }
 
-                this->_stiffness_mat_publishers[index]->publish(msg);
+                this->_compliance_mat_publishers[index]->publish(msg);
             };
 
         // add the callback, but specify to use the internal simulation time to determine when to publish, rather than wall clock time
@@ -580,7 +580,7 @@ protected:
     std::vector<rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr> _mesh_pcl_publishers;    // publishes the current mesh vertices as a ROS point cloud (for easy ROS visualization)
 
     std::vector<sim_bridge::msg::SparseMatrix> _stiffness_mat_messages;
-    std::vector<rclcpp::Publisher<sim_bridge::msg::SparseMatrix>::SharedPtr> _stiffness_mat_publishers;
+    std::vector<rclcpp::Publisher<sim_bridge::msg::SparseMatrix>::SharedPtr> _compliance_mat_publishers;
 
     std::vector<std_msgs::msg::Float64MultiArray> _vertices_mat_messages;
     std::vector<rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> _vertices_mat_publishers;
