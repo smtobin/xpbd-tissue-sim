@@ -113,6 +113,8 @@ void StiffnessMapSimulation::_timeStep()
             _applying_force = false;
             _tissue_obj.clearFaceOffsetAttachmentConstraints();
             std::cout << "Stiffness matrix:\n" << _cur_stiffness_matrix << std::endl;
+            _results.emplace_back(_cur_query_point, _cur_stiffness_matrix);
+
             return;
         }
 
@@ -121,7 +123,7 @@ void StiffnessMapSimulation::_timeStep()
     }
     else if (_applying_force)
     {
-        std::cout << " Waiting..." << std::endl;
+        // std::cout << " Waiting..." << std::endl;
     }
 }
 

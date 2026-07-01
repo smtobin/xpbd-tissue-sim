@@ -103,7 +103,7 @@ class FaceOffsetAttachmentConstraint : public Constraint
         Vec3r attach_pt = (*_attached_pos_ptr + _attachment_offset);
         Vec3r element_pt = _elementPoint();
 
-        std::cout << "FaceOffsetAttachmentConstraint::evaluateWithGradient: attach_pt: " << attach_pt.transpose() << "  element pt: " << element_pt.transpose() << std::endl;
+        // std::cout << "FaceOffsetAttachmentConstraint::evaluateWithGradient: attach_pt: " << attach_pt.transpose() << "  element pt: " << element_pt.transpose() << std::endl;
         const Real dist = ( element_pt - attach_pt ).norm();
         *C = _undershoot_frac*dist;
 

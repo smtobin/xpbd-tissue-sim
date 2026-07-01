@@ -12,26 +12,6 @@ namespace Sim
 class StiffnessMapSimulation : public Simulation
 {
 public:
-
-    StiffnessMapSimulation(const Config::StiffnessMapSimulationConfig* config);
-
-    virtual std::string type() const override { return "SitffnessMapSimulation"; }
-
-    virtual void setup() override;
-
-    const Geometry::TetMesh* tissueMesh() const { assert(_tissue_obj); return _tissue_obj.tetMesh(); }
-
-protected:
-    
-    void _timeStep() override;
-
-protected:
-
-    XPBDMeshObject_BasePtrWrapper _tissue_obj;    // the tissue XPBD object that is being manipulated
-
-    Real _displacement_magnitude; 
-    Real _time_to_steady_state;
-
     /** For querying points on the mesh */
     struct QueryPoint
     {
@@ -45,6 +25,40 @@ protected:
         QueryPoint()
         {}
     };
+
+    struct QueryResult
+    {
+        QueryPoint query_point;
+        Mat3r stiffness_mat;
+
+        QueryResult(QueryPoint qp, Mat3r mat)
+            : query_point(qp), stiffness_mat(mat)
+        {}
+    };
+
+    StiffnessMapSimulation(const Config::StiffnessMapSimulationConfig* config);
+
+    virtual std::string type() const override { return "SitffnessMapSimulation"; }
+
+    virtual void setup() override;
+
+    const Geometry::TetMesh* tissueMesh() const { assert(_tissue_obj); return _tissue_obj.tetMesh(); }
+
+    void addQueryPoint(int face_ind, const Vec3r& face_barys) { _query_points.emplace(face_ind, face_barys); }
+    const std::vector<QueryResult>& queryResults() const { return _results; }
+
+protected:
+    
+    void _timeStep() override;
+
+protected:
+
+    XPBDMeshObject_BasePtrWrapper _tissue_obj;    // the tissue XPBD object that is being manipulated
+
+    Real _displacement_magnitude; 
+    Real _time_to_steady_state;
+
+    
     std::queue<QueryPoint> _query_points;
     
     QueryPoint _cur_query_point;
@@ -57,6 +71,8 @@ protected:
     Solver::ConstraintProjectorReferenceWrapper<Solver::FaceOffsetAttachmentConstraint> _attachment_constraint_proj;
 
     Real _displacement_application_time;
+
+    std::vector<QueryResult> _results;
 
     bool _applying_force;
 };

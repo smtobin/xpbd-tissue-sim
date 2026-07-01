@@ -22,6 +22,8 @@
 
 #include "common/XPBDEnumTypes.hpp"
 
+#include <Eigen/Sparse>
+
 #include <variant>
 
 // TODO: resolve circular dependenciees! Too many bandaids everywhere
