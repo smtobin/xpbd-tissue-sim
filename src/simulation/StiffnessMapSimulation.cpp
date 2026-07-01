@@ -10,7 +10,7 @@ StiffnessMapSimulation::StiffnessMapSimulation(const Config::StiffnessMapSimulat
     _applying_force(false)
     
 {
-    _query_points.emplace(0, Vec3r(0.3, 0.5, 0.2));
+    // _query_points.emplace(0, Vec3r(0.3, 0.5, 0.2));
 }
 
 void StiffnessMapSimulation::setup()

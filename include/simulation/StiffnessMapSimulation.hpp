@@ -44,7 +44,10 @@ public:
 
     const Geometry::TetMesh* tissueMesh() const { assert(_tissue_obj); return _tissue_obj.tetMesh(); }
 
-    void addQueryPoint(int face_ind, const Vec3r& face_barys) { _query_points.emplace(face_ind, face_barys); }
+    void addQueryPoint(int face_ind, const Vec3r& face_barys) { 
+        std::cout << "Adding query point! Face ind: " << face_ind << "  Barys: " << face_barys.transpose() << std::endl;
+        _query_points.emplace(face_ind, face_barys); 
+    }
     const std::vector<QueryResult>& queryResults() const { return _results; }
 
 protected:

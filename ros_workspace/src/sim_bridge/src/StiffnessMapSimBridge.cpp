@@ -6,7 +6,7 @@ StiffnessMapSimBridge::StiffnessMapSimBridge(Sim::StiffnessMapSimulation* sim)
      _last_ind_published(-1)
 {
     // set up publisher for local stiffness matrices
-    _stiffness_mat_publisher = this->create_publisher<sim_bridge::msg::LocalStiffnessMatrix>("sim/local_stiffness_mats", 10);
+    _stiffness_mat_publisher = this->create_publisher<sim_bridge::msg::LocalStiffnessMatrix>("sim/output/local_stiffness_mats", 10);
 
     auto publisher_callback = [this]() -> void
     {
@@ -38,13 +38,16 @@ StiffnessMapSimBridge::StiffnessMapSimBridge(Sim::StiffnessMapSimulation* sim)
     // set up subscriber for incoming query points
     auto query_point_callback = [&](sim_bridge::msg::PointOnFace::UniquePtr msg)
     {
-        auto callback = [&]() -> void
+        std::cout << "Received query point!" << std::endl;
+        std::cout << "  Face index: " << msg->face_ind << std::endl;
+        std::cout << "  Barys: " << msg->face_barys.x << ", " << msg->face_barys.y << ", " << msg->face_barys.z << std::endl;
+        Vec3r barys(msg->face_barys.x, msg->face_barys.y, msg->face_barys.z);
+        int face_ind = msg->face_ind;
+        auto callback = [this, face_ind, barys]() -> void
         {
-            Vec3r barys(msg->face_barys.x, msg->face_barys.y, msg->face_barys.z);
-            int face_ind = msg->face_ind;
             this->_sim->addQueryPoint(face_ind, barys);
         };
         this->_sim->addOneTimeCallback(callback);
     };
-    _query_subscriber = this->create_subscription<sim_bridge::msg::PointOnFace>("sim/stiffness_query_points", 10, query_point_callback);
+    _query_subscriber = this->create_subscription<sim_bridge::msg::PointOnFace>("sim/input/stiffness_query_points", 10, query_point_callback);
 }
