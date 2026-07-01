@@ -23,8 +23,8 @@ haptic-force-scaling: 0
 g-accel: 0 # m/s2
 
 # simulation "mode" - should always use As Fast As Possible ("AFAP") with 1st order sims
-# sim-mode: "AFAP"
-sim-mode: "Frame-by-frame"
+sim-mode: "AFAP"
+# sim-mode: "Frame-by-frame"
 # the "time step" (doesn't correspond to physical time for 1st order sims)
 time-step: 3.33e-3
 # the rate (Hz) at which to do collision detection
@@ -35,6 +35,7 @@ fps: 30
 end-time: 5000000000000
 
 displacement-magnitude: 1e-4
+time-to-steady-state: 50
 
 
 # === Simulation rendering settings ===

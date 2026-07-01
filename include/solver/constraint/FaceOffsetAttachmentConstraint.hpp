@@ -21,7 +21,9 @@ class FaceOffsetAttachmentConstraint : public Constraint
         int v3, Real m3,
         PositionReference::VecType* vec_ptr,
         const Vec3r& bary_coords,
-        const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset);
+        const Vec3r* attached_pos_ptr, const Vec3r& attachment_offset,
+        Real undershoot_frac=0.1
+    );
 
     virtual void serialize(std::vector<std::byte>& buf) const override
     {
@@ -100,8 +102,10 @@ class FaceOffsetAttachmentConstraint : public Constraint
     {
         Vec3r attach_pt = (*_attached_pos_ptr + _attachment_offset);
         Vec3r element_pt = _elementPoint();
+
+        std::cout << "FaceOffsetAttachmentConstraint::evaluateWithGradient: attach_pt: " << attach_pt.transpose() << "  element pt: " << element_pt.transpose() << std::endl;
         const Real dist = ( element_pt - attach_pt ).norm();
-        *C = dist;
+        *C = _undershoot_frac*dist;
 
         if (dist < Real(1e-12))
         {
@@ -137,6 +141,8 @@ class FaceOffsetAttachmentConstraint : public Constraint
 
         return pt;
     }
+
+    Real _undershoot_frac; // since constraint is nonlinear, projection has a tendency to overshoot ==> unstable
 
     Vec3r _bary_coords;
     const Vec3r* _attached_pos_ptr;

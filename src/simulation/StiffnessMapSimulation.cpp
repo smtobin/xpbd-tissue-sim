@@ -5,12 +5,12 @@ namespace Sim
 
 StiffnessMapSimulation::StiffnessMapSimulation(const Config::StiffnessMapSimulationConfig* config)
     : Simulation(config),
-    _applying_force(false),
     _displacement_magnitude(config->displacementMagnitude()),
-    _time_to_steady_state(config->timeToSteadyState())
+    _time_to_steady_state(config->timeToSteadyState()),
+    _applying_force(false)
     
 {
-    _query_points.emplace(0, Vec3r(0.5, 0.5, 0));
+    _query_points.emplace(0, Vec3r(0.3, 0.5, 0.2));
 }
 
 void StiffnessMapSimulation::setup()
