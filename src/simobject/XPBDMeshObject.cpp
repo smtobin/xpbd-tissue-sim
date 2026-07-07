@@ -1051,6 +1051,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
     size_t new_size = _mesh->vertices().totalSize();    // use total size since there may be gaps in the TombstoneVector
     _vertex_masses.resize(new_size);
     _vertex_velocities.resize(new_size);
+    _vertex_applied_force.resize(new_size, Vec3r::Zero());
     _previous_vertices.resize(new_size);
     _is_fixed_vertex.resize(new_size);
 
