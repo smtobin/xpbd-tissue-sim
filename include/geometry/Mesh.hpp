@@ -155,6 +155,9 @@ public:
     /** Updates the vertex normals in the mesh */
     void updateVertexNormals();
 
+    /** Computes the vertex normals for a set of vertices and faces. */
+    static void computeVertexNormals(const vertices_vec_type& vertices, const std::vector<Vec3i>& faces, std::vector<Vec3r>& normals);
+
     /** Returns the vertex normal at vertex i */
     Vec3r vertexNormal(int index) { return _vertex_normals[index]; }
 

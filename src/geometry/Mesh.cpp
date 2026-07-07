@@ -221,6 +221,57 @@ void Mesh::updateVertexNormals()
     }
 }
 
+void Mesh::computeVertexNormals(const Mesh::vertices_vec_type& vertices, const std::vector<Vec3i>& faces, std::vector<Vec3r>& normals)
+{
+    // make sure we have enough space
+    normals.resize(vertices.totalSize());
+
+    // zero out all normals
+    for (const auto& f : faces)
+    {
+        normals[f[0]] = Vec3r::Zero();
+        normals[f[1]] = Vec3r::Zero();
+        normals[f[2]] = Vec3r::Zero();
+    }
+        
+    // iterate through faces and add normal contributions to vertices
+    for (const auto& f : faces)
+    {
+        const Vec3r& v0 = vertices[f[0]];
+        const Vec3r& v1 = vertices[f[1]];
+        const Vec3r& v2 = vertices[f[2]];
+
+        // edge 0->1
+        const Vec3r e01 = v1 - v0;
+        // edge 1->2
+        const Vec3r e12 = v2 - v1;
+        // edge 2->0
+        const Vec3r e20 = v0 - v2;
+
+        // edge magnitudes
+        Real e01_mag = e01.norm();
+        Real e12_mag = e12.norm();
+        Real e20_mag = e20.norm();
+
+        // approximate angle at each vertex
+        Real w0 = 1.0 / (e01_mag * e20_mag + 1e-12);
+        Real w1 = 1.0 / (e12_mag * e01_mag + 1e-12);
+        Real w2 = 1.0 / (e20_mag * e12_mag + 1e-12);
+
+        // face normal
+        const Vec3r n = -e01.cross(e20);    // negative because using e20 here
+
+        normals[f[0]] += w0 * n;
+        normals[f[1]] += w1 * n;
+        normals[f[2]] += w2 * n;
+    }
+
+    for (const auto& vert_index : vertices.validIndices())
+    {
+        normals[vert_index] = normals[vert_index].normalized();
+    }
+}
+
 Real* Mesh::vertexPointer(int index) const
 {
     Real* p = const_cast<Real*>(_vertices.at(index).data());

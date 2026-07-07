@@ -299,6 +299,13 @@ public:
      */
     virtual void setCurrentStateAsUndeformedState() override;
 
+    /** Returns the vertices of the base element for a given element.
+     * Traverses up the element tree until reaching a root node.
+     * Note that the vertices returned are NOT guaranteed to all be valid, which can happen if other adjacent refined elements are removed.
+     */
+    Vec4i rootElementVertices(int elem_index) const;
+
+
     /** Given an element, returns the refinement level of that element.
      * 0 = the element is an original element in the base tet mesh
      * 1 = the element's parent is an original element

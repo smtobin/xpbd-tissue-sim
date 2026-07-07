@@ -226,6 +226,8 @@ class TetMesh : public Mesh
         return false;
     }
 
+    const Geometry::PropertyContainer<MeshPropertyTypeList>& elementProperties() const { return _element_properties; }
+
     protected:
 
     /** Helper function to add a new surface face to the mesh.

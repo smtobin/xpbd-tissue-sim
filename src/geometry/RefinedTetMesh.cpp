@@ -25,6 +25,27 @@ void RefinedTetMesh::setCurrentStateAsUndeformedState()
     _element_refinement_level.resize(_elements.totalSize(), 0);
 }
 
+Vec4i RefinedTetMesh::rootElementVertices(int elem_index) const
+{
+    if (auto it = _element_to_tree_node_map.find(elem_index); it != _element_to_tree_node_map.end())
+    {
+        // get element tree node for current element
+        int node_ind = it->second;
+        // traverse up the tree
+        while (_element_tree_nodes[node_ind].parent != ElementTreeNode::INVALID_INDEX)
+        {
+            node_ind = _element_tree_nodes[node_ind].parent;
+        }
+
+        return _element_tree_nodes[node_ind].vertices;
+    }
+    else
+    {
+        return element(elem_index);
+    }
+    
+}
+
 std::vector<Edge> RefinedTetMesh::boundaryEdges() const
 {
     std::vector<Edge> boundary_edges;

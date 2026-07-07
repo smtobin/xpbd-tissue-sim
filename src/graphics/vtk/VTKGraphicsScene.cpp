@@ -3,6 +3,7 @@
 #include "graphics/vtk/VTKCylinderGraphicsObject.hpp"
 #include "graphics/vtk/VTKSphereGraphicsObject.hpp"
 #include "graphics/vtk/VTKMeshGraphicsObject.hpp"
+#include "graphics/vtk/VTKTetMeshGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoRobotGraphicsObject.hpp"
 #include "graphics/vtk/VTKVirtuosoArmSpatulaToolGraphicsObject.hpp"
@@ -81,7 +82,18 @@ int VTKGraphicsScene::addObject(const Sim::Object* obj, const Config::ObjectRend
     std::unique_ptr<GraphicsObject> new_graphics_obj;
 
     // try downcasting to MeshObject
-    if (const Sim::MeshObject* mo = dynamic_cast<const Sim::MeshObject*>(obj))
+    if (const Sim::TetMeshObject* mo = dynamic_cast<const Sim::TetMeshObject*>(obj))
+    {
+
+        // create a new MeshGraphicsObject for visualizing this MeshObject
+        auto ptr = std::make_unique<VTKTetMeshGraphicsObject>(obj->name(), mo->tetMesh(), render_config);
+        if (ptr->facesActor())
+            _vtk_viewer->addActorToRenderer(ptr->facesActor(), true, obj);
+        if (ptr->edgesActor())
+            _vtk_viewer->addActorToRenderer(ptr->edgesActor());
+        new_graphics_obj = std::move(ptr);
+    }
+    else if (const Sim::MeshObject* mo = dynamic_cast<const Sim::MeshObject*>(obj))
     {
 
         // create a new MeshGraphicsObject for visualizing this MeshObject

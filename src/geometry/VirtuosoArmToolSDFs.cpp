@@ -284,17 +284,21 @@ void VirtuosoArmGraspingToolSDF::deserialize(const std::byte*& buf)
 
 Real VirtuosoArmGraspingToolSDF::evaluate(const Vec3r& x) const
 {
-    return std::numeric_limits<Real>::max();
+    return (_grasper->graspFrame().origin() - x).norm();
 }
 
 Vec3r VirtuosoArmGraspingToolSDF::gradient(const Vec3r& x) const
 {
-    return Vec3r::Zero();
+    Vec3r diff = _grasper->graspFrame().origin() - x;
+    if (diff.norm() > 1e-8)
+        return diff / diff.norm();
+    else
+        return Vec3r(1,0,0);
 }
 
 Vec3r VirtuosoArmGraspingToolSDF::findContactPoint(const SDF* sdf) const
 {
-    return std::numeric_limits<Real>::max() * Vec3r::Ones();
+    return _grasper->graspFrame().origin();
 }
 
 } // namespace Geometry
