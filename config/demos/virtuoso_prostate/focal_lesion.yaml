@@ -130,7 +130,7 @@ objects:
     name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
-    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
+    # fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
     element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
     materials: ["Prostate Phantom", "Lesion"]
 
@@ -166,15 +166,15 @@ objects:
       name: "Arm1"
       type: "VirtuosoArm"
       material: "Nitinol"
-      tool-type: "grasper"
+      tool-type: "spatula"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 0e-3
+      outer-tube-translation: 5.1e-3
       outer-tube-rotation: 60
       inner-tube-rotation: 0
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 0e-3
+      inner-tube-translation: 20e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20
@@ -190,11 +190,11 @@ objects:
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
-      outer-tube-translation: 0e-3
+      outer-tube-translation: 5e-3
       outer-tube-rotation: -45
       inner-tube-rotation: 45
       inner-tube-diameter: 1.04e-3
-      inner-tube-translation: 0e-3
+      inner-tube-translation: 5e-3
       max-ot-translation-speed: 0.01 #0.04
       max-it-translation-speed: 0.013 #0.0529
       max-ot-rotation-speed: 5 #20

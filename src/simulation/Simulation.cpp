@@ -146,8 +146,8 @@ void Simulation::setup()
 
                 const typename Sim::VirtuosoArmTool_Base::SDFType* sdf1 = nullptr;
                 const typename Sim::VirtuosoArmTool_Base::SDFType* sdf2 = nullptr;
-                if (robot->hasArm1() && robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf1 = robot->arm1()->tool()->SDF();
-                if (robot->hasArm2() && robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY)   sdf2 = robot->arm2()->tool()->SDF();
+                if (robot->hasArm1() && (robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY || robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER))   sdf1 = robot->arm1()->tool()->SDF();
+                if (robot->hasArm2() && (robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY || robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER))   sdf2 = robot->arm2()->tool()->SDF();
                 const Geometry::TetMesh* mesh = xpbd_obj->tetMesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
