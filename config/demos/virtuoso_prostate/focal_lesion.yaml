@@ -130,7 +130,7 @@ objects:
     name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
-    # fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
+    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"
     element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
     materials: ["Prostate Phantom", "Lesion"]
 
@@ -166,7 +166,7 @@ objects:
       name: "Arm1"
       type: "VirtuosoArm"
       material: "Nitinol"
-      tool-type: "spatula"
+      tool-type: "grasper"
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
