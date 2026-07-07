@@ -235,8 +235,8 @@ public:
     using SDFType = Geometry::VirtuosoArmGraspingToolSDF;
 
     /** Static parameters specifying the grasper behavior and shape. */
-    constexpr static Real GRASPING_RADIUS = 1e-3;
-    constexpr static Real GRASP_CENTER_OFFSET = 1e-3;
+    constexpr static Real GRASPING_RADIUS = 2e-3;
+    constexpr static Real GRASP_CENTER_OFFSET = 2e-3;
 
     VirtuosoArmGraspingTool(const Sim::Simulation* sim, const ConfigType* config, VirtuosoArm* arm)
         : VirtuosoArmTool_Base(sim, config, arm)

@@ -961,41 +961,50 @@ void VirtuosoArm::_grasperToolAction()
 
         // std::unordered_map<int, std::pair<Vec3r,Vec3r>> elements_to_grasp;
         std::unordered_map<int, Vec3r> vertices_to_grasp;
-        for (const auto& face_ind : mesh->faces().validIndices())
+        for (const auto& vert_ind : mesh->vertices().validIndices())
         {
-            const Vec3i& face = mesh->face(face_ind);
-            const Vec3r& v1 = mesh->vertex(face[0]);
-            const Vec3r& v2 = mesh->vertex(face[1]);
-            const Vec3r& v3 = mesh->vertex(face[2]);
-
-            // Real sq_dist = Geometry::EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(grasp_center, v1, v2, v3, v4);
-            Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(grasp_center, v1, v2, v3);
-            Real dist = (grasp_center - cp).norm();
+            const Vec3r& v = mesh->vertex(vert_ind);
+            Real dist = (grasp_center - v).norm();
             if (dist < VirtuosoArmGraspingTool::GRASPING_RADIUS)
             {
-                // const Vec3r face_centroid = (v1+v2+v3)/3;
-                // auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
-                // if (u > v && u > w)
-                // {
-                //     u = 1; v = 0; w = 0;
-                // }
-                // else if ( v > w)
-                // {
-                //     u = 0; v = 1; w = 0;
-                // }
-                // else
-                // {
-                //     u = 0; v = 0; w = 1;
-                // }
-                for (int i = 0; i < 3; i++)
-                {
-                    vertices_to_grasp.insert({face[i], mesh->vertex(face[i]) - _it_end_pos});
-                }
-                
-                // Vec3r attachment_offset = u*v1+v*v2+w*v3 - _it_end_pos;
-                // elements_to_grasp.insert({face_ind, std::make_pair(Vec3r(u,v,w), attachment_offset)});
+                vertices_to_grasp.insert({vert_ind, v - _it_end_pos});
             }
         }
+        // for (const auto& face_ind : mesh->faces().validIndices())
+        // {
+        //     const Vec3i& face = mesh->face(face_ind);
+        //     const Vec3r& v1 = mesh->vertex(face[0]);
+        //     const Vec3r& v2 = mesh->vertex(face[1]);
+        //     const Vec3r& v3 = mesh->vertex(face[2]);
+
+        //     // Real sq_dist = Geometry::EmbreeTetMeshGeometry::squaredDistanceToTetrahedron(grasp_center, v1, v2, v3, v4);
+        //     Vec3r cp = Geometry::EmbreeTetMeshGeometry::_closestPointTriangle(grasp_center, v1, v2, v3);
+        //     Real dist = (grasp_center - cp).norm();
+        //     if (dist < VirtuosoArmGraspingTool::GRASPING_RADIUS)
+        //     {
+        //         // const Vec3r face_centroid = (v1+v2+v3)/3;
+        //         // auto [u,v,w] = GeometryUtils::barycentricCoords(cp, v1, v2, v3);
+        //         // if (u > v && u > w)
+        //         // {
+        //         //     u = 1; v = 0; w = 0;
+        //         // }
+        //         // else if ( v > w)
+        //         // {
+        //         //     u = 0; v = 1; w = 0;
+        //         // }
+        //         // else
+        //         // {
+        //         //     u = 0; v = 0; w = 1;
+        //         // }
+        //         for (int i = 0; i < 3; i++)
+        //         {
+        //             vertices_to_grasp.insert({face[i], mesh->vertex(face[i]) - _it_end_pos});
+        //         }
+                
+        //         // Vec3r attachment_offset = u*v1+v*v2+w*v3 - _it_end_pos;
+        //         // elements_to_grasp.insert({face_ind, std::make_pair(Vec3r(u,v,w), attachment_offset)});
+        //     }
+        // }
 
         // for (const auto& [f, barys_and_offset] : elements_to_grasp)
         // {

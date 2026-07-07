@@ -148,18 +148,24 @@ void Simulation::setup()
                 const typename Sim::VirtuosoArmTool_Base::SDFType* sdf2 = nullptr;
                 if (robot->hasArm1() && (robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY || robot->arm1()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER))   sdf1 = robot->arm1()->tool()->SDF();
                 if (robot->hasArm2() && (robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::CAUTERY || robot->arm2()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER))   sdf2 = robot->arm2()->tool()->SDF();
-                const Geometry::TetMesh* mesh = xpbd_obj->tetMesh();
+                const Geometry::RefinedTetMesh* mesh = xpbd_obj->refinedTetMesh();
                 std::unordered_set<int> elems_to_refine;
                 std::unordered_set<int> elems_to_coarsen;
                 // std::unordered_set<int> verts_to_refine;
                 // std::unordered_set<int> verts_to_coarsen;
                 for (const auto& i : mesh->elements().validIndices())
                 {
-                    const Vec4i& e = mesh->element(i);
-                    const Vec3r& p1 = mesh->vertex(e[0]);
-                    const Vec3r& p2 = mesh->vertex(e[1]);
-                    const Vec3r& p3 = mesh->vertex(e[2]);
-                    const Vec3r& p4 = mesh->vertex(e[3]);
+                    Vec4i base_e = mesh->rootElementVertices(i);
+                    // std::cout << "Base e: " << base_e.transpose() << std::endl;
+                    if (!mesh->vertexValid(base_e[0]) || !mesh->vertexValid(base_e[1]) || !mesh->vertexValid(base_e[2]) || !mesh->vertexValid(base_e[3]))
+                    {
+                        continue;
+                    }
+                    // const Vec4i& e = mesh->element(i);
+                    const Vec3r& p1 = mesh->vertex(base_e[0]);
+                    const Vec3r& p2 = mesh->vertex(base_e[1]);
+                    const Vec3r& p3 = mesh->vertex(base_e[2]);
+                    const Vec3r& p4 = mesh->vertex(base_e[3]);
 
                     std::array<Vec3r, 5> pts_to_test = {p1, p2, p3, p4, (p1+p2+p3+p4)/4.0};
 
@@ -215,12 +221,15 @@ void Simulation::setup()
 
                 auto t2 = std::chrono::high_resolution_clock::now();
 
+                // std::cout << "=== Refinement ===" << std::endl;
                 for (const auto& elem : elems_to_refine)
                 {
+                    // std::cout << "Refining " << elem << std::endl;
                     xpbd_obj->refineElement(elem, max_refinement_level, true);
                 }
                 for (const auto& elem : elems_to_coarsen)
                 {
+                    // std::cout << "Coarsening " << elem << std::endl;
                     xpbd_obj->coarsenElement(elem, max_refinement_level, false);
                 }
 
