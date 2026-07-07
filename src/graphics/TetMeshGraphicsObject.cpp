@@ -8,6 +8,7 @@ TetMeshGraphicsObject::TetMeshGraphicsObject(const std::string& name, const Geom
     _draw_faces = true;
     _draw_points = false;
     _draw_edges = true;
+    update();
 }
 
 TetMeshGraphicsObject::TetMeshGraphicsObject(const std::string& name, const Geometry::TetMesh* mesh, const Config::MeshObjectConfig* mesh_object_config)
@@ -42,6 +43,7 @@ void TetMeshGraphicsObject::update()
     const auto [sub_vertices, sub_faces, sub_elements] = _mesh->submeshForElementClass(1);
     write_mesh->interior_faces.resize(1);
     write_mesh->interior_faces[0] = sub_faces;
+    Geometry::Mesh::computeVertexNormals(_mesh->vertices(), sub_faces, write_mesh->vertex_normals);
 
     _latest_rmesh.store(write_mesh, std::memory_order_release);
 }

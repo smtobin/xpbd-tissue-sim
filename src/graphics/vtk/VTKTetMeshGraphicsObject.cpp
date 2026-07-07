@@ -29,7 +29,7 @@ namespace Graphics
 VTKTetMeshGraphicsObject::VTKTetMeshGraphicsObject(const std::string& name, const Geometry::TetMesh* mesh, const Config::ObjectRenderConfig& render_config)
     : TetMeshGraphicsObject(name, mesh)
 {
-    _latest_topology_version = mesh->topologyVersion();
+    _latest_topology_version = mesh->topologyVersion()-1; // hack to trigger an immediate topology update
 
     _front_poly_data = vtkSmartPointer<vtkPolyData>::New();
 
@@ -81,9 +81,12 @@ VTKTetMeshGraphicsObject::VTKTetMeshGraphicsObject(const std::string& name, cons
     {
         _face_mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
         _face_mapper->SetInputData(_front_poly_data);
+        _face_mapper->ScalarVisibilityOn();
+        _face_mapper->SetScalarModeToUseCellData();
         
         _faces_vtk_actor = vtkSmartPointer<vtkActor>::New();
         _faces_vtk_actor->SetMapper(_face_mapper);
+        
 
         VTKUtils::setupActorFromRenderConfig(_faces_vtk_actor.Get(), render_config);
 
@@ -143,8 +146,13 @@ VTKTetMeshGraphicsObject::VTKTetMeshGraphicsObject(const std::string& name, cons
 void VTKTetMeshGraphicsObject::_setFaces(const RenderInfo* rmesh)
 {
     vtkCellArray* faces = _front_poly_data->GetPolys();
+
+    int total_num_faces = rmesh->faces.size();
+    for (const auto& interior : rmesh->interior_faces)
+        total_num_faces += interior.size();
+        
     faces->Reset();
-    faces->AllocateExact(rmesh->faces.size(), rmesh->faces.size() * 3);
+    faces->AllocateExact(total_num_faces, total_num_faces * 3);
 
     vtkIdType vtk_face[3];
     for (const auto& face : rmesh->faces)
@@ -153,6 +161,17 @@ void VTKTetMeshGraphicsObject::_setFaces(const RenderInfo* rmesh)
         vtk_face[1] = static_cast<vtkIdType>(face[1]);
         vtk_face[2] = static_cast<vtkIdType>(face[2]);
         faces->InsertNextCell(3, vtk_face);
+    }
+
+    for (const auto& interior : rmesh->interior_faces)
+    {
+        for (const auto& face : interior)
+        {
+            vtk_face[0] = static_cast<vtkIdType>(face[0]);
+            vtk_face[1] = static_cast<vtkIdType>(face[1]);
+            vtk_face[2] = static_cast<vtkIdType>(face[2]);
+            faces->InsertNextCell(3, vtk_face);
+        }
     }
 
     faces->Modified();
@@ -210,10 +229,11 @@ void VTKTetMeshGraphicsObject::updateGraphicsBuffers()
     if (topology_changed)
     {
         _setFaces(rmesh);
-        _setColorsForCutSurface(rmesh);
 
         _front_poly_data->BuildCells();
         _front_poly_data->BuildLinks();
+
+        _setColorsForCutSurface(rmesh);
 
         if (_edge_extractor)
         {
@@ -256,6 +276,18 @@ void VTKTetMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
         }
 
         colors->InsertNextTypedTuple(color);
+    }
+
+    for (const auto& interior : rmesh->interior_faces)
+    {
+        for (const auto& face : interior)
+        {
+            unsigned char color[3];
+            color[0] = static_cast<unsigned char>(_bulk_color[0] * 255);
+            color[1] = static_cast<unsigned char>(_bulk_color[1] * 255);
+            color[2] = static_cast<unsigned char>(_bulk_color[2] * 255);
+            colors->InsertNextTypedTuple(color);
+        }
     }
 
     _front_poly_data->GetCellData()->SetScalars(colors);
