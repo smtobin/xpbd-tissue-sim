@@ -208,7 +208,8 @@ int main(int argc, char ** argv)
                 std::string fixed_faces_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_fixed_faces.txt")).string();
                 std::string element_classes_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_element_classes.txt")).string();
                 xpbd_obj_configs[0].setFilename(prostate_mesh_filename);
-                xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
+                /** TODO: uncomment this after fixed faces file is fixed (07/13/26) */
+                // xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
                 xpbd_obj_configs[0].setElementClassesFilename(element_classes_filename);
             }
         }

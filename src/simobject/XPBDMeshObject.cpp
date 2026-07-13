@@ -407,7 +407,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addOffs
     constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr, attachment_offset);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::OffsetAttachmentConstraint>;
-    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    auto proj = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    _vertex_to_offset_attachment_proj_index.insert({v_ind, proj.index()});
+    return proj;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -418,6 +420,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
     _solver.template clearProjectorsOfType<OffsetAttachmentConstraintProjType>();
     // clear constraints
     _constraints.template clear<Solver::OffsetAttachmentConstraint>();
+
+    _vertex_to_offset_attachment_proj_index.clear();
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -1041,7 +1045,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::co
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_updateAfterMeshTopologyChange(    
-    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& /*removed_vertices*/,
+    const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_vertices, const std::vector<Geometry::RefinedTetMesh::RemovedVertex>& removed_vertices,
     const std::vector<Geometry::RefinedTetMesh::NewVertex>& added_hanging_vertices, const std::vector<int>& removed_hanging_vertices,
     const std::vector<int>& added_faces,
     const std::vector<int>& added_elements, const std::vector<Geometry::TetMesh::RemovedElement>& removed_elements,
@@ -1175,6 +1179,17 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
 
         // remove map entries
         _element_to_collision_proj_index.erase(elem_index.index);
+    }
+
+    /** Remove offset attachment constraints associated with removed vertices */
+    for (const auto& vert_index : removed_vertices)
+    {
+        auto oa_proj_range = _vertex_to_offset_attachment_proj_index.equal_range(vert_index.index);
+        for (auto it = oa_proj_range.first; it != oa_proj_range.second; it++)
+        {
+            using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>;
+            _solver.template setProjectorValidity<CollisionProjectorType>(it->second, false);
+        }
     }
 
     /** Run collision detection on newly added faces */

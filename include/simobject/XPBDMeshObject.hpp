@@ -351,6 +351,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Maps element to collision constraint index */
     std::unordered_multimap<int, int> _element_to_collision_proj_index;
 
+    /** Maps vertex to offset attachment constraint index */
+    std::unordered_multimap<int, int> _vertex_to_offset_attachment_proj_index;
+
 
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled
