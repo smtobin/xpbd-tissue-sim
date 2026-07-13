@@ -44,12 +44,12 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _tool_manipulated_object = (XPBDMeshObject_Base_<false>*)nullptr;
 
     if (config->toolType() == ToolType::SPATULA)
-        _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, config, nullptr);
+        _tool = std::make_unique<Sim::VirtuosoArmSpatulaTool>(_sim, &config->toolConfig(), nullptr);
     else if (config->toolType() == ToolType::CAUTERY)
-        _tool = std::make_unique<Sim::VirtuosoArmCauteryTool>(_sim, config, nullptr);
+        _tool = std::make_unique<Sim::VirtuosoArmCauteryTool>(_sim, &config->toolConfig(), nullptr);
     else if (config->toolType() == ToolType::GRASPER)
     {
-        _tool = std::make_unique<Sim::VirtuosoArmGraspingTool>(_sim, config, nullptr);
+        _tool = std::make_unique<Sim::VirtuosoArmGraspingTool>(_sim, &config->toolConfig(), nullptr);
         _tool_state = 1; // 1 = open for the grasper
     }
 

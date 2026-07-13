@@ -2,6 +2,7 @@
 #define __VIRTUOSO_ARM_CONFIG_HPP
 
 #include "config/simobject/ObjectConfig.hpp"
+#include "config/simobject/VirtuosoArmToolConfig.hpp"
 
 #include "simobject/VirtuosoArm.hpp"
 
@@ -49,7 +50,7 @@ class VirtuosoArmConfig : public ObjectConfig
     {}
 
     explicit VirtuosoArmConfig(const YAML::Node& node)
-        : ObjectConfig(node)
+        : ObjectConfig(node), _tool_config(node)
     {
         _extractParameter("inner-tube-outer-diameter", node, _it_outer_diameter);
         _extractParameter("inner-tube-inner-diameter", node, _it_inner_diameter);
@@ -133,6 +134,8 @@ class VirtuosoArmConfig : public ObjectConfig
     Real maxOTRotationSpeed() const { return _max_ot_rotation_speed.value; }
     Real maxITRotationSpeed() const { return _max_it_rotation_speed.value; }
 
+    const VirtuosoArmToolConfig& toolConfig() const { return _tool_config; }
+
     protected:
     ConfigParameter<Real> _it_outer_diameter = ConfigParameter<Real>(1.04e-3);
     ConfigParameter<Real> _it_inner_diameter = ConfigParameter<Real>(0.82e-3);
@@ -158,6 +161,8 @@ class VirtuosoArmConfig : public ObjectConfig
     ConfigParameter<Real> _max_it_translation_speed = ConfigParameter<Real>(0.0529);
     ConfigParameter<Real> _max_ot_rotation_speed = ConfigParameter<Real>(20);
     ConfigParameter<Real> _max_it_rotation_speed = ConfigParameter<Real>(52.4);
+
+    VirtuosoArmToolConfig _tool_config;
 };
 
 } // namespace Config

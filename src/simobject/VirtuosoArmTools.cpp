@@ -34,12 +34,14 @@ void VirtuosoArmTool_Base::serialize(std::vector<std::byte>& buf) const
     Object::serialize(buf);
     pack(buf, _arm);
     pack(buf, _collision_proj_refs);
+    pack(buf, _extra_tool_offset);
 }
 void VirtuosoArmTool_Base::deserialize(const std::byte*& buf)
 {
     Object::deserialize(buf);
     unpack(buf, _arm);
     unpack(buf, _collision_proj_refs);
+    unpack(buf, _extra_tool_offset);
 }
 
 
@@ -178,7 +180,7 @@ Geometry::CoordinateFrame VirtuosoArmGraspingTool::tipFrame() const
 
 Geometry::CoordinateFrame VirtuosoArmGraspingTool::graspFrame() const
 {
-    Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0, 0, GRASP_CENTER_OFFSET));
+    Geometry::TransformationMatrix T(Mat3r::Identity(), Vec3r(0, 0, GRASP_CENTER_OFFSET+_extra_tool_offset));
     return _arm->innerTubeEndFrame()*T;
 }
 

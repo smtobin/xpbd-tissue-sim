@@ -2,6 +2,7 @@
 #define __VIRTUOSO_ARM_TOOLS_HPP
 
 #include "common/types.hpp"
+#include "config/simobject/VirtuosoArmToolConfig.hpp"
 #include "geometry/SDF.hpp"
 #include "geometry/VirtuosoArmToolSDFs.hpp"
 #include "geometry/CoordinateFrame.hpp"
@@ -30,11 +31,13 @@ struct TubeProperties
 class VirtuosoArmTool_Base : public Object
 {
 public:
+    using ConfigType = Config::VirtuosoArmToolConfig;
     using SDFType = Geometry::VirtuosoArmToolSDF;
 
     VirtuosoArmTool_Base(const Sim::Simulation* sim, const ConfigType* config, VirtuosoArm* arm)
         : Object(sim, config), 
-        _arm(arm)
+        _arm(arm),
+        _extra_tool_offset(config->extraToolOffset())
     {}
 
     virtual ~VirtuosoArmTool_Base() = default;
@@ -96,6 +99,9 @@ protected:
 
     /** Vector of XPBD->static collision constraint projectors. */
     std::vector<Solver::ConstraintProjectorReferenceWrapper<Solver::StaticDeformableCollisionConstraint>> _collision_proj_refs;
+
+    /** Extra tool offset in the +z direction from the nominal location. */
+    Real _extra_tool_offset;
 };
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -251,7 +257,7 @@ public:
     /** Grasper tool is not a nested tube */
     virtual bool isTube() const override { return false; }
 
-    virtual Vec3r tipOffset() const override { return Vec3r(0,0,0); }
+    virtual Vec3r tipOffset() const override { return Vec3r(0,0,GRASP_CENTER_OFFSET+_extra_tool_offset); }
 
     virtual Geometry::CoordinateFrame tipFrame() const override;
 
