@@ -90,7 +90,7 @@ materials:
     cut-color: [1.0, 0.1, 0.1]
     render-type: "PBR"
     metallic: 0.0
-    roughness: 0.2
+    roughness: 0.9
     opacity: 0.9
     smooth-normals: true
     draw-points: false
@@ -150,7 +150,7 @@ objects:
     self-collisions: false
 
     adaptive-mesh-refinement: true
-    max-refinement-level: 2
+    max-refinement-level: 1
     refinement-distance-threshold: 3e-3
     compute-heat-conduction: false
 

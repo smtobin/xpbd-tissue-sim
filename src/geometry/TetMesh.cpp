@@ -8,6 +8,8 @@
 #include "gpu/resource/TetMeshGPUResource.hpp"
 #endif
 
+#include <numeric>
+
 namespace Geometry
 {
 
@@ -723,10 +725,31 @@ std::tuple<std::vector<int>, std::vector<Vec3i>, std::vector<int>> TetMesh::subm
         class_vertices_vec.push_back(v);
     }
 
+    // compute centroid
+    Vec3r centroid = Vec3r::Zero();
+    for (const auto& v : class_vertices)
+    {
+        centroid += vertex(v);
+    }
+    centroid /= class_vertices.size();
+    
+
     // faces
     for (const auto& f : class_faces)
     {
-        class_faces_vec.push_back(Vec3i(f.index1, f.index2, f.index3));
+        // make sure that the normal is approximately correct
+        /** TODO: make this more robust by checking winding order or something (07/13/26)
+         * For now, just check against the centroid
+         */
+        const Vec3r& v0 = vertex(f.index1);
+        const Vec3r& v1 = vertex(f.index2);
+        const Vec3r& v2 = vertex(f.index3);
+        const Vec3r c = (v0+v1+v2)/3;
+        Vec3r normal = (v1 - v0).cross(v2 - v0);
+        if (normal.dot(c - centroid) < 0)
+            class_faces_vec.push_back(Vec3i(f.index1, f.index3, f.index2));
+        else
+            class_faces_vec.push_back(Vec3i(f.index1, f.index2, f.index3));
     }
     
     return {class_vertices_vec, class_faces_vec, class_elements};

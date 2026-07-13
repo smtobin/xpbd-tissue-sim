@@ -43,7 +43,7 @@ void TetMeshGraphicsObject::update()
     const auto [sub_vertices, sub_faces, sub_elements] = _mesh->submeshForElementClass(1);
     write_mesh->interior_faces.resize(1);
     write_mesh->interior_faces[0] = sub_faces;
-    Geometry::Mesh::computeVertexNormals(_mesh->vertices(), sub_faces, write_mesh->vertex_normals);
+    // Geometry::Mesh::computeVertexNormals(_mesh->vertices(), sub_faces, write_mesh->vertex_normals);
 
     _latest_rmesh.store(write_mesh, std::memory_order_release);
 }
