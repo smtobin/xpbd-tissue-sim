@@ -283,9 +283,9 @@ void VTKTetMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
         for (const auto& face : interior)
         {
             unsigned char color[3];
-            color[0] = static_cast<unsigned char>(_bulk_color[1] * 255);
-            color[1] = static_cast<unsigned char>(_bulk_color[0] * 255);
-            color[2] = static_cast<unsigned char>(_bulk_color[2] * 255);
+            color[0] = static_cast<unsigned char>(_bulk_color[2] * 255);
+            color[1] = static_cast<unsigned char>(_bulk_color[1] * 255);
+            color[2] = static_cast<unsigned char>(_bulk_color[0] * 255);
             colors->InsertNextTypedTuple(color);
         }
     }
