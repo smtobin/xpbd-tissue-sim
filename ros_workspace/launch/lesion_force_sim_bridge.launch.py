@@ -14,7 +14,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     config_file_arg = DeclareLaunchArgument(
         'config_filename',
-        default_value=TextSubstitution(text='../config/demos/virtuoso_prostate/focal_lesion.yaml'),
+        default_value=TextSubstitution(text='../config/demos/virtuoso_prostate/lesion_force.yaml'),
         description='Path to the simulation config file.'
     )
 

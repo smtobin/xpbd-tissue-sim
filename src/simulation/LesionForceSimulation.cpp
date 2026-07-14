@@ -51,6 +51,8 @@ void LesionForceSimulation::setLesionBodyForce(const Vec3r& force)
         for (int k = 0 ; k < 4; k++)
         {
             Vec3r cur_force = _tissue_obj.vertexAppliedForce(indices[k]);
+
+            std::cout << "  Vertex " << indices[k] << " - adding " << 0.25*total_force.transpose() << " N " << std::endl;
             _tissue_obj.setVertexAppliedForce(indices[k], cur_force + 0.25*total_force);
         }
     }

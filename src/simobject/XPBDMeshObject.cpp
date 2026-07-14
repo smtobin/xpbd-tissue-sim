@@ -291,6 +291,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
         MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
         for (const auto& v : vertices)
         {
+            std::cout << "Adding attachment constraint to " << v << std::endl;
             addAttachmentConstraint(v, v, &_mesh->initialVertices());
         }
     }

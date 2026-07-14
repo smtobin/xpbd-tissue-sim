@@ -5,6 +5,8 @@ LesionForceSimBridge::LesionForceSimBridge(Sim::LesionForceSimulation* sim)
 {
     auto lesion_body_force_callback = [&](geometry_msgs::msg::Vector3Stamped::UniquePtr msg) {
         Vec3r force(msg->vector.x, msg->vector.y, msg->vector.z);
+        std::cout << "LesionForceSimBridge - received lesion body force: " << force.transpose() << std::endl;
+        
         auto callback = [this, force]() -> void
         {
             this->_lesion_sim->setLesionBodyForce(force);
