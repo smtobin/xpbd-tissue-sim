@@ -10,7 +10,7 @@ class FocalLesionSimBridge : public BPHSimBridge
 public:
     FocalLesionSimBridge(Sim::VirtuosoCTAnatomySimulation* sim);
 
-private:
+protected:
     void _focalLesionFactorGraphState(
         const std::shared_ptr<sim_bridge::srv::FocalLesionFactorGraphState::Request> req,
         std::shared_ptr<sim_bridge::srv::FocalLesionFactorGraphState::Response> res);

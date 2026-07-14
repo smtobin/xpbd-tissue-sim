@@ -6,6 +6,7 @@
 #include "sim_bridge/CAOSimBridge.hpp"
 #include "sim_bridge/BPHSimBridge.hpp"
 #include "sim_bridge/FocalLesionSimBridge.hpp"
+#include "sim_bridge/LesionForceSimBridge.hpp"
 #include "sim_bridge/FixedObjectSimBridge.hpp"
 
 #include "config/simulation/GraspingSimulationConfig.hpp"
@@ -221,6 +222,36 @@ int main(int argc, char ** argv)
         Sim::VirtuosoCTAnatomySimulation sim(&config);
 
         startNode<Sim::VirtuosoCTAnatomySimulation, FocalLesionSimBridge>(&sim);
+    }
+    else if (simulation_type == "LesionForceSimulation")
+    {
+        // create the simulation config object from the yaml config file
+        Config::VirtuosoCTAnatomySimulationConfig config(YAML::LoadFile(config_filename));
+
+        // edit the CT mesh filename, when a different one is given by the user
+        if (!prostate_mesh_filename.empty())
+        {
+            auto& object_configs = config.objectConfigs();
+            auto& xpbd_obj_configs = object_configs.template get<Config::FirstOrderXPBDMeshObjectConfig>();
+            if (xpbd_obj_configs.size() > 0)
+            {
+                std::filesystem::path mesh_file = prostate_mesh_filename;
+                std::string fixed_faces_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_fixed_faces.txt")).string();
+                std::string element_classes_filename = (mesh_file.parent_path() / (mesh_file.stem().string() + "_element_classes.txt")).string();
+                xpbd_obj_configs[0].setFilename(prostate_mesh_filename);
+                /** TODO: uncomment this after fixed faces file is fixed (07/13/26) */
+                // xpbd_obj_configs[0].setFixedFacesFilename(fixed_faces_filename);
+                xpbd_obj_configs[0].setElementClassesFilename(element_classes_filename);
+            }
+        }
+
+        config.setCTtoVBTranslation(CTtoVB_translation);
+        config.setCTtoVBRotation(CTtoVB_rotation);
+
+        // create the simulation from the config object
+        Sim::LesionForceSimulation sim(&config);
+
+        startNode<Sim::LesionForceSimulation, LesionForceSimBridge>(&sim);
     }
     else if (simulation_type == "VirtuosoCTAnatomySimulation")
     {

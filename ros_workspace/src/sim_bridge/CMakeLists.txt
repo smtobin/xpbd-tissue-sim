@@ -170,6 +170,7 @@ add_executable(${PROJECT_NAME}_node
   src/CAOSimBridge.cpp
   src/BPHSimBridge.cpp
   src/FocalLesionSimBridge.cpp
+  src/LesionForceSimBridge.cpp
 )
 
 # === Link Dependencies ===
@@ -186,6 +187,7 @@ ament_target_dependencies(${PROJECT_NAME}_node rclcpp std_msgs geometry_msgs sha
 target_link_libraries(${PROJECT_NAME}_node
   XPBDSim::Simulation
   XPBDSim::VirtuosoSimulation
+  XPBDSim::LesionForceSimulation
   XPBDSim::GraspingSimulation
   XPBDSim::PalpationSimulation
   XPBDSim::FixedObjectSimulation
