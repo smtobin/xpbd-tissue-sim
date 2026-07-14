@@ -215,6 +215,7 @@ add_library(PalpationSimulation)
 add_library(InitialDeformationSimulation)
 add_library(FixedObjectSimulation)
 add_library(StiffnessMapSimulation)
+add_library(LesionForceSimulation)
 add_subdirectory("src/simulation")
 
 
@@ -228,6 +229,7 @@ target_link_libraries(PalpationSimulation VirtuosoSimulation)
 target_link_libraries(InitialDeformationSimulation Config Simulation)
 target_link_libraries(FixedObjectSimulation Config Simulation)
 target_link_libraries(StiffnessMapSimulation Config Simulation)
+target_link_libraries(LesionForceSimulation Simulation)
 
 
 

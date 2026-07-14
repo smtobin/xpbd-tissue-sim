@@ -199,6 +199,30 @@ install(TARGETS StiffnessMapSimulation EXPORT XPBDSim-targets
 install(FILES ${STIFFNESS_MAP_SIMULATION_HEADERS}
     DESTINATION include/${PROJECT_NAME}/simulation)
 
+###################################
+# Lesion applied body force simulation
+###################################
+set (LESION_FORCE_SIMULATION_HEADERS
+    "${SIMULATION_INCLUDE_DIR}/LesionForceSimulation.hpp"
+)
+
+set (LESION_FORCE_SIMULATION_SOURCES
+    "${SIMULATION_SRC_DIR}/LesionForceSimulation.cpp"
+)
+
+target_sources(LesionForceSimulation
+    PRIVATE
+        ${LESION_FORCE_SIMULATION_HEADERS}
+        ${LESION_FORCE_SIMULATION_SOURCES}    
+)
+
+install(TARGETS LesionForceSimulation EXPORT XPBDSim-targets
+    RUNTIME DESTINATION bin/${PROJECT_NAME}
+    LIBRARY DESTINATION bin/${PROJECT_NAME}
+)
+install(FILES ${LESION_FORCE_SIMULATION_HEADERS}
+    DESTINATION include/${PROJECT_NAME}/simulation)
+
 # target_sources(BeamStretchSimulation
 #     PRIVATE
 #         ${SIMULATION_INCLUDE_DIR}/BeamStretchSimulation.hpp
