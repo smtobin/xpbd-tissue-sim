@@ -146,10 +146,10 @@ objects:
     damping-multiplier: 2e5
     adjust-damping-to-material: True
 
-    collisions: true
+    collisions: false
     self-collisions: false
 
-    adaptive-mesh-refinement: true
+    adaptive-mesh-refinement: false
     max-refinement-level: 1
     refinement-distance-threshold: 4e-3
     compute-heat-conduction: false

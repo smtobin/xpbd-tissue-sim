@@ -21,7 +21,7 @@ public:
     Real displacementMagnitude() const { return _force_magnitude.value; }
 
 protected:
-    ConfigParameter<Real> _time_to_steady_state = ConfigParameter<Real>(1);
+    ConfigParameter<Real> _time_to_steady_state = ConfigParameter<Real>(150);
     ConfigParameter<Real> _force_magnitude = ConfigParameter<Real>(5e-3);
 };
 

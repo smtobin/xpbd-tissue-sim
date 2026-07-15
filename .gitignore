@@ -16,6 +16,7 @@ Makefile
 # ignore ROS directories
 install/
 log/
+*.egg-info
 
 # ignore .obj and .stl files
 *.obj

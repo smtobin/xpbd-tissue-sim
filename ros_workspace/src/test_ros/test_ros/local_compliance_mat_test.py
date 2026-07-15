@@ -27,21 +27,30 @@ class LocalComplianceMatTester(Node):
     def send_query_points(self):
         time.sleep(1.0)
 
-        for i in range(0,10):
-            msg = PointOnFace()
-            msg.header.stamp = self.get_clock().now().to_msg()
-            msg.face_ind = i
-            msg.face_barys.x = 1.0/3.0
-            msg.face_barys.y = 1.0/3.0
-            msg.face_barys.z = 1.0/3.0
+        # for i in range(0,10):
+        #     msg = PointOnFace()
+        #     msg.header.stamp = self.get_clock().now().to_msg()
+        #     msg.face_ind = i
+        #     msg.face_barys.x = 1.0/3.0
+        #     msg.face_barys.y = 1.0/3.0
+        #     msg.face_barys.z = 1.0/3.0
             
-            print(f"Sending query for face index: {msg.face_ind} and barycentric coords: ({msg.face_barys.x}, {msg.face_barys.y}, {msg.face_barys.z})")
+        #     print(f"Sending query for face index: {msg.face_ind} and barycentric coords: ({msg.face_barys.x}, {msg.face_barys.y}, {msg.face_barys.z})")
 
-            self.query_point_publisher.publish(msg)
+        #     self.query_point_publisher.publish(msg)
 
-            time.sleep(0.1)
+        #     time.sleep(0.1)
 
-            
+        msg = PointOnFace()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.face_ind = 307
+        msg.face_barys.x = 0.11093
+        msg.face_barys.y = 0.37056
+        msg.face_barys.z = 0.51851  
+
+        print(f"Sending query for face index: {msg.face_ind} and barycentric coords: ({msg.face_barys.x}, {msg.face_barys.y}, {msg.face_barys.z})")
+
+        self.query_point_publisher.publish(msg)        
 
     def compliance_mat_callback(self, msg):
         print("Received message!")

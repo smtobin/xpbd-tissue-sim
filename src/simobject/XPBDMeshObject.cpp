@@ -1570,6 +1570,17 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
                 hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
         }
     }
+    const auto& attachment_constraints = _constraints.template get<Solver::AttachmentConstraint>();
+    for (const auto& constraint : attachment_constraints)
+    {
+        for (const auto& position_ref : constraint.positions())
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                hessian_triplets.emplace_back(3*position_ref.index+j, 3*position_ref.index+j, 1e6);
+            }
+        }
+    }
 
     // auto t_hess = std::chrono::high_resolution_clock::now();
     // double hess_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess - t_delC_ass).count() / 1.0e6;

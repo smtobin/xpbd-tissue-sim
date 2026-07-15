@@ -35,7 +35,7 @@ fps: 30
 end-time: 5000000000000
 
 displacement-magnitude: 0.0001
-time-to-steady-state: 150
+time-to-steady-state: 1500
 
 
 # === Simulation rendering settings ===
