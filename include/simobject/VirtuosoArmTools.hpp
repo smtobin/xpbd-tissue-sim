@@ -172,7 +172,7 @@ public:
     constexpr static Real CERAMIC_LENGTH = 4e-3;
     constexpr static Real CERAMIC_DIA = 1e-3;
     constexpr static Real WIRE_LENGTH = 4.5e-3;
-    constexpr static Real WIRE_DIA = 0.33e-3;
+    constexpr static Real WIRE_DIA = 0.66e-3; // changed to be twice as thick as the physical value 0.33e-3;
 
     VirtuosoArmCauteryTool(const Sim::Simulation* sim, const ConfigType* config, VirtuosoArm* arm)
         : VirtuosoArmTool_Base(sim, config, arm)
