@@ -332,7 +332,17 @@ void VirtuosoArm::setCommandedTipPose(const Geometry::TransformationMatrix& pose
 
 void VirtuosoArm::setTipForce(const Vec3r& new_tip_force)
 {
-    _tip_force = new_tip_force;
+    // extra precautions (07/16/26)
+    // cap the force so that it is <20 N
+    Real force_cap = 20;
+    Real mag = new_tip_force.norm();
+    Vec3r capped_tip_force = new_tip_force;
+    if (mag > force_cap)
+    {
+        capped_tip_force = new_tip_force / mag * force_cap;
+    }
+
+    _tip_force = capped_tip_force;
     // _recomputeCoordinateFramesStaticsModelWithNodalForces();
     _stale_frames = true;
 }
