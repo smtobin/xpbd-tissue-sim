@@ -40,19 +40,30 @@ Vec3r parseVector3(const std::string& s)
 
 void runSim(Sim::Simulation* sim)
 {
-    // setup MUST be called in this thread
-    // because the OpenGL context MUST be initialized in the same thread
-    sim->setup();
-
-    // notify the main thread that the simulation has completed setup
+    try
     {
-        std::lock_guard<std::mutex> l(mtx);
-        setup_complete = true;
-    }
-    cv.notify_one();
+        // setup MUST be called in this thread
+        // because the OpenGL context MUST be initialized in the same thread
+        sim->setup();
 
-    // begin running the simulation
-    sim->run();
+        // notify the main thread that the simulation has completed setup
+        {
+            std::lock_guard<std::mutex> l(mtx);
+            setup_complete = true;
+        }
+        cv.notify_one();
+
+        // begin running the simulation
+        sim->run();
+    }
+    catch (const std::exception& e)
+    {
+        RCLCPP_FATAL(
+            rclcpp::get_logger("Sim Bridge"),
+            "Simulation exception: %s",
+            e.what());
+        rclcpp::shutdown();
+    }
 }
 
 template<typename SimulationType, typename SimBridgeType=SimBridge<SimulationType>>
