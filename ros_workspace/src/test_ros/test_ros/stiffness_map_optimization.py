@@ -7,11 +7,13 @@ import scipy.sparse as sp
 
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
-from geometry_msgs.msg import Point, PoseStamped
+from geometry_msgs.msg import Point, PoseStamped, Vector3Stamped
 
 import trimesh
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
+
+import time
 
 
 # K = sparse stiffness mat
@@ -128,18 +130,11 @@ def snake_order(grid_ij):
     return np.array(result, int)
 
 
-def normal_to_quat(n):
-    n = n / np.linalg.norm(n)
-    ref = np.array([1., 0, 0]) if abs(n[0]) < 0.9 else np.array([0, 1., 0])
-    x = np.cross(ref, n); x /= np.linalg.norm(x)
-    y = np.cross(n, x)
-    return R.from_matrix(np.column_stack([x, y, n])).as_quat()
-
-
 class StiffnessMapOptimizer(Node):
     def __init__(self):
         super().__init__('matrix_subscriber')
         self.tip_sub = self.create_subscription(PoseStamped, '/sim/output/arm1_tip_frame', self.new_arm1_tip_frame, 10)
+        self.force_pub = self.create_publisher(Vector3Stamped, '/sim/input/lesion_body_force', 10)
 
         self.client = self.create_client(FocalLesionFactorGraphState, '/sim/focal_lesion_factor_graph_state')
 
@@ -179,6 +174,7 @@ class StiffnessMapOptimizer(Node):
             self.get_logger().info("Response received!")
             self.get_logger().info(f'Initial mesh: {response.fg_state.sim_mesh.vertices.size} vertices (total size), {response.fg_state.sim_mesh.faces.size} faces (total size), and {response.fg_state.sim_mesh.elements.size} elements (total size)')
 
+            # extract data from response
             m = response.fg_state.sim_mesh
             V_flat = np.asarray(m.vertices.data, float)
             V = np.asarray(m.vertices.data, float).reshape(-1, 3)
@@ -187,6 +183,7 @@ class StiffnessMapOptimizer(Node):
             self.get_logger().info(
                 f'mesh: {len(V)} verts, {len(F)} faces, {len(lesion_vids)} lesion')
 
+            # plan waypoints
             fid, bary, pos_w, nrm_w, grid_ij = plan_waypoints(V, F, lesion_vids)
             order = snake_order(grid_ij)
             fid, bary = fid[order], bary[order]
@@ -198,99 +195,55 @@ class StiffnessMapOptimizer(Node):
             # convert to CSR (compressed sparse row) - recommended for most matrix operations
             sparse_mat = sparse_mat_coo.tocsr()
 
+            # print out the 10 smallest eigenvalues of the stiffness matrix - they should be nonzero
+            # if 6 are zero, then rigid body modes are not being constrained ==> stiffness matrix not invertible
             vals = sp.linalg.eigsh(sparse_mat, k=10, which='SA', return_eigenvectors=False)
             print(np.sort(vals))
 
+            # get apparent surface compliances at each point
             Cs = []
             for f, b in zip(fid, bary):
                 print(f"Face ind: {f}")
                 Cs.append(surface_point_compliance(sparse_mat, V_flat, F[f,:], b))
 
+            
+
         except Exception as e:
             self.get_logger().error(f'Initial call failed: {e}')
 
-    def send_request(self):
-        self.get_logger().info(f'Sending request for factor graph state...')
+    # optimization objective
+    #  - Given lesion body force F, applies the force in the sim, waits ~3 sec, then finds the resulting stiffness map
+    def optimization_objective(self, F):
+        # Step 1: apply force in the lesion force sim
+        msg = Vector3Stamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.vector.x = F[0]
+        msg.vector.y = F[1]
+        msg.vector.z = F[2]
+        self.force_pub.publish(msg)
 
-        future = self.client.call_async(self.req)
-        future.add_done_callback(self.handle_response)
+        # Step 2: wait for sim to converge to roughly steady-state
+        time.sleep(3)
 
-    def handle_response(self, future):
-        try:
-            response = future.result()
+        # Step 3: get sim state
+        response = self.client.call(self.req)
+        fg_state = response.fg_state
+        stiffness_mat = fg_state.sim_stiffness_mat
 
-            fg_state = response.fg_state
-            updated_last_mesh = response.updated_last_mesh
-            stiffness_mat = fg_state.sim_stiffness_mat
-            
-            self.req.last_mesh = updated_last_mesh
+        # use SciPy COO format to build sparse matrix
+        sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
+        # convert to CSR (compressed sparse row) - recommended for most matrix operations
+        sparse_mat = sparse_mat_coo.tocsr()
 
-            # use SciPy COO format to build sparse matrix
-            sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
-            # convert to CSR (compressed sparse row) - recommended for most matrix operations
-            sparse_mat = sparse_mat_coo.tocsr()
+        fg_mesh = response.fg_state.sim_mesh
+        fg_vertices = np.asarray(fg_mesh.vertices.data, float).reshape(-1, 3)
+        fg_faces = np.asarray(fg_mesh.faces.data, np.int32).reshape(-1, 3)
+        mesh = trimesh.Trimesh(vertices=fg_vertices, faces=fg_faces, process=False)
 
-            self.get_logger().info(f'Current mesh: {fg_state.sim_mesh.vertices.size} vertices (total), {fg_state.sim_mesh.faces.size} faces (total), and {fg_state.sim_mesh.elements.size} elements (total)')
-            self.get_logger().info(f'Updated last mesh: {updated_last_mesh.vertices.size} vertices (total), {updated_last_mesh.faces.size} faces (total), and {updated_last_mesh.elements.size} elements (total)')
-            self.get_logger().info(f'Received {stiffness_mat.rows}x{stiffness_mat.cols} sparse matrix with {sparse_mat.count_nonzero()} nonzero entries')
+        # Step 4: get closest surface points to the original palpation points
+        
 
-            self.publish_mesh(fg_state.sim_mesh.vertices, fg_state.sim_mesh.faces, self.prostate_mesh_publisher, self.prostate_color)
-            self.publish_mesh(fg_state.sim_mesh.vertices, response.lesion_faces, self.lesion_mesh_publisher, self.lesion_color)
-        except Exception as e:
-            self.get_logger().error(f'Service call failed: {e}')
-
-
-    
-
-
-    def on_resp(self, fut):
-        try:
-            resp = fut.result()
-            m = resp.fg_state.sim_mesh
-            V = np.asarray(m.vertices.data, float).reshape(-1, 3)
-            F = np.asarray(m.faces.data, np.int64).reshape(-1, 3)
-            lesion_vids = np.asarray(resp.lesion_vertices, np.int64)
-            self.get_logger().info(
-                f'mesh: {len(V)} verts, {len(F)} faces, {len(lesion_vids)} lesion')
-
-            fid, bary, pos_w, nrm_w, grid_ij = self.plan_waypoints(V, F, lesion_vids)
-            order = self.snake_order(grid_ij)
-            fid, bary = fid[order], bary[order]
-            pos_w, nrm_w = pos_w[order], nrm_w[order]
-            self.get_logger().info(f'{len(fid)} waypoints, snake-ordered')
-
-            # ---- transform world -> base ----
-            M = self.get_M_cmd_from_world()          # 4x4
-            Rm, tvec = M[:3, :3], M[:3, 3]
-            pos_b = (pos_w @ Rm.T) + tvec            # positions
-            nrm_b = nrm_w @ Rm.T                      # normals (rotation only)
-            nrm_b /= np.linalg.norm(nrm_b, axis=1, keepdims=True)
-            self.get_logger().info('transformed waypoints into base frame')
-
-            # ---- save (BASE frame) ----
-            out = self.get_parameter('out_path').value
-            np.savez(out, face_id=fid, bary=bary,
-                     pos=pos_b, normal=nrm_b,          # base-frame
-                     pos_world=pos_w, normal_world=nrm_w)  # keep world too
-            self.get_logger().info(f'saved -> {out} (base-frame pos + normal)')
-
-            # ---- publish latched PoseArray (base frame) ----
-            msg = PoseArray()
-            msg.header.stamp = self.get_clock().now().to_msg()
-            msg.header.frame_id = self.get_parameter('base_frame').value
-            for p, n in zip(pos_b, nrm_b):
-                q = normal_to_quat(n)
-                pose = Pose()
-                pose.position.x, pose.position.y, pose.position.z = map(float, p)
-                pose.orientation.x, pose.orientation.y = float(q[0]), float(q[1])
-                pose.orientation.z, pose.orientation.w = float(q[2]), float(q[3])
-                msg.poses.append(pose)
-            self.pub.publish(msg)
-            self.get_logger().info(
-                f'published {len(msg.poses)} poses (base frame, latched)')
-        except Exception as e:
-            import traceback
-            self.get_logger().error(f'plan failed: {e}\n{traceback.format_exc()}')
+        # Step 4: get apparent surface stiffness in palpation directions
         
 
 def main(args=None):
