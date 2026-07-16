@@ -464,6 +464,9 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool, Sim::Vi
 
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArmTool_Base* tool1, Sim::VirtuosoArmTool_Base* tool2)
 {
+    // disable tool-tool collisions (07/16/26)
+    return;
+
     if (tool1 > tool2)
         return;
 
@@ -511,6 +514,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::VirtuosoArm* virtuoso_arm2)
 {
+    // disable arm-arm collision (07/16/26)
+    return;
+
     if (virtuoso_arm1 >= virtuoso_arm2)
         return;
         
@@ -564,6 +570,9 @@ void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm1, Sim::Vi
 
 void CollisionScene::_collideObjectPair(Sim::VirtuosoArm* virtuoso_arm, Sim::VirtuosoArmTool_Base* tool)
 {
+    // disable tool-arm collisions (07/16/26)
+    return;
+
     // make sure that the object is not the tool attached to the arm
     if (virtuoso_arm->tool() &&  virtuoso_arm->tool() == tool)
         return;
