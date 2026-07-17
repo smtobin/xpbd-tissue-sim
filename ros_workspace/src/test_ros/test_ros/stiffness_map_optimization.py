@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
 from sim_bridge.msg import SparseMatrix
 from sim_bridge.srv import FactorGraphState, FocalLesionFactorGraphState
 import numpy as np
@@ -12,8 +13,10 @@ from geometry_msgs.msg import Point, PoseStamped, Vector3Stamped
 import trimesh
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
+import scipy.optimize as opt
 
 import time
+import threading
 
 
 # K = sparse stiffness mat
@@ -129,6 +132,12 @@ def snake_order(grid_ij):
         result.extend(row_idx.tolist())
     return np.array(result, int)
 
+class PalpationMeasurement:
+    def __init__(self, location, direction, stiffness):
+        self.location = location
+        self.direction = direction
+        self.stiffness = stiffness
+
 
 class StiffnessMapOptimizer(Node):
     def __init__(self):
@@ -150,6 +159,10 @@ class StiffnessMapOptimizer(Node):
         self.arm1_tip_pos = None
         
         self.timer = None
+
+        # palpation "measurements" - simulated palpation data that we are comparing to
+        # array of PalpationMeasurement
+        self.palpation_measurements = []
 
         # initial call to FG service to get the initial mesh
         self.init_timer = self.create_timer(1, self.send_initial_request)
@@ -202,34 +215,68 @@ class StiffnessMapOptimizer(Node):
 
             # get apparent surface compliances at each point
             Cs = []
-            for f, b in zip(fid, bary):
-                print(f"Face ind: {f}")
-                Cs.append(surface_point_compliance(sparse_mat, V_flat, F[f,:], b))
+            for i, (f, b) in enumerate(zip(fid, bary)):
+                C = surface_point_compliance(sparse_mat, V_flat, F[f,:], b)
+                Cs.append(C)
+                # F = C^-1 * u
+                # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
+                stiffness = np.linalg.norm(np.linalg.inv(C) @ nrm_w[i]) / np.linalg.norm(nrm_w[i])
+                self.palpation_measurements.append( PalpationMeasurement(pos_w[i], nrm_w[i], stiffness))
 
-            
+            # start the optimization in a new thread (so that the optimization objective can be synchronous)
+            threading.Thread(target=self.run_optimization, daemon=True).start()
 
         except Exception as e:
             self.get_logger().error(f'Initial call failed: {e}')
 
+    # runs the optimization
+    def run_optimization(self):
+        x0 = np.array([2, 2, 2])
+        result = opt.minimize(
+            self.optimization_objective,
+            x0=x0,
+            method="Powell",
+            # bounds=[
+            #     (0, 20),
+            #     (0, 20),
+            #     (0, 20),
+            # ],
+            options={
+                "maxiter": 50,
+                "xtol": 0.1,
+                "ftol": 1e-3,
+            }
+        )
+        print(f"Optimization result: {result}")
+
     # optimization objective
-    #  - Given lesion body force F, applies the force in the sim, waits ~3 sec, then finds the resulting stiffness map
+    #  - Given lesion body force F (scaled up by 1e6), applies the force in the sim, waits ~3 sec, then finds the resulting stiffness map
     def optimization_objective(self, F):
+        force = np.asarray(F) * 1e6
+        print(f"=== Optimization objective start ===")
+        print(f"  Applying body force {F} MN/m^3 to sim...")
         # Step 1: apply force in the lesion force sim
         msg = Vector3Stamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.vector.x = F[0]
-        msg.vector.y = F[1]
-        msg.vector.z = F[2]
+        msg.vector.x = force[0]
+        msg.vector.y = force[1]
+        msg.vector.z = force[2]
         self.force_pub.publish(msg)
 
         # Step 2: wait for sim to converge to roughly steady-state
-        time.sleep(3)
+        wait_time = 5
+        print(f"  Waiting {wait_time} seconds for convergence...")
+        time.sleep(wait_time)
 
         # Step 3: get sim state
-        response = self.client.call(self.req)
+        print(f"  Getting new simulation state...")
+        future = self.client.call_async(self.req)
+        rclpy.spin_until_future_complete(self, future)
+        response = future.result()
         fg_state = response.fg_state
         stiffness_mat = fg_state.sim_stiffness_mat
 
+        print(f"  Extracting data from service response...")
         # use SciPy COO format to build sparse matrix
         sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
         # convert to CSR (compressed sparse row) - recommended for most matrix operations
@@ -237,24 +284,70 @@ class StiffnessMapOptimizer(Node):
 
         fg_mesh = response.fg_state.sim_mesh
         fg_vertices = np.asarray(fg_mesh.vertices.data, float).reshape(-1, 3)
+        fg_vertices_flat = np.asarray(fg_mesh.vertices.data, float)
         fg_faces = np.asarray(fg_mesh.faces.data, np.int32).reshape(-1, 3)
         mesh = trimesh.Trimesh(vertices=fg_vertices, faces=fg_faces, process=False)
 
         # Step 4: get closest surface points to the original palpation points
+        print(f"  Getting closest points on surface to palpation measurements...")
+        palpation_locations = [meas.location for meas in self.palpation_measurements]
+        palpation_locations = np.vstack(
+            [meas.location for meas in self.palpation_measurements]
+        )
+        closest_points, distances, triangle_ids = trimesh.proximity.closest_point(mesh, palpation_locations)
+        triangles = mesh.vertices[mesh.faces[triangle_ids]]
+        barys = trimesh.triangles.points_to_barycentric(triangles, closest_points)
+
+        # Step 5: get apparent surface stiffness in palpation directions
+        # each entry in the array corresponds to the entry in the self.palpation_measurements array with the same index
+        print(f"  Computing apparent stiffnesses at surface points...")
+        new_palpation_measurements = []
+        for i, (f, b) in enumerate(zip(triangle_ids, barys)):
+            C = surface_point_compliance(sparse_mat, fg_vertices_flat, fg_faces[f,:], b)
+            # F = C^-1 * u
+            # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
+            dir = self.palpation_measurements[i].direction
+            stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
+            new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
         
 
-        # Step 4: get apparent surface stiffness in palpation directions
+        # Step 6: compute objective
+        print(f"  Computing objective...")
+        stiffness_weight = 1
+        location_weight = 1e10
+        stiffness_penalty = 0   # cost of stiffnesses being different
+        location_penalty = 0    # cost of palpation locations being different
+        for meas, sim in zip(self.palpation_measurements, new_palpation_measurements):
+            # compute cost for location difference
+            loc_diff = np.array(meas.location - sim.location)
+            location_penalty += location_weight * (loc_diff.transpose() @ loc_diff)
+            # compute cost for stiffness difference
+            stiffness_diff = meas.stiffness - sim.stiffness
+            stiffness_penalty += stiffness_weight * (stiffness_diff**2)
+
+        # total objective
+        # E = stiffness_penalty + location_penalty
+        E = location_penalty
+
+        print(f"  Done. Stiffness cost: {stiffness_penalty},   Location penalty: {location_penalty},  Total objective: {E}")
+
+        return E
+        
         
 
 def main(args=None):
     rclpy.init(args=args)
     node = StiffnessMapOptimizer()
-    
+
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
+
     try:
-        rclpy.spin(node)
+        executor.spin()
     except KeyboardInterrupt:
         pass
     finally:
+        executor.shutdown()
         node.destroy_node()
         rclpy.shutdown()
 
