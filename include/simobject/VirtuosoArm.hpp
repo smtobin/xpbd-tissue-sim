@@ -483,6 +483,8 @@ public:
     void addCollisionConstraint(const CollisionConstraintInfo::ProjectorRefType& proj_ref, int node_index, Real interp);
     void clearCollisionConstraints();
 
+    Vec3r graspingForce() const { return _filtered_grasping_force; }
+
     void addRigidCollision(int node_index, Real interp, const Geometry::SDF* sdf);
     void addRigidCollision(const Vec3r& contact_point, const Geometry::SDF* sdf);
     void addVirtuosoArmCollision(int node_index, Real interp, VirtuosoArm* other, int other_index, Real other_interp);
@@ -654,12 +656,17 @@ public:
      * This is the nominal total collision force (expressed in the global frame), added up across all the collision constraints.
      * This is NOT the actual force used by the quasistatic model - the force used by the model is smoothed using a complementary filter.
      */
-    Vec3r _unfiltered_collision_force;
+    Vec3r _unfiltered_collision_force = Vec3r::Zero();
 
     /** The "filtered" net collision force felt by the tube.
      * This is the force that is used by the quasistatic model - it is smoothed using a complementary filter.
      */
-    Vec3r _filtered_collision_force;
+    Vec3r _filtered_collision_force = Vec3r::Zero();
+
+    /** The "filtered" net grasping force felt by the tube.
+     * This is the force that is used by the quasistatic model - it is smoothed using a complementary filter.
+     */
+    Vec3r _filtered_grasping_force = Vec3r::Zero();
 
     /** Collision forces from collisions with deformable objects (i.e. tissue).
      * We need to keep track of these separately from other collisions so that they can be smoothed with a complementary filter.

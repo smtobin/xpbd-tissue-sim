@@ -268,6 +268,25 @@ void VirtuosoSimBridge::_setupPublishers()
             this->_virtuoso_self_collision_publisher->publish(msg);
         };
     _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), arms_in_collision_callback);
+
+    _virtuoso_grasped_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/virtuoso_grasped", 10);
+    auto grasping_callback = 
+        [this]() -> void {
+            bool is_grasping = false;
+            if (this->_sim->virtuosoRobot()->hasArm1() && this->_sim->virtuosoRobot()->arm1()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER)
+            {
+                is_grasping = this->_sim->virtuosoRobot()->arm1()->graspingForce().norm() > 1e-6;
+            }
+            if (this->_sim->virtuosoRobot()->hasArm2() && this->_sim->virtuosoRobot()->arm2()->toolType() == Sim::VirtuosoArm::ToolType::GRASPER)
+            {
+                is_grasping = this->_sim->virtuosoRobot()->arm2()->graspingForce().norm() > 1e-6;
+            }
+
+            std_msgs::msg::Int8 msg;
+            msg.data = static_cast<int>(is_grasping);
+            this->_virtuoso_grasped_publisher->publish(msg);
+        };
+    _sim->addCallback(1.0/this->get_parameter("publish_rate_hz").as_double(), grasping_callback);
 }
 
 

@@ -1080,6 +1080,7 @@ void VirtuosoArm::_grasperToolAction()
 
         total_force += capped_force; 
     }
+    _filtered_grasping_force = total_force;
 
     // smooth forces
     Vec3r new_tip_force = 0.995*tipForce() + 0.005* total_force;
