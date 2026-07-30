@@ -192,6 +192,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Computes the total force exerted on this object from the attachment constraints. */
     virtual Vec3r attachmentConstraintTotalForce() const override;
 
+    /** Returns the number of active attachment constraints (i.e. number of active projectors) */
+    virtual int numActiveAttachmentConstraints() const override;
+
     /** === Editing mesh topology === */
 
     /** Removes an element from the mesh object.
@@ -354,6 +357,8 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Maps vertex to offset attachment constraint index */
     std::unordered_multimap<int, int> _vertex_to_offset_attachment_proj_index;
 
+    /** Maps vertex to attachment constraint index */
+    std::unordered_multimap<int, int> _vertex_to_attachment_proj_index;
 
     /** The number of local iterations for collision area.
      * Constraint projectors in the vicinity of active collision constraints (see _gatherProjectorsForLocalCollisionIterations) are assembled

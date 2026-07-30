@@ -148,7 +148,7 @@ objects:
     self-collisions: false
 
     adaptive-mesh-refinement: true
-    max-refinement-level: 2
+    max-refinement-level: 1
     refinement-distance-threshold: 1.5e-3
     compute-heat-conduction: false
 

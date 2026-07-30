@@ -22,6 +22,11 @@ struct AABB
         : min(min_x, min_y, min_z), max(max_x, max_y, max_z)
     {}
 
+    AABB()
+        : min(Vec3r::Constant(std::numeric_limits<Real>::max())), max(Vec3r::Constant(std::numeric_limits<Real>::lowest()))
+    {
+    }
+
     /** Returns the center of the bounding box. */
     Vec3r center() const
     {

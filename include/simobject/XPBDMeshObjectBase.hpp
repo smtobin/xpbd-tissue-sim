@@ -227,6 +227,9 @@ public:
     /** Computes the total force exerted on this object from the attachment constraints. */
     virtual Vec3r attachmentConstraintTotalForce() const = 0;
 
+    /** Returns the number of active attachment constraints (i.e. number of active projectors) */
+    virtual int numActiveAttachmentConstraints() const = 0;
+
     /** Performs a check for self collision.
      * If any surface vertices are inside tetrahedra (queries made using Embree), add a collision constraint to fix that.
      * Assumes that the Embree scene is up to date.

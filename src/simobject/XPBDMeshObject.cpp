@@ -468,7 +468,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAtta
     constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_pos_ptr);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
-    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    auto proj = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    _vertex_to_attachment_proj_index.insert({v_ind, proj.index()});
+    return proj;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -483,7 +485,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addAtta
     constraint_vec.emplace_back(v_ind, vec_ptr, mass, attach_ind, attach_vec_ptr);
     
     using ConstraintRefType = Solver::ConstraintReference<Solver::AttachmentConstraint>;
-    return _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    auto proj = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+    _vertex_to_attachment_proj_index.insert({v_ind, proj.index()});
+    return proj;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -494,6 +498,8 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::cl
     _solver.template clearProjectorsOfType<AttachmentConstraintProjType>();
     // clear constraints
     _constraints.template clear<Solver::AttachmentConstraint>();
+
+    _vertex_to_attachment_proj_index.clear();
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -512,6 +518,21 @@ Vec3r XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::a
     }
 
     return total_force;
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+int XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::numActiveAttachmentConstraints() const
+{
+    using ProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
+    const auto& projs = _solver.template getConstraintProjectorsOfType<ProjectorType>();
+
+    int cnt = 0;
+    for (const auto& proj : projs)
+    {
+        if (proj.isValid())
+            cnt++;
+    }
+    return cnt;
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
@@ -1190,6 +1211,18 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_u
             using CollisionProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::OffsetAttachmentConstraint>;
             _solver.template setProjectorValidity<CollisionProjectorType>(it->second, false);
         }
+    }
+
+    // remove attachment constraints associated with removed vertices
+    for (const auto& removed_vert : removed_vertices)
+    {
+        auto a_proj_range = _vertex_to_attachment_proj_index.equal_range(removed_vert.index);
+        for (auto it = a_proj_range.first; it != a_proj_range.second; it++)
+        {
+            using ProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
+            _solver.template setProjectorValidity<ProjectorType>(it->second, false);
+        }
+
     }
 
     /** Run collision detection on newly added faces */

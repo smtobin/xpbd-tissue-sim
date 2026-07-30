@@ -3,6 +3,7 @@
 #include <set>
 #include <iostream>
 #include <fstream>
+#include <stack>
 
 #ifdef HAVE_CUDA
 #include "gpu/resource/MeshGPUResource.hpp"
@@ -619,6 +620,72 @@ bool Mesh::isInside(const Vec3r& p) const
 
     // if winding number > 0.5, then the point is inside the mesh
     return std::abs(w) > 0.5;
+}
+
+std::vector<Real> Mesh::numConnectedComponentsWithVolumes() const
+{
+    int n = _vertices.totalSize();
+    std::vector<int> visited(n, 0);
+
+    int components = 0;
+
+    auto dfs = [&](int start, int component_num) 
+    {
+        std::stack<int> stack;
+        stack.push(start);
+        while (!stack.empty())
+        {
+            int v = stack.top();
+            stack.pop();
+
+            if (visited[v])
+                continue;
+
+            visited[v] = component_num;
+
+            for (int neighbor : _vertex_adjacent_vertices[v])
+            {
+                if (!visited[neighbor])
+                {
+                    stack.push(neighbor);
+                }
+            }
+        }
+    };
+
+    for (unsigned v_ind : _vertices.validIndices())
+    {
+        if (!visited[v_ind])
+        {
+            components++;
+
+            dfs(v_ind, components);
+        }
+    }
+
+    // compute rough volumes using AABB
+    std::vector<Geometry::AABB> aabbs(components);
+    for (int i = 0; i < components; i++)
+    {
+        for (unsigned v_ind : _vertices.validIndices())
+        {
+            if (visited[v_ind] == i+1)
+            {
+                aabbs[i].min = _vertices[v_ind].cwiseMin(aabbs[i].min);
+                aabbs[i].max = _vertices[v_ind].cwiseMax(aabbs[i].max);
+            }
+        }
+    }
+
+    std::vector<Real> volumes(components);
+    for (int i = 0; i < components; i++)
+    {
+        Vec3r size = aabbs[i].size();
+        volumes[i] = size[0]*size[1]*size[2];
+    }
+
+
+    return volumes;
 }
 
 void Mesh::writeMeshToObjFile(const std::string& filename) const

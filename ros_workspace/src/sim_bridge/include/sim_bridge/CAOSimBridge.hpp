@@ -26,8 +26,13 @@ private:
 
     void _setupToolTracheaCollisionPublisher();
 
+    void _setupTumorDetachedPublisher();
+
     /** Publisher for the tumor-trachea attachment force */
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _tumor_attachment_force_publisher;
+
+    /** Publisher for tumor-trachea detachment */
+    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr _tumor_detached_publisher;
 
     /** Reusable messages for the point clouds (so we don't reallocate memory every time we publish) */
     sensor_msgs::msg::PointCloud2 _trachea_partial_view_pc_message;
