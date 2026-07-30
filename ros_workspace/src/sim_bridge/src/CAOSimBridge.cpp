@@ -23,26 +23,29 @@ void CAOSimBridge::_setupTumorDetachedPublisher()
     _tumor_detached_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/tumor_detached", 10);
     auto tumor_detached_callback = [this]() -> void
     {
-        int num_attachment_constraints = std::visit([&](const auto& obj_ptr) {
-            return obj_ptr->numActiveAttachmentConstraints();
+        bool has_detached_component = std::visit([&](const auto& obj_ptr) {
+            return obj_ptr->hasDetachedConnectedComponent(0.05);
         }, this->_first_xpbd_obj);
+        // int num_attachment_constraints = std::visit([&](const auto& obj_ptr) {
+        //     return obj_ptr->numActiveAttachmentConstraints();
+        // }, this->_first_xpbd_obj);
 
-        std::vector<Real> connected_component_volumes = std::visit([&](const auto& obj_ptr) {
-            return obj_ptr->mesh()->numConnectedComponentsWithVolumes();
-        }, this->_first_xpbd_obj);
+        // std::vector<Real> connected_component_volumes = std::visit([&](const auto& obj_ptr) {
+        //     return obj_ptr->mesh()->numConnectedComponentsWithVolumes();
+        // }, this->_first_xpbd_obj);
 
         // find volume largest connected component
-        Real largest_volume = std::numeric_limits<Real>::lowest();
-        for (const auto& volume : connected_component_volumes)
-            largest_volume = std::max(volume, largest_volume);
+        // Real largest_volume = std::numeric_limits<Real>::lowest();
+        // for (const auto& volume : connected_component_volumes)
+        //     largest_volume = std::max(volume, largest_volume);
 
-        int num_connected_components_over_threshold = 0;
-        for (const auto& volume : connected_component_volumes)
-            if (volume/largest_volume > 0.05)   // use a 5% threshold
-                num_connected_components_over_threshold++;
+        // int num_connected_components_over_threshold = 0;
+        // for (const auto& volume : connected_component_volumes)
+        //     if (volume/largest_volume > 0.05)   // use a 5% threshold
+        //         num_connected_components_over_threshold++;
 
         std_msgs::msg::Int8 msg;
-        msg.data = static_cast<short>(num_attachment_constraints == 0 || num_connected_components_over_threshold > 1);
+        msg.data = static_cast<short>(has_detached_component);
 
         this->_tumor_detached_publisher->publish(msg);
     };

@@ -622,14 +622,15 @@ bool Mesh::isInside(const Vec3r& p) const
     return std::abs(w) > 0.5;
 }
 
-std::vector<Real> Mesh::numConnectedComponentsWithVolumes() const
+std::vector<std::vector<int>> Mesh::connectedComponents() const
 {
     int n = _vertices.totalSize();
-    std::vector<int> visited(n, 0);
+    std::vector<bool> visited(n, false);
+    std::vector<std::vector<int>> components;
 
-    int components = 0;
+    int num_components = 0;
 
-    auto dfs = [&](int start, int component_num) 
+    auto dfs = [&](int start, int component_ind) 
     {
         std::stack<int> stack;
         stack.push(start);
@@ -641,7 +642,8 @@ std::vector<Real> Mesh::numConnectedComponentsWithVolumes() const
             if (visited[v])
                 continue;
 
-            visited[v] = component_num;
+            visited[v] = true;
+            components[component_ind].push_back(v);
 
             for (int neighbor : _vertex_adjacent_vertices[v])
             {
@@ -657,35 +659,15 @@ std::vector<Real> Mesh::numConnectedComponentsWithVolumes() const
     {
         if (!visited[v_ind])
         {
-            components++;
-
-            dfs(v_ind, components);
+            num_components++;
+            components.push_back({});
+            dfs(v_ind, num_components-1);
         }
     }
 
-    // compute rough volumes using AABB
-    std::vector<Geometry::AABB> aabbs(components);
-    for (int i = 0; i < components; i++)
-    {
-        for (unsigned v_ind : _vertices.validIndices())
-        {
-            if (visited[v_ind] == i+1)
-            {
-                aabbs[i].min = _vertices[v_ind].cwiseMin(aabbs[i].min);
-                aabbs[i].max = _vertices[v_ind].cwiseMax(aabbs[i].max);
-            }
-        }
-    }
-
-    std::vector<Real> volumes(components);
-    for (int i = 0; i < components; i++)
-    {
-        Vec3r size = aabbs[i].size();
-        volumes[i] = size[0]*size[1]*size[2];
-    }
 
 
-    return volumes;
+    return components;
 }
 
 void Mesh::writeMeshToObjFile(const std::string& filename) const

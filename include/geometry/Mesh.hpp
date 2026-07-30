@@ -285,7 +285,7 @@ public:
     /** Checks if a point p is inside the mesh. Uses winding number approach. (O(n) computation) */
     bool isInside(const Vec3r& p) const;
 
-    std::vector<Real> numConnectedComponentsWithVolumes() const;
+    std::vector<std::vector<int>> connectedComponents() const;
 
     /** Creates a vertex property with the specified name, and optional default value. */
     template <typename T>

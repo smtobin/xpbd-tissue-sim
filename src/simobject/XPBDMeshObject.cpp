@@ -536,6 +536,60 @@ int XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::num
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
+bool XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::hasDetachedConnectedComponent(Real volume_threshold) const
+{
+
+    std::vector<std::vector<int>> components = _mesh->connectedComponents();
+
+    // compute rough volumes using AABB
+    std::vector<Geometry::AABB> aabbs(components.size());
+    for (unsigned c_idx = 0; c_idx < components.size(); c_idx++)
+    {
+        const auto& component = components[c_idx];
+        for (unsigned v_ind : component)
+        {
+            aabbs[c_idx].min = _mesh->vertex(v_ind).cwiseMin(aabbs[c_idx].min);
+            aabbs[c_idx].max = _mesh->vertex(v_ind).cwiseMax(aabbs[c_idx].max);
+        }
+    }
+    std::vector<Real> volumes(components.size());
+    Real max_volume = std::numeric_limits<Real>::lowest();
+    for (unsigned i = 0; i < components.size(); i++)
+    {
+        Vec3r size = aabbs[i].size();
+        volumes[i] = size[0]*size[1]*size[2];
+
+        max_volume = std::max(volumes[i], max_volume);
+    }
+
+    // iterate through components and see if any of their vertices have active attachment constraints associated with them
+    for (unsigned c_idx = 0; c_idx < components.size(); c_idx++)
+    {
+        if (volumes[c_idx]/max_volume < volume_threshold)
+            continue;
+
+        bool has_attachment = false;
+        for (unsigned v_idx : components[c_idx])
+        {
+            auto a_proj_range = _vertex_to_attachment_proj_index.equal_range(v_idx);
+            for (auto it = a_proj_range.first; it != a_proj_range.second; it++)
+            {
+                using ProjectorType = Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>;
+                if ( _solver.template getConstraintProjector<ProjectorType>(it->second).isValid() )
+                    has_attachment = true;
+            }
+            if (has_attachment)
+                break;
+        }
+
+        if (!has_attachment)
+            return true;
+    }
+
+    return false;
+}
+
+template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
 void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::_calculatePerVertexQuantities()
 {
     // calculate masses for each vertex

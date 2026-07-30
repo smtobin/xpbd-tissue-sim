@@ -115,6 +115,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** Returns the AABB around this object. */
     virtual Geometry::AABB boundingBox() const override;
 
+    /** Queries whether the object has a detached component (i.e. a connected component of the mesh that has no active attachment constraints associated with it) */
+    virtual bool hasDetachedConnectedComponent(Real volume_threshold) const override;
+
     /** === Adding/removing additional constraints === */
 
     /** Adds a collision constraint between a face on this object and a point on a static object in the scene.

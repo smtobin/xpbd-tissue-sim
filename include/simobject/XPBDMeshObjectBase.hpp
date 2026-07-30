@@ -101,6 +101,9 @@ public:
     virtual const SDFType* SDF() const override { return _sdf.has_value() ? &_sdf.value() : nullptr; }
 
 
+    /** Queries whether the object has a detached component (i.e. a connected component of the mesh that has no active attachment constraints associated with it) */
+    virtual bool hasDetachedConnectedComponent(Real volume_threshold) const = 0;
+
     /** === Querying vertex properties === */
 
     /** Fixes a vertex in the mesh so that it will not move.
