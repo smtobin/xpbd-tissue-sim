@@ -673,6 +673,10 @@ public:
      */
     std::vector<Vec3r> _xpbd_collision_forces;
 
+    /** Whether or not to resolve virtuoso-virtuoso collisions and virtuoso-rigid collisions */
+    bool _resolve_virtuoso_virtuoso_collisions;
+    bool _resolve_virtuoso_rigid_collisions;
+
     Geometry::CoordinateFrame _arm_base_frame;        // coordinate frame at the tool channel (where it leaves the endoscope)
     
     OuterTubeFramesArray _ot_frames;  // coordinate frames along the backbone of the exposed part of the outer tube

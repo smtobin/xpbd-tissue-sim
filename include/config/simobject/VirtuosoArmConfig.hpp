@@ -76,6 +76,9 @@ class VirtuosoArmConfig : public ObjectConfig
         _extractParameter("max-it-translation-speed", node, _max_it_translation_speed);
         _extractParameter("max-ot-rotation-speed", node, _max_ot_rotation_speed);
         _extractParameter("max-it-rotation-speed", node, _max_it_rotation_speed);
+
+        _extractParameter("virtuoso-virtuoso-collisions", node, _virtuoso_virtuoso_collisions);
+        _extractParameter("virtuoso-rigid-collisions", node, _virtuoso_rigid_collisions);
     }
 
     explicit VirtuosoArmConfig( const std::string& name, const std::string& material_class, 
@@ -134,6 +137,9 @@ class VirtuosoArmConfig : public ObjectConfig
     Real maxOTRotationSpeed() const { return _max_ot_rotation_speed.value; }
     Real maxITRotationSpeed() const { return _max_it_rotation_speed.value; }
 
+    bool virtuosoVirtuosoCollisions() const { return _virtuoso_virtuoso_collisions.value; }
+    bool virtuosoRigidCollisions() const { return _virtuoso_rigid_collisions.value; }
+
     const VirtuosoArmToolConfig& toolConfig() const { return _tool_config; }
 
     protected:
@@ -161,6 +167,9 @@ class VirtuosoArmConfig : public ObjectConfig
     ConfigParameter<Real> _max_it_translation_speed = ConfigParameter<Real>(0.0529);
     ConfigParameter<Real> _max_ot_rotation_speed = ConfigParameter<Real>(20);
     ConfigParameter<Real> _max_it_rotation_speed = ConfigParameter<Real>(52.4);
+
+    ConfigParameter<bool> _virtuoso_virtuoso_collisions = ConfigParameter<bool>(false);
+    ConfigParameter<bool> _virtuoso_rigid_collisions = ConfigParameter<bool>(false);
 
     VirtuosoArmToolConfig _tool_config;
 };
