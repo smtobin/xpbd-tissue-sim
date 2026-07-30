@@ -130,7 +130,7 @@ objects:
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d.msh"
     # filename: "../resource/lfs/CAO/2026-01-30/tue_open_1_1086_tumor_processed.msh"
-    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces.txt"
+    fixed-faces-filename: "../resource/demos/trachea_virtuoso/cao_04_29_25_model1_tumor_d_fixed_faces_NEW.txt"
     material: "Raw Chicken Breast"
 
     scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
