@@ -23,11 +23,11 @@ import threading
 # V = flattened list of vertices
 # vs = indices of vertices in face
 # barys = barycentric coords of point in face
-def surface_point_compliance(K, V, vs, barys):
-    N = K.shape[0]
+def surface_point_compliance(factorized_K, V, vs, barys):
+    N = V.size
 
     # applied force vector
-    F = np.zeros((N,1))
+    F = np.zeros(N, dtype=V.dtype)
     # compliance matrix - filled out column by column
     C = np.zeros((3,3))
 
@@ -46,7 +46,7 @@ def surface_point_compliance(K, V, vs, barys):
             F[3*v+dir] = barys[i]*delta
         
         # solve for vertex displacements
-        u = sp.linalg.spsolve(K, F)
+        u = factorized_K(F)
         V_new = V + u
         x_new = np.zeros(3)
         for i in range(3):
@@ -55,20 +55,55 @@ def surface_point_compliance(K, V, vs, barys):
         # put finite difference into compliance
         C[:,dir] = (x_new - x_orig) / delta
 
-        F = np.zeros((N,1))
+        F = np.zeros(N, dtype=V.dtype)
 
     
     C = 0.5 * (C + C.T)
-    print(f"Compliance at point {vs} with barycentric coordinates {barys}:\n{C}")
+    # print(f"Compliance at point {vs} with barycentric coordinates {barys}:\n{C}")
 
-    eigvals = np.linalg.eigvalsh(C)
+    # eigvals = np.linalg.eigvalsh(C)
 
-    if np.all(eigvals > 0):
-        print("SPD")
-    else:
-        print("Not SPD", eigvals)
+    # if np.all(eigvals > 0):
+    #     print("SPD")
+    # else:
+    #     print("Not SPD", eigvals)
 
     return C
+
+# computes the tetrahedral volume of 4 vertices
+def elementVolume(v1, v2, v3, v4):
+    X = np.zeros((3,3))
+    X[:,0] = (v1 - v4)
+    X[:,1] = (v2 - v4)
+    X[:,2] = (v3 - v4)
+
+    return np.abs(np.linalg.det(X) / 6.0)
+
+# evolves the initial tissue state given the stiffness matrix and an applied lesion body force
+#  lesion_body_force - the distributed body force applied to the lesion (N/m^3)
+#  factorized_K - the factorized stiffness matrix in the initial configuration (using scipy.sparse.linalg.factorized)
+#  initial_V - flattened list of the initial vertices
+#  lesion_elements - Nx4 matrix of vertex indices corresponding to the lesion elements
+def getTissueStateGivenLesionForce(lesion_body_force, factorized_K, initial_V, lesion_elements):
+    N = initial_V.size
+    # compute the force vector given the lesion body force and the lesion elements
+    F = np.zeros(N, dtype=initial_V.dtype)
+    for elem in lesion_elements:
+        # compute volume
+        v1 = initial_V[3*elem[0]:3*elem[0]+3]
+        v2 = initial_V[3*elem[1]:3*elem[1]+3]
+        v3 = initial_V[3*elem[2]:3*elem[2]+3]
+        v4 = initial_V[3*elem[3]:3*elem[3]+3]
+        volume = elementVolume(v1, v2, v3, v4)
+        # compute total force on element
+        total_force = volume * lesion_body_force
+        # distribute to each vertex in the element
+        for v in elem:
+            F[3*v:3*v+3] += 0.25*total_force
+
+    # given the force vector and the factorized stiffness matrix, compute the vertex offsets (Ku = F)
+    u = factorized_K(F)
+    return initial_V + u
 
 # ---------------- geometry pipeline  ----------------
 def plan_waypoints(V, F, lesion_vids,
@@ -167,6 +202,23 @@ class StiffnessMapOptimizer(Node):
         # initial call to FG service to get the initial mesh
         self.init_timer = self.create_timer(1, self.send_initial_request)
 
+        # == for linear optimization ==
+        # store the stiffness matrix in the initial configuration (as its LU decomposition - this is only what's available in scipy)
+        # this is what is returned by scipy.sparse.linalg.factorized
+        self.factorized_stiffness = None
+
+        # store the initial vertices
+        # using the stiffness matrix, we will repeatedly evolve the initial vertices the new approximate state using applied lesion body force
+        self.initial_vertices = []
+        self.initial_vertices_flat = []
+
+        # store the initial faces
+        self.initial_faces = []
+
+        # store lesion elements
+        # required for computing the applied body forces
+        self.lesion_elements = []
+
     def new_arm1_tip_frame(self, msg):
         point = msg.pose.position
         self.arm1_tip_pos = np.array([point.x, point.y, point.z])
@@ -179,7 +231,7 @@ class StiffnessMapOptimizer(Node):
         future.add_done_callback(self.handle_initial_response)
 
     def handle_initial_response(self, future):
-        try:
+        # try:
             response = future.result()
             self.req.update_last_mesh = False
             self.req.compute_stiffness_matrix = True
@@ -190,11 +242,19 @@ class StiffnessMapOptimizer(Node):
             # extract data from response
             m = response.fg_state.sim_mesh
             V_flat = np.asarray(m.vertices.data, float)
+            self.initial_vertices_flat = V_flat
+            print(f"V_flat size:{V_flat.shape}")
             V = np.asarray(m.vertices.data, float).reshape(-1, 3)
+            self.initial_vertices = V
             F = np.asarray(m.faces.data, np.int32).reshape(-1, 3)
+            self.initial_faces = F
+            E = np.asarray(m.elements.data, np.int32).reshape(-1, 4)
             lesion_vids = np.asarray(response.lesion_vertices, np.int32)
             self.get_logger().info(
                 f'mesh: {len(V)} verts, {len(F)} faces, {len(lesion_vids)} lesion')
+            lesion_elements_inds = np.asarray(response.lesion_elements, np.int32)
+            self.lesion_elements = E[lesion_elements_inds]
+            print(self.lesion_elements)
 
             # plan waypoints
             fid, bary, pos_w, nrm_w, grid_ij = plan_waypoints(V, F, lesion_vids)
@@ -204,9 +264,12 @@ class StiffnessMapOptimizer(Node):
 
             stiffness_mat = response.fg_state.sim_stiffness_mat
             # use SciPy COO format to build sparse matrix
-            sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
+            sparse_mat_coo = sp.coo_matrix(( np.asarray(stiffness_mat.values, dtype=np.float64), (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
             # convert to CSR (compressed sparse row) - recommended for most matrix operations
             sparse_mat = sparse_mat_coo.tocsr()
+
+            # factorize the stiffness matrix and store it
+            self.factorized_stiffness = sp.linalg.factorized(sparse_mat)
 
             # print out the 10 smallest eigenvalues of the stiffness matrix - they should be nonzero
             # if 6 are zero, then rigid body modes are not being constrained ==> stiffness matrix not invertible
@@ -216,7 +279,7 @@ class StiffnessMapOptimizer(Node):
             # get apparent surface compliances at each point
             Cs = []
             for i, (f, b) in enumerate(zip(fid, bary)):
-                C = surface_point_compliance(sparse_mat, V_flat, F[f,:], b)
+                C = surface_point_compliance(self.factorized_stiffness, V_flat, F[f,:], b)
                 Cs.append(C)
                 # F = C^-1 * u
                 # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
@@ -224,16 +287,92 @@ class StiffnessMapOptimizer(Node):
                 self.palpation_measurements.append( PalpationMeasurement(pos_w[i], nrm_w[i], stiffness))
 
             # start the optimization in a new thread (so that the optimization objective can be synchronous)
-            threading.Thread(target=self.run_optimization, daemon=True).start()
+            # threading.Thread(target=self.run_nonlinear_optimization, daemon=True).start()
+            threading.Thread(target=self.run_linear_optimization, daemon=True).start()
 
-        except Exception as e:
-            self.get_logger().error(f'Initial call failed: {e}')
+        # except Exception as e:
+        #     self.get_logger().error(f'Initial call failed: {e}')
 
-    # runs the optimization
-    def run_optimization(self):
+    # runs the "linear" optimization
+    # the stiffness matrix from the initial tissue state is always used
+    def run_linear_optimization(self):
+        x0 = np.array([2,2,2])
+        result = opt.minimize(
+            self.linear_optimization_objective,
+            x0=x0,
+            method="Powell",
+            # bounds=[
+            #     (0, 20),
+            #     (0, 20),
+            #     (0, 20),
+            # ],
+            options={
+                "maxiter": 50,
+                "xtol": 0.1,
+                "ftol": 1e-3,
+            }
+        )
+        print(f"Optimization result: {result}")
+
+    def linear_optimization_objective(self, F):
+        # scale F by 1e6 for numerical sensitivity
+        force = np.asarray(F) * 1e6
+
+        # Step 1: get the new tissue state given the applied body force to the lesion
+        print(f"  Updating tissue state with new lesion force {force}...")
+        new_V = getTissueStateGivenLesionForce(force, self.factorized_stiffness, self.initial_vertices_flat, self.lesion_elements)
+
+        # Step 2: get closest surface points to the original palpation points
+        print(f"  Getting closest points on surface to palpation measurements...")
+        palpation_locations = [meas.location for meas in self.palpation_measurements]
+        palpation_locations = np.vstack(
+            [meas.location for meas in self.palpation_measurements]
+        )
+
+        new_V_mat = new_V.reshape(-1, 3)
+        mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.initial_faces, process=False)
+        closest_points, distances, triangle_ids = trimesh.proximity.closest_point(mesh, palpation_locations)
+        triangles = mesh.vertices[mesh.faces[triangle_ids]]
+        barys = trimesh.triangles.points_to_barycentric(triangles, closest_points)
+
+        # Step 3: get apparent surface stiffness in palpation directions
+        # each entry in the array corresponds to the entry in the self.palpation_measurements array with the same index
+        print(f"  Computing apparent stiffnesses at surface points...")
+        new_palpation_measurements = []
+        for i, (f, b) in enumerate(zip(triangle_ids, barys)):
+            C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
+            # F = C^-1 * u
+            # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
+            dir = self.palpation_measurements[i].direction
+            stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
+            new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
+
+        # Step 4: compute objective
+        print(f"  Computing objective...")
+        stiffness_weight = 1
+        location_weight = 1e10
+        stiffness_penalty = 0   # cost of stiffnesses being different
+        location_penalty = 0    # cost of palpation locations being different
+        for meas, sim in zip(self.palpation_measurements, new_palpation_measurements):
+            # compute cost for location difference
+            loc_diff = np.array(meas.location - sim.location)
+            location_penalty += location_weight * (loc_diff.transpose() @ loc_diff)
+            # compute cost for stiffness difference
+            stiffness_diff = meas.stiffness - sim.stiffness
+            stiffness_penalty += stiffness_weight * (stiffness_diff**2)
+
+        # total objective
+        # E = stiffness_penalty + location_penalty
+        E = stiffness_penalty + location_penalty
+        print(f"  Done. Stiffness cost: {stiffness_penalty},   Location penalty: {location_penalty},  Total objective: {E}")
+        return E
+
+    # runs the "nonlinear" optimization
+    # given lesion body force, applies the force in the sim and waits for convergence before calculating the resulting stiffness map
+    def run_nonlinear_optimization(self):
         x0 = np.array([2, 2, 2])
         result = opt.minimize(
-            self.optimization_objective,
+            self.nonlinear_optimization_objective,
             x0=x0,
             method="Powell",
             # bounds=[
@@ -251,7 +390,7 @@ class StiffnessMapOptimizer(Node):
 
     # optimization objective
     #  - Given lesion body force F (scaled up by 1e6), applies the force in the sim, waits ~3 sec, then finds the resulting stiffness map
-    def optimization_objective(self, F):
+    def nonlinear_optimization_objective(self, F):
         force = np.asarray(F) * 1e6
         print(f"=== Optimization objective start ===")
         print(f"  Applying body force {F} MN/m^3 to sim...")
@@ -281,6 +420,7 @@ class StiffnessMapOptimizer(Node):
         sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
         # convert to CSR (compressed sparse row) - recommended for most matrix operations
         sparse_mat = sparse_mat_coo.tocsr()
+        factorized_stiffness = sp.linalg.factorized(sparse_mat)
 
         fg_mesh = response.fg_state.sim_mesh
         fg_vertices = np.asarray(fg_mesh.vertices.data, float).reshape(-1, 3)
@@ -303,7 +443,7 @@ class StiffnessMapOptimizer(Node):
         print(f"  Computing apparent stiffnesses at surface points...")
         new_palpation_measurements = []
         for i, (f, b) in enumerate(zip(triangle_ids, barys)):
-            C = surface_point_compliance(sparse_mat, fg_vertices_flat, fg_faces[f,:], b)
+            C = surface_point_compliance(factorized_stiffness, fg_vertices_flat, fg_faces[f,:], b)
             # F = C^-1 * u
             # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
             dir = self.palpation_measurements[i].direction
@@ -336,6 +476,13 @@ class StiffnessMapOptimizer(Node):
         
 
 def main(args=None):
+    import sys
+    print("Executable:", sys.executable)
+    print("Prefix:", sys.prefix)
+    print("Path:")
+    for p in sys.path:
+        print(" ", p)
+
     rclpy.init(args=args)
     node = StiffnessMapOptimizer()
 
