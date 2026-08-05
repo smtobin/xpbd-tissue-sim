@@ -384,6 +384,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     /** The filename that has information about which faces/vertices should be fixed. Optional, and set by the config. */
     std::optional<std::string> _fixed_faces_filename;
 
+    /** Whether or not to ignore detected collisions. Collision constraints are still created, but the projectors are marked as invalid. */
+    bool _ignore_collisions;
+
     /** Pre-allocated storage for computing the stiffness matrix.
      * TODO: switch to a sparse matrix representation
      */

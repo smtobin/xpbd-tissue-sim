@@ -155,6 +155,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::XPBDMes
     // distance threshold for refinement
     _refinement_distance_threshold = config->refinementDistanceThreshold();
 
+    // whether or not to ignore collisions
+    _ignore_collisions = config->ignoreCollisions();
+
     // get the damping multiplier for 1st-order objects
     if constexpr (IsFirstOrder)
     {
@@ -343,6 +346,9 @@ XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::addStat
 
     using ConstraintRefType = Solver::ConstraintReference<Solver::StaticDeformableCollisionConstraint>;
     auto proj_ref = _solver.addConstraintProjector(_sim->dt(), ConstraintRefType(constraint_vec, constraint_vec.size()-1));
+
+    if (_ignore_collisions)
+        proj_ref->setValidity(false);
 
     // add an entry in the element -> collision projector index map
     _element_to_collision_proj_index.insert({element_ind, proj_ref.index()});

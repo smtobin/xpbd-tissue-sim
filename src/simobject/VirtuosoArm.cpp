@@ -548,6 +548,11 @@ void VirtuosoArm::velocityUpdate()
     // we can compute the constraint forces associated with projections of various constraints
     _toolAction();
 
+    _stale_frames = true;
+    
+    if (_ignore_collisions)
+        return;
+
     const Real load_frac = 0.005;
     const Real unload_frac = 0.005;//0.1;
     _unfiltered_collision_force = Vec3r::Zero();
@@ -1166,7 +1171,10 @@ void VirtuosoArm::_cauteryToolAction()
                 const auto& collision_proj_ref = _tool->collisionConstraints()[i];
                 bool is_wire_collision = cautery_tool->isWireCollisionConstraint(i);
 
-                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0 || !is_wire_collision)
+                if (!collision_proj_ref.exists() || !is_wire_collision)
+                    continue;
+
+                if (!_ignore_collisions && (!collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0))
                     continue;
 
                 // get element 
@@ -1205,7 +1213,10 @@ void VirtuosoArm::_cauteryToolAction()
                 const auto& collision_proj_ref = _tool->collisionConstraints()[i];
                 bool is_wire_collision = cautery_tool->isWireCollisionConstraint(i);
 
-                if (!collision_proj_ref.exists() || !collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0 || !is_wire_collision)
+                if (!collision_proj_ref.exists() || !is_wire_collision)
+                    continue;
+
+                if (!_ignore_collisions && (!collision_proj_ref.isValid() || collision_proj_ref.lambda() == 0))
                     continue;
 
                 // get element 

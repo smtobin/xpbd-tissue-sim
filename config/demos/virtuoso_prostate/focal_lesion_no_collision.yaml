@@ -1,0 +1,210 @@
+# === Simulation parameters ===
+# name of the simulation
+name: "Virtuoso Trachea"
+# visualization backend to use ("VTK" or "Easy3D")
+visualization: "VTK"
+
+# the input device for interactivity - "Keyboard", "Mouse" or "Haptic" (Phantom Omni)
+input-device: "Mouse"
+# show the "tip cursor" which is a yellow ball meant to help with depth perception 
+show-tip-cursor: false
+# whether or not to enable mouse interaction with the view (note this is always disabled when the "Mouse" input mode is used)
+enable-mouse-interaction: true
+# scale the force feedback tot he haptic device (0 means no force feedback)
+haptic-force-scaling: 0
+
+# device names for haptic devices
+# these can be set using the OpenHaptics setup program
+# device-name1: "LeftOmni"
+# device-name2: "RightOmni"
+# device-name1: "Omni"
+
+# acceleration due to gravity
+g-accel: 0 # m/s2
+
+# simulation "mode" - should always use As Fast As Possible ("AFAP") with 1st order sims
+sim-mode: "AFAP"
+# the "time step" (doesn't correspond to physical time for 1st order sims)
+time-step: 3.33e-3
+# the rate (Hz) at which to do collision detection
+collision-rate: 100
+# the rate (Hz) at which to draw to the screen
+fps: 30
+# the simulation end time
+end-time: 5000000000000
+
+# === Specific to VirtuosoCTAnatomySimulation ===
+# - we assume that all meshes that are loaded in the sim originated from CT scans
+#    and we want to position these meshes w.r.t. the base of the left Virtuoso arm (VB)
+# - manually prescribe the transform from the CT origin frame to the VB frame
+# - this can correspond to some physical setup (i.e. a registration) or some setup that enables suitable mesh interaction
+# - to be very clear: this specifies the CT -> VB transform, i.e. it transforms a point in the CT frame into the VB frame
+#     (this is the robotics convention, opposite the convention that tf uses)
+# - when the ROS bridge is used, this transform can be edited by broadcasting a different transform over tf
+CT-to-VB-transform-translation: [0.1, 0.1, 0.15]  # in meters
+CT-to-VB-transform-rotation: [34.4, 0, 0]  # XYZ Euler angle convention
+
+
+# === Simulation rendering settings ===
+# global exposure for PBR rendering
+exposure: 0.2
+# filename to the HDR image used for lighting in the PBR model
+hdr-image-filename: "../resource/rendering/hdr/surgery_1k.hdr"
+# whether or not to create a skybox from the HDR image
+create-skybox: false
+# static color background for the sim
+background: [0.1, 0.1, 0.1] # dark gray
+# width and height of the window created for the sim
+window-width: 800
+window-height: 800
+
+# whether or not to render offscreen to an image buffer
+# Note: only possible with VTK graphics
+# Another Note: necessary for publishing images over ROS2
+offscreen-rendering: false
+
+# whether or not to render a segmentation map of the camera view
+# Note: only possible with VTK graphics
+# Another Note: necessary for publishing segmentation maps over ROS2
+segmentation-rendering: false
+
+# whether or not to add the circle vignette to the rendered image
+# this mimics the output of the actual Virtuoso endoscope image
+circle-crop: true
+
+# whether or not to display camera axes in the bottom left corner
+show-camera-axes: false
+
+# === Specify materials used by objects in the sim ===
+# these materials have both physical properties (Young's modulus, density, etc.) and rendering properties
+materials:
+  -
+    name: "Prostate Phantom"
+    label: "Prostate"
+    # material parameters
+    density: 1060
+    E: 0.05e6
+    nu: 0.4
+    # rendering settings
+    color: [1.0, 0.1, 0.1]
+    cut-color: [1.0, 0.1, 0.1]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.9
+    opacity: 0.9
+    smooth-normals: true
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+  
+  -
+    name: "Lesion"
+    label: "Prostate"
+    # material parameters
+    density: 1060
+    E: 0.5e6
+    nu: 0.4
+    # rendering settings
+    color: [1.0, 0.6, 0.5]
+    cut-color: [1.0, 0.6, 0.5]
+    render-type: "PBR"
+    metallic: 0.0
+    roughness: 0.2
+    smooth-normals: false
+    draw-points: false
+    draw-edges: true
+    draw-faces: true
+
+  -
+    name: "Nitinol"
+    label: "Tool"
+    # rendering settings
+    color: [0.7, 0.7, 0.7]
+    render-type: "PBR"
+    metallic: 1.0
+    roughness: 0.2
+
+
+# === Objects in the sim ===
+objects:
+  -
+    name: "Prostate"
+    type: "FirstOrderXPBDMeshObject"
+    filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
+    # fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"   # commented out for now - some instabilities seen with fixed faces (07/13/26)
+    element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
+    materials: ["Prostate Phantom", "Lesion"]
+
+    scaling: [1e-3, 1e-3, 1e-3]   # scale from mm back to m (i.e. the input mesh units are mm, but the sim uses m)
+    # don't prescribe any initial position or rotation - the CT -> VB transform will handle proper positioning
+
+    num-solver-iters: 1
+    num-local-collision-iters: 5
+    residual-policy: "Never"
+    solver-type: "Gauss-Seidel"
+    constraint-type: "Stable-Neohookean-Combined"
+    damping-multiplier: 2e5
+    adjust-damping-to-material: True
+
+    collisions: true
+    self-collisions: false
+    ignore-all-collisions: true
+
+    adaptive-mesh-refinement: true
+    max-refinement-level: 1
+    refinement-distance-threshold: 4e-3
+    compute-heat-conduction: false
+
+  -
+    name: "Robot"
+    type: "VirtuosoRobot"
+    material: "Nitinol"
+    # don't prescribe any initial position or rotation - it is completely arbitrary since we are positioning meshes to be in the VB frame
+
+    collisions: true
+
+    arms:
+    -
+      name: "Arm1"
+      type: "VirtuosoArm"
+      material: "Nitinol"
+      tool-type: "grasper"
+      extra-tool-offset: 3e-3
+      outer-tube-diameter: 1.56e-3
+      outer-tube-radius-of-curvature: 1.5383e-2
+      outer-tube-distal-straight-length: 5e-3
+      outer-tube-translation: 5.1e-3
+      outer-tube-rotation: 60
+      inner-tube-rotation: 0
+      inner-tube-diameter: 1.04e-3
+      inner-tube-translation: 20e-3
+      max-ot-translation-speed: 0.01 #0.04
+      max-it-translation-speed: 0.013 #0.0529
+      max-ot-rotation-speed: 5 #20
+      max-it-rotation-speed: 13 #52.4
+      ignore-all-collisions: true
+
+    - # right arm has the cautery tool for cutting
+      name: "Arm2"
+      type: "VirtuosoArm"
+      material: "Nitinol"
+      tool-type: "cautery"
+      cutting-model: "instant"  # the type of cutting model employed - "instant", "timer", or "thermal"
+      time-threshold: 0.03  # in seconds of wall-clock time
+      outer-tube-diameter: 1.56e-3
+      outer-tube-radius-of-curvature: 1.5383e-2
+      outer-tube-distal-straight-length: 5e-3
+      outer-tube-translation: 5e-3
+      outer-tube-rotation: -45
+      inner-tube-rotation: 45
+      inner-tube-diameter: 1.04e-3
+      inner-tube-translation: 5e-3
+      max-ot-translation-speed: 0.01 #0.04
+      max-it-translation-speed: 0.013 #0.0529
+      max-ot-rotation-speed: 5 #20
+      max-it-rotation-speed: 13 #52.4
+      ignore-all-collisions: true
+
+  
+
+

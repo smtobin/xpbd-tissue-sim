@@ -625,7 +625,8 @@ public:
 
     std::unique_ptr<VirtuosoArmTool_Base> _tool;
     
-
+    // if true, don't apply forces from collisions
+    bool _ignore_collisions;
 
     XPBDMeshObject_BasePtrWrapper _tool_manipulated_object; // the deformable object that this tool is manipulating
     Geometry::TransformationMatrix _commanded_tip_pose; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
