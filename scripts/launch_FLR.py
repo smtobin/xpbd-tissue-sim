@@ -23,7 +23,7 @@ parser.add_argument("--lesion-translation", type=float, nargs=3, default=[0,0,0]
 parser.add_argument("--lesion-rotation", type=float, nargs=3, default=[0,0,0], help='Additional rotation (XYZ Euler angles, deg) of the lesion input mesh.')
 parser.add_argument("--lesion-scaling", type=float, nargs=3, default=[1,1,1], help='Scaling of the lesion mesh along X,Y,Z axes.')
 parser.add_argument('-o', '--output-msh', default='prostate_with_lesion.msh', help='Output .msh file (optional)')
-parser.add_argument('--config-filename', default='../config/demos/virtuoso_prostate/focal_lesion.yaml' help='.yaml config file to use for the sim. Passed onto the ROS launch.')
+parser.add_argument('--config-filename', default='../config/demos/virtuoso_prostate/focal_lesion.yaml', help='.yaml config file to use for the sim. Passed onto the ROS launch.')
 
 def face_key(n1, n2, n3):
     # stable identity: node IDs (NOT coordinates)
@@ -382,8 +382,8 @@ def main():
     distances = np.abs(distances)
 
     # hull proximity filter - distances less than 50th percentile are the outer surface
-    outer_eps = np.percentile(distances, 50)
-    inner_eps = np.percentile(distances, 60)
+    outer_eps = np.percentile(distances, 30)
+    inner_eps = np.percentile(distances, 70)
 
     outer_faces = distances < outer_eps
     inner_faces = distances > inner_eps
@@ -397,6 +397,7 @@ def main():
         for f_ind in eroded:
             face = prostate_surface.faces[f_ind]
             fixed_faces_file.write(f"3 {face[0]} {face[1]} {face[2]} {f_ind}\n")
+            # print(f"Face {f_ind}: {face} \n\t{prostate_surface.vertices[face[0]]}\n\t{prostate_surface.vertices[face[1]]}\n\t{prostate_surface.vertices[face[2]]}")
 
     outer_patch = trimesh.Trimesh(
         vertices=prostate_surface.vertices,
@@ -465,32 +466,32 @@ def main():
     # convert translation to meters
     t /= 1000
 
-    # meshA_vis = prostate_surface.copy()
-    # meshA_vis.visual.face_colors = [180, 180, 180, 100]
+    meshA_vis = prostate_surface.copy()
+    meshA_vis.visual.face_colors = [180, 180, 180, 100]
 
-    # outer_patch.visual.face_colors = [255, 0, 0, 150]
-    # inner_patch.visual.face_colors = [0, 0, 255, 150]
+    outer_patch.visual.face_colors = [255, 0, 0, 150]
+    inner_patch.visual.face_colors = [0, 0, 255, 150]
 
     
-    # xline = trimesh.load_path(
-    #     np.vstack([inner_patch_center, inner_patch_center + 40 * x_axis])
-    # )
-    # yline = trimesh.load_path(
-    #     np.vstack([inner_patch_center, inner_patch_center + 40 * y_axis])
-    # )
-    # zline = trimesh.load_path(
-    #     np.vstack([inner_patch_center, inner_patch_center + 40 * z_axis])
-    # )
+    xline = trimesh.load_path(
+        np.vstack([inner_patch_center, inner_patch_center + 40 * x_axis])
+    )
+    yline = trimesh.load_path(
+        np.vstack([inner_patch_center, inner_patch_center + 40 * y_axis])
+    )
+    zline = trimesh.load_path(
+        np.vstack([inner_patch_center, inner_patch_center + 40 * z_axis])
+    )
 
-    # trimesh.Scene([
-    #     meshA_vis,
-    #     outer_patch,
-    #     inner_patch,
-    #     dir_line,
-    #     xline,
-    #     yline,
-    #     zline
-    # ]).show(smooth=False)
+    trimesh.Scene([
+        meshA_vis,
+        outer_patch,
+        inner_patch,
+        dir_line,
+        xline,
+        yline,
+        zline
+    ]).show(smooth=False)
 
 
     cmd = [
@@ -499,8 +500,9 @@ def main():
         "launch/focal_lesion_sim_bridge.launch.py",
         f"config_filename:={args.config_filename}",
         f"prostate_mesh_filename:={args.output_msh}",
-        f"CT_to_VB_translation:=[{t[0]:.5f},{t[1]:.5f},{t[2]:.5f}]",
-        f"CT_to_VB_rotation:=[{eul_XYZ[0]:.3f},{eul_XYZ[1]:.3f},{eul_XYZ[2]:.3f}]"
+        # f"CT_to_VB_translation:=[{t[0]:.5f},{t[1]:.5f},{t[2]:.5f}]",
+        f"CT_to_VB_translation:=[0.5,0.5,0.5]"      # for now, just put the robot far away from the tissue, let registration take care of the transforms
+        # f"CT_to_VB_rotation:=[{eul_XYZ[0]:.3f},{eul_XYZ[1]:.3f},{eul_XYZ[2]:.3f}]"
     ]
 
     subprocess.run(cmd)
