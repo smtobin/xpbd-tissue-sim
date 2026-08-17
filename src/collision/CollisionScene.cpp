@@ -678,31 +678,36 @@ std::pair<Real,Real> CollisionScene::_findDeepestPenetratingPointOnSegment(const
     const Real phi = 0.61803398875;
     Real x = best_s;
     Real fx = best_f;
+
+    Real left = b - phi * (b-a);
+    Real right = a + phi * (b-a);
+    Real fl = sdf->evaluate(p1 + left*(p2-p1));
+    Real fr = sdf->evaluate(p1 + right*(p2-p1));
+
     for (int i = 0; i < 4; i++)
     {
-        Real left = x - phi * (x - a);
-        Real right = x + phi * (b - x);
-
-        Real fl = sdf->evaluate(p1 + left*(p2 - p1));
-        Real fr = sdf->evaluate(p1 + right*(p2 - p1));
-
-        if (fl < fx)
+        if (fl < fr)
         {
-            b = x;
-            x = left;
-            fx = fl;
-        }
-        else if (fr < fx)
-        {
-            a = x;
-            x = right;
-            fx = fr;
+            b = right;
+    
+            right = left;
+            fr = fl;
+    
+            left = b - phi * (b - a);
+            fl = sdf->evaluate(p1 + left*(p2-p1));
         }
         else
         {
             a = left;
-            b = right;
+    
+            left = right;
+            fl = fr;
+    
+            right = a + phi * (b - a);
+            fr = sdf->evaluate(p1 + right*(p2-p1));
         }
+    
+        x = (a + b)/2;
     }
 
     return std::make_pair(x, fx);

@@ -250,7 +250,7 @@ void VirtuosoSimBridge::_setupPublishers()
         }
     }
 
-    _virtuoso_self_collision_publisher = this->create_publisher<std_msgs::msg::Int8>("/sim/output/virtuoso_self_collision", 10);
+    _virtuoso_self_collision_publisher = this->create_publisher<sim_bridge::msg::ArmArmCollision>("/sim/output/virtuoso_self_collision", 10);
     auto arms_in_collision_callback = 
         [this]() -> void {
             if (!this->_sim->virtuosoRobot()->hasArm1() || !this->_sim->virtuosoRobot()->hasArm2())
@@ -259,11 +259,63 @@ void VirtuosoSimBridge::_setupPublishers()
             Sim::VirtuosoArm* arm1 = this->_sim->virtuosoRobot()->arm1();
             Sim::VirtuosoArm* arm2 = this->_sim->virtuosoRobot()->arm2();
 
-            std_msgs::msg::Int8 msg;
+            sim_bridge::msg::ArmArmCollision msg;
             if (arm1->virtuosoArmCollisions().empty() && arm2->virtuosoArmCollisions().empty())
-                msg.data = 0;
+                msg.collision = 0;
             else
-                msg.data = 1;
+            {
+                const Sim::VirtuosoArmVirtuosoArmCollision* collision;
+                if (!arm1->virtuosoArmCollisions().empty())
+                    collision = &arm1->virtuosoArmCollisions().front();
+                else
+                    collision = &arm2->virtuosoArmCollisions().front();
+                    
+                Real arm1_ot_trans = arm1->outerTubeTranslation();
+                Real arm1_it_trans = arm1->innerTubeTranslation();
+                Real arm1_length = std::max(arm1_ot_trans, arm1_it_trans);
+                Real interp1 = collision->interp1 - static_cast<int>(collision->interp1);
+
+                Real arm2_ot_trans = arm2->outerTubeTranslation();
+                Real arm2_it_trans = arm2->innerTubeTranslation();
+                Real arm2_length = std::max(arm2_ot_trans, arm2_it_trans);
+                Real interp2 = collision->interp2 - static_cast<int>(collision->interp2);
+                
+                Real arm1_s = -1, arm2_s = -1;
+
+                if (collision->is_tool1)
+                {
+                    Real z_coord = collision->contact_point1[2];
+                    arm1_s = (arm1_length + z_coord) / arm1_length;
+                }
+                else
+                {
+                    if (collision->node_index1 < Sim::VirtuosoArm::NUM_OT_FRAMES)
+                        arm1_s = arm1_ot_trans/arm1_length * (collision->node_index1 + interp1) / Sim::VirtuosoArm::NUM_OT_FRAMES;
+                    else
+                        arm1_s = (arm1_ot_trans + (arm1_it_trans - arm1_ot_trans)*(collision->node_index1 - Sim::VirtuosoArm::NUM_OT_FRAMES + interp1) / Sim::VirtuosoArm::NUM_IT_FRAMES) / arm1_length;
+                }
+
+                if (collision->is_tool2)
+                {
+                    Real z_coord = collision->contact_point2[2];
+                    arm2_s = (arm2_length + z_coord) / arm2_length;
+                }
+                else
+                {
+                    if (collision->node_index2 < Sim::VirtuosoArm::NUM_OT_FRAMES)
+                        arm2_s = arm2_ot_trans/arm2_length * (collision->node_index2 + interp2) / Sim::VirtuosoArm::NUM_OT_FRAMES;
+                    else
+                        arm2_s = (arm2_ot_trans + (arm2_it_trans - arm2_ot_trans)*(collision->node_index2 - Sim::VirtuosoArm::NUM_OT_FRAMES + interp2) / Sim::VirtuosoArm::NUM_IT_FRAMES) / arm2_length;
+                }
+
+                // std::cout << "Virtuoso arm collision!\n\tarm1: " << arm1->name() << " arm1 s: " << arm1_s << " arm1 is tool: " << collision->is_tool1 << " arm1 node index: " << collision->node_index1 << " arm1 interp: " << interp1 << 
+                    // "\n\tarm2:" << arm2->name() << " arm2 s: " << arm2_s << "  arm2 is tool: " << collision->is_tool2 << " arm2 node index: " << collision->node_index2 << " arm2 interp: " << interp2 << std::endl;
+
+                msg.collision = 1;
+                msg.arm1_location = arm1_s;
+                msg.arm2_location = arm2_s;
+            }
+                
 
             this->_virtuoso_self_collision_publisher->publish(msg);
         };

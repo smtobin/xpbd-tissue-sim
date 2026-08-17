@@ -45,6 +45,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/ArmArmCollision.msg"
   "msg/SparseMatrix.msg"
   "msg/RemovedElement.msg"
   "msg/RemovedElementArray.msg"

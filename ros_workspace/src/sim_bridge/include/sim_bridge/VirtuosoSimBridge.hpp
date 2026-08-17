@@ -9,6 +9,7 @@
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "std_msgs/msg/int8.hpp"
 #include "std_msgs/msg/float64.hpp"
+#include "sim_bridge/msg/arm_arm_collision.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <tf2_ros/transform_listener.h>
@@ -87,7 +88,7 @@ private:
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm1_net_force_publisher;         // publishes the net force on arm1
     rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr _arm2_net_force_publisher;         // publishes the net force on amr2
 
-    rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr _virtuoso_self_collision_publisher;   // publishes 0 when no collision between Virtuoso arms, 1 when there is
+    rclcpp::Publisher<sim_bridge::msg::ArmArmCollision>::SharedPtr _virtuoso_self_collision_publisher;   // publishes 0 when no collision between Virtuoso arms, 1 when there is
     rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr _virtuoso_grasped_publisher;          // pubhlishes 0 when no grasping by any Virtuoso arm, 1 when grasping by Virtuoso arm
 
     std::unique_ptr<tf2_ros::TransformBroadcaster> _tf_broadcaster;
