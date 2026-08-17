@@ -171,6 +171,8 @@ void VTKTetMeshGraphicsObject::_setFaces(const RenderInfo* rmesh)
             vtk_face[1] = static_cast<vtkIdType>(face[1]);
             vtk_face[2] = static_cast<vtkIdType>(face[2]);
             faces->InsertNextCell(3, vtk_face);
+
+            std::cout << face[0] << ", " << face[1] << ", " << face[2] << std::endl;
         }
     }
 

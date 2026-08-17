@@ -14,6 +14,7 @@ import trimesh
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
 import scipy.optimize as opt
+import matplotlib.pyplot as plt
 
 import time
 import threading
@@ -251,10 +252,11 @@ class StiffnessMapOptimizer(Node):
             E = np.asarray(m.elements.data, np.int32).reshape(-1, 4)
             lesion_vids = np.asarray(response.lesion_vertices, np.int32)
             self.get_logger().info(
-                f'mesh: {len(V)} verts, {len(F)} faces, {len(lesion_vids)} lesion')
+                f'mesh: {len(V)} verts, {len(F)} faces, {len(lesion_vids)} lesion vertices')
             lesion_elements_inds = np.asarray(response.lesion_elements, np.int32)
+            self.lesion_faces = np.asarray(response.lesion_faces.data, np.int32).reshape(-1, 3)
             self.lesion_elements = E[lesion_elements_inds]
-            print(self.lesion_elements)
+            print(self.lesion_faces)
 
             # plan waypoints
             fid, bary, pos_w, nrm_w, grid_ij = plan_waypoints(V, F, lesion_vids)
@@ -296,7 +298,7 @@ class StiffnessMapOptimizer(Node):
     # runs the "linear" optimization
     # the stiffness matrix from the initial tissue state is always used
     def run_linear_optimization(self):
-        x0 = np.array([2,2,2])
+        x0 = np.array([5,5,5])
         result = opt.minimize(
             self.linear_optimization_objective,
             x0=x0,
@@ -307,12 +309,16 @@ class StiffnessMapOptimizer(Node):
             #     (0, 20),
             # ],
             options={
-                "maxiter": 50,
+                "maxiter": 5,
                 "xtol": 0.1,
                 "ftol": 1e-3,
             }
         )
         print(f"Optimization result: {result}")
+
+        self.visualizeStiffnessMap(result.x)
+        self.visualizeStiffnessMap(x0)
+        
 
     def linear_optimization_objective(self, F):
         # scale F by 1e6 for numerical sensitivity
@@ -324,7 +330,6 @@ class StiffnessMapOptimizer(Node):
 
         # Step 2: get closest surface points to the original palpation points
         print(f"  Getting closest points on surface to palpation measurements...")
-        palpation_locations = [meas.location for meas in self.palpation_measurements]
         palpation_locations = np.vstack(
             [meas.location for meas in self.palpation_measurements]
         )
@@ -473,7 +478,109 @@ class StiffnessMapOptimizer(Node):
 
         return E
         
+    def visualizeStiffnessMap(self, force):
+        # visualize the result
+        new_V = getTissueStateGivenLesionForce(force*1e6, self.factorized_stiffness, self.initial_vertices_flat, self.lesion_elements)
+        new_V_mat = new_V.reshape(-1, 3)
+        mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.initial_faces, process=False)
+
+        palpation_locations = np.vstack(
+            [meas.location for meas in self.palpation_measurements]
+        )
+        closest_points, distances, triangle_ids = trimesh.proximity.closest_point(mesh, palpation_locations)
+        triangles = mesh.vertices[mesh.faces[triangle_ids]]
+        barys = trimesh.triangles.points_to_barycentric(triangles, closest_points)
+
+        new_palpation_measurements = []
+        for i, (f, b) in enumerate(zip(triangle_ids, barys)):
+            C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
+            # F = C^-1 * u
+            # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
+            dir = self.palpation_measurements[i].direction
+            stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
+            new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
+
+        mesh.visual.face_colors[:, 3] = 100 # make mesh translucent
+
+        lesion_mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.lesion_faces, process=False)
+        lesion_mesh.fix_normals()
+        palpation_locations = np.vstack(
+            [meas.location for meas in new_palpation_measurements]
+        )
+        palpation_directions = [meas.direction for meas in new_palpation_measurements]
+        stiffness = np.array([meas.stiffness for meas in new_palpation_measurements])
+        norm = plt.Normalize(vmin=stiffness.min(), vmax=stiffness.max())
+        cmap = plt.get_cmap("coolwarm")
+        colors = (cmap(norm(stiffness)) * 255).astype(np.uint8)
+        point_cloud = trimesh.points.PointCloud(palpation_locations, colors=colors)
+        scene = trimesh.Scene()
+        # scene.add_geometry(mesh)
+        scene.add_geometry(lesion_mesh)
+        # scene.add_geometry(point_cloud)
         
+        # --------------------------------
+        # Create arrows
+        # --------------------------------
+        # arrow_length = 5e-3
+        shaft_radius = 2e-4
+        head_radius = 4e-4
+        head_length = 6e-4
+        lengths = np.interp(
+            stiffness,
+            (stiffness.min(), stiffness.max()),
+            (2e-3, 7e-3)
+        )
+
+        for point, direction, color, arrow_length in zip(palpation_locations, palpation_directions, colors, lengths):
+
+            # Normalize direction
+            direction = np.asarray(direction)
+            direction = direction / np.linalg.norm(direction)
+
+            # Arrow consists of shaft + cone
+            shaft_length = arrow_length - head_length
+
+            shaft = trimesh.creation.cylinder(
+                radius=shaft_radius,
+                height=shaft_length,
+                sections=16
+            )
+
+            head = trimesh.creation.cone(
+                radius=head_radius,
+                height=head_length,
+                sections=16
+            )
+
+            # Default cylinder/cone axis is Z.
+            # Rotate Z axis onto the desired direction.
+            rotation = trimesh.geometry.align_vectors(
+                [0, 0, 1],
+                -direction
+            )
+
+            shaft.apply_transform(rotation)
+            head.apply_transform(rotation)
+
+            # Position shaft and head along the direction
+            shaft.apply_translation(
+                point + head_length*direction + direction * (shaft_length / 2)
+            )
+
+            head.apply_translation(point + head_length*direction
+                # point + direction * (
+                #     -shaft_length
+                # )
+            )
+
+            # Color them
+            shaft.visual.face_colors = color
+            head.visual.face_colors = color
+
+            scene.add_geometry(shaft)
+            scene.add_geometry(head)
+
+        scene.show()
 
 def main(args=None):
     import sys
