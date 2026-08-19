@@ -294,6 +294,7 @@ void XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::se
         MeshUtils::verticesAndFacesFromFixedFacesFile(_fixed_faces_filename.value(), vertices, faces);
         for (const auto& v : vertices)
         {
+            std::cout << "Adding attachment constraint for vertex " << v << std::endl; 
             addAttachmentConstraint(v, v, &_mesh->initialVertices());
         }
     }
@@ -1661,6 +1662,17 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
             for (int j = 0; j < 3; j++)
                 hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
         }
+    }
+
+    const auto& attachment_projectors = _solver.template getConstraintProjectorsOfType<Solver::ConstraintProjector<IsFirstOrder, Solver::AttachmentConstraint>>();
+    for (const auto& proj : attachment_projectors)
+    {
+        if (!proj.isValid())
+            continue;
+
+        int vertex_index = proj.constraint()->positions()[0].index;
+        for (int j = 0; j < 3; j++)
+            hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
     }
 
     // auto t_hess = std::chrono::high_resolution_clock::now();

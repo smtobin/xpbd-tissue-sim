@@ -68,6 +68,8 @@ class FGClient(Node):
             sparse_mat_coo = sp.coo_matrix((stiffness_mat.values, (stiffness_mat.row_indices, stiffness_mat.col_indices)), shape=(stiffness_mat.rows,stiffness_mat.cols))
             # convert to CSR (compressed sparse row) - recommended for most matrix operations
             sparse_mat = sparse_mat_coo.tocsr()
+            eigs = sp.linalg.eigs(sparse_mat, k=10, which='SR')
+            print(eigs)
 
             self.get_logger().info(f'Current mesh: {fg_state.sim_mesh.vertices.size} vertices (total), {fg_state.sim_mesh.faces.size} faces (total), and {fg_state.sim_mesh.elements.size} elements (total)')
             self.get_logger().info(f'Updated last mesh: {updated_last_mesh.vertices.size} vertices (total), {updated_last_mesh.faces.size} faces (total), and {updated_last_mesh.elements.size} elements (total)')
