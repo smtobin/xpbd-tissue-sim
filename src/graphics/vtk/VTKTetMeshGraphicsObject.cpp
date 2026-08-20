@@ -33,6 +33,8 @@ VTKTetMeshGraphicsObject::VTKTetMeshGraphicsObject(const std::string& name, cons
 
     _front_poly_data = vtkSmartPointer<vtkPolyData>::New();
 
+    _draw_internal_faces = render_config.drawInternalFaces();
+
     // create points
     vtkNew<vtkPoints> vtk_points;
     for (int i = 0; i < _mesh->vertices().totalSize(); i++)
@@ -152,7 +154,7 @@ void VTKTetMeshGraphicsObject::_setFaces(const RenderInfo* rmesh)
         total_num_faces += interior.size();
         
     faces->Reset();
-    faces->AllocateExact(total_num_faces, total_num_faces * 3);
+    // faces->AllocateExact(total_num_faces, total_num_faces * 3);
 
     vtkIdType vtk_face[3];
     for (const auto& face : rmesh->faces)
@@ -170,6 +172,29 @@ void VTKTetMeshGraphicsObject::_setFaces(const RenderInfo* rmesh)
             vtk_face[0] = static_cast<vtkIdType>(face[0]);
             vtk_face[1] = static_cast<vtkIdType>(face[1]);
             vtk_face[2] = static_cast<vtkIdType>(face[2]);
+            faces->InsertNextCell(3, vtk_face);
+        }
+    }
+
+    if (_draw_internal_faces)
+    {
+        for (const auto& elem : rmesh->elements)
+        {
+            vtk_face[0] = static_cast<vtkIdType>(elem[0]);
+            vtk_face[1] = static_cast<vtkIdType>(elem[1]);
+            vtk_face[2] = static_cast<vtkIdType>(elem[2]);
+            faces->InsertNextCell(3, vtk_face);
+            vtk_face[0] = static_cast<vtkIdType>(elem[0]);
+            vtk_face[1] = static_cast<vtkIdType>(elem[1]);
+            vtk_face[2] = static_cast<vtkIdType>(elem[3]);
+            faces->InsertNextCell(3, vtk_face);
+            vtk_face[0] = static_cast<vtkIdType>(elem[0]);
+            vtk_face[1] = static_cast<vtkIdType>(elem[2]);
+            vtk_face[2] = static_cast<vtkIdType>(elem[3]);
+            faces->InsertNextCell(3, vtk_face);
+            vtk_face[0] = static_cast<vtkIdType>(elem[1]);
+            vtk_face[1] = static_cast<vtkIdType>(elem[2]);
+            vtk_face[2] = static_cast<vtkIdType>(elem[3]);
             faces->InsertNextCell(3, vtk_face);
         }
     }
@@ -286,6 +311,21 @@ void VTKTetMeshGraphicsObject::_setColorsForCutSurface(const RenderInfo* rmesh)
             color[0] = static_cast<unsigned char>(_bulk_color[2] * 255);
             color[1] = static_cast<unsigned char>(_bulk_color[1] * 255);
             color[2] = static_cast<unsigned char>(_bulk_color[0] * 255);
+            colors->InsertNextTypedTuple(color);
+        }
+    }
+
+    if (_draw_internal_faces)
+    {
+        unsigned char color[3];
+        color[0] = static_cast<unsigned char>(_bulk_color[0] * 255);
+        color[1] = static_cast<unsigned char>(_bulk_color[1] * 255);
+        color[2] = static_cast<unsigned char>(_bulk_color[2] * 255);
+        for (const auto& elem : rmesh->elements)
+        {
+            colors->InsertNextTypedTuple(color);
+            colors->InsertNextTypedTuple(color);
+            colors->InsertNextTypedTuple(color);
             colors->InsertNextTypedTuple(color);
         }
     }

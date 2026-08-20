@@ -56,6 +56,7 @@ class ObjectRenderConfig : public Config
 
         _extractParameter("smooth-normals", node, _smooth_normals);
         _extractParameter("draw-faces", node, _draw_faces);
+        _extractParameter("draw-internal-faces", node, _draw_internal_faces);
         _extractParameter("draw-edges", node, _draw_edges);
         _extractParameter("draw-points", node, _draw_points);
     }
@@ -98,6 +99,7 @@ class ObjectRenderConfig : public Config
 
     bool smoothNormals() const { return _smooth_normals.value; }
     bool drawFaces() const { return _draw_faces.value; }
+    bool drawInternalFaces() const { return _draw_internal_faces.value; }
     bool drawEdges() const { return _draw_edges.value; }
     bool drawPoints() const { return _draw_points.value; }
 
@@ -119,6 +121,7 @@ class ObjectRenderConfig : public Config
     ConfigParameter<bool> _smooth_normals = ConfigParameter<bool>(true);
     ConfigParameter<bool> _draw_faces = ConfigParameter<bool>(true);
     ConfigParameter<bool> _draw_edges = ConfigParameter<bool>(false);
+    ConfigParameter<bool> _draw_internal_faces = ConfigParameter<bool>(false);
     ConfigParameter<bool> _draw_points = ConfigParameter<bool>(false);
 };
 

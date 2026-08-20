@@ -316,7 +316,91 @@ class TetMesh : public Mesh
      * I.e. given a face (v1,v2,v3), the multimap stores all the indices for the elements that share that face.
      * This is either 0 (key is not in the map), 1, or 2 elements.
      */
-    std::unordered_multimap<Face, int, FaceHash> _face_to_elements_map;
+    protected:
+    using FaceMap = std::unordered_multimap<Face, int, FaceHash>;
+
+    FaceMap _face_to_elements_map;
+
+    /** Iterator for iterating over ALL unique faces in the mesh (internal and external).
+     * Iterates over the keys in the multimap, using equal_range to skip to the next unique key.
+     */
+    public:
+    class FaceIterator
+    {
+        public:
+            using MapIterator = FaceMap::const_iterator;
+
+            const Face& operator*() const
+            {
+                return _it->first;
+            }
+
+            const Face* operator->() const
+            {
+                return &_it->first;
+            }
+
+            FaceIterator& operator++()
+            {
+                _it = _map->equal_range(_it->first).second;
+                return *this;
+            }
+
+            bool operator==(const FaceIterator& other) const
+            {
+                return _it == other._it;
+            }
+
+            bool operator!=(const FaceIterator& other) const
+            {
+                return _it != other._it;
+            }
+
+        private:
+            const FaceMap* _map;
+            MapIterator _it;
+
+            FaceIterator(const FaceMap* map, MapIterator it)
+                : _map(map), _it(it)
+            {
+            }
+
+            friend class TetMesh;
+        };
+
+    public:
+        class FaceRange
+        {
+        public:
+            FaceIterator begin() const
+            {
+                return FaceIterator(_map, _map->begin());
+            }
+
+            FaceIterator end() const
+            {
+                return FaceIterator(_map, _map->end());
+            }
+
+        private:
+            const FaceMap* _map;
+
+            explicit FaceRange(const FaceMap* map)
+                : _map(map)
+            {
+            }
+
+            friend class TetMesh;
+    };
+
+
+    FaceRange allFaces() const
+    {
+        return FaceRange(&_face_to_elements_map);
+    }
+
+protected:
+    // std::unordered_multimap<Face, int, FaceHash> _face_to_elements_map;
 
     /** Caches information about recently removed elements.
      * As elements are removed (i.e. successful calls to removeElement() are made), their information will be added

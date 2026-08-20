@@ -60,7 +60,9 @@ void CollisionScene::collideObjectsWithFacesOfXPBDMeshObj(
         
         for (const auto& face_ind : face_indices)
         {
-            this->_collideXPBDFaceWithObject(xpbd_mesh_obj, obj, face_ind);
+            int elem_ind = xpbd_mesh_obj->tetMesh()->elementWithFace(face_ind);
+            const Vec3i& f = xpbd_mesh_obj->mesh()->face(face_ind);
+            this->_collideXPBDFaceWithObject(xpbd_mesh_obj, obj, elem_ind, face_ind, f[0], f[1], f[2]);
         }
     });
 }
@@ -132,18 +134,18 @@ void CollisionScene::_lowDiscrepancySampling(Real char_dim, const Vec3r& p1, con
 
 template<bool IsFirstOrder>
 void CollisionScene::_collideXPBDFaceWithObject(
-    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int face_ind) const
+    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArm* virtuoso_arm, int elem_ind, int face_ind, int v1, int v2, int v3) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
-    if (!mesh->faceValid(face_ind))
-        return;
+    // if (!mesh->faceValid(face_ind))
+    //     return;
 
     const typename Sim::VirtuosoArm::SDFType* sdf = virtuoso_arm->SDF();
     Real char_dim = virtuoso_arm->characteristicDimension();
 
-    const Vec3i& f = mesh->face(face_ind);
-    int v1 = f[0]; int v2 = f[1]; int v3 = f[2];
+    // const Vec3i& f = mesh->face(face_ind);
+    // int v1 = f[0]; int v2 = f[1]; int v3 = f[2];
     const Vec3r& p1 = mesh->vertex(v1);
     const Vec3r& p2 = mesh->vertex(v2);
     const Vec3r& p3 = mesh->vertex(v3);
@@ -159,7 +161,7 @@ void CollisionScene::_collideXPBDFaceWithObject(
     if (centroid_dist > max_edge/2)
         return;
     
-    int elem_ind = mesh->elementWithFace(face_ind);
+    // int elem_ind = mesh->elementWithFace(face_ind);
 
     auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm](const Vec3r& x, const Vec3r& bary_coords) {
         auto result = sdf->evaluateWithGradientAndNodeInfo(x);
@@ -231,18 +233,18 @@ void CollisionScene::_collideXPBDFaceWithObject(
 
 template<bool IsFirstOrder>
 void CollisionScene::_collideXPBDFaceWithObject(
-    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int face_ind) const
+    Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::VirtuosoArmTool_Base* virtuoso_arm_tool, int elem_ind, int face_ind, int v1, int v2, int v3) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
-    if (!mesh->faceValid(face_ind))
-        return;
+    // if (!mesh->faceValid(face_ind))
+    //     return;
 
     const auto* sdf = virtuoso_arm_tool->SDF();
     Real char_dim = virtuoso_arm_tool->characteristicDimension();
 
-    const Vec3i& f = mesh->face(face_ind);
-    int v1 = f[0]; int v2 = f[1]; int v3 = f[2];
+    // const Vec3i& f = mesh->face(face_ind);
+    // int v1 = f[0]; int v2 = f[1]; int v3 = f[2];
     const Vec3r& p1 = mesh->vertex(v1);
     const Vec3r& p2 = mesh->vertex(v2);
     const Vec3r& p3 = mesh->vertex(v3);
@@ -258,7 +260,7 @@ void CollisionScene::_collideXPBDFaceWithObject(
     if (centroid_dist > max_edge/2)
         return;
     
-    int elem_ind = mesh->elementWithFace(face_ind);
+    // int elem_ind = mesh->elementWithFace(face_ind);
 
     auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj, &virtuoso_arm_tool](const Vec3r& x, const Vec3r& bary_coords) {
         Real distance = sdf->evaluate(x);
@@ -278,6 +280,7 @@ void CollisionScene::_collideXPBDFaceWithObject(
     };
 
     _lowDiscrepancySampling(char_dim, p1, p2, p3, test_func);
+    return;
 
     // check if we should collide the Virtuoso arm with other internal faces of the element
     // we need to do this when the element is inverted, or near inverted (say det(F) < 0.1)
@@ -334,21 +337,21 @@ void CollisionScene::_collideXPBDFaceWithObject(
 }
 
 template<bool IsFirstOrder>
-void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int face_ind) const
+void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirstOrder>* xpbd_mesh_obj, Sim::Object* obj, int elem_ind, int face_ind, int v1, int v2, int v3) const
 {
     const Geometry::TetMesh* mesh = xpbd_mesh_obj->tetMesh();
 
-    if (!mesh->faceValid(face_ind))
-        return;
+    // if (!mesh->faceValid(face_ind))
+    //     return;
 
     const Geometry::SDF* sdf = obj->SDF();
 
     Real char_dim = obj->characteristicDimension();
 
-    const Vec3i& f = mesh->face(face_ind);
-    const Vec3r& p1 = mesh->vertex(f[0]);
-    const Vec3r& p2 = mesh->vertex(f[1]);
-    const Vec3r& p3 = mesh->vertex(f[2]);
+    // const Vec3i& f = mesh->face(face_ind);
+    const Vec3r& p1 = mesh->vertex(v1);
+    const Vec3r& p2 = mesh->vertex(v2);
+    const Vec3r& p3 = mesh->vertex(v3);
 
     // check if centroid of face is close
     const Real p1p2 = (p2-p1).squaredNorm();
@@ -360,16 +363,16 @@ void CollisionScene::_collideXPBDFaceWithObject(Sim::XPBDMeshObject_Base_<IsFirs
     if (centroid_dist*centroid_dist > max_edge/4)
         return;
 
-    int elem_ind = mesh->elementWithFace(face_ind);
+    // int elem_ind = mesh->elementWithFace(face_ind);
 
-    auto test_func = [&face_ind, &f, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj](const Vec3r& x, const Vec3r& bary_coords) {
+    auto test_func = [&face_ind, &v1, &v2, &v3, &elem_ind, &sdf, &char_dim, &xpbd_mesh_obj](const Vec3r& x, const Vec3r& bary_coords) {
         Real dist = sdf->evaluate(x);
         if (dist <= 1e-4)   // some arbitrary distance threshold
         {
             const Vec3r grad = sdf->gradient(x);
             const Vec3r surface_x = x - grad*dist;
             xpbd_mesh_obj->addStaticCollisionConstraint(sdf, surface_x, grad, 
-                f[0], f[1], f[2], bary_coords[0], bary_coords[1], bary_coords[2],
+                v1, v2, v3, bary_coords[0], bary_coords[1], bary_coords[2],
                 elem_ind, face_ind
             );
         }
@@ -496,8 +499,15 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 {
     for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm, face_ind);
+        const Vec3i& f = xpbd_mesh_obj->mesh()->face(face_ind);
+        int elem_ind = xpbd_mesh_obj->tetMesh()->elementWithFace(face_ind);
+        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm, elem_ind, face_ind, f[0], f[1], f[2]);
     }
+
+    // for (const auto& face : xpbd_mesh_obj->tetMesh()->allFaces())
+    // {
+    //     _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm, -1, face.index1, face.index2, face.index3);
+    // }
 }
 
 template <bool IsFirstOrder>
@@ -505,7 +515,15 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 {
     for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, face_ind);
+        const Vec3i& f = xpbd_mesh_obj->mesh()->face(face_ind);
+        int elem_ind = xpbd_mesh_obj->tetMesh()->elementWithFace(face_ind);
+        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, elem_ind, face_ind, f[0], f[1], f[2]);
+    }
+
+    for (const auto& face : xpbd_mesh_obj->tetMesh()->allFaces())
+    {
+        // std::cout << "Colliding with all faces: " << face.index1 << ", " << face.index2 << ", " << face.index3 << std::endl;
+        _collideXPBDFaceWithObject(xpbd_mesh_obj, virtuoso_arm_tool, -1, -1, face.index1, face.index2, face.index3);
     }
 }
 
@@ -726,7 +744,9 @@ void CollisionScene::_collideObjectPair(Sim::XPBDMeshObject_Base_<IsFirstOrder>*
 {
     for (const auto& face_ind : xpbd_mesh_obj->mesh()->faces().validIndices())
     {
-        _collideXPBDFaceWithObject(xpbd_mesh_obj, obj2, face_ind);
+        const Vec3i& f = xpbd_mesh_obj->mesh()->face(face_ind);
+        int elem_ind = xpbd_mesh_obj->tetMesh()->elementWithFace(face_ind);
+        _collideXPBDFaceWithObject(xpbd_mesh_obj, obj2, elem_ind, face_ind, f[0], f[1], f[2]);
     }
 }
 

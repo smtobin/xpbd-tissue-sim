@@ -61,6 +61,9 @@ class VTKTetMeshGraphicsObject : public TetMeshGraphicsObject
 
     /** Whether or not to smooth normals. */
     bool _smooth_normals;
+
+    /** Whether or not to draw internal faces of the tet mesh. */
+    bool _draw_internal_faces;
 };
 
 } // namespace Graphics

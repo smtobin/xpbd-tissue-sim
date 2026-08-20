@@ -27,6 +27,7 @@ class TetMeshGraphicsObject : public GraphicsObject
     {
         Geometry::Mesh::vertices_vec_type vertices;
         Geometry::Mesh::faces_vec_type faces;
+        Geometry::Mesh::elements_vec_type elements;
         std::vector<std::vector<Vec3i>> interior_faces;
         std::vector<Vec3r> vertex_normals;
         Geometry::PropertyContainer<Geometry::MeshPropertyTypeList> vertex_properties;
