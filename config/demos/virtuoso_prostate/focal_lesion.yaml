@@ -189,7 +189,7 @@ objects:
       material: "Nitinol"
       tool-type: "cautery"
       cutting-model: "timer"  # the type of cutting model employed - "instant", "timer", or "thermal"
-      time-threshold: 0.2  # in seconds of wall-clock time
+      time-threshold: 0.03  # in seconds of wall-clock time
       outer-tube-diameter: 1.56e-3
       outer-tube-radius-of-curvature: 1.5383e-2
       outer-tube-distal-straight-length: 5e-3
