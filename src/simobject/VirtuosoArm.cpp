@@ -76,6 +76,8 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     // set the characteristic dimension to the minimum diameter being used
     _char_dim = _it_outer_dia;
 
+    _ignore_collisions = config->ignoreCollisions();
+
 }
 
 std::string VirtuosoArm::toString(const int indent) const
@@ -549,6 +551,49 @@ void VirtuosoArm::velocityUpdate()
     _toolAction();
 
     _stale_frames = true;
+
+    if (!_resolve_virtuoso_virtuoso_collisions)
+    {
+        // we are not resolving virtuoso-virtuoso collisions
+        // keep them around 1 frame so that the ROS bridge can see them (callbacks run after velocity update)
+        // set the arm to nullptr, and remove any collisions that have interp > 100 (they are from 100+ time steps ago)
+        for (auto it = _virtuoso_arm_collisions.begin(); it != _virtuoso_arm_collisions.end();)
+        {
+            auto& collision = *it;
+            if (collision.interp1 > 100)    // some threshold to keep the collisions around for a bit
+            {
+                it = _virtuoso_arm_collisions.erase(it);
+                continue;
+            }
+            else
+            {
+                collision.interp1 += 1;
+            }
+
+            ++it;
+        }
+    }
+    if (!_resolve_virtuoso_rigid_collisions)
+    {
+        // we are not resolving virtuoso-rigid collisions
+        // keep them around 1 frame so that the ROS bridge can see them (callbacks run after velocity update)
+        // set the arm to nullptr, and remove any collisions that have interp > 100 (they are from 100+ steps ago)
+        for (auto it = _rigid_collisions.begin(); it != _rigid_collisions.end();)
+        {
+            auto& rigid_collision = *it;
+            if (rigid_collision.interp > 100)   // some threshold number of time steps
+            {
+                it = _rigid_collisions.erase(it);
+                continue;
+            }
+            else
+            {
+                rigid_collision.interp += 1;
+            }
+
+            ++it;
+        }
+    }
     
     if (_ignore_collisions)
         return;
@@ -771,27 +816,6 @@ void VirtuosoArm::velocityUpdate()
             ++it;
         }
     }
-    else
-    {
-        // we are not resolving virtuoso-rigid collisions
-        // keep them around 1 frame so that the ROS bridge can see them (callbacks run after velocity update)
-        // set the arm to nullptr, and remove any collisions that have interp > 100 (they are from 100+ steps ago)
-        for (auto it = _rigid_collisions.begin(); it != _rigid_collisions.end();)
-        {
-            auto& rigid_collision = *it;
-            if (rigid_collision.interp > 100)   // some threshold number of time steps
-            {
-                it = _rigid_collisions.erase(it);
-                continue;
-            }
-            else
-            {
-                rigid_collision.interp += 1;
-            }
-
-            ++it;
-        }
-    }
 
     /** Apply forces for virtuoso-virtuoso collisions */
     if (_resolve_virtuoso_virtuoso_collisions)
@@ -946,27 +970,6 @@ void VirtuosoArm::velocityUpdate()
 
             
             // move on to the next collision
-            ++it;
-        }
-    }
-    else
-    {
-        // we are not resolving virtuoso-virtuoso collisions
-        // keep them around 1 frame so that the ROS bridge can see them (callbacks run after velocity update)
-        // set the arm to nullptr, and remove any collisions that have interp > 100 (they are from 100+ time steps ago)
-        for (auto it = _virtuoso_arm_collisions.begin(); it != _virtuoso_arm_collisions.end();)
-        {
-            auto& collision = *it;
-            if (collision.interp1 > 100)    // some threshold to keep the collisions around for a bit
-            {
-                it = _virtuoso_arm_collisions.erase(it);
-                continue;
-            }
-            else
-            {
-                collision.interp1 += 1;
-            }
-
             ++it;
         }
     }

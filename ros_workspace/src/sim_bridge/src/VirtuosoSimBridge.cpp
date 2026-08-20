@@ -261,7 +261,9 @@ void VirtuosoSimBridge::_setupPublishers()
 
             sim_bridge::msg::ArmArmCollision msg;
             if (arm1->virtuosoArmCollisions().empty() && arm2->virtuosoArmCollisions().empty())
+            {
                 msg.collision = 0;
+            }
             else
             {
                 const Sim::VirtuosoArmVirtuosoArmCollision* collision;
@@ -309,8 +311,7 @@ void VirtuosoSimBridge::_setupPublishers()
                 }
 
                 // std::cout << "Virtuoso arm collision!\n\tarm1: " << arm1->name() << " arm1 s: " << arm1_s << " arm1 is tool: " << collision->is_tool1 << " arm1 node index: " << collision->node_index1 << " arm1 interp: " << interp1 << 
-                    // "\n\tarm2:" << arm2->name() << " arm2 s: " << arm2_s << "  arm2 is tool: " << collision->is_tool2 << " arm2 node index: " << collision->node_index2 << " arm2 interp: " << interp2 << std::endl;
-
+                //     "\n\tarm2:" << arm2->name() << " arm2 s: " << arm2_s << "  arm2 is tool: " << collision->is_tool2 << " arm2 node index: " << collision->node_index2 << " arm2 interp: " << interp2 << std::endl;
                 msg.collision = 1;
                 msg.arm1_location = arm1_s;
                 msg.arm2_location = arm2_s;
