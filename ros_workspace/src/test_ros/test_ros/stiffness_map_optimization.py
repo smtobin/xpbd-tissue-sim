@@ -168,11 +168,90 @@ def snake_order(grid_ij):
         result.extend(row_idx.tolist())
     return np.array(result, int)
 
+
+def add_location_noise(location, sigma):
+    location = np.asarray(location, dtype=float)
+    noise = np.random.normal(0.0, sigma, size=3)
+    return location + noise
+
+def add_relative_stiffness_noise(stiffness, relative_sigma):
+    return stiffness * (1.0 + np.random.normal(0.0, relative_sigma))
+
+def add_direction_noise(direction, sigma_angle):
+    """
+    Add approximately Gaussian angular noise to a unit vector.
+
+    Parameters
+    ----------
+    direction : array-like, shape (3,)
+        Unit direction vector.
+    sigma_angle : float
+        Angular standard deviation in radians.
+
+    Returns
+    -------
+    noisy_direction : ndarray, shape (3,)
+        Unit vector with angular noise.
+    """
+    d = np.asarray(direction, dtype=float)
+    d = d / np.linalg.norm(d)
+
+    # Pick a vector that isn't parallel to d
+    if abs(d[0]) < 0.9:
+        reference = np.array([1.0, 0.0, 0.0])
+    else:
+        reference = np.array([0.0, 1.0, 0.0])
+
+    # Two orthonormal vectors perpendicular to d
+    u = np.cross(d, reference)
+    u /= np.linalg.norm(u)
+
+    v = np.cross(d, u)
+    v /= np.linalg.norm(v)
+
+    # Gaussian angular perturbation
+    a = np.random.normal(0.0, sigma_angle)
+    b = np.random.normal(0.0, sigma_angle)
+
+    noisy_d = d + a * u + b * v
+
+    return noisy_d / np.linalg.norm(noisy_d)
+
+
 class PalpationMeasurement:
     def __init__(self, location, direction, stiffness):
         self.location = location
         self.direction = direction
         self.stiffness = stiffness
+
+    def noisy(self,
+              location_sigma=0.0,
+              direction_sigma_deg=0.0,
+              stiffness_rel_sigma=0.0,
+              stiffness_rel_offset=0.0):
+
+        # Location
+        noisy_location = (
+            self.location
+            + np.random.normal(0.0, location_sigma, 3)
+        )
+
+        # Direction
+        noisy_direction = add_direction_noise(
+            self.direction,
+            np.deg2rad(direction_sigma_deg)
+        )
+
+        # Stiffness
+        noisy_stiffness = self.stiffness * (1.0 + np.random.normal(0.0, stiffness_rel_sigma))
+
+        noisy_measurement = PalpationMeasurement(
+            noisy_location,
+            noisy_direction,
+            noisy_stiffness
+        )
+        noisy_measurement.stiffness += noisy_measurement.stiffness*stiffness_rel_offset
+        return noisy_measurement
 
 
 class StiffnessMapOptimizer(Node):
@@ -198,7 +277,8 @@ class StiffnessMapOptimizer(Node):
 
         # palpation "measurements" - simulated palpation data that we are comparing to
         # array of PalpationMeasurement
-        self.palpation_measurements = []
+        self.exact_palpation_measurements = []
+        self.noisy_palpation_measurements = []
 
         # initial call to FG service to get the initial mesh
         self.init_timer = self.create_timer(1, self.send_initial_request)
@@ -286,7 +366,11 @@ class StiffnessMapOptimizer(Node):
                 # F = C^-1 * u
                 # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
                 stiffness = np.linalg.norm(np.linalg.inv(C) @ nrm_w[i]) / np.linalg.norm(nrm_w[i])
-                self.palpation_measurements.append( PalpationMeasurement(pos_w[i], nrm_w[i], stiffness))
+                exact_palpation_measurement = PalpationMeasurement(pos_w[i], nrm_w[i], stiffness)
+                # inject noise into the palpation measurement
+                noisy_palpation_measurement = exact_palpation_measurement.noisy(location_sigma=2e-3, direction_sigma_deg=0.0, stiffness_rel_sigma=0.1, stiffness_rel_offset=0.1)
+                self.exact_palpation_measurements.append(exact_palpation_measurement)
+                self.noisy_palpation_measurements.append( noisy_palpation_measurement)
 
             # start the optimization in a new thread (so that the optimization objective can be synchronous)
             # threading.Thread(target=self.run_nonlinear_optimization, daemon=True).start()
@@ -308,16 +392,16 @@ class StiffnessMapOptimizer(Node):
             #     (0, 20),
             #     (0, 20),
             # ],
-            options={
-                "maxiter": 5,
-                "xtol": 0.1,
-                "ftol": 1e-3,
-            }
+            # options={
+            #     "maxiter": 50,
+            #     "xtol": 0.1,
+            #     "ftol": 1e-3,
+            # }
         )
         print(f"Optimization result: {result}")
 
-        self.visualizeStiffnessMap(result.x)
-        self.visualizeStiffnessMap(x0)
+        self.visualizeStiffnessMapForce(result.x)
+        self.visualizeStiffnessMapMeasurements(self.initial_vertices, self.noisy_palpation_measurements)
         
 
     def linear_optimization_objective(self, F):
@@ -331,7 +415,7 @@ class StiffnessMapOptimizer(Node):
         # Step 2: get closest surface points to the original palpation points
         print(f"  Getting closest points on surface to palpation measurements...")
         palpation_locations = np.vstack(
-            [meas.location for meas in self.palpation_measurements]
+            [meas.location for meas in self.exact_palpation_measurements]
         )
 
         new_V_mat = new_V.reshape(-1, 3)
@@ -348,7 +432,7 @@ class StiffnessMapOptimizer(Node):
             C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
             # F = C^-1 * u
             # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
-            dir = self.palpation_measurements[i].direction
+            dir = self.exact_palpation_measurements[i].direction
             stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
             new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
 
@@ -358,7 +442,7 @@ class StiffnessMapOptimizer(Node):
         location_weight = 1e10
         stiffness_penalty = 0   # cost of stiffnesses being different
         location_penalty = 0    # cost of palpation locations being different
-        for meas, sim in zip(self.palpation_measurements, new_palpation_measurements):
+        for meas, sim in zip(self.noisy_palpation_measurements, new_palpation_measurements):
             # compute cost for location difference
             loc_diff = np.array(meas.location - sim.location)
             location_penalty += location_weight * (loc_diff.transpose() @ loc_diff)
@@ -477,15 +561,13 @@ class StiffnessMapOptimizer(Node):
         print(f"  Done. Stiffness cost: {stiffness_penalty},   Location penalty: {location_penalty},  Total objective: {E}")
 
         return E
-        
-    def visualizeStiffnessMap(self, force):
-        # visualize the result
+
+    def visualizeStiffnessMapForce(self, force):
         new_V = getTissueStateGivenLesionForce(force*1e6, self.factorized_stiffness, self.initial_vertices_flat, self.lesion_elements)
         new_V_mat = new_V.reshape(-1, 3)
         mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.initial_faces, process=False)
-
         palpation_locations = np.vstack(
-            [meas.location for meas in self.palpation_measurements]
+            [meas.location for meas in self.exact_palpation_measurements]
         )
         closest_points, distances, triangle_ids = trimesh.proximity.closest_point(mesh, palpation_locations)
         triangles = mesh.vertices[mesh.faces[triangle_ids]]
@@ -496,19 +578,25 @@ class StiffnessMapOptimizer(Node):
             C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
             # F = C^-1 * u
             # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
-            dir = self.palpation_measurements[i].direction
+            dir = self.exact_palpation_measurements[i].direction
             stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
             new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
 
+        self.visualizeStiffnessMapMeasurements(new_V_mat, new_palpation_measurements)
+
+    def visualizeStiffnessMapMeasurements(self, new_V_mat, measurements):
+        # visualize the result
+        
+        mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.initial_faces, process=False)
         mesh.visual.face_colors[:, 3] = 100 # make mesh translucent
 
         lesion_mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.lesion_faces, process=False)
         lesion_mesh.fix_normals()
         palpation_locations = np.vstack(
-            [meas.location for meas in new_palpation_measurements]
+            [meas.location for meas in measurements]
         )
-        palpation_directions = [meas.direction for meas in new_palpation_measurements]
-        stiffness = np.array([meas.stiffness for meas in new_palpation_measurements])
+        palpation_directions = [meas.direction for meas in measurements]
+        stiffness = np.array([meas.stiffness for meas in measurements])
         norm = plt.Normalize(vmin=stiffness.min(), vmax=stiffness.max())
         cmap = plt.get_cmap("coolwarm")
         colors = (cmap(norm(stiffness)) * 255).astype(np.uint8)
