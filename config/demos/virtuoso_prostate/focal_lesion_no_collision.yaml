@@ -131,7 +131,7 @@ objects:
     name: "Prostate"
     type: "FirstOrderXPBDMeshObject"
     filename: "../resource/demos/prostate/01_15_26/bph_model2_processed.msh"
-    # fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"   # commented out for now - some instabilities seen with fixed faces (07/13/26)
+    fixed-faces-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_fixed_faces.txt"   # commented out for now - some instabilities seen with fixed faces (07/13/26)
     element-classes-filename: "../resource/demos/prostate/01_15_26/bph_model2_processed_element_classes.txt"
     materials: ["Prostate Phantom", "Lesion"]
 

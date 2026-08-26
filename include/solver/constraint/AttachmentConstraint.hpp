@@ -12,7 +12,7 @@ class AttachmentConstraint : public Constraint
 {
     public:
     constexpr static int NUM_POSITIONS = 1;
-    constexpr static int NUM_COORDINATES = 4;
+    constexpr static int NUM_COORDINATES = 3;
 
     AttachmentConstraint() = default;
     explicit AttachmentConstraint(int v_ind, PositionReference::VecType* vec_ptr, Real m, const Vec3r* attached_pos_ptr);
