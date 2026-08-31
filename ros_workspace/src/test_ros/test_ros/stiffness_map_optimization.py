@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 import time
 import threading
 
+from tf2_ros import Buffer, TransformListener
+from tf2_ros import LookupException, ConnectivityException, ExtrapolationException
+
 
 # K = sparse stiffness mat
 # V = flattened list of vertices
@@ -262,6 +265,35 @@ class StiffnessMapOptimizer(Node):
 
         self.client = self.create_client(FocalLesionFactorGraphState, '/sim/focal_lesion_factor_graph_state')
 
+        # load real data from CSV
+        data = np.genfromtxt(
+            "/home/reach-lab/Downloads/DataForSam.csv",
+            delimiter=",",
+            names=True,
+            dtype=None,
+            encoding="utf-8"
+        )
+        # convert to palpation measurements
+        self.real_palpation_measurements = []
+        surface_ct_x = data['SurfaceLocation_CT_x']
+        surface_ct_y = data['SurfaceLocation_CT_y']
+        surface_ct_z = data['SurfaceLocation_CT_z']
+        push_dir_ct_x = data['PushDir_CTx']
+        push_dir_ct_y = data['PushDir_CTy']
+        push_dir_ct_z = data['PushDir_CTz']
+        stiffness_Npermm = data['Stiffness_Npermm']
+        for sx,sy,sz, px,py,pz, stiffness in zip(surface_ct_x,surface_ct_y,surface_ct_z,push_dir_ct_x,push_dir_ct_y,push_dir_ct_z,stiffness_Npermm):
+            stiffness_Nperm = stiffness*1000    # convert to N/m
+            # make sure palpation dir is unit vector
+            dir_normalized = np.array([px,py,pz])
+            dir_normalized /= np.linalg.norm(dir_normalized)
+            # convert surface locations to m
+            s_loc_m = 1e-3*np.array([sx, sy, sz])
+
+            # create palpation measurement
+            # (negate the direction for this data, seems backwards for some reason)
+            self.real_palpation_measurements.append(PalpationMeasurement(s_loc_m, -dir_normalized, stiffness_Nperm))
+
          # Wait for service to be available
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Service not available, waiting...')
@@ -299,6 +331,61 @@ class StiffnessMapOptimizer(Node):
         # store lesion elements
         # required for computing the applied body forces
         self.lesion_elements = []
+
+        # for getting transforms from tf tree
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        self.tf_timer = self.create_timer(1.0, self.get_transform)
+
+        # the transform from sim/world to CT frame
+        # NOTE: I don't know this in general in this dummy example, so when launching the sim, set the CT to VB transform to identity
+        # then, the CT and VB frames align, and sim/world -> VB is the same as sim/world -> CT
+        # and then we can compare against palpation data in the CT frame
+        self.sim_to_CT_T = np.eye(4)
+        self.CT_to_sim_T = np.eye(4)
+        
+
+    def get_transform(self):
+        try:
+            # this maps sim/world -> CT (i.e. x_CT = T * x_sim)
+            transform = self.tf_buffer.lookup_transform(
+                'ves/left/base',    # target frame
+                'sim/world',  # source frame
+                rclpy.time.Time()
+            )
+
+            t = transform.transform.translation
+            q = transform.transform.rotation
+
+            R_mat = R.from_quat([q.x, q.y, q.z, q.w]).as_matrix()
+
+            T = np.eye(4)
+            T[:3, :3] = R_mat
+            T[:3, 3] = [t.x, t.y, t.z]
+
+            # we assume (for now) that CT = VB frame - we must launch the sim so that this is true
+            self.sim_to_CT_T = T
+            self.CT_to_sim_T = np.linalg.inv(T)
+
+            print(f'T=\n{T}')
+
+            # this is sloppy to do here, but we'll transform loaded palpation data (in CT frame) into sim/world frame to align with FG info from sim
+            # let's just hope this happens before we get the FG response and the optimization starts
+            for meas in self.real_palpation_measurements:
+                print(f'Old direction: {meas.direction}  Old location: {meas.location}')
+                # direction is rotated
+                meas.direction = self.CT_to_sim_T[:3,:3] @ meas.direction
+                # surface location is rotated + translated
+                meas.location = self.CT_to_sim_T[:3,:3] @ meas.location + self.CT_to_sim_T[:3, 3]
+                print(f'New direction: {meas.direction}  New location: {meas.location}')
+
+            
+
+            self.tf_timer.cancel()
+
+        except (LookupException, ConnectivityException, ExtrapolationException) as e:
+            self.get_logger().warn(f'TF lookup failed: {e}')
 
     def new_arm1_tip_frame(self, msg):
         point = msg.pose.position
@@ -382,7 +469,7 @@ class StiffnessMapOptimizer(Node):
     # runs the "linear" optimization
     # the stiffness matrix from the initial tissue state is always used
     def run_linear_optimization(self):
-        x0 = np.array([5,5,5])
+        x0 = np.array([0,0,0])
         result = opt.minimize(
             self.linear_optimization_objective,
             x0=x0,
@@ -401,7 +488,7 @@ class StiffnessMapOptimizer(Node):
         print(f"Optimization result: {result}")
 
         self.visualizeStiffnessMapForce(result.x)
-        self.visualizeStiffnessMapMeasurements(self.initial_vertices, self.noisy_palpation_measurements)
+        self.visualizeStiffnessMapMeasurements(self.initial_vertices, self.real_palpation_measurements)
         
 
     def linear_optimization_objective(self, F):
@@ -415,7 +502,8 @@ class StiffnessMapOptimizer(Node):
         # Step 2: get closest surface points to the original palpation points
         print(f"  Getting closest points on surface to palpation measurements...")
         palpation_locations = np.vstack(
-            [meas.location for meas in self.exact_palpation_measurements]
+            # [meas.location for meas in self.exact_palpation_measurements]   # simulated data
+            [meas.location for meas in self.real_palpation_measurements]     # real data from CSV
         )
 
         new_V_mat = new_V.reshape(-1, 3)
@@ -432,7 +520,8 @@ class StiffnessMapOptimizer(Node):
             C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
             # F = C^-1 * u
             # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
-            dir = self.exact_palpation_measurements[i].direction
+            # dir = self.exact_palpation_measurements[i].direction   # simulated data
+            dir = self.real_palpation_measurements[i].direction      # real data from CSV
             stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
             new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
 
@@ -442,7 +531,8 @@ class StiffnessMapOptimizer(Node):
         location_weight = 1e10
         stiffness_penalty = 0   # cost of stiffnesses being different
         location_penalty = 0    # cost of palpation locations being different
-        for meas, sim in zip(self.noisy_palpation_measurements, new_palpation_measurements):
+        # for meas, sim in zip(self.noisy_palpation_measurements, new_palpation_measurements):  # noisy simulated data
+        for meas, sim in zip(self.real_palpation_measurements, new_palpation_measurements):     # real data from CSV
             # compute cost for location difference
             loc_diff = np.array(meas.location - sim.location)
             location_penalty += location_weight * (loc_diff.transpose() @ loc_diff)
@@ -567,7 +657,8 @@ class StiffnessMapOptimizer(Node):
         new_V_mat = new_V.reshape(-1, 3)
         mesh = trimesh.Trimesh(vertices=new_V_mat, faces=self.initial_faces, process=False)
         palpation_locations = np.vstack(
-            [meas.location for meas in self.exact_palpation_measurements]
+            # [meas.location for meas in self.exact_palpation_measurements]       # simulated data
+            [meas.location for meas in self.real_palpation_measurements]          # real data
         )
         closest_points, distances, triangle_ids = trimesh.proximity.closest_point(mesh, palpation_locations)
         triangles = mesh.vertices[mesh.faces[triangle_ids]]
@@ -578,7 +669,8 @@ class StiffnessMapOptimizer(Node):
             C = surface_point_compliance(self.factorized_stiffness, new_V, self.initial_faces[f,:], b)
             # F = C^-1 * u
             # ==> stiffness = (C^-1 * u).norm() (assuming that u is unit direction)
-            dir = self.exact_palpation_measurements[i].direction
+            # dir = self.exact_palpation_measurements[i].direction              # simulated data
+            dir = self.real_palpation_measurements[i].direction                 # real data
             stiffness = np.linalg.norm(np.linalg.inv(C) @ dir) / np.linalg.norm(dir)
             new_palpation_measurements.append(PalpationMeasurement(closest_points[i], dir, stiffness))
 
@@ -602,7 +694,7 @@ class StiffnessMapOptimizer(Node):
         colors = (cmap(norm(stiffness)) * 255).astype(np.uint8)
         point_cloud = trimesh.points.PointCloud(palpation_locations, colors=colors)
         scene = trimesh.Scene()
-        # scene.add_geometry(mesh)
+        scene.add_geometry(mesh)
         scene.add_geometry(lesion_mesh)
         # scene.add_geometry(point_cloud)
         
