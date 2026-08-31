@@ -80,6 +80,7 @@ class VirtuosoArmConfig : public ObjectConfig
         _extractParameter("virtuoso-virtuoso-collisions", node, _virtuoso_virtuoso_collisions);
         _extractParameter("virtuoso-rigid-collisions", node, _virtuoso_rigid_collisions);
         _extractParameter("ignore-all-collisions", node, _ignore_collisions);
+        _extractParameter("ignore-all-forces", node, _ignore_forces);
     }
 
     explicit VirtuosoArmConfig( const std::string& name, const std::string& material_class, 
@@ -141,6 +142,7 @@ class VirtuosoArmConfig : public ObjectConfig
     bool virtuosoVirtuosoCollisions() const { return _virtuoso_virtuoso_collisions.value; }
     bool virtuosoRigidCollisions() const { return _virtuoso_rigid_collisions.value; }
     bool ignoreCollisions() const { return _ignore_collisions.value; }
+    bool ignoreForces() const { return _ignore_forces.value; }
 
     const VirtuosoArmToolConfig& toolConfig() const { return _tool_config; }
 
@@ -173,6 +175,7 @@ class VirtuosoArmConfig : public ObjectConfig
     ConfigParameter<bool> _virtuoso_virtuoso_collisions = ConfigParameter<bool>(false);
     ConfigParameter<bool> _virtuoso_rigid_collisions = ConfigParameter<bool>(false);
     ConfigParameter<bool> _ignore_collisions = ConfigParameter<bool>(false);
+    ConfigParameter<bool> _ignore_forces = ConfigParameter<bool>(false);
 
     VirtuosoArmToolConfig _tool_config;
 };

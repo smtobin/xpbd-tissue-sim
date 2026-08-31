@@ -183,6 +183,7 @@ objects:
       max-ot-rotation-speed: 5 #20
       max-it-rotation-speed: 13 #52.4
       ignore-all-collisions: true
+      ignore-all-forces: true
 
     - # right arm has the cautery tool for cutting
       name: "Arm2"
@@ -204,6 +205,7 @@ objects:
       max-ot-rotation-speed: 5 #20
       max-it-rotation-speed: 13 #52.4
       ignore-all-collisions: true
+      ignore-all-forces: true
 
   
 

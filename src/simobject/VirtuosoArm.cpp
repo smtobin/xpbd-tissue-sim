@@ -77,6 +77,7 @@ VirtuosoArm::VirtuosoArm(const Simulation* sim, const ConfigType* config)
     _char_dim = _it_outer_dia;
 
     _ignore_collisions = config->ignoreCollisions();
+    _ignore_forces = config->ignoreForces();
 
 }
 
@@ -337,6 +338,9 @@ void VirtuosoArm::setCommandedTipPose(const Geometry::TransformationMatrix& pose
 
 void VirtuosoArm::setTipForce(const Vec3r& new_tip_force)
 {
+    if (_ignore_forces)
+        return;
+
     // extra precautions (07/16/26)
     // cap the force so that it is <20 N
     Real force_cap = 20;
@@ -354,6 +358,9 @@ void VirtuosoArm::setTipForce(const Vec3r& new_tip_force)
 
 void VirtuosoArm::setTipMoment(const Vec3r& new_tip_moment)
 {
+    if (_ignore_forces)
+        return;
+
     _tip_moment = new_tip_moment;
     // _recomputeCoordinateFramesStaticsModelWithNodalForces();
     _stale_frames = true;
@@ -361,6 +368,9 @@ void VirtuosoArm::setTipMoment(const Vec3r& new_tip_moment)
 
 void VirtuosoArm::setTipForceAndMoment(const Vec3r& new_tip_force, const Vec3r& new_tip_moment)
 {
+    if (_ignore_forces)
+        return;
+
     _tip_force = new_tip_force;
     _tip_moment = new_tip_moment;
     // _recomputeCoordinateFramesStaticsModelWithNodalForces();
@@ -369,6 +379,9 @@ void VirtuosoArm::setTipForceAndMoment(const Vec3r& new_tip_force, const Vec3r& 
 
 void VirtuosoArm::setOuterTubeNodalForce(int node_index, const Vec3r& force)
 {
+    if (_ignore_forces)
+        return;
+
     assert(node_index < NUM_OT_FRAMES);
     _ot_nodal_forces[node_index] = force;
     _stale_frames = true;
@@ -376,6 +389,9 @@ void VirtuosoArm::setOuterTubeNodalForce(int node_index, const Vec3r& force)
 
 void VirtuosoArm::setInnerTubeNodalForce(int node_index, const Vec3r& force)
 {
+    if (_ignore_forces)
+        return;
+
     assert(node_index < NUM_IT_FRAMES);
     _it_nodal_forces[node_index] = force;
     _stale_frames = true;
@@ -383,6 +399,9 @@ void VirtuosoArm::setInnerTubeNodalForce(int node_index, const Vec3r& force)
 
 void VirtuosoArm::applyNodalForce(int node_index, Real interp, const Vec3r& force)
 {
+    if (_ignore_forces)
+        return;
+        
     if (node_index < NUM_OT_FRAMES-1)
     {
         _ot_nodal_forces[node_index] += (1-interp)*force;

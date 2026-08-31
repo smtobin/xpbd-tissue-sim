@@ -628,6 +628,9 @@ public:
     // if true, don't apply forces from collisions
     bool _ignore_collisions;
 
+    // if true, don't apply any forces at all (collision, grasping)
+    bool _ignore_forces;
+
     XPBDMeshObject_BasePtrWrapper _tool_manipulated_object; // the deformable object that this tool is manipulating
     Geometry::TransformationMatrix _commanded_tip_pose; // tip position of the arm in the absence of tip forces (i.e. where we tell the arm tip to be at)
     std::vector<int> _grasped_vertices; // vertices that are actively being grasped
