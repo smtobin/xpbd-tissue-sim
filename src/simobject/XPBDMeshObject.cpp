@@ -1559,9 +1559,8 @@ Vec3r XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::e
 }
 
 template<bool IsFirstOrder, typename SolverType, typename... ConstraintTypes>
-Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrix(bool gauss_newton) const
+Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>>::stiffnessMatrix() const
 {
-    std::cout << "Computing stiffness matrix! gauss_newton=" << gauss_newton << std::endl;
     // auto t_start = std::chrono::high_resolution_clock::now();
 
     // the stiffness matrix only concerns the elastic constraints - i.e. the hydrostatic and deviatoric constraints
@@ -1632,7 +1631,7 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
     const std::vector<Solver::DeviatoricConstraint>& dev_constraints = _constraints.template get<Solver::DeviatoricConstraint>();
 
     // keep track of the constraint index that we are on
-    int constraint_index = 0;
+    // int constraint_index = 0;
     // for (const auto& elem_index : elements.validIndices())
     // {
         // process_constraint(hyd_constraints[elem_index], constraint_index);
@@ -1640,20 +1639,20 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
         // process_constraint(dev_constraints[elem_index], constraint_index);
         // constraint_index++;
     // }
-    for (const auto& hanging_idx : _hanging_vertices_vec.validIndices())
-    {
-        const auto& midpoint_constraint = _constraints.template get<Solver::MidpointConstraint>()[hanging_idx];
-        process_constraint(midpoint_constraint, constraint_index);
-        constraint_index++;
-    }
+    // for (const auto& hanging_idx : _hanging_vertices_vec.validIndices())
+    // {
+    //     const auto& midpoint_constraint = _constraints.template get<Solver::MidpointConstraint>()[hanging_idx];
+    //     process_constraint(midpoint_constraint, constraint_index);
+    //     constraint_index++;
+    // }
 
     // auto t_delC = std::chrono::high_resolution_clock::now();
     // double delC_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC - t_alloc_delC).count() / 1.0e6;
     // std::cout << "Computing delC triplets took: " << delC_ms << " ms" << std::endl;
 
     // build delC matrix from triplets
-    Eigen::SparseMatrix<Real> delC(num_elastic_constraints, 3*_mesh->vertices().totalSize());
-    delC.setFromTriplets(delC_triplets.begin(), delC_triplets.end());
+    // Eigen::SparseMatrix<Real> delC(num_elastic_constraints, 3*_mesh->vertices().totalSize());
+    // delC.setFromTriplets(delC_triplets.begin(), delC_triplets.end());
 
     // auto t_delC_ass = std::chrono::high_resolution_clock::now();
     // double delC_ass_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_delC_ass - t_delC).count() / 1.0e6;
@@ -1671,7 +1670,7 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
         if (vertexFixed(vertex_index))
         {
             for (int j = 0; j < 3; j++)
-                hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
+                hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e6);
         }
     }
 
@@ -1683,245 +1682,170 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
 
         int vertex_index = proj.constraint()->positions()[0].index;
         for (int j = 0; j < 3; j++)
-            hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e9);
+            hessian_triplets.emplace_back(3*vertex_index+j,3*vertex_index+j, 1e6);
     }
 
     // auto t_hess = std::chrono::high_resolution_clock::now();
     // double hess_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess - t_delC_ass).count() / 1.0e6;
     // std::cout << "Reserving Hessian triplets took: " << hess_ms << " ms" << std::endl;
 
-    // if doing Gauss-Newton Hessian, don't use the curvature term
-    if (!gauss_newton)
+    // helper lambda for computing Hessian term of constraint
+    auto compute_neohookean_hessian = [&](int elem_index)
     {
-        // helper lambda for computing Hessian term of constraint
-        auto compute_hessian = [&](const auto& constraint, int constraint_index)
+        // reconstruct the Hessian using analytical eigenvectors + eigenvalues
+        Mat3r F = tetMesh()->elementDeformationGradient(elem_index);
+        Eigen::JacobiSVD<Mat3r> svd(
+            F,
+            Eigen::ComputeFullU | Eigen::ComputeFullV
+        );
+
+        Mat3r U = svd.matrixU();
+        Vec3r sigma = svd.singularValues();
+        Mat3r V = svd.matrixV();
+        
+        // G is 9x12, computed once per element from B (3x3) and D (9x12)
+        // Bt_kron_I3 is 9x9: (B^T kron I3)
+        Mat3r B = tetMesh()->elementInvUndeformedBasis(elem_index);
+        Eigen::Matrix<Real,9,12> D = Eigen::Matrix<Real,9,12>::Zero();
+        D.block<3,3>(0,0) = Mat3r::Identity();
+        D.block<3,3>(3,3) = Mat3r::Identity();
+        D.block<3,3>(6,6) = Mat3r::Identity();
+        D.block<3,3>(0,9) = -Mat3r::Identity();
+        D.block<3,3>(3,9) = -Mat3r::Identity();
+        D.block<3,3>(6,9) = -Mat3r::Identity();
+        Eigen::Matrix<Real,9,9> BtKronI3 = Eigen::Matrix<Real,9,9>::Zero();
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                BtKronI3.block<3,3>(3*i, 3*j) = B(j,i) * Mat3r::Identity();
+                // note: B(j,i) because we want B^T, so (B^T)(i,j) = B(j,i)
+
+        Eigen::Matrix<Real,9,12> G = BtKronI3 * D;
+
+        Eigen::Vector<Real,9> eigenvals;
+
+        Real J = F.determinant();
+        Real mu = _material_classes[0]->material().mu();
+        Real lambda = _material_classes[0]->material().lambda();
+        
+
+        Eigen::Matrix<Real,9,9> Q;
+        static const Real scale = 1.0 / std::sqrt(2.0);
+        const Mat3r sV = scale * V;
+
+        using M3 = Eigen::Matrix<Real, 3, 3, Eigen::ColMajor>;
         {
-            // get the 12x12 Hessian matrix from the constraint
-            using ConstraintType = std::remove_cv_t<std::remove_reference_t<decltype(constraint)>>;
+        M3 A;
+        A << sV(0,2) * U(0,1), sV(1,2) * U(0,1), sV(2,2) * U(0,1),
+            sV(0,2) * U(1,1), sV(1,2) * U(1,1), sV(2,2) * U(1,1),
+            sV(0,2) * U(2,1), sV(1,2) * U(2,1), sV(2,2) * U(2,1);
 
-            // Real alpha_inv = _stiffness_matrix_alpha_inv_vec[constraint_index];
-            Real C = _stiffness_matrix_C_vec[constraint_index];
-            typename ConstraintType::HessianMatType hessian_mat = constraint.hessian() * C / constraint.alpha();
+        M3 B;
+        B << sV(0,1) * U(0,2), sV(1,1) * U(0,2), sV(2,1) * U(0,2),
+            sV(0,1) * U(1,2), sV(1,1) * U(1,2), sV(2,1) * U(1,2),
+            sV(0,1) * U(2,2), sV(1,1) * U(2,2), sV(2,1) * U(2,2);
 
-            // scatter the constraint-specific Hessian mat to the appropriate DOF in the global Hessian matrix
-            for (int i = 0; i < ConstraintType::NUM_POSITIONS; i++)
-            {
-                int dof_i = constraint.positions()[i].index;
-                for (int j = 0; j < ConstraintType::NUM_POSITIONS; j++)
-                {
-                    int dof_j = constraint.positions()[j].index;
-                    
-                    // _stiffness_matrix_hessian_term.block<3,3>(3*dof_i, 3*dof_j) += hessian_mat.template block<3,3>(3*i, 3*j);
-                    for (int a = 0; a < 3; a++)
-                    {
-                        for (int b = 0; b < 3; b++)
-                        {
-                            hessian_triplets.emplace_back(3*dof_i + a, 3*dof_j + b, hessian_mat(3*i + a, 3*j + b));
-                        }
-                    }
-                }
-            }
-        };
+        M3 C;
+        C << sV(0,2) * U(0,0), sV(1,2) * U(0,0), sV(2,2) * U(0,0),
+            sV(0,2) * U(1,0), sV(1,2) * U(1,0), sV(2,2) * U(1,0),
+            sV(0,2) * U(2,0), sV(1,2) * U(2,0), sV(2,2) * U(2,0);
 
-        // helper lambda for computing Hessian term of constraint
-        auto compute_neohookean_hessian = [&](int elem_index)
-        {
-            // reconstruct the Hessian using analytical eigenvectors + eigenvalues
-            Mat3r F = tetMesh()->elementDeformationGradient(elem_index);
-            Eigen::JacobiSVD<Mat3r> svd(
-                F,
-                Eigen::ComputeFullU | Eigen::ComputeFullV
-            );
+        M3 D;
+        D << sV(0,0) * U(0,2), sV(1,0) * U(0,2), sV(2,0) * U(0,2),
+            sV(0,0) * U(1,2), sV(1,0) * U(1,2), sV(2,0) * U(1,2),
+            sV(0,0) * U(2,2), sV(1,0) * U(2,2), sV(2,0) * U(2,2);
 
-            Mat3r U = svd.matrixU();
-            Vec3r sigma = svd.singularValues();
-            Mat3r V = svd.matrixV();
-            
-            // G is 9x12, computed once per element from B (3x3) and D (9x12)
-            // Bt_kron_I3 is 9x9: (B^T kron I3)
-            Mat3r B = tetMesh()->elementInvUndeformedBasis(elem_index);
-            Eigen::Matrix<Real,9,12> D = Eigen::Matrix<Real,9,12>::Zero();
-            D.block<3,3>(0,0) = Mat3r::Identity();
-            D.block<3,3>(3,3) = Mat3r::Identity();
-            D.block<3,3>(6,6) = Mat3r::Identity();
-            D.block<3,3>(0,9) = -Mat3r::Identity();
-            D.block<3,3>(3,9) = -Mat3r::Identity();
-            D.block<3,3>(6,9) = -Mat3r::Identity();
-            Eigen::Matrix<Real,9,9> BtKronI3 = Eigen::Matrix<Real,9,9>::Zero();
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
-                    BtKronI3.block<3,3>(3*i, 3*j) = B(j,i) * Mat3r::Identity();
-                    // note: B(j,i) because we want B^T, so (B^T)(i,j) = B(j,i)
+        M3 E;
+        E << sV(0,1) * U(0,0), sV(1,1) * U(0,0), sV(2,1) * U(0,0),
+            sV(0,1) * U(1,0), sV(1,1) * U(1,0), sV(2,1) * U(1,0),
+            sV(0,1) * U(2,0), sV(1,1) * U(2,0), sV(2,1) * U(2,0);
 
-            Eigen::Matrix<Real,9,12> G = BtKronI3 * D;
+        M3 F;
+        F << sV(0,0) * U(0,1), sV(1,0) * U(0,1), sV(2,0) * U(0,1),
+            sV(0,0) * U(1,1), sV(1,0) * U(1,1), sV(2,0) * U(1,1),
+            sV(0,0) * U(2,1), sV(1,0) * U(2,1), sV(2,0) * U(2,1);
 
-            std::array<Mat3r, 9> eigenvecs;
-            Eigen::Vector<Real,9> eigenvals;
+        // Twist eigenvectors
+        Eigen::Map<M3>(Q.data())      = B - A;
+        Eigen::Map<M3>(Q.data() + 9)  = D - C;
+        Eigen::Map<M3>(Q.data() + 18) = F - E;
 
-            Mat3r C = (F.transpose() * F);
-            // Real IC = C.trace();
-            Real J = F.determinant();
-            Real mu = _material_classes[0]->material().mu();
-            Real lambda = _material_classes[0]->material().lambda();
-            // for (int k = 0; k < 3; k++)
-            // {
-            //     eigenvals[k] = 2*std::sqrt(IC/3.0)*std::cos(1.0/3.0 * (std::acos(3*J / IC * std::sqrt(3.0/IC))+ 2*M_PI*k));
-            //     Mat3r Dk = Mat3r::Zero();
-            //     Dk(0,0) = sigma[0]*sigma[2] + sigma[1]*eigenvals[k];
-            //     Dk(1,1) = sigma[1]*sigma[2] + sigma[0]*eigenvals[k];
-            //     Dk(2,2) = eigenvals[k]*eigenvals[k] - sigma[2]*sigma[2];
-            //     Real qk = Dk.norm();
-            //     eigenvecs[k] = 1.0/qk * U * Dk * V.transpose();
-
-            //     std::cout << "Eigenval " << k << ": " << eigenvals[k] << std::endl;
-            // }
-            // Mat3r D3,D4,D5,D6,D7,D8;
-            // D3 = D4 = D5 = D6 = D7 = D8 = Mat3r::Zero();
-            // D3(2,1) = -1; D3(1,2) = 1;
-            // D4(2,0) = -1; D4(0,2) = 1;
-            // D5(1,0) = -1; D5(0,1) = 1;
-            // D6(2,1) = 1; D6(1,2) = 1;
-            // D7(2,0) = 1; D7(0,2) = 1;
-            // D8(1,0) = 1; D8(0,1) = 1;
-            // eigenvecs[3] = 1.0/std::sqrt(2) * U * D3 * V.transpose();
-            // eigenvecs[4] = 1.0/std::sqrt(2) * U * D4 * V.transpose();
-            // eigenvecs[5] = 1.0/std::sqrt(2) * U * D5 * V.transpose();
-            // eigenvecs[6] = 1.0/std::sqrt(2) * U * D6 * V.transpose();
-            // eigenvecs[7] = 1.0/std::sqrt(2) * U * D7 * V.transpose();
-            // eigenvecs[8] = 1.0/std::sqrt(2) * U * D8 * V.transpose();
-
-            // // Real alpha = 1 + _material->mu() / _material->lambda();
-            // eigenvals[3] = sigma[0];
-            // eigenvals[4] = sigma[1];
-            // eigenvals[5] = sigma[2];
-            // eigenvals[6] = -sigma[0];
-            // eigenvals[7] = -sigma[1];
-            // eigenvals[8] = -sigma[2];
-
-            Eigen::Matrix<Real,9,9> Q;
-            static const Real scale = 1.0 / std::sqrt(2.0);
-            const Mat3r sV = scale * V;
-
-            using M3 = Eigen::Matrix<Real, 3, 3, Eigen::ColMajor>;
-            {
-            M3 A;
-            A << sV(0,2) * U(0,1), sV(1,2) * U(0,1), sV(2,2) * U(0,1),
-                sV(0,2) * U(1,1), sV(1,2) * U(1,1), sV(2,2) * U(1,1),
-                sV(0,2) * U(2,1), sV(1,2) * U(2,1), sV(2,2) * U(2,1);
-
-            M3 B;
-            B << sV(0,1) * U(0,2), sV(1,1) * U(0,2), sV(2,1) * U(0,2),
-                sV(0,1) * U(1,2), sV(1,1) * U(1,2), sV(2,1) * U(1,2),
-                sV(0,1) * U(2,2), sV(1,1) * U(2,2), sV(2,1) * U(2,2);
-
-            M3 C;
-            C << sV(0,2) * U(0,0), sV(1,2) * U(0,0), sV(2,2) * U(0,0),
-                sV(0,2) * U(1,0), sV(1,2) * U(1,0), sV(2,2) * U(1,0),
-                sV(0,2) * U(2,0), sV(1,2) * U(2,0), sV(2,2) * U(2,0);
-
-            M3 D;
-            D << sV(0,0) * U(0,2), sV(1,0) * U(0,2), sV(2,0) * U(0,2),
-                sV(0,0) * U(1,2), sV(1,0) * U(1,2), sV(2,0) * U(1,2),
-                sV(0,0) * U(2,2), sV(1,0) * U(2,2), sV(2,0) * U(2,2);
-
-            M3 E;
-            E << sV(0,1) * U(0,0), sV(1,1) * U(0,0), sV(2,1) * U(0,0),
-                sV(0,1) * U(1,0), sV(1,1) * U(1,0), sV(2,1) * U(1,0),
-                sV(0,1) * U(2,0), sV(1,1) * U(2,0), sV(2,1) * U(2,0);
-
-            M3 F;
-            F << sV(0,0) * U(0,1), sV(1,0) * U(0,1), sV(2,0) * U(0,1),
-                sV(0,0) * U(1,1), sV(1,0) * U(1,1), sV(2,0) * U(1,1),
-                sV(0,0) * U(2,1), sV(1,0) * U(2,1), sV(2,0) * U(2,1);
-
-            // Twist eigenvectors
-            Eigen::Map<M3>(Q.data())      = B - A;
-            Eigen::Map<M3>(Q.data() + 9)  = D - C;
-            Eigen::Map<M3>(Q.data() + 18) = F - E;
-
-            // Flip eigenvectors
-            Eigen::Map<M3>(Q.data() + 27) = A + B;
-            Eigen::Map<M3>(Q.data() + 36) = C + D;
-            Eigen::Map<M3>(Q.data() + 45) = E + F;
-            }
-
-            {
-            // Twist eigenvalues
-            eigenvals.segment<3>(0) = sigma;
-            // Flip eigenvalues
-            eigenvals.segment<3>(3) = -sigma;
-            const Real evScale = lambda * (J - 1.0) - mu;
-            eigenvals.segment<6>(0) *= evScale;
-            eigenvals.segment<6>(0).array() += mu;
-            }
-
-            Mat3r A;
-            const Real s0s0 = sigma(0) * sigma(0);
-            const Real s1s1 = sigma(1) * sigma(1);
-            const Real s2s2 = sigma(2) * sigma(2);
-            A(0, 0) = mu + lambda * s1s1 * s2s2;
-            A(1, 1) = mu + lambda * s0s0 * s2s2;
-            A(2, 2) = mu + lambda * s0s0 * s1s1;
-            const Real evScale = lambda * (2.0 * J - 1.0) - mu;
-            A(0, 1) = evScale * sigma(2);
-            A(1, 0) = A(0, 1);
-            A(0, 2) = evScale * sigma(1);
-            A(2, 0) = A(0, 2);
-            A(1, 2) = evScale * sigma(0);
-            A(2, 1) = A(1, 2);
-
-            const Eigen::SelfAdjointEigenSolver<Mat3r> Aeigs(A);
-            eigenvals.segment<3>(6) = Aeigs.eigenvalues();
-
-            Eigen::Map<Mat3r>(Q.data() + 54) = U * Aeigs.eigenvectors().col(0).asDiagonal() * V.transpose();
-            Eigen::Map<Mat3r>(Q.data() + 63) = U * Aeigs.eigenvectors().col(1).asDiagonal() * V.transpose();
-            Eigen::Map<Mat3r>(Q.data() + 72) = U * Aeigs.eigenvectors().col(2).asDiagonal() * V.transpose();
-
-            // assemble volume Hessian
-            Eigen::Vector<Real, 9> Lambda;
-            for (int k = 0; k < 9; k++)
-                Lambda[k] = std::abs(eigenvals[k]);
-            Eigen::Matrix<Real, 9, 9> vol_Hess_9x9 = Q * Lambda.asDiagonal() * Q.transpose();
-            // std::cout << "Lambda:\n" << Lambda << std::endl;
-            // std::cout << "Q:\n" << Q << std::endl;
-            Eigen::Matrix<Real, 12, 12> vol_Hess_12x12 = 1.0/8.0 * G.transpose() * vol_Hess_9x9 * G;
-
-            // std::cout << "Analytical hessian:\n" << vol_Hess_12x12 << std::endl;
-
-            // scatter the constraint-specific Hessian mat to the appropriate DOF in the global Hessian matrix
-            const Vec4i& elem = tetMesh()->element(elem_index);
-            for (int i = 0; i < 4; i++)
-            {
-                int dof_i = elem[i];
-                for (int j = 0; j < 4; j++)
-                {
-                    int dof_j = elem[j];
-                    
-                    // _stiffness_matrix_hessian_term.block<3,3>(3*dof_i, 3*dof_j) += hessian_mat.template block<3,3>(3*i, 3*j);
-                    for (int a = 0; a < 3; a++)
-                    {
-                        for (int b = 0; b < 3; b++)
-                        {
-                            hessian_triplets.emplace_back(3*dof_i + a, 3*dof_j + b, vol_Hess_12x12(3*i + a, 3*j + b));
-                        }
-                    }
-                }
-            }
-        };
-
-        constraint_index = 0;
-        for (const auto& elem_index : elements.validIndices())
-        {
-            compute_neohookean_hessian(elem_index);
-
-            // compute_hessian(hyd_constraints[elem_index], constraint_index);
-            // constraint_index++;
-            // compute_hessian(dev_constraints[elem_index], constraint_index);
-            // constraint_index++;
-
-            
+        // Flip eigenvectors
+        Eigen::Map<M3>(Q.data() + 27) = A + B;
+        Eigen::Map<M3>(Q.data() + 36) = C + D;
+        Eigen::Map<M3>(Q.data() + 45) = E + F;
         }
+
+        {
+        // Twist eigenvalues
+        eigenvals.segment<3>(0) = sigma;
+        // Flip eigenvalues
+        eigenvals.segment<3>(3) = -sigma;
+        const Real evScale = lambda * (J - 1.0) - mu;
+        eigenvals.segment<6>(0) *= evScale;
+        eigenvals.segment<6>(0).array() += mu;
+        }
+
+        Mat3r A;
+        const Real s0s0 = sigma(0) * sigma(0);
+        const Real s1s1 = sigma(1) * sigma(1);
+        const Real s2s2 = sigma(2) * sigma(2);
+        A(0, 0) = mu + lambda * s1s1 * s2s2;
+        A(1, 1) = mu + lambda * s0s0 * s2s2;
+        A(2, 2) = mu + lambda * s0s0 * s1s1;
+        const Real evScale = lambda * (2.0 * J - 1.0) - mu;
+        A(0, 1) = evScale * sigma(2);
+        A(1, 0) = A(0, 1);
+        A(0, 2) = evScale * sigma(1);
+        A(2, 0) = A(0, 2);
+        A(1, 2) = evScale * sigma(0);
+        A(2, 1) = A(1, 2);
+
+        const Eigen::SelfAdjointEigenSolver<Mat3r> Aeigs(A);
+        eigenvals.segment<3>(6) = Aeigs.eigenvalues();
+
+        Eigen::Map<Mat3r>(Q.data() + 54) = U * Aeigs.eigenvectors().col(0).asDiagonal() * V.transpose();
+        Eigen::Map<Mat3r>(Q.data() + 63) = U * Aeigs.eigenvectors().col(1).asDiagonal() * V.transpose();
+        Eigen::Map<Mat3r>(Q.data() + 72) = U * Aeigs.eigenvectors().col(2).asDiagonal() * V.transpose();
+
+        // assemble volume Hessian
+        Eigen::Vector<Real, 9> Lambda;
+        for (int k = 0; k < 9; k++)
+            // Lambda[k] = eigenvals[k];
+            Lambda[k] = std::abs(eigenvals[k]);
+
+        Eigen::Matrix<Real, 9, 9> vol_Hess_9x9 = Q * Lambda.asDiagonal() * Q.transpose();
+        // std::cout << "Lambda:\n" << Lambda << std::endl;
+        // std::cout << "Q:\n" << Q << std::endl;
+        Eigen::Matrix<Real, 12, 12> vol_Hess_12x12 = 1.0/8.0 * G.transpose() * vol_Hess_9x9 * G;
+
+        // std::cout << "Analytical hessian:\n" << vol_Hess_12x12 << std::endl;
+
+        // scatter the constraint-specific Hessian mat to the appropriate DOF in the global Hessian matrix
+        const Vec4i& elem = tetMesh()->element(elem_index);
+        for (int i = 0; i < 4; i++)
+        {
+            int dof_i = elem[i];
+            for (int j = 0; j < 4; j++)
+            {
+                int dof_j = elem[j];
+                
+                // _stiffness_matrix_hessian_term.block<3,3>(3*dof_i, 3*dof_j) += hessian_mat.template block<3,3>(3*i, 3*j);
+                for (int a = 0; a < 3; a++)
+                {
+                    for (int b = 0; b < 3; b++)
+                    {
+                        hessian_triplets.emplace_back(3*dof_i + a, 3*dof_j + b, vol_Hess_12x12(3*i + a, 3*j + b));
+                    }
+                }
+            }
+        }
+    };
+
+    for (const auto& elem_index : elements.validIndices())
+    {
+        compute_neohookean_hessian(elem_index);
     }
+    
 
     // auto t_hess_triplet = std::chrono::high_resolution_clock::now();
     // double hess_triplet_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t_hess_triplet - t_hess).count() / 1.0e6;
@@ -1944,7 +1868,7 @@ Eigen::SparseMatrix<Real> XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<Con
     // std::cout << "NEW stiffness matrix hessian term:\n" << _stiffness_matrix_hessian_term << std::endl;
 
     // then add the delC^T * alpha^{-1} * delC term
-    stiffness_matrix += (delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * delC);
+    // stiffness_matrix += (delC.transpose() * _stiffness_matrix_alpha_inv_vec.asDiagonal() * delC);
 
     // std::cout << "alpha: " << _stiffness_matrix_alpha_inv_vec.transpose() << std::endl;
 

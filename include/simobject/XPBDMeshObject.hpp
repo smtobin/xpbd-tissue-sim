@@ -256,10 +256,9 @@ class XPBDMeshObject_<IsFirstOrder, SolverType, TypeList<ConstraintTypes...>> : 
     virtual Vec3r elasticForceAtVertex(int index) const override;
 
     /** Computes the current global stiffness matrix of the mesh. This is done with a first-order approximation of delC^T * alpha * delC.
-     * @param gauss_newton : if true, only uses the dC^T alpha dC term (not the second-order term) - this should guarantee SPD
      * @returns the global stiffness matrix
      */
-    virtual Eigen::SparseMatrix<Real> stiffnessMatrix(bool gauss_newton=false) const override;
+    virtual Eigen::SparseMatrix<Real> stiffnessMatrix() const override;
 
     /** Performs a check for self collision.
      * If any surface vertices are inside tetrahedra (queries made using Embree), add a collision constraint to fix that.
