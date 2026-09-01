@@ -101,7 +101,7 @@ def generate_launch_description():
             {"partial_view_pc_vfov": 50.0},   # degrees
             {"partial_view_pc_sample_density": 1.0},   # rays per degree (i.e. higher = denser point cloud)
 
-            {"CT_frame_name": "ct/base"},   # name of the CT origin frame in the tf tree
+            {"CT_frame_name": "ct/base/slam"},   # name of the CT origin frame in the tf tree
             {"cam_frame_name": "ves/camera"}    # name of the robot camera frame in the tf tree
         ],
         arguments=[

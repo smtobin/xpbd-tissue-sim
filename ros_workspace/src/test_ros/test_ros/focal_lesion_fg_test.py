@@ -39,7 +39,7 @@ class FocalLesionFGClient(Node):
 
         self.req = FocalLesionFactorGraphState.Request()
         self.req.update_last_mesh = False
-        self.req.compute_stiffness_matrix = False
+        self.req.compute_stiffness_matrix = True
         
         
         self.timer = None
@@ -64,7 +64,7 @@ class FocalLesionFGClient(Node):
             self.get_logger().info(f'Initial mesh: {response.fg_state.sim_mesh.vertices.size} vertices (total size), {response.fg_state.sim_mesh.faces.size} faces (total size), and {response.fg_state.sim_mesh.elements.size} elements (total size)')
 
             # now start periodic timer
-            self.timer = self.create_timer(0.2, self.send_request)
+            self.timer = self.create_timer(1, self.send_request)
 
         except Exception as e:
             self.get_logger().error(f'Initial call failed: {e}')
@@ -93,6 +93,61 @@ class FocalLesionFGClient(Node):
             self.get_logger().info(f'Current mesh: {fg_state.sim_mesh.vertices.size} vertices (total), {fg_state.sim_mesh.faces.size} faces (total), and {fg_state.sim_mesh.elements.size} elements (total)')
             self.get_logger().info(f'Updated last mesh: {updated_last_mesh.vertices.size} vertices (total), {updated_last_mesh.faces.size} faces (total), and {updated_last_mesh.elements.size} elements (total)')
             self.get_logger().info(f'Received {stiffness_mat.rows}x{stiffness_mat.cols} sparse matrix with {sparse_mat.count_nonzero()} nonzero entries')
+
+            # get invalid vertex indices
+            invalid_indices = np.array(fg_state.sim_mesh.vertices.invalid_indices, int)
+            remove = np.concatenate([
+                3 * invalid_indices + 0,
+                3 * invalid_indices + 1,
+                3 * invalid_indices + 2,
+            ])
+
+            # remove = np.sort(remove)
+
+            keep = np.ones(sparse_mat.shape[0], dtype=bool)
+            keep[remove] = False
+            # remove = np.array(fg_state.sim_mesh.vertices.invalid_indices)
+            print(f'Invalid vertices: {invalid_indices}')
+
+            # indices to remove
+            # remove = np.array([0, 1, 2, 9, 10, 11])
+
+            # print(f"K={sparse_mat.toarray()}")
+
+            # Boolean mask of indices to KEEP
+            keep = np.ones(sparse_mat.shape[0], dtype=bool)
+            keep[remove] = False
+
+            K_reduced = sparse_mat[keep][:, keep]
+
+            K = (K_reduced + K_reduced.T) * 0.5
+
+            scale = sp.linalg.norm(K, ord=np.inf)
+            Ks = K / scale
+
+            vals, vecs = sp.linalg.eigsh(
+                Ks,
+                k=5,
+                sigma=0.0,
+                which="LM",
+                tol=1e-9,
+                maxiter=100000
+            )
+
+            idx = np.argsort(vals)
+            vals = vals[idx]
+            vecs = vecs[:, idx]
+
+            print("scale:", scale)
+            print("eigenvalues:", vals)
+            print("physical eigenvalues:", vals * scale)
+
+            for i in range(len(vals)):
+                residual = np.linalg.norm(K @ vecs[:, i] - scale * vals[i] * vecs[:, i])
+                print(scale*vals[i], residual)
+
+            print(vecs[:,0])
+            print("vecs[0]^T K vecs[0] =", vecs[:,0] @ (K @ vecs[:,0]))
 
             self.publish_mesh(fg_state.sim_mesh.vertices, fg_state.sim_mesh.faces, self.prostate_mesh_publisher, self.prostate_color)
             self.publish_mesh(fg_state.sim_mesh.vertices, response.lesion_faces, self.lesion_mesh_publisher, self.lesion_color)
