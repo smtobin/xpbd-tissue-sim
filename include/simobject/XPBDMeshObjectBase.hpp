@@ -311,9 +311,10 @@ public:
     virtual Vec3r elasticForceAtVertex(int index) const = 0;
 
     /** Computes the current global stiffness matrix of the mesh. This is done with a first-order approximation of delC^T * alpha * delC.
+     * @param gauss_newton : if true, only uses the dC^T alpha dC term (not the second-order term) - this should guarantee SPD
      * @returns the global stiffness matrix
      */
-    virtual Eigen::SparseMatrix<Real> stiffnessMatrix() const = 0;
+    virtual Eigen::SparseMatrix<Real> stiffnessMatrix(bool gauss_newton=false) const = 0;
 
 
     /** === Methods specific to 1st-Order algorithm === */

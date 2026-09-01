@@ -14,7 +14,7 @@ int main()
 {
     gmsh::initialize();
 
-    Config::ElasticMaterialConfig mat_config("material", 1000, 4e4, 0.45, 0.5, 0.2);
+    Config::ElasticMaterialConfig mat_config("material", 1000, 4e3, 0.45, 0.5, 0.2);
     Config::MaterialClassConfig mat_class_config("test", mat_config, Config::ObjectRenderConfig());
     Sim::MaterialClass mat(&mat_class_config);
 
@@ -31,8 +31,8 @@ int main()
     Solver::HydrostaticConstraint hyd(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
     Solver::DeviatoricConstraint dev(v1, &vertices_vec, 1, v2, &vertices_vec, 1, v3, &vertices_vec, 1, v4, &vertices_vec, 1, mat.material());
 
-    vertices_vec[0][0] = 0.2; vertices_vec[0][1] = 0.15;
-    vertices_vec[1][0] = 0.93; vertices_vec[1][1] = 0.1; vertices_vec[1][2] = 0.1;
+    vertices_vec[0][0] = -3; vertices_vec[0][1] = 2.5;
+    vertices_vec[1][0] = -10; vertices_vec[1][1] = 0.1; vertices_vec[1][2] = 0.1;
 
     typename Solver::HydrostaticConstraint::HessianMatType hyd_hessian_mat = hyd.hessian();
     typename Solver::DeviatoricConstraint::HessianMatType dev_hessian_mat = dev.hessian();
@@ -74,11 +74,11 @@ int main()
         xpbd_mesh_obj->fixVertex(v);
     }
 
-    // for (int i = 0; i < xpbd_mesh_obj->mesh()->numVertices(); i++)
-    // {
-    //     Vec3r v = xpbd_mesh_obj->mesh()->vertex(i);
-    //     std::cout << "Vertex " << i << ": " << v.transpose() << std::endl;
-    // }
+    for (int i = 0; i < xpbd_mesh_obj->mesh()->numVertices(); i++)
+    {
+        xpbd_mesh_obj->mesh()->displaceVertex(i, Vec3r::Random());
+        // std::cout << "Vertex " << i << ": " << v.transpose() << std::endl;
+    }
 
     auto t1 = std::chrono::high_resolution_clock::now();
     MatXr stiffness_mat = xpbd_mesh_obj->stiffnessMatrix();
@@ -87,6 +87,20 @@ int main()
     double new_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1.0e6;
 
     std::cout << "\n\nStiffness matrix:\n" << stiffness_mat << std::endl;
+
+    for (int i = 0; i < 10000; ++i)
+    {
+        VecXr x = VecXr::Random(stiffness_mat.rows());
+
+        Real q = x.dot(stiffness_mat * x);
+
+        if (q < 0)
+        {
+            std::cout << "NEGATIVE QUADRATIC FORM: "
+                    << q << std::endl;
+            break;
+        }
+    }
 
     // int v1 = xpbd_mesh_obj->mesh()->getClosestVertex(bbox.min);
     // int v2 = xpbd_mesh_obj->mesh()->getClosestVertex(Vec3r(bbox.min[0], bbox.max[1], bbox.min[2]));
