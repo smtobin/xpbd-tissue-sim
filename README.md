@@ -5,6 +5,11 @@ Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with 
 **Maintainer**: Sam Tobin (stobin2@vols.utk.edu)
 
 ## Table of Contents
+* [Best Practices](#best-practices)
+  * [General](#general)
+  * [FLR](#flr)
+  * [CAO](#cao)
+  * [FAQ](#faq)
 * [API](#api)
   * [Nodes](#nodes)
     * [Any Simulation](#any-simulation)
@@ -34,6 +39,113 @@ Real-time simulation of a Virtuoso CTR interacting with deformable tissue, with 
   * [Simobject](#simobject)
   * [Solver](#solver)
   * [Config](#config)
+
+# Best Practices
+--- Updated 09/10/26 ---
+
+This section hopefully addresses questions about what options/configurations to use for which applications.
+
+## General
+The three things that you will have to edit/work with are:
+1) the **config** file - this is the `.yaml` file that contains options for the simulator itself
+2) the **launch** file - this is the ROS2 launch file that contains options for the ROS bridge to the simulator (topic names, frame names, etc.)
+3) the **mesh** file - this is the starting mesh that the sim loads and does computations on
+
+## FLR
+### FLR Configurations
+FLR has two main configurations: 
+1) **default** - collisions enabled, will probably blow up after a while. Config file is `config/demos/virtuoso_prostate/focal_lesion.yaml`.
+2) **stable** - collisions turned off, just grasping and cutting. Should be stable (not blow up) for an entire FLR procedure. Config file is `config/demos/virtuoso_prostate/focal_lesion_no_collision.yaml`.
+
+The only difference between the two of them is **which config file you use**. This is set through the `config_filename` launch argument in the focal lesion launch file, `ros_workspace/launch/focal_lesion_sim_bridge.launch.py`. E.g., to launch the default configuration:
+```
+ros2 launch launch/focal_lesion_sim_bridge.launch.py config_filename:=../config/demos/virtuoso_prostate/focal_lesion.yaml
+```
+And the stable configuration:
+```
+ros2 launch launch/focal_lesion_sim_bridge.launch.py config_filename:=../config/demos/virtuoso_prostate/focal_lesion_no_collision.yaml
+```
+Note that these commands will use the default mesh provided.
+
+### Generating FLR Mesh
+To generate a new mesh based off of a segmented CT scan, use **`scripts/launch_FLR.py`**. This will automatically generate the mesh, and launch the FLR node with the newly generated mesh. Simply run:
+```
+python3 ../scripts/launch_FLR.py \
+  --prostate-stl <path/to/CT/prostate.stl> \
+  --lesion-stl <path/to/CT/lesion.stl> \
+  --output-msh <name/of/output/file.msh>
+```
+The ROS node should launch, showing the prostate very far away from the robot. This is normal. If you are running with `tf` publishing the CT -> VB registration, then it should snap into place after a second or two. **If you are running without `tf` but want to have a registered simulation, you will have to do it manually. (I do not have the transforms).** If you have manual registration that you would like to input into the sim, you can do so using extra arguments in the focal lesion launch file:
+```
+ros2 launch launch/focal_lesion_sim_bridge.launch.py \
+  config_filename:=../config/demos/virtuoso_prostate/focal_lesion.yaml \
+  prostate_mesh_filename:=<path/to/prostate/and/lesion.msh> \
+  CT_to_VB_translation:=[X,Y,Z] \
+  CT_to_VB_rotation:=[Xdeg,Ydeg,Zdeg]
+```
+where `CT_to_VB_translation` is the translation part of the transform, in meters, and `CT_to_VB_rotation` is the rotational part of the transform, in XYZ Euler angles (degrees). This assumes that the CT -> VB transform is such that it transform a point from the CT frame into the VB frame via `x_vb = T*x_ct`.
+
+## CAO
+CAO just has one configuration, which is **with collisions enabled**. The config file is `config/demos/virtuoso_trachea/only_tumor.yaml`. The corresponding ROS launch file is `ros_workspace/launch/CAO_sim_bridge.launch.py`.
+```
+ros2 launch launch/CAO_sim_bridge.launch.py config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml
+```
+This uses the default mesh provided. To generate a cleaned and decimated tumor mesh from a segmented CT scan, use **`scripts/generate_CAO_mesh.py`**. This will automatically generate the volumetric mesh and decide which faces on the tumor should be fixed to the trachea. Simply run:
+```
+python3 ../scripts/generate_CAO_mesh.py \
+  <path/to/CT/tumor.stl> \
+  <path/to/CT/trachea.stl> \
+  --tumor-output-msh <name/of/tumor/output.msh> \
+  --trachea-output-stl <name/of/trachea/output.stl>
+```
+Then run:
+```
+ros2 launch launch/CAO_sim_bridge.launch.py \
+  config_filename:=../config/demos/virtuoso_trachea/only_tumor.yaml \
+  tumor_mesh_filename:=<path/to/tumor.msh> \
+  trachea_mesh_filename:=<path/to/trachea.stl>
+```
+As with FLR: **If you are running without `tf` but want to have a registered simulation, you will have to do it manually. (I do not have the transforms).** The CAO launch file has the same `CT_to_VB_translation` and `CT_to_VB_rotation` launch arguments as FLR, see above.
+
+## FAQ
+#### Sim blew up, what do I do?
+If running without collisions, try to record a ROS bag and/or a video and send it to Sam.
+
+Try running without collisions and forces on the tool. To do this, add `ignore-all-collisions: true` under the `FirstOrderXPBDMeshObject` object in the config file, and add `ignore-all-collisions: true` and `ignore-all-forces: true` under each `VirtuosoArm` object in the config file. For an example, see `config/demos/virtuoso_prostate/focal_lesion_no_collision.yaml`.
+
+Also try running with lower (or no) adaptive mesh refinement. (See below).
+
+#### Sim crashed (window disappeared), what do I do?
+If possible, try to send the terminal output and anything you did to cause the crash (and any other information) to Sam.
+
+#### How to turn on/off adaptive mesh refinement?
+To completely turn on/off adaptive mesh refinement, edit `adaptive-mesh-refinement: true/false` under the `FirstOrderXPBDMeshObject` object in the config file. To change the level of refinement used, edit `max-refinement-level: 0/1/2`. 0 = no refinement, 1 = coarse refinement, and 2 = fine refinement. 2 produces the best visual quality, but is much slower. 1 is a good compromise when needed some refinement but seeing slowdowns in sim speed or stability (such as in FLR ).
+
+#### `tf` is running and publishing the transform from CT -> VB, but the sim is not updating?
+This is very likely because the sim is looking for the wrong CT frame name. In the ROS launch file (either CAO, FLR, or BPH), there is a ROS parameter
+```
+{"CT_frame_name": "ct/base/slam"},   # name of the CT origin frame in the tf tree
+```
+Change this frame name to whatever the CT origin frame is called in the `tf` tree. Relaunch and the transforms should update.
+
+#### The robot is not moving when I try to command ROS positions to it
+In the ROS launch file, check the topic remappings:
+```
+('/sim/input/arm1_tip_pos', '/ves/left/joint/measured_cp'),
+('/sim/input/arm2_tip_pos', '/ves/right/joint/measured_cp'),
+
+('/sim/input/arm1_tool_state', '/ves/left/measured_tool'),
+('/sim/input/arm2_tool_state', '/ves/right/measured_tool'),
+```
+And verify that the expected messages are being published on these topics.
+
+#### How to switch tools on the robot?
+In the config file, locate the `tool-type: ` parameter. There are 4 options:
+1) `"none"` - no tool, just the Virtuoso arm
+2) `"spatula"` - the spatula tool, includes collision geometry for the spatula
+3) `"cautery"` - the cautery tool, includes collision geometry for the cautery tool
+4) `"grasper"` - the grasping tool, grasps vertices within a certain radius (shown by a translucent yellow ball).
+
 
 # API
 ## Nodes
